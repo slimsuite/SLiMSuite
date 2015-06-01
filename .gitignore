@@ -1,0 +1,14 @@
+.svn
+*.pyc
+dev/dev_archive
+docs/docs_*
+docs/pages
+extras/*.txt
+html
+libraries/Deprecated
+libraries/archives
+libraries/servers
+packages
+pydocs
+servers
+testing

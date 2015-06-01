@@ -1,0 +1,14 @@
+# Based on Property Matrix of Livingstone and Barton.
+PROPERTY    I L V C A G M F Y W H K R E Q D N S T P
+Hydrophobic 1 1 1 1 1 1 1 1 1 1 1 1 0 0 0 0 0 0 1 0
+Polar       0 0 0 0 0 0 0 0 1 1 1 1 1 1 1 1 1 1 1 0
+Small       0 0 1 1 1 1 0 0 0 0 0 0 0 0 0 1 1 1 1 1
+Proline     0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1
+Positive    0 0 0 0 0 0 0 0 0 0 1 1 1 0 0 0 0 0 0 0
+Negative    0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 1 0 0 0 0
+Charged     0 0 0 0 0 0 0 0 0 0 1 1 1 1 0 1 0 0 0 0
+Tiny        0 0 0 0 1 1 0 0 0 0 0 0 0 0 0 0 0 1 0 0
+Aliphatic   1 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+Aromatic    0 0 0 0 0 0 0 1 1 1 1 0 0 0 0 0 0 0 0 0
+
+

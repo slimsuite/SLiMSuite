@@ -1,0 +1,1880 @@
+ID   DYIN_DROME              Reviewed;         663 AA.
+AC   Q24246; O96508; O96510; O96511; O96512; O96513; O96514; O96515;
+AC   O96516; Q5U0Z1; Q86BQ5; Q9NG49; Q9TZR7; Q9TZR8; Q9TZR9; Q9TZS0;
+AC   Q9VR78;
+DT   01-NOV-1997, integrated into UniProtKB/Swiss-Prot.
+DT   03-JUL-2003, sequence version 3.
+DT   19-OCT-2011, entry version 125.
+DE   RecName: Full=Cytoplasmic dynein 1 intermediate chain;
+DE            Short=DH IC;
+DE   AltName: Full=Dynein intermediate chain, cytosolic;
+DE   AltName: Full=Protein short wing;
+GN   Name=sw; Synonyms=Cdic, Dic19B; ORFNames=CG18000;
+OS   Drosophila melanogaster (Fruit fly).
+OC   Eukaryota; Metazoa; Arthropoda; Hexapoda; Insecta; Pterygota;
+OC   Neoptera; Endopterygota; Diptera; Brachycera; Muscomorpha;
+OC   Ephydroidea; Drosophilidae; Drosophila; Sophophora.
+OX   NCBI_TaxID=7227;
+RN   [1]
+RP   NUCLEOTIDE SEQUENCE [GENOMIC DNA / MRNA] (ISOFORMS 1A; 1B; 1C; 2A; 2B;
+RP   2C; 3A; 3B; 4; 5A AND 5B), SUBCELLULAR LOCATION, TISSUE SPECIFICITY,
+RP   AND DEVELOPMENTAL STAGE.
+RC   TISSUE=Ovary;
+RX   MEDLINE=98449968; PubMed=9774695;
+RA   Nurminsky D.I., Nurminskaya M.V., Benevolenskaya E.V., Shevelyov Y.Y.,
+RA   Hartl D.L., Gvozdev V.A.;
+RT   "Cytoplasmic dynein intermediate-chain isoforms with different
+RT   targeting properties created by tissue-specific alternative
+RT   splicing.";
+RL   Mol. Cell. Biol. 18:6816-6825(1998).
+RN   [2]
+RP   NUCLEOTIDE SEQUENCE [MRNA] (ISOFORM 2B), FUNCTION, AND TISSUE
+RP   SPECIFICITY.
+RC   TISSUE=Ovary;
+RX   MEDLINE=20525500; PubMed=11071907;
+RA   Boylan K., Serr M., Hays T.S.;
+RT   "A molecular genetic analysis of the interaction between the
+RT   cytoplasmic dynein intermediate chain and the glued (Dynactin)
+RT   complex.";
+RL   Mol. Biol. Cell 11:3791-3803(2000).
+RN   [3]
+RP   NUCLEOTIDE SEQUENCE [LARGE SCALE GENOMIC DNA].
+RC   STRAIN=Berkeley;
+RX   MEDLINE=20196006; PubMed=10731132; DOI=10.1126/science.287.5461.2185;
+RA   Adams M.D., Celniker S.E., Holt R.A., Evans C.A., Gocayne J.D.,
+RA   Amanatides P.G., Scherer S.E., Li P.W., Hoskins R.A., Galle R.F.,
+RA   George R.A., Lewis S.E., Richards S., Ashburner M., Henderson S.N.,
+RA   Sutton G.G., Wortman J.R., Yandell M.D., Zhang Q., Chen L.X.,
+RA   Brandon R.C., Rogers Y.-H.C., Blazej R.G., Champe M., Pfeiffer B.D.,
+RA   Wan K.H., Doyle C., Baxter E.G., Helt G., Nelson C.R., Miklos G.L.G.,
+RA   Abril J.F., Agbayani A., An H.-J., Andrews-Pfannkoch C., Baldwin D.,
+RA   Ballew R.M., Basu A., Baxendale J., Bayraktaroglu L., Beasley E.M.,
+RA   Beeson K.Y., Benos P.V., Berman B.P., Bhandari D., Bolshakov S.,
+RA   Borkova D., Botchan M.R., Bouck J., Brokstein P., Brottier P.,
+RA   Burtis K.C., Busam D.A., Butler H., Cadieu E., Center A., Chandra I.,
+RA   Cherry J.M., Cawley S., Dahlke C., Davenport L.B., Davies P.,
+RA   de Pablos B., Delcher A., Deng Z., Mays A.D., Dew I., Dietz S.M.,
+RA   Dodson K., Doup L.E., Downes M., Dugan-Rocha S., Dunkov B.C., Dunn P.,
+RA   Durbin K.J., Evangelista C.C., Ferraz C., Ferriera S., Fleischmann W.,
+RA   Fosler C., Gabrielian A.E., Garg N.S., Gelbart W.M., Glasser K.,
+RA   Glodek A., Gong F., Gorrell J.H., Gu Z., Guan P., Harris M.,
+RA   Harris N.L., Harvey D.A., Heiman T.J., Hernandez J.R., Houck J.,
+RA   Hostin D., Houston K.A., Howland T.J., Wei M.-H., Ibegwam C.,
+RA   Jalali M., Kalush F., Karpen G.H., Ke Z., Kennison J.A., Ketchum K.A.,
+RA   Kimmel B.E., Kodira C.D., Kraft C.L., Kravitz S., Kulp D., Lai Z.,
+RA   Lasko P., Lei Y., Levitsky A.A., Li J.H., Li Z., Liang Y., Lin X.,
+RA   Liu X., Mattei B., McIntosh T.C., McLeod M.P., McPherson D.,
+RA   Merkulov G., Milshina N.V., Mobarry C., Morris J., Moshrefi A.,
+RA   Mount S.M., Moy M., Murphy B., Murphy L., Muzny D.M., Nelson D.L.,
+RA   Nelson D.R., Nelson K.A., Nixon K., Nusskern D.R., Pacleb J.M.,
+RA   Palazzolo M., Pittman G.S., Pan S., Pollard J., Puri V., Reese M.G.,
+RA   Reinert K., Remington K., Saunders R.D.C., Scheeler F., Shen H.,
+RA   Shue B.C., Siden-Kiamos I., Simpson M., Skupski M.P., Smith T.J.,
+RA   Spier E., Spradling A.C., Stapleton M., Strong R., Sun E.,
+RA   Svirskas R., Tector C., Turner R., Venter E., Wang A.H., Wang X.,
+RA   Wang Z.-Y., Wassarman D.A., Weinstock G.M., Weissenbach J.,
+RA   Williams S.M., Woodage T., Worley K.C., Wu D., Yang S., Yao Q.A.,
+RA   Ye J., Yeh R.-F., Zaveri J.S., Zhan M., Zhang G., Zhao Q., Zheng L.,
+RA   Zheng X.H., Zhong F.N., Zhong W., Zhou X., Zhu S.C., Zhu X.,
+RA   Smith H.O., Gibbs R.A., Myers E.W., Rubin G.M., Venter J.C.;
+RT   "The genome sequence of Drosophila melanogaster.";
+RL   Science 287:2185-2195(2000).
+RN   [4]
+RP   GENOME REANNOTATION, AND ALTERNATIVE SPLICING.
+RX   MEDLINE=22426069; PubMed=12537572;
+RA   Misra S., Crosby M.A., Mungall C.J., Matthews B.B., Campbell K.S.,
+RA   Hradecky P., Huang Y., Kaminker J.S., Millburn G.H., Prochnik S.E.,
+RA   Smith C.D., Tupy J.L., Whitfield E.J., Bayraktaroglu L., Berman B.P.,
+RA   Bettencourt B.R., Celniker S.E., de Grey A.D.N.J., Drysdale R.A.,
+RA   Harris N.L., Richter J., Russo S., Schroeder A.J., Shu S.Q.,
+RA   Stapleton M., Yamada C., Ashburner M., Gelbart W.M., Rubin G.M.,
+RA   Lewis S.E.;
+RT   "Annotation of the Drosophila melanogaster euchromatic genome: a
+RT   systematic review.";
+RL   Genome Biol. 3:RESEARCH0083.1-RESEARCH0083.22(2002).
+RN   [5]
+RP   NUCLEOTIDE SEQUENCE [LARGE SCALE MRNA] (ISOFORM 1B).
+RC   STRAIN=Berkeley; TISSUE=Embryo;
+RA   Stapleton M., Carlson J.W., Chavez C., Frise E., George R.A.,
+RA   Pacleb J.M., Park S., Wan K.H., Yu C., Rubin G.M., Celniker S.E.;
+RL   Submitted (OCT-2004) to the EMBL/GenBank/DDBJ databases.
+RN   [6]
+RP   NUCLEOTIDE SEQUENCE [GENOMIC DNA] OF 101-663 (ISOFORM 4).
+RC   STRAIN=GT WA;
+RA   Benevolenskaya E.V., Gvozdev V.A.;
+RT   "Cluster of tandem repeats in Drosophila genome comprising putative
+RT   genes encoding cytoplasmic dynein intermediate chain and 3'-part of
+RT   annexin X.";
+RL   Submitted (MAY-1995) to the EMBL/GenBank/DDBJ databases.
+CC   -!- FUNCTION: Acts as one of several non-catalytic accessory
+CC       components of the cytoplasmic dynein 1 complex that are thought to
+CC       be involved in linking dynein to cargos and to adapter proteins
+CC       that regulate dynein function. Cytoplasmic dynein 1 acts as a
+CC       motor for the intracellular retrograde motility of vesicles and
+CC       organelles along microtubules. The intermediate chains mediate the
+CC       help dynein bind to dynactin 150 kDa component (By similarity).
+CC   -!- SUBUNIT: Homodimer (By similarity). The cytoplasmic dynein 1
+CC       complex consists of two catalytic heavy chains (HCs) and a number
+CC       of non-catalytic subunits presented by intermediate chains (ICs),
+CC       light intermediate chains (LICs) and light chains (LCs) (By
+CC       similarity).
+CC   -!- SUBCELLULAR LOCATION: Cytoplasm, cytoskeleton.
+CC   -!- SUBCELLULAR LOCATION: Isoform 2c: Lysosome membrane; Peripheral
+CC       membrane protein; Cytoplasmic side. Note=Aggregates in cytoplasm
+CC       around lysosomes.
+CC   -!- SUBCELLULAR LOCATION: Isoform 2a: Nucleus membrane; Peripheral
+CC       membrane protein; Cytoplasmic side. Note=Aggregates in cytoplasm
+CC       around the nucleus.
+CC   -!- SUBCELLULAR LOCATION: Isoform 2b: Nucleus membrane; Peripheral
+CC       membrane protein; Cytoplasmic side. Note=Aggregates in cytoplasm
+CC       around the nucleus.
+CC   -!- ALTERNATIVE PRODUCTS:
+CC       Event=Alternative splicing; Named isoforms=11;
+CC       Name=5a; Synonyms=J;
+CC         IsoId=Q24246-11; Sequence=Displayed;
+CC       Name=1a; Synonyms=A;
+CC         IsoId=Q24246-2; Sequence=VSP_001345;
+CC       Name=1b; Synonyms=B;
+CC         IsoId=Q24246-3; Sequence=VSP_001346;
+CC       Name=1c; Synonyms=C;
+CC         IsoId=Q24246-4; Sequence=VSP_001347;
+CC       Name=2a; Synonyms=D;
+CC         IsoId=Q24246-5; Sequence=VSP_007686, VSP_001348;
+CC       Name=2b; Synonyms=E;
+CC         IsoId=Q24246-6; Sequence=VSP_007686;
+CC       Name=2c; Synonyms=F;
+CC         IsoId=Q24246-7; Sequence=VSP_007686, VSP_007687;
+CC       Name=3a; Synonyms=G;
+CC         IsoId=Q24246-8; Sequence=VSP_001342, VSP_001348;
+CC       Name=3b; Synonyms=H;
+CC         IsoId=Q24246-9; Sequence=VSP_001342;
+CC       Name=4; Synonyms=I;
+CC         IsoId=Q24246-10; Sequence=VSP_001343;
+CC       Name=5b; Synonyms=K;
+CC         IsoId=Q24246-12; Sequence=VSP_007685;
+CC   -!- TISSUE SPECIFICITY: High levels of isoform 1b, isoform 1c, isoform
+CC       3a and isoform 4 accumulate in early egg chambers and at stage 9
+CC       become concentrated at the posterior of the oocyte. Isoform 5a and
+CC       isoform 5b are highly expressed in adult head and to a lesser
+CC       extent in adult torso. Isoform 1a, isoform 2a and isoform 2b are
+CC       found in all tissues examined, including ovaries, midgut, torso
+CC       and head.
+CC   -!- DEVELOPMENTAL STAGE: Expressed both maternally and zygotically.
+CC       Abundant in embryos and adults, low levels in larva and pupae.
+CC       Isoform 1a, isoform 2a and isoform 2b are constitutively expressed
+CC       at high levels and isoform 2c at low levels in embryos and adults.
+CC   -!- SIMILARITY: Belongs to the dynein intermediate chain family.
+CC   -!- SIMILARITY: Contains 7 WD repeats.
+CC   -!- SEQUENCE CAUTION:
+CC       Sequence=AAC70942.1; Type=Erroneous gene model prediction;
+CC       Sequence=AAC78306.1; Type=Erroneous gene model prediction;
+CC   -----------------------------------------------------------------------
+CC   Copyrighted by the UniProt Consortium, see http://www.uniprot.org/terms
+CC   Distributed under the Creative Commons Attribution-NoDerivs License
+CC   -----------------------------------------------------------------------
+DR   EMBL; AF070687; AAC78306.1; ALT_SEQ; Genomic_DNA.
+DR   EMBL; AF070689; AAC70933.1; -; mRNA.
+DR   EMBL; AF070690; AAC70934.1; -; mRNA.
+DR   EMBL; AF070691; AAC70935.1; -; mRNA.
+DR   EMBL; AF070692; AAC70936.1; -; mRNA.
+DR   EMBL; AF070693; AAC70937.1; -; mRNA.
+DR   EMBL; AF070694; AAC70938.1; -; mRNA.
+DR   EMBL; AF070695; AAC70939.1; -; mRNA.
+DR   EMBL; AF070696; AAC70940.1; -; mRNA.
+DR   EMBL; AF070697; AAC70941.1; -; mRNA.
+DR   EMBL; AF070698; AAC70942.1; ALT_SEQ; mRNA.
+DR   EMBL; AF070699; AAC70943.1; -; mRNA.
+DR   EMBL; AF263371; AAF73046.1; -; mRNA.
+DR   EMBL; AE014298; AAF50928.2; -; Genomic_DNA.
+DR   EMBL; AE014298; AAN09553.1; -; Genomic_DNA.
+DR   EMBL; AE014298; AAN09554.1; -; Genomic_DNA.
+DR   EMBL; AE014298; AAN09555.1; -; Genomic_DNA.
+DR   EMBL; AE014298; AAN09556.1; -; Genomic_DNA.
+DR   EMBL; AE014298; AAN09557.1; -; Genomic_DNA.
+DR   EMBL; AE014298; AAN09558.1; -; Genomic_DNA.
+DR   EMBL; AE014298; AAN09559.1; -; Genomic_DNA.
+DR   EMBL; AE014298; AAN09560.1; -; Genomic_DNA.
+DR   EMBL; AE014298; AAN09561.1; -; Genomic_DNA.
+DR   EMBL; AE014298; AAN09562.1; -; Genomic_DNA.
+DR   EMBL; BT016101; AAV36986.1; -; mRNA.
+DR   EMBL; L41945; AAB51185.1; -; Genomic_DNA.
+DR   RefSeq; NP_477069.1; NM_057721.3.
+DR   RefSeq; NP_477070.1; NM_057722.3.
+DR   RefSeq; NP_477071.1; NM_057723.3.
+DR   RefSeq; NP_477072.1; NM_057724.3.
+DR   RefSeq; NP_477073.1; NM_057725.3.
+DR   RefSeq; NP_477074.1; NM_057726.3.
+DR   RefSeq; NP_477075.2; NM_057727.4.
+DR   RefSeq; NP_477076.1; NM_057728.3.
+DR   RefSeq; NP_477077.1; NM_057729.3.
+DR   RefSeq; NP_477078.1; NM_057730.4.
+DR   RefSeq; NP_477079.1; NM_057731.3.
+DR   RefSeq; NP_996521.1; NM_206798.1.
+DR   RefSeq; NP_996522.1; NM_206799.1.
+DR   UniGene; Dm.20780; -.
+DR   PDB; 2P2T; X-ray; 3.00 A; C=123-138.
+DR   PDB; 3FM7; X-ray; 3.50 A; C/D=109-135.
+DR   PDB; 3L9K; X-ray; 3.00 A; W/X/Y/Z=242-279.
+DR   PDBsum; 2P2T; -.
+DR   PDBsum; 3FM7; -.
+DR   PDBsum; 3L9K; -.
+DR   ProteinModelPortal; Q24246; -.
+DR   SMR; Q24246; 109-135, 242-279.
+DR   DIP; DIP-19664N; -.
+DR   IntAct; Q24246; 1.
+DR   MINT; MINT-1717948; -.
+DR   STRING; Q24246; -.
+DR   EnsemblMetazoa; FBtr0089406; FBpp0088428; FBgn0003654.
+DR   GeneID; 44160; -.
+DR   KEGG; dme:Dmel_CG18000; -.
+DR   CTD; 44160; -.
+DR   FlyBase; FBgn0003654; sw.
+DR   eggNOG; inNOG08999; -.
+DR   InParanoid; Q24246; -.
+DR   OMA; EPRANEK; -.
+DR   OrthoDB; EOG4WWQ0J; -.
+DR   PhylomeDB; Q24246; -.
+DR   NextBio; 836907; -.
+DR   Bgee; Q24246; -.
+DR   GermOnline; CG18000; Drosophila melanogaster.
+DR   GO; GO:0030286; C:dynein complex; IEA:UniProtKB-KW.
+DR   GO; GO:0005765; C:lysosomal membrane; IEA:UniProtKB-SubCell.
+DR   GO; GO:0005874; C:microtubule; IEA:UniProtKB-KW.
+DR   GO; GO:0031965; C:nuclear membrane; IEA:UniProtKB-SubCell.
+DR   GO; GO:0045503; F:dynein light chain binding; IPI:FlyBase.
+DR   GO; GO:0003774; F:motor activity; IEA:UniProtKB-KW.
+DR   GO; GO:0008088; P:axon cargo transport; IMP:FlyBase.
+DR   GO; GO:0051642; P:centrosome localization; IMP:FlyBase.
+DR   GO; GO:0016482; P:cytoplasmic transport; IMP:FlyBase.
+DR   GO; GO:0001754; P:eye photoreceptor cell differentiation; IGI:FlyBase.
+DR   GO; GO:0007291; P:sperm individualization; IMP:FlyBase.
+DR   GO; GO:0007051; P:spindle organization; IMP:FlyBase.
+DR   InterPro; IPR015943; WD40/YVTN_repeat-like_dom.
+DR   InterPro; IPR001680; WD40_repeat.
+DR   InterPro; IPR011046; WD40_repeat-like_dom.
+DR   InterPro; IPR019782; WD40_repeat_2.
+DR   InterPro; IPR017986; WD40_repeat_dom.
+DR   InterPro; IPR019781; WD40_repeat_subgr.
+DR   Gene3D; G3DSA:2.130.10.10; WD40/YVTN_repeat-like; 1.
+DR   Pfam; PF00400; WD40; 1.
+DR   SMART; SM00320; WD40; 6.
+DR   SUPFAM; SSF50978; WD40_like; 1.
+DR   PROSITE; PS00678; WD_REPEATS_1; FALSE_NEG.
+DR   PROSITE; PS50082; WD_REPEATS_2; 1.
+DR   PROSITE; PS50294; WD_REPEATS_REGION; 1.
+PE   1: Evidence at protein level;
+KW   3D-structure; Alternative splicing; Complete proteome; Cytoplasm;
+KW   Cytoskeleton; Dynein; Lysosome; Membrane; Microtubule; Motor protein;
+KW   Nucleus; Reference proteome; Repeat; Transport; WD repeat.
+FT   CHAIN         1    663       Cytoplasmic dynein 1 intermediate chain.
+FT                                /FTId=PRO_0000114661.
+FT   REPEAT      311    360       WD 1.
+FT   REPEAT      364    404       WD 2.
+FT   REPEAT      413    454       WD 3.
+FT   REPEAT      463    503       WD 4.
+FT   REPEAT      508    553       WD 5.
+FT   REPEAT      556    596       WD 6.
+FT   REPEAT      602    641       WD 7.
+FT   VAR_SEQ     144    187       VLSCHSSPLSGYMEDWWRPRKAHATDYYDEYNLNPGLEWED
+FT                                EFT -> AHATDYYVLAFDAQG (in isoform 1a).
+FT                                /FTId=VSP_001345.
+FT   VAR_SEQ     144    187       VLSCHSSPLSGYMEDWWRPRKAHATDYYDEYNLNPGLEWED
+FT                                EFT -> AHATDYYG (in isoform 1b).
+FT                                /FTId=VSP_001346.
+FT   VAR_SEQ     144    187       VLSCHSSPLSGYMEDWWRPRKAHATDYYDEYNLNPGLEWED
+FT                                EFT -> AHATDYY (in isoform 1c).
+FT                                /FTId=VSP_001347.
+FT   VAR_SEQ     144    171       Missing (in isoform 3a and isoform 3b).
+FT                                /FTId=VSP_001342.
+FT   VAR_SEQ     144    164       Missing (in isoform 2a, isoform 2b and
+FT                                isoform 2c).
+FT                                /FTId=VSP_007686.
+FT   VAR_SEQ     144    153       Missing (in isoform 5b).
+FT                                /FTId=VSP_007685.
+FT   VAR_SEQ     146    187       SCHSSPLSGYMEDWWRPRKAHATDYYDEYNLNPGLEWEDEF
+FT                                T -> AFDAQG (in isoform 4).
+FT                                /FTId=VSP_001343.
+FT   VAR_SEQ     187    187       T -> TG (in isoform 2a and isoform 3a).
+FT                                /FTId=VSP_001348.
+FT   VAR_SEQ     187    187       T -> TVLAFDAQG (in isoform 2c).
+FT                                /FTId=VSP_007687.
+FT   CONFLICT     47     47       D -> G (in Ref. 1; AAC78306/AAC70933/
+FT                                AAC70934/AAC70935/AAC70936/AAC70937/
+FT                                AAC70938/AAC70939/AAC70940/AAC70941/
+FT                                AAC70942/AAC70943).
+FT   CONFLICT    139    145       GGNGDVL -> AETAMV (in Ref. 6; AAB51185).
+FT   CONFLICT    235    235       V -> L (in Ref. 6; AAB51185).
+FT   CONFLICT    296    297       HA -> SM (in Ref. 6; AAB51185).
+FT   CONFLICT    521    522       NQ -> KP (in Ref. 6; AAB51185).
+FT   CONFLICT    537    548       DWTIKLWSLKDT -> KIWSLKLPISSCQFSVVSGINSN
+FT                                (in Ref. 6; AAB51185).
+FT   CONFLICT    579    579       G -> A (in Ref. 6; AAB51185).
+FT   CONFLICT    593    593       E -> K (in Ref. 6; AAB51185).
+FT   CONFLICT    628    628       L -> Q (in Ref. 6; AAB51185).
+FT   CONFLICT    645    663       WSRFNTHLSEIKMNQSDEV -> IKMNQSVRSRTI (in
+FT                                Ref. 6; AAB51185).
+FT   STRAND      128    131
+SQ   SEQUENCE   663 AA;  73917 MW;  4C726D4C5F47FAF7 CRC64;
+     MDRKAELERK KAKLAALREE KDRRRREKEI KDMEEAAGRI GGGAGIDKDQ RKDLDEMLSS
+     LGVAPVSEVL SSLSSVNSMT SDNSNTQTPD ASLQATVNGQ SGGKKQPLNL SVYNVQATNI
+     PPKETLVYTK QTQTTSTGGG NGDVLSCHSS PLSGYMEDWW RPRKAHATDY YDEYNLNPGL
+     EWEDEFTDDE ESSLQNLGNG FTSKLPPGYL THGLPTVKDV APAITPLEIK KETEVKKEVN
+     ELSEEQKQMI ILSENFQRFV VRAGRVIERA LSENVDIYTD YIGGGDSEEA NDERSHARLS
+     LNRVFYDERW SKNRCITSMD WSTHFPELVV GSYHNNEESP NEPDGVVMVW NTKFKKSTPE
+     DVFHCQSAVM STCFAKFNPN LILGGTYSGQ IVLWDNRVQK RTPIQRTPLS AAAHTHPVYC
+     LQMVGTQNAH NVISISSDGK LCSWSLDMLS QPQDTLELQQ RQSKAIAITS MAFPANEINS
+     LVMGSEDGYV YSASRHGLRS GVNEVYERHL GPITGISTHY NQLSPDFGHL FLTSSIDWTI
+     KLWSLKDTKP LYSFEDNSDY VMDVAWSPVH PALFAAVDGS GRLDLWNLNQ DTEVPTASIV
+     VAGAPALNRV SWTPSGLHVC IGDEAGKLYV YDVAENLAQP SRDEWSRFNT HLSEIKMNQS
+     DEV
+//
+ID   SWA_DROME               Reviewed;         548 AA.
+AC   P40688; Q9W400;
+DT   01-FEB-1995, integrated into UniProtKB/Swiss-Prot.
+DT   01-FEB-1995, sequence version 1.
+DT   21-SEP-2011, entry version 86.
+DE   RecName: Full=Protein swallow;
+GN   Name=swa; ORFNames=CG3429;
+OS   Drosophila melanogaster (Fruit fly).
+OC   Eukaryota; Metazoa; Arthropoda; Hexapoda; Insecta; Pterygota;
+OC   Neoptera; Endopterygota; Diptera; Brachycera; Muscomorpha;
+OC   Ephydroidea; Drosophilidae; Drosophila; Sophophora.
+OX   NCBI_TaxID=7227;
+RN   [1]
+RP   NUCLEOTIDE SEQUENCE, FUNCTION, SUBUNIT, SUBCELLULAR LOCATION, AND
+RP   DEVELOPMENTAL STAGE.
+RC   STRAIN=Canton-S;
+RX   MEDLINE=92217243; PubMed=1806330; DOI=10.1002/dvg.1020120502;
+RA   Chao Y.-C., Donahue K.M., Pokrywka N.J., Stephenson E.C.;
+RT   "Sequence of swallow, a gene required for the localization of bicoid
+RT   message in Drosophila eggs.";
+RL   Dev. Genet. 12:333-341(1991).
+RN   [2]
+RP   NUCLEOTIDE SEQUENCE [LARGE SCALE GENOMIC DNA].
+RC   STRAIN=Berkeley;
+RX   MEDLINE=20196006; PubMed=10731132; DOI=10.1126/science.287.5461.2185;
+RA   Adams M.D., Celniker S.E., Holt R.A., Evans C.A., Gocayne J.D.,
+RA   Amanatides P.G., Scherer S.E., Li P.W., Hoskins R.A., Galle R.F.,
+RA   George R.A., Lewis S.E., Richards S., Ashburner M., Henderson S.N.,
+RA   Sutton G.G., Wortman J.R., Yandell M.D., Zhang Q., Chen L.X.,
+RA   Brandon R.C., Rogers Y.-H.C., Blazej R.G., Champe M., Pfeiffer B.D.,
+RA   Wan K.H., Doyle C., Baxter E.G., Helt G., Nelson C.R., Miklos G.L.G.,
+RA   Abril J.F., Agbayani A., An H.-J., Andrews-Pfannkoch C., Baldwin D.,
+RA   Ballew R.M., Basu A., Baxendale J., Bayraktaroglu L., Beasley E.M.,
+RA   Beeson K.Y., Benos P.V., Berman B.P., Bhandari D., Bolshakov S.,
+RA   Borkova D., Botchan M.R., Bouck J., Brokstein P., Brottier P.,
+RA   Burtis K.C., Busam D.A., Butler H., Cadieu E., Center A., Chandra I.,
+RA   Cherry J.M., Cawley S., Dahlke C., Davenport L.B., Davies P.,
+RA   de Pablos B., Delcher A., Deng Z., Mays A.D., Dew I., Dietz S.M.,
+RA   Dodson K., Doup L.E., Downes M., Dugan-Rocha S., Dunkov B.C., Dunn P.,
+RA   Durbin K.J., Evangelista C.C., Ferraz C., Ferriera S., Fleischmann W.,
+RA   Fosler C., Gabrielian A.E., Garg N.S., Gelbart W.M., Glasser K.,
+RA   Glodek A., Gong F., Gorrell J.H., Gu Z., Guan P., Harris M.,
+RA   Harris N.L., Harvey D.A., Heiman T.J., Hernandez J.R., Houck J.,
+RA   Hostin D., Houston K.A., Howland T.J., Wei M.-H., Ibegwam C.,
+RA   Jalali M., Kalush F., Karpen G.H., Ke Z., Kennison J.A., Ketchum K.A.,
+RA   Kimmel B.E., Kodira C.D., Kraft C.L., Kravitz S., Kulp D., Lai Z.,
+RA   Lasko P., Lei Y., Levitsky A.A., Li J.H., Li Z., Liang Y., Lin X.,
+RA   Liu X., Mattei B., McIntosh T.C., McLeod M.P., McPherson D.,
+RA   Merkulov G., Milshina N.V., Mobarry C., Morris J., Moshrefi A.,
+RA   Mount S.M., Moy M., Murphy B., Murphy L., Muzny D.M., Nelson D.L.,
+RA   Nelson D.R., Nelson K.A., Nixon K., Nusskern D.R., Pacleb J.M.,
+RA   Palazzolo M., Pittman G.S., Pan S., Pollard J., Puri V., Reese M.G.,
+RA   Reinert K., Remington K., Saunders R.D.C., Scheeler F., Shen H.,
+RA   Shue B.C., Siden-Kiamos I., Simpson M., Skupski M.P., Smith T.J.,
+RA   Spier E., Spradling A.C., Stapleton M., Strong R., Sun E.,
+RA   Svirskas R., Tector C., Turner R., Venter E., Wang A.H., Wang X.,
+RA   Wang Z.-Y., Wassarman D.A., Weinstock G.M., Weissenbach J.,
+RA   Williams S.M., Woodage T., Worley K.C., Wu D., Yang S., Yao Q.A.,
+RA   Ye J., Yeh R.-F., Zaveri J.S., Zhan M., Zhang G., Zhao Q., Zheng L.,
+RA   Zheng X.H., Zhong F.N., Zhong W., Zhou X., Zhu S.C., Zhu X.,
+RA   Smith H.O., Gibbs R.A., Myers E.W., Rubin G.M., Venter J.C.;
+RT   "The genome sequence of Drosophila melanogaster.";
+RL   Science 287:2185-2195(2000).
+RN   [3]
+RP   GENOME REANNOTATION.
+RX   MEDLINE=22426069; PubMed=12537572;
+RA   Misra S., Crosby M.A., Mungall C.J., Matthews B.B., Campbell K.S.,
+RA   Hradecky P., Huang Y., Kaminker J.S., Millburn G.H., Prochnik S.E.,
+RA   Smith C.D., Tupy J.L., Whitfield E.J., Bayraktaroglu L., Berman B.P.,
+RA   Bettencourt B.R., Celniker S.E., de Grey A.D.N.J., Drysdale R.A.,
+RA   Harris N.L., Richter J., Russo S., Schroeder A.J., Shu S.Q.,
+RA   Stapleton M., Yamada C., Ashburner M., Gelbart W.M., Rubin G.M.,
+RA   Lewis S.E.;
+RT   "Annotation of the Drosophila melanogaster euchromatic genome: a
+RT   systematic review.";
+RL   Genome Biol. 3:RESEARCH0083.1-RESEARCH0083.22(2002).
+RN   [4]
+RP   NUCLEOTIDE SEQUENCE [LARGE SCALE MRNA].
+RC   STRAIN=Berkeley; TISSUE=Embryo;
+RX   MEDLINE=22426066; PubMed=12537569;
+RA   Stapleton M., Carlson J.W., Brokstein P., Yu C., Champe M.,
+RA   George R.A., Guarin H., Kronmiller B., Pacleb J.M., Park S., Wan K.H.,
+RA   Rubin G.M., Celniker S.E.;
+RT   "A Drosophila full-length cDNA resource.";
+RL   Genome Biol. 3:RESEARCH0080.1-RESEARCH0080.8(2002).
+RN   [5]
+RP   SUBCELLULAR LOCATION.
+RX   MEDLINE=94116446; PubMed=7507030;
+RA   Hegde J., Stephenson E.C.;
+RT   "Distribution of swallow protein in egg chambers and embryos of
+RT   Drosophila melanogaster.";
+RL   Development 119:457-470(1993).
+RN   [6]
+RP   PHOSPHORYLATION [LARGE SCALE ANALYSIS] AT SER-362; SER-368; SER-463;
+RP   SER-471; SER-475; SER-483; SER-485 AND SER-487, AND MASS SPECTROMETRY.
+RC   TISSUE=Embryo;
+RX   PubMed=18327897; DOI=10.1021/pr700696a;
+RA   Zhai B., Villen J., Beausoleil S.A., Mintseris J., Gygi S.P.;
+RT   "Phosphoproteome analysis of Drosophila melanogaster embryos.";
+RL   J. Proteome Res. 7:1675-1682(2008).
+CC   -!- FUNCTION: Has a role in localizing bicoid mRNA at the anterior
+CC       margin of the oocyte during oogenesis, and a poorly characterized
+CC       role in nuclear divisions in early embryogenesis.
+CC   -!- SUBUNIT: May be a homo- or heterodimer.
+CC   -!- SUBCELLULAR LOCATION: Nucleus. Note=Uniformly distributed in eggs,
+CC       becomes localized to the nuclei during early mitotic divisions in
+CC       early embryogenesis. Enters each nucleus at the beginning of
+CC       mitosis, occupies a position complementary to that of condensed
+CC       chromatin, and leaves each nucleus at the end of mitosis.
+CC   -!- DEVELOPMENTAL STAGE: Expressed both maternally and zygotically.
+CC   -----------------------------------------------------------------------
+CC   Copyrighted by the UniProt Consortium, see http://www.uniprot.org/terms
+CC   Distributed under the Creative Commons Attribution-NoDerivs License
+CC   -----------------------------------------------------------------------
+DR   EMBL; X56023; CAA39500.1; -; Genomic_DNA.
+DR   EMBL; AE014298; AAF46160.3; -; Genomic_DNA.
+DR   EMBL; AY069487; AAL39632.1; -; mRNA.
+DR   PIR; S20806; S20806.
+DR   RefSeq; NP_511060.2; NM_078505.3.
+DR   UniGene; Dm.7242; -.
+DR   PDB; 3BRL; X-ray; 1.90 A; C=287-296.
+DR   PDB; 3E2B; X-ray; 2.00 A; C=281-296.
+DR   PDBsum; 3BRL; -.
+DR   PDBsum; 3E2B; -.
+DR   DIP; DIP-17669N; -.
+DR   IntAct; P40688; 3.
+DR   MINT; MINT-280485; -.
+DR   STRING; P40688; -.
+DR   PRIDE; P40688; -.
+DR   EnsemblMetazoa; FBtr0070922; FBpp0070884; FBgn0003655.
+DR   GeneID; 31580; -.
+DR   KEGG; dme:Dmel_CG3429; -.
+DR   NMPDR; fig|7227.3.peg.16720; -.
+DR   UCSC; CG3429-RA; d. melanogaster.
+DR   CTD; 31580; -.
+DR   FlyBase; FBgn0003655; swa.
+DR   GeneTree; EMGT00050000022720; -.
+DR   InParanoid; P40688; -.
+DR   OMA; VSYQDIH; -.
+DR   OrthoDB; EOG4TB2SS; -.
+DR   NextBio; 774289; -.
+DR   Bgee; P40688; -.
+DR   GermOnline; CG3429; Drosophila melanogaster.
+DR   GO; GO:0005634; C:nucleus; IEA:UniProtKB-SubCell.
+DR   GO; GO:0045502; F:dynein binding; TAS:FlyBase.
+DR   GO; GO:0003729; F:mRNA binding; TAS:FlyBase.
+DR   GO; GO:0045450; P:bicoid mRNA localization; NAS:FlyBase.
+DR   GO; GO:0051301; P:cell division; IEA:UniProtKB-KW.
+DR   GO; GO:0007067; P:mitosis; IEA:UniProtKB-KW.
+DR   GO; GO:0019094; P:pole plasm mRNA localization; IMP:FlyBase.
+DR   GO; GO:0007317; P:regulation of pole plasm oskar mRNA localization; IGI:FlyBase.
+PE   1: Evidence at protein level;
+KW   3D-structure; Cell cycle; Cell division; Complete proteome;
+KW   Developmental protein; Mitosis; Nucleus; Phosphoprotein;
+KW   Reference proteome.
+FT   CHAIN         1    548       Protein swallow.
+FT                                /FTId=PRO_0000072342.
+FT   MOD_RES     362    362       Phosphoserine.
+FT   MOD_RES     368    368       Phosphoserine.
+FT   MOD_RES     463    463       Phosphoserine.
+FT   MOD_RES     471    471       Phosphoserine.
+FT   MOD_RES     475    475       Phosphoserine.
+FT   MOD_RES     483    483       Phosphoserine.
+FT   MOD_RES     485    485       Phosphoserine.
+FT   MOD_RES     487    487       Phosphoserine.
+FT   STRAND      288    292
+SQ   SEQUENCE   548 AA;  62070 MW;  B8E0351C7B005159 CRC64;
+     MSLQDESFPT DELFDQLNNL SSSGARNTWF AEHHKPAVFE RDTAPFLEIC YADPDFDADG
+     DVANKSAKTC VSDPVGRDQE DEDDYDEDVD GDDHKLGCEK APLGSGRSSK AVSYQDIHSA
+     YTKRRFQHVT SKVGQYIAEI QAQDQKRRNV KFAGFQRVNS MPESLTPTLQ QVYVHDGDFK
+     VDKNCQTHSN SDSNYNSNSN NSSSSFDRLL AENESLQQKI NSLRVEAKRL QGFNEYVQER
+     LDRKTDDFVK MKCNFETLRT ELSECQQKLR RQQDNSQHHF MYHIRSATSA KATQTDFLVD
+     TIPASGNVLV TPHPLGDLTY NSSKGSIELA LLSVAPSARV AQNPVQVQRA IHPQSLDFSS
+     VSTEADGSGS GEHRVETSSR ALVRRTPAPN NSETSQPSSN DSAIEVEAHE EERPSSRRQW
+     EQQGELISPR QWGQHEGMYY FDKRNNRVIE VMGFNISQGR NQSHDTIHNQ SINDSQTRLL
+     VHSMSMSHLE AHDHFRSKRT TLGSRMLRFL GPCVRCRNGD PLNRSNVTYK DGLPAMPEEE
+     FVDQRNQR
+//
+ID   SWA_DROPS               Reviewed;         537 AA.
+AC   Q9U9I5; Q29JJ4;
+DT   21-FEB-2001, integrated into UniProtKB/Swiss-Prot.
+DT   03-MAR-2009, sequence version 3.
+DT   19-OCT-2011, entry version 46.
+DE   RecName: Full=Protein swallow;
+GN   Name=swa; ORFNames=GA17446;
+OS   Drosophila pseudoobscura pseudoobscura (Fruit fly).
+OC   Eukaryota; Metazoa; Arthropoda; Hexapoda; Insecta; Pterygota;
+OC   Neoptera; Endopterygota; Diptera; Brachycera; Muscomorpha;
+OC   Ephydroidea; Drosophilidae; Drosophila; Sophophora.
+OX   NCBI_TaxID=46245;
+RN   [1]
+RP   NUCLEOTIDE SEQUENCE [GENOMIC DNA].
+RX   MEDLINE=21110505; PubMed=11180817; DOI=10.1007/s004270050023;
+RA   Huang Z., Pokrywka N.J., Yoder J.H., Stephenson E.C.;
+RT   "Analysis of a swallow homologue from Drosophila pseudoobscura.";
+RL   Dev. Genes Evol. 210:157-161(2000).
+RN   [2]
+RP   NUCLEOTIDE SEQUENCE [LARGE SCALE GENOMIC DNA].
+RC   STRAIN=MV2-25 / Tucson 14011-0121.94;
+RX   PubMed=15632085; DOI=10.1101/gr.3059305;
+RA   Richards S., Liu Y., Bettencourt B.R., Hradecky P., Letovsky S.,
+RA   Nielsen R., Thornton K., Hubisz M.J., Chen R., Meisel R.P.,
+RA   Couronne O., Hua S., Smith M.A., Zhang P., Liu J., Bussemaker H.J.,
+RA   van Batenburg M.F., Howells S.L., Scherer S.E., Sodergren E.,
+RA   Matthews B.B., Crosby M.A., Schroeder A.J., Ortiz-Barrientos D.,
+RA   Rives C.M., Metzker M.L., Muzny D.M., Scott G., Steffen D.,
+RA   Wheeler D.A., Worley K.C., Havlak P., Durbin K.J., Egan A., Gill R.,
+RA   Hume J., Morgan M.B., Miner G., Hamilton C., Huang Y., Waldron L.,
+RA   Verduzco D., Clerc-Blankenburg K.P., Dubchak I., Noor M.A.F.,
+RA   Anderson W., White K.P., Clark A.G., Schaeffer S.W., Gelbart W.M.,
+RA   Weinstock G.M., Gibbs R.A.;
+RT   "Comparative genome sequencing of Drosophila pseudoobscura:
+RT   chromosomal, gene, and cis-element evolution.";
+RL   Genome Res. 15:1-18(2005).
+CC   -!- FUNCTION: Has a role in localizing bicoid mRNA at the anterior
+CC       margin of the oocyte during oogenesis, and a poorly characterized
+CC       role in nuclear divisions in early embryogenesis (By similarity).
+CC   -!- SUBUNIT: May be constituted of an homo- or heterodimer (By
+CC       similarity).
+CC   -!- SUBCELLULAR LOCATION: Nucleus. Note=Uniformly distributed in eggs,
+CC       becomes localized to the nuclei during early mitotic divisions in
+CC       early embryogenesis. Swallow enters each nucleus at the beginning
+CC       of mitosis, occupies a position complementary to that of condensed
+CC       chromatin, and leaves each nucleus at the end of mitosis (By
+CC       similarity).
+CC   -!- SEQUENCE CAUTION:
+CC       Sequence=AAD49350.1; Type=Erroneous gene model prediction;
+CC   -----------------------------------------------------------------------
+CC   Copyrighted by the UniProt Consortium, see http://www.uniprot.org/terms
+CC   Distributed under the Creative Commons Attribution-NoDerivs License
+CC   -----------------------------------------------------------------------
+DR   EMBL; AF169634; AAD49350.1; ALT_SEQ; Genomic_DNA.
+DR   EMBL; CH379063; EAL32307.2; -; Genomic_DNA.
+DR   RefSeq; XP_001355250.2; XM_001355214.2.
+DR   GeneID; 4815687; -.
+DR   KEGG; dpo:Dpse_GA17446; -.
+DR   FlyBase; FBgn0027807; Dpse\swa.
+DR   InParanoid; Q9U9I5; -.
+DR   OrthoDB; EOG4TB2SS; -.
+DR   GO; GO:0005634; C:nucleus; IEA:UniProtKB-SubCell.
+DR   GO; GO:0051301; P:cell division; IEA:UniProtKB-KW.
+DR   GO; GO:0007067; P:mitosis; IEA:UniProtKB-KW.
+DR   GO; GO:0007275; P:multicellular organismal development; IEA:UniProtKB-KW.
+PE   3: Inferred from homology;
+KW   Cell cycle; Cell division; Developmental protein; Mitosis; Nucleus.
+FT   CHAIN         1    537       Protein swallow.
+FT                                /FTId=PRO_0000072343.
+FT   CONFLICT    350    350       P -> L (in Ref. 1; AAD49350).
+FT   CONFLICT    390    391       RG -> A (in Ref. 1; AAD49350).
+SQ   SEQUENCE   537 AA;  59641 MW;  BC0715A31691CCE7 CRC64;
+     MSLEDESFPA DELFEQLNSA SIGASRQFKS QFGEHDQPEA FERNPAPFLT SDCSDESSFI
+     DAANKSAKTC VSDPVGLDQC EEEEEVDKDF EDSALANGNS ELQIKSARSS KSVSYQDIHS
+     AHTKRRYKHV TSKVAKYIAD IHAQDQQRRN ATKKFQRHSS MPEYLTPTAR ERGAHFSVDE
+     LHNLDESLDN SSAGNITDAK TPNDSYERLL SENERLQNDK EDLKSYSDYL QTKLDEKAME
+     NMQLRRNFDV LRTDLTDCKE KLKRNQSYSL RSLNFCPPAS VPKATQTDHE LLSHAPNISR
+     LSNMVAIADS GTPLPGSNTN NLTYDSSAGS IEVALLSVAP AARQPNAGKP KKNIQPHSLD
+     FSNDSTEAEP NGNGTTSTGH SSSRAITSRR GAAPNNSESS HPSSNDSAIE VEALDLRSPY
+     HRQPQGSIYP PMQDWGHSDG IYFFDKRNSR VIEVRSINVS QSSNPEQNSG TSETNLLNQS
+     HVQFRHKRTS MGTRMLRLLG PCVRCTDTNQ SVNASSATYT IGLPLLREEY GGRHTDR
+//
+ID   DC1I1_MOUSE             Reviewed;         628 AA.
+AC   O88485; O88486; Q80W09;
+DT   24-JAN-2001, integrated into UniProtKB/Swiss-Prot.
+DT   27-JUL-2011, sequence version 2.
+DT   19-OCT-2011, entry version 91.
+DE   RecName: Full=Cytoplasmic dynein 1 intermediate chain 1;
+DE   AltName: Full=Cytoplasmic dynein intermediate chain 1;
+DE   AltName: Full=Dynein intermediate chain 1, cytosolic;
+DE            Short=DH IC-1;
+GN   Name=Dync1i1; Synonyms=Dnci1, Dncic1;
+OS   Mus musculus (Mouse).
+OC   Eukaryota; Metazoa; Chordata; Craniata; Vertebrata; Euteleostomi;
+OC   Mammalia; Eutheria; Euarchontoglires; Glires; Rodentia; Sciurognathi;
+OC   Muroidea; Muridae; Murinae; Mus; Mus.
+OX   NCBI_TaxID=10090;
+RN   [1]
+RP   NUCLEOTIDE SEQUENCE [MRNA] (ISOFORMS 1A AND 1B).
+RX   MEDLINE=99168894; PubMed=10049579; DOI=10.1006/geno.1998.5665;
+RA   Crackower M.A., Sinasac D.S., Xia J., Motoyama J., Prochazka M.,
+RA   Rommens J.M., Scherer S.W., Tsui L.-C.;
+RT   "Cloning and characterization of two cytoplasmic dynein intermediate
+RT   chain genes in mouse and human.";
+RL   Genomics 55:257-267(1999).
+RN   [2]
+RP   NUCLEOTIDE SEQUENCE [LARGE SCALE GENOMIC DNA].
+RA   Mural R.J., Adams M.D., Myers E.W., Smith H.O., Venter J.C.;
+RL   Submitted (JUL-2005) to the EMBL/GenBank/DDBJ databases.
+RN   [3]
+RP   NUCLEOTIDE SEQUENCE [LARGE SCALE MRNA].
+RC   STRAIN=C57BL/6; TISSUE=Brain;
+RX   PubMed=15489334; DOI=10.1101/gr.2596504;
+RG   The MGC Project Team;
+RT   "The status, quality, and expansion of the NIH full-length cDNA
+RT   project: the Mammalian Gene Collection (MGC).";
+RL   Genome Res. 14:2121-2127(2004).
+RN   [4]
+RP   INTERACTION WITH DYNLL2, AND MUTAGENESIS OF 151-LYS--THR-155.
+RX   PubMed=11148209; DOI=10.1074/jbc.M010320200;
+RA   Lo K.W., Naisbitt S., Fan J.S., Sheng M., Zhang M.;
+RT   "The 8-kDa dynein light chain binds to its targets via a conserved
+RT   (K/R)XTQT motif.";
+RL   J. Biol. Chem. 276:14059-14066(2001).
+RN   [5]
+RP   PHOSPHORYLATION [LARGE SCALE ANALYSIS] AT SER-618, AND MASS
+RP   SPECTROMETRY.
+RC   TISSUE=Brain;
+RX   PubMed=16452087; DOI=10.1074/mcp.T500041-MCP200;
+RA   Trinidad J.C., Specht C.G., Thalhammer A., Schoepfer R.,
+RA   Burlingame A.L.;
+RT   "Comprehensive identification of phosphorylation sites in postsynaptic
+RT   density preparations.";
+RL   Mol. Cell. Proteomics 5:914-922(2006).
+CC   -!- FUNCTION: Acts as one of several non-catalytic accessory
+CC       components of the cytoplasmic dynein 1 complex that are thought to
+CC       be involved in linking dynein to cargos and to adapter proteins
+CC       that regulate dynein function. Cytoplasmic dynein 1 acts as a
+CC       motor for the intracellular retrograde motility of vesicles and
+CC       organelles along microtubules. The intermediate chains mediate the
+CC       binding of dynein to dynactin via its 150 kDa component (p150-
+CC       glued) DCNT1. May play a role in mediating the interaction of
+CC       cytoplasmic dynein with membranous organelles and kinetochores.
+CC   -!- SUBUNIT: Homodimer (By similarity). The cytoplasmic dynein 1
+CC       complex consists of two catalytic heavy chains (HCs) and a number
+CC       of non-catalytic subunits presented by intermediate chains (ICs),
+CC       light intermediate chains (LICs) and light chains (LCs); the
+CC       composition seems to vary in respect to the IC, LIC and LC
+CC       composition. The heavy chain homodimer serves as a scaffold for
+CC       the probable homodimeric assembly of the respective non-catalytic
+CC       subunits. The ICs and LICs bind directly to the HC dimer and the
+CC       LCs assemble on the IC dimer. Interacts with DYNC1H1. Interacts
+CC       with DYNLT1 and DYNLT3. Interacts with DCNT1 (By similarity).
+CC       Interacts with DYNLL2.
+CC   -!- INTERACTION:
+CC       P06537:Nr3c1; NbExp=2; IntAct=EBI-492834, EBI-492753;
+CC   -!- SUBCELLULAR LOCATION: Cytoplasm (By similarity). Chromosome,
+CC       centromere, kinetochore (By similarity). Cytoplasm, cytoskeleton,
+CC       spindle pole (By similarity).
+CC   -!- ALTERNATIVE PRODUCTS:
+CC       Event=Alternative splicing; Named isoforms=2;
+CC         Comment=Additional isoforms seem to exist;
+CC       Name=1A;
+CC         IsoId=O88485-1; Sequence=Displayed;
+CC       Name=1B;
+CC         IsoId=O88485-2; Sequence=VSP_001334;
+CC   -!- SIMILARITY: Belongs to the dynein intermediate chain family.
+CC   -!- SIMILARITY: Contains 7 WD repeats.
+CC   -----------------------------------------------------------------------
+CC   Copyrighted by the UniProt Consortium, see http://www.uniprot.org/terms
+CC   Distributed under the Creative Commons Attribution-NoDerivs License
+CC   -----------------------------------------------------------------------
+DR   EMBL; AF063229; AAC33444.1; -; mRNA.
+DR   EMBL; AF063230; AAC33445.1; -; mRNA.
+DR   EMBL; CH466533; EDL13960.1; -; Genomic_DNA.
+DR   EMBL; BC051992; AAH51992.1; -; mRNA.
+DR   IPI; IPI00131084; -.
+DR   IPI; IPI00226946; -.
+DR   RefSeq; NP_001177952.1; NM_001191023.1.
+DR   RefSeq; NP_001177954.1; NM_001191025.1.
+DR   RefSeq; NP_034193.2; NM_010063.4.
+DR   UniGene; Mm.20893; -.
+DR   ProteinModelPortal; O88485; -.
+DR   IntAct; O88485; 2.
+DR   MINT; MINT-3088793; -.
+DR   STRING; O88485; -.
+DR   PhosphoSite; O88485; -.
+DR   PRIDE; O88485; -.
+DR   Ensembl; ENSMUST00000115554; ENSMUSP00000111216; ENSMUSG00000029757.
+DR   Ensembl; ENSMUST00000115559; ENSMUSP00000111221; ENSMUSG00000029757.
+DR   GeneID; 13426; -.
+DR   MGI; MGI:107743; Dync1i1.
+DR   eggNOG; roNOG08443; -.
+DR   GeneTree; ENSGT00550000074241; -.
+DR   HOVERGEN; HBG004083; -.
+DR   ArrayExpress; O88485; -.
+DR   Bgee; O88485; -.
+DR   CleanEx; MM_DYNC1I1; -.
+DR   Genevestigator; O88485; -.
+DR   GermOnline; ENSMUSG00000029757; Mus musculus.
+DR   GO; GO:0000777; C:condensed chromosome kinetochore; IEA:UniProtKB-SubCell.
+DR   GO; GO:0005868; C:cytoplasmic dynein complex; ISS:UniProtKB.
+DR   GO; GO:0005874; C:microtubule; IEA:UniProtKB-KW.
+DR   GO; GO:0048471; C:perinuclear region of cytoplasm; ISS:HGNC.
+DR   GO; GO:0000922; C:spindle pole; ISS:UniProtKB.
+DR   GO; GO:0031982; C:vesicle; ISS:UniProtKB.
+DR   GO; GO:0008017; F:microtubule binding; ISS:HGNC.
+DR   GO; GO:0003777; F:microtubule motor activity; ISS:HGNC.
+DR   GO; GO:0047496; P:vesicle transport along microtubule; ISS:HGNC.
+DR   InterPro; IPR015943; WD40/YVTN_repeat-like_dom.
+DR   InterPro; IPR001680; WD40_repeat.
+DR   InterPro; IPR011046; WD40_repeat-like_dom.
+DR   InterPro; IPR017986; WD40_repeat_dom.
+DR   InterPro; IPR019781; WD40_repeat_subgr.
+DR   Gene3D; G3DSA:2.130.10.10; WD40/YVTN_repeat-like; 1.
+DR   Pfam; PF00400; WD40; 3.
+DR   SMART; SM00320; WD40; 5.
+DR   SUPFAM; SSF50978; WD40_like; 1.
+DR   PROSITE; PS00678; WD_REPEATS_1; FALSE_NEG.
+DR   PROSITE; PS50082; WD_REPEATS_2; FALSE_NEG.
+DR   PROSITE; PS50294; WD_REPEATS_REGION; 1.
+PE   1: Evidence at protein level;
+KW   Alternative splicing; Centromere; Chromosome; Complete proteome;
+KW   Cytoplasm; Cytoskeleton; Dynein; Kinetochore; Microtubule;
+KW   Motor protein; Phosphoprotein; Reference proteome; Repeat; Transport;
+KW   WD repeat.
+FT   CHAIN         1    628       Cytoplasmic dynein 1 intermediate chain
+FT                                1.
+FT                                /FTId=PRO_0000114653.
+FT   REPEAT      268    317       WD 1.
+FT   REPEAT      321    361       WD 2.
+FT   REPEAT      370    411       WD 3.
+FT   REPEAT      420    460       WD 4.
+FT   REPEAT      465    510       WD 5.
+FT   REPEAT      513    553       WD 6.
+FT   REPEAT      559    598       WD 7.
+FT   MOD_RES     618    618       Phosphoserine.
+FT   VAR_SEQ     106    125       Missing (in isoform 1B).
+FT                                /FTId=VSP_001334.
+FT   MUTAGEN     151    155       Missing: Abolishes interaction with
+FT                                DYNLL2.
+FT   MUTAGEN     153    153       T->A: Impairs interaction with DYNLL2.
+FT   MUTAGEN     153    153       T->G: Abolishes interaction with DYNLL2.
+FT   MUTAGEN     154    154       Q->A: Abolishes interaction with DYNLL2.
+FT   MUTAGEN     155    155       T->G: Abolishes interaction with DYNLL2.
+FT   MUTAGEN     155    155       T->S: Impairs interaction with DYNLL2.
+FT   CONFLICT    384    384       Q -> H (in Ref. 1; AAC33444).
+FT   CONFLICT    387    387       H -> R (in Ref. 1; AAC33444).
+FT   CONFLICT    508    508       L -> V (in Ref. 1; AAC33444).
+FT   CONFLICT    511    511       F -> S (in Ref. 1; AAC33444).
+SQ   SEQUENCE   628 AA;  70725 MW;  1DFD9264D63B2CE8 CRC64;
+     MSDKSDLKAE LERKKQRLAQ IREEKKRKEE ERKKKEADMQ QKKEPVQDDS DLDRKRRETE
+     ALLQSIGISP EPPLVPTPMS PSSKSVSTPS DAGSQDSGDL GPLTRTLQWD TDPSVLQLQS
+     DSELGRRLHK LGVSKVTQVD FLPREVVSYS KETQTPLATH QSEEDEEDEE MVEPKIGHDS
+     ELENQEKKQE TKEAPPRELT EEEKQQILHS EEFLIFFDRT IRVIERALAE DSDIFFDYSG
+     RELEEKDGDV QAGANLSFNR QFYDEHWSKH RVVTCMDWSL QYPELMVASY SNNEDAPHEP
+     DGVALVWNMK FKKTTPEYVF HCQSSVMSVC FARFHPNLVV GGTYSGQIVL WDNRSHRRTP
+     VQRTPLSAAA HTHPVYCVNV VGTQNAHNLI TVSTDGKMCS WSLDMLSTPQ ESMELVYNKS
+     KPVAVTGMAF PTGDVNNFVV GSEEGTVYTA CRHGSKAGIG EVFEGHQGPV TGINCHMAVG
+     PIDFSHLFVT SSFDWTVKLW TTKHNKPLYS FEDNADYVYD VMWSPVHPAL FACVDGMGRL
+     DLWNLNSDTE VPTASVAIEG ASALNRVRWA QGGKEVAVGD SEGRIWIYDV GELAVPHNDE
+     WTRFARTLVE IRANRADSEE EGAVELAA
+//
+ID   ZMY11_HUMAN             Reviewed;         562 AA.
+AC   Q15326; B2R6G8; Q5VUI1;
+DT   01-DEC-2000, integrated into UniProtKB/Swiss-Prot.
+DT   01-NOV-1996, sequence version 1.
+DT   21-SEP-2011, entry version 101.
+DE   RecName: Full=Zinc finger MYND domain-containing protein 11;
+DE   AltName: Full=Adenovirus 5 E1A-binding protein;
+DE   AltName: Full=Protein BS69;
+GN   Name=ZMYND11; Synonyms=BS69;
+OS   Homo sapiens (Human).
+OC   Eukaryota; Metazoa; Chordata; Craniata; Vertebrata; Euteleostomi;
+OC   Mammalia; Eutheria; Euarchontoglires; Primates; Haplorrhini;
+OC   Catarrhini; Hominidae; Homo.
+OX   NCBI_TaxID=9606;
+RN   [1]
+RP   NUCLEOTIDE SEQUENCE [MRNA].
+RC   TISSUE=Colon carcinoma;
+RX   MEDLINE=95347342; PubMed=7621829;
+RA   Hateboer G., Gennissen A., Ramos Y.F.M., Kerkhoven R.M.,
+RA   Sonntag-Buck V., Stunnenberg H.G., Bernards R.;
+RT   "BS69, a novel adenovirus E1A-associated protein that inhibits E1A
+RT   transactivation.";
+RL   EMBO J. 14:3159-3169(1995).
+RN   [2]
+RP   NUCLEOTIDE SEQUENCE [LARGE SCALE MRNA].
+RC   TISSUE=Brain;
+RX   PubMed=14702039; DOI=10.1038/ng1285;
+RA   Ota T., Suzuki Y., Nishikawa T., Otsuki T., Sugiyama T., Irie R.,
+RA   Wakamatsu A., Hayashi K., Sato H., Nagai K., Kimura K., Makita H.,
+RA   Sekine M., Obayashi M., Nishi T., Shibahara T., Tanaka T., Ishii S.,
+RA   Yamamoto J., Saito K., Kawai Y., Isono Y., Nakamura Y., Nagahari K.,
+RA   Murakami K., Yasuda T., Iwayanagi T., Wagatsuma M., Shiratori A.,
+RA   Sudo H., Hosoiri T., Kaku Y., Kodaira H., Kondo H., Sugawara M.,
+RA   Takahashi M., Kanda K., Yokoi T., Furuya T., Kikkawa E., Omura Y.,
+RA   Abe K., Kamihara K., Katsuta N., Sato K., Tanikawa M., Yamazaki M.,
+RA   Ninomiya K., Ishibashi T., Yamashita H., Murakawa K., Fujimori K.,
+RA   Tanai H., Kimata M., Watanabe M., Hiraoka S., Chiba Y., Ishida S.,
+RA   Ono Y., Takiguchi S., Watanabe S., Yosida M., Hotuta T., Kusano J.,
+RA   Kanehori K., Takahashi-Fujii A., Hara H., Tanase T.-O., Nomura Y.,
+RA   Togiya S., Komai F., Hara R., Takeuchi K., Arita M., Imose N.,
+RA   Musashino K., Yuuki H., Oshima A., Sasaki N., Aotsuka S.,
+RA   Yoshikawa Y., Matsunawa H., Ichihara T., Shiohata N., Sano S.,
+RA   Moriya S., Momiyama H., Satoh N., Takami S., Terashima Y., Suzuki O.,
+RA   Nakagawa S., Senoh A., Mizoguchi H., Goto Y., Shimizu F., Wakebe H.,
+RA   Hishigaki H., Watanabe T., Sugiyama A., Takemoto M., Kawakami B.,
+RA   Yamazaki M., Watanabe K., Kumagai A., Itakura S., Fukuzumi Y.,
+RA   Fujimori Y., Komiyama M., Tashiro H., Tanigami A., Fujiwara T.,
+RA   Ono T., Yamada K., Fujii Y., Ozaki K., Hirao M., Ohmori Y.,
+RA   Kawabata A., Hikiji T., Kobatake N., Inagaki H., Ikema Y., Okamoto S.,
+RA   Okitani R., Kawakami T., Noguchi S., Itoh T., Shigeta K., Senba T.,
+RA   Matsumura K., Nakajima Y., Mizuno T., Morinaga M., Sasaki M.,
+RA   Togashi T., Oyama M., Hata H., Watanabe M., Komatsu T.,
+RA   Mizushima-Sugano J., Satoh T., Shirai Y., Takahashi Y., Nakagawa K.,
+RA   Okumura K., Nagase T., Nomura N., Kikuchi H., Masuho Y., Yamashita R.,
+RA   Nakai K., Yada T., Nakamura Y., Ohara O., Isogai T., Sugano S.;
+RT   "Complete sequencing and characterization of 21,243 full-length human
+RT   cDNAs.";
+RL   Nat. Genet. 36:40-45(2004).
+RN   [3]
+RP   NUCLEOTIDE SEQUENCE [LARGE SCALE GENOMIC DNA].
+RX   PubMed=15164054; DOI=10.1038/nature02462;
+RA   Deloukas P., Earthrowl M.E., Grafham D.V., Rubenfield M., French L.,
+RA   Steward C.A., Sims S.K., Jones M.C., Searle S., Scott C., Howe K.,
+RA   Hunt S.E., Andrews T.D., Gilbert J.G.R., Swarbreck D., Ashurst J.L.,
+RA   Taylor A., Battles J., Bird C.P., Ainscough R., Almeida J.P.,
+RA   Ashwell R.I.S., Ambrose K.D., Babbage A.K., Bagguley C.L., Bailey J.,
+RA   Banerjee R., Bates K., Beasley H., Bray-Allen S., Brown A.J.,
+RA   Brown J.Y., Burford D.C., Burrill W., Burton J., Cahill P., Camire D.,
+RA   Carter N.P., Chapman J.C., Clark S.Y., Clarke G., Clee C.M., Clegg S.,
+RA   Corby N., Coulson A., Dhami P., Dutta I., Dunn M., Faulkner L.,
+RA   Frankish A., Frankland J.A., Garner P., Garnett J., Gribble S.,
+RA   Griffiths C., Grocock R., Gustafson E., Hammond S., Harley J.L.,
+RA   Hart E., Heath P.D., Ho T.P., Hopkins B., Horne J., Howden P.J.,
+RA   Huckle E., Hynds C., Johnson C., Johnson D., Kana A., Kay M.,
+RA   Kimberley A.M., Kershaw J.K., Kokkinaki M., Laird G.K., Lawlor S.,
+RA   Lee H.M., Leongamornlert D.A., Laird G., Lloyd C., Lloyd D.M.,
+RA   Loveland J., Lovell J., McLaren S., McLay K.E., McMurray A.,
+RA   Mashreghi-Mohammadi M., Matthews L., Milne S., Nickerson T.,
+RA   Nguyen M., Overton-Larty E., Palmer S.A., Pearce A.V., Peck A.I.,
+RA   Pelan S., Phillimore B., Porter K., Rice C.M., Rogosin A., Ross M.T.,
+RA   Sarafidou T., Sehra H.K., Shownkeen R., Skuce C.D., Smith M.,
+RA   Standring L., Sycamore N., Tester J., Thorpe A., Torcasso W.,
+RA   Tracey A., Tromans A., Tsolas J., Wall M., Walsh J., Wang H.,
+RA   Weinstock K., West A.P., Willey D.L., Whitehead S.L., Wilming L.,
+RA   Wray P.W., Young L., Chen Y., Lovering R.C., Moschonas N.K.,
+RA   Siebert R., Fechtel K., Bentley D., Durbin R.M., Hubbard T.,
+RA   Doucette-Stamm L., Beck S., Smith D.R., Rogers J.;
+RT   "The DNA sequence and comparative analysis of human chromosome 10.";
+RL   Nature 429:375-381(2004).
+RN   [4]
+RP   FUNCTION, AND INTERACTION WITH NCOR1.
+RX   PubMed=10734313; DOI=10.1038/sj.onc.1203421;
+RA   Masselink H., Bernards R.;
+RT   "The adenovirus E1A binding protein BS69 is a corepressor of
+RT   transcription through recruitment of N-CoR.";
+RL   Oncogene 19:1538-1546(2000).
+RN   [5]
+RP   INTERACTION WITH HUMAN ADENOVIRUS EARLY E1A PROTEIN, AND INTERACTION
+RP   WITH EPSTEIN-BARR VIRUS EBNA2 PROTEIN.
+RX   PubMed=11733528; DOI=10.1074/jbc.M110078200;
+RA   Ansieau S., Leutz A.;
+RT   "The conserved Mynd domain of BS69 binds cellular and oncoviral
+RT   proteins through a common PXLXP motif.";
+RL   J. Biol. Chem. 277:4906-4910(2002).
+RN   [6]
+RP   PHOSPHORYLATION [LARGE SCALE ANALYSIS] AT SER-381, AND MASS
+RP   SPECTROMETRY.
+RC   TISSUE=Embryonic kidney;
+RX   PubMed=17525332; DOI=10.1126/science.1140321;
+RA   Matsuoka S., Ballif B.A., Smogorzewska A., McDonald E.R. III,
+RA   Hurov K.E., Luo J., Bakalarski C.E., Zhao Z., Solimini N.,
+RA   Lerenthal Y., Shiloh Y., Gygi S.P., Elledge S.J.;
+RT   "ATM and ATR substrate analysis reveals extensive protein networks
+RT   responsive to DNA damage.";
+RL   Science 316:1160-1166(2007).
+RN   [7]
+RP   PHOSPHORYLATION [LARGE SCALE ANALYSIS] AT SER-381, AND MASS
+RP   SPECTROMETRY.
+RC   TISSUE=Cervix carcinoma;
+RX   PubMed=18669648; DOI=10.1073/pnas.0805139105;
+RA   Dephoure N., Zhou C., Villen J., Beausoleil S.A., Bakalarski C.E.,
+RA   Elledge S.J., Gygi S.P.;
+RT   "A quantitative atlas of mitotic phosphorylation.";
+RL   Proc. Natl. Acad. Sci. U.S.A. 105:10762-10767(2008).
+CC   -!- FUNCTION: Corepressor of transcription (Probable).
+CC   -!- SUBUNIT: Interacts (via MYND-type zinc finger) with NCOR1.
+CC       Interacts (via MYND-type zinc finger) with human adenovirus early
+CC       E1A protein (via PXLXP motif); this interaction inhibits E1A
+CC       mediated transactivation. Interacts (via MYND-type zinc finger)
+CC       with Epstein-Barr virus EBNA2 protein (via PXLXP motif).
+CC   -!- SUBCELLULAR LOCATION: Nucleus.
+CC   -!- PTM: Phosphorylated upon DNA damage, probably by ATM or ATR.
+CC   -!- SIMILARITY: Contains 1 bromo domain.
+CC   -!- SIMILARITY: Contains 1 MYND-type zinc finger.
+CC   -!- SIMILARITY: Contains 1 PHD-type zinc finger.
+CC   -!- SIMILARITY: Contains 1 PWWP domain.
+CC   -----------------------------------------------------------------------
+CC   Copyrighted by the UniProt Consortium, see http://www.uniprot.org/terms
+CC   Distributed under the Creative Commons Attribution-NoDerivs License
+CC   -----------------------------------------------------------------------
+DR   EMBL; X86098; CAA60052.1; -; mRNA.
+DR   EMBL; AK312570; BAG35465.1; -; mRNA.
+DR   EMBL; AL589988; CAH69845.1; -; Genomic_DNA.
+DR   EMBL; AL603831; CAH69845.1; JOINED; Genomic_DNA.
+DR   EMBL; AL603831; CAI40899.1; -; Genomic_DNA.
+DR   EMBL; AL589988; CAI40899.1; JOINED; Genomic_DNA.
+DR   IPI; IPI00873394; -.
+DR   PIR; S56145; S56145.
+DR   RefSeq; NP_006615.2; NM_006624.5.
+DR   UniGene; Hs.292265; -.
+DR   ProteinModelPortal; Q15326; -.
+DR   SMR; Q15326; 57-216, 239-315, 523-559.
+DR   IntAct; Q15326; 3.
+DR   MINT; MINT-156360; -.
+DR   STRING; Q15326; -.
+DR   PhosphoSite; Q15326; -.
+DR   PRIDE; Q15326; -.
+DR   Ensembl; ENST00000309776; ENSP00000309992; ENSG00000015171.
+DR   Ensembl; ENST00000381584; ENSP00000370996; ENSG00000015171.
+DR   Ensembl; ENST00000381591; ENSP00000371003; ENSG00000015171.
+DR   Ensembl; ENST00000397962; ENSP00000381053; ENSG00000015171.
+DR   GeneID; 10771; -.
+DR   KEGG; hsa:10771; -.
+DR   UCSC; uc001ifl.1; human.
+DR   CTD; 10771; -.
+DR   GeneCards; GC10P000170; -.
+DR   H-InvDB; HIX0025946; -.
+DR   HGNC; HGNC:16966; ZMYND11.
+DR   HPA; HPA015816; -.
+DR   HPA; HPA030553; -.
+DR   MIM; 608668; gene.
+DR   neXtProt; NX_Q15326; -.
+DR   PharmGKB; PA128394578; -.
+DR   eggNOG; prNOG14425; -.
+DR   HOVERGEN; HBG054949; -.
+DR   InParanoid; Q15326; -.
+DR   PhylomeDB; Q15326; -.
+DR   NextBio; 40897; -.
+DR   ArrayExpress; Q15326; -.
+DR   Bgee; Q15326; -.
+DR   CleanEx; HS_ZMYND11; -.
+DR   Genevestigator; Q15326; -.
+DR   GermOnline; ENSG00000015171; Homo sapiens.
+DR   GO; GO:0005634; C:nucleus; IDA:HPA.
+DR   GO; GO:0003677; F:DNA binding; IEA:UniProtKB-KW.
+DR   GO; GO:0008270; F:zinc ion binding; IEA:InterPro.
+DR   GO; GO:0007049; P:cell cycle; IEA:UniProtKB-KW.
+DR   GO; GO:0008283; P:cell proliferation; TAS:ProtInc.
+DR   GO; GO:0044419; P:interspecies interaction between organisms; IEA:UniProtKB-KW.
+DR   GO; GO:0000122; P:negative regulation of transcription from RNA polymerase II promoter; TAS:ProtInc.
+DR   GO; GO:0006351; P:transcription, DNA-dependent; IEA:UniProtKB-KW.
+DR   InterPro; IPR001487; Bromodomain.
+DR   InterPro; IPR000313; PWWP.
+DR   InterPro; IPR019786; Zinc_finger_PHD-type_CS.
+DR   InterPro; IPR011011; Znf_FYVE_PHD.
+DR   InterPro; IPR002893; Znf_MYND.
+DR   InterPro; IPR001965; Znf_PHD.
+DR   InterPro; IPR019787; Znf_PHD-finger.
+DR   InterPro; IPR001841; Znf_RING.
+DR   InterPro; IPR013083; Znf_RING/FYVE/PHD.
+DR   Gene3D; G3DSA:1.20.920.10; Bromodomain; 1.
+DR   Gene3D; G3DSA:3.30.40.10; Znf_RING/FYVE/PHD; 1.
+DR   Pfam; PF00439; Bromodomain; 1.
+DR   Pfam; PF00855; PWWP; 1.
+DR   SMART; SM00297; BROMO; 1.
+DR   SMART; SM00249; PHD; 1.
+DR   SMART; SM00293; PWWP; 1.
+DR   SMART; SM00184; RING; 1.
+DR   SUPFAM; SSF47370; Bromodomain; 1.
+DR   SUPFAM; SSF57903; FYVE_PHD_ZnF; 1.
+DR   PROSITE; PS50014; BROMODOMAIN_2; 1.
+DR   PROSITE; PS50812; PWWP; 1.
+DR   PROSITE; PS01360; ZF_MYND_1; 1.
+DR   PROSITE; PS50865; ZF_MYND_2; 1.
+DR   PROSITE; PS01359; ZF_PHD_1; 1.
+DR   PROSITE; PS50016; ZF_PHD_2; 1.
+PE   1: Evidence at protein level;
+KW   Bromodomain; Cell cycle; Complete proteome; DNA-binding;
+KW   Host-virus interaction; Metal-binding; Nucleus; Phosphoprotein;
+KW   Reference proteome; Repressor; Transcription;
+KW   Transcription regulation; Zinc; Zinc-finger.
+FT   CHAIN         1    562       Zinc finger MYND domain-containing
+FT                                protein 11.
+FT                                /FTId=PRO_0000211218.
+FT   DOMAIN      128    198       Bromo.
+FT   DOMAIN      240    291       PWWP.
+FT   ZN_FING      60    108       PHD-type.
+FT   ZN_FING     523    558       MYND-type.
+FT   REGION      412    532       Interaction with human adenovirus E1A.
+FT   MOTIF       354    360       Nuclear localization signal (Potential).
+FT   MOD_RES     381    381       Phosphoserine.
+SQ   SEQUENCE   562 AA;  66203 MW;  E4280C54505B0894 CRC64;
+     MSRVHGMHPK ETTRQLSLAV KDGLIVETLT VGCKGSKAGI EQEGYWLPGD EIDWETENHD
+     WYCFECHLPG EVLICDLCFR VYHSKCLSDE FRLRDSSSPW QCPVCRSIKK KNTNKQEMGT
+     YLRFIVSRMK ERAIDLNKKG KDNKHPMYRR LVHSAVDVPT IQEKVNEGKY RSYEEFKADA
+     QLLLHNTVIF YGADSEQADI ARMLYKDTCH ELDELQLCKN CFYLSNARPD NWFCYPCIPN
+     HELVWAKMKG FGFWPAKVMQ KEDNQVDVRF FGHHHQRAWI PSENIQDITV NIHRLHVKRS
+     MGWKKACDEL ELHQRFLREG RFWKSKNEDR GEEEAESSIS STSNEQLKVT QEPRAKKGRR
+     NQSVEPKKEE PEPETEAVSS SQEIPTMPQP IEKVSVSTQT KKLSASSPRM LHRSTQTTND
+     GVCQSMCHDK YTKIFNDFKD RMKSDHKRET ERVVREALEK LRSEMEEEKR QAVNKAVANM
+     QGEMDRKCKQ VKEKCKEEFV EEIKKLATQH KQLISQTKKK QWCYNCEEEA MYHCCWNTSY
+     CSIKCQQEHW HAEHKRTCRR KR
+//
+ID   DC1I2_HUMAN             Reviewed;         638 AA.
+AC   Q13409; D3DPD4; D3DPD5; D3DPD6; Q32LY9; Q53S84; Q5BJF8; Q7Z4X1;
+AC   Q96NG7; Q96S87; Q9BXZ5; Q9NT58;
+DT   01-NOV-1997, integrated into UniProtKB/Swiss-Prot.
+DT   19-SEP-2002, sequence version 3.
+DT   19-OCT-2011, entry version 120.
+DE   RecName: Full=Cytoplasmic dynein 1 intermediate chain 2;
+DE   AltName: Full=Cytoplasmic dynein intermediate chain 2;
+DE   AltName: Full=Dynein intermediate chain 2, cytosolic;
+DE            Short=DH IC-2;
+GN   Name=DYNC1I2; Synonyms=DNCI2, DNCIC2;
+OS   Homo sapiens (Human).
+OC   Eukaryota; Metazoa; Chordata; Craniata; Vertebrata; Euteleostomi;
+OC   Mammalia; Eutheria; Euarchontoglires; Primates; Haplorrhini;
+OC   Catarrhini; Hominidae; Homo.
+OX   NCBI_TaxID=9606;
+RN   [1]
+RP   NUCLEOTIDE SEQUENCE [MRNA] (ISOFORM 2C).
+RA   Huang J., Yu L., Zhao S.Y.;
+RT   "Cloning of a new human cDNA homologous to Rattus norvegicus
+RT   cytoplasmic dynein intermediate chain 2C.";
+RL   Submitted (MAR-1999) to the EMBL/GenBank/DDBJ databases.
+RN   [2]
+RP   NUCLEOTIDE SEQUENCE [MRNA] (ISOFORMS 2C AND 2F).
+RA   Li N., Wan T., Zhang M., Zhang W., Cao X.;
+RL   Submitted (MAY-2001) to the EMBL/GenBank/DDBJ databases.
+RN   [3]
+RP   NUCLEOTIDE SEQUENCE [LARGE SCALE MRNA] (ISOFORM 2C).
+RA   Kalnine N., Chen X., Rolfs A., Halleck A., Hines L., Eisenstein S.,
+RA   Koundinya M., Raphael J., Moreira D., Kelley T., LaBaer J., Lin Y.,
+RA   Phelan M., Farmer A.;
+RT   "Cloning of human full-length CDSs in BD Creator(TM) system donor
+RT   vector.";
+RL   Submitted (MAY-2003) to the EMBL/GenBank/DDBJ databases.
+RN   [4]
+RP   NUCLEOTIDE SEQUENCE [LARGE SCALE MRNA] (ISOFORM 2A).
+RC   TISSUE=Brain;
+RX   PubMed=14702039; DOI=10.1038/ng1285;
+RA   Ota T., Suzuki Y., Nishikawa T., Otsuki T., Sugiyama T., Irie R.,
+RA   Wakamatsu A., Hayashi K., Sato H., Nagai K., Kimura K., Makita H.,
+RA   Sekine M., Obayashi M., Nishi T., Shibahara T., Tanaka T., Ishii S.,
+RA   Yamamoto J., Saito K., Kawai Y., Isono Y., Nakamura Y., Nagahari K.,
+RA   Murakami K., Yasuda T., Iwayanagi T., Wagatsuma M., Shiratori A.,
+RA   Sudo H., Hosoiri T., Kaku Y., Kodaira H., Kondo H., Sugawara M.,
+RA   Takahashi M., Kanda K., Yokoi T., Furuya T., Kikkawa E., Omura Y.,
+RA   Abe K., Kamihara K., Katsuta N., Sato K., Tanikawa M., Yamazaki M.,
+RA   Ninomiya K., Ishibashi T., Yamashita H., Murakawa K., Fujimori K.,
+RA   Tanai H., Kimata M., Watanabe M., Hiraoka S., Chiba Y., Ishida S.,
+RA   Ono Y., Takiguchi S., Watanabe S., Yosida M., Hotuta T., Kusano J.,
+RA   Kanehori K., Takahashi-Fujii A., Hara H., Tanase T.-O., Nomura Y.,
+RA   Togiya S., Komai F., Hara R., Takeuchi K., Arita M., Imose N.,
+RA   Musashino K., Yuuki H., Oshima A., Sasaki N., Aotsuka S.,
+RA   Yoshikawa Y., Matsunawa H., Ichihara T., Shiohata N., Sano S.,
+RA   Moriya S., Momiyama H., Satoh N., Takami S., Terashima Y., Suzuki O.,
+RA   Nakagawa S., Senoh A., Mizoguchi H., Goto Y., Shimizu F., Wakebe H.,
+RA   Hishigaki H., Watanabe T., Sugiyama A., Takemoto M., Kawakami B.,
+RA   Yamazaki M., Watanabe K., Kumagai A., Itakura S., Fukuzumi Y.,
+RA   Fujimori Y., Komiyama M., Tashiro H., Tanigami A., Fujiwara T.,
+RA   Ono T., Yamada K., Fujii Y., Ozaki K., Hirao M., Ohmori Y.,
+RA   Kawabata A., Hikiji T., Kobatake N., Inagaki H., Ikema Y., Okamoto S.,
+RA   Okitani R., Kawakami T., Noguchi S., Itoh T., Shigeta K., Senba T.,
+RA   Matsumura K., Nakajima Y., Mizuno T., Morinaga M., Sasaki M.,
+RA   Togashi T., Oyama M., Hata H., Watanabe M., Komatsu T.,
+RA   Mizushima-Sugano J., Satoh T., Shirai Y., Takahashi Y., Nakagawa K.,
+RA   Okumura K., Nagase T., Nomura N., Kikuchi H., Masuho Y., Yamashita R.,
+RA   Nakai K., Yada T., Nakamura Y., Ohara O., Isogai T., Sugano S.;
+RT   "Complete sequencing and characterization of 21,243 full-length human
+RT   cDNAs.";
+RL   Nat. Genet. 36:40-45(2004).
+RN   [5]
+RP   NUCLEOTIDE SEQUENCE [LARGE SCALE MRNA] (ISOFORM 2C).
+RC   TISSUE=Endometrium, and Testis;
+RX   PubMed=17974005; DOI=10.1186/1471-2164-8-399;
+RA   Bechtel S., Rosenfelder H., Duda A., Schmidt C.P., Ernst U.,
+RA   Wellenreuther R., Mehrle A., Schuster C., Bahr A., Bloecker H.,
+RA   Heubner D., Hoerlein A., Michel G., Wedler H., Koehrer K.,
+RA   Ottenwaelder B., Poustka A., Wiemann S., Schupp I.;
+RT   "The full-ORF clone resource of the German cDNA consortium.";
+RL   BMC Genomics 8:399-399(2007).
+RN   [6]
+RP   NUCLEOTIDE SEQUENCE [LARGE SCALE GENOMIC DNA].
+RX   PubMed=15815621; DOI=10.1038/nature03466;
+RA   Hillier L.W., Graves T.A., Fulton R.S., Fulton L.A., Pepin K.H.,
+RA   Minx P., Wagner-McPherson C., Layman D., Wylie K., Sekhon M.,
+RA   Becker M.C., Fewell G.A., Delehaunty K.D., Miner T.L., Nash W.E.,
+RA   Kremitzki C., Oddy L., Du H., Sun H., Bradshaw-Cordum H., Ali J.,
+RA   Carter J., Cordes M., Harris A., Isak A., van Brunt A., Nguyen C.,
+RA   Du F., Courtney L., Kalicki J., Ozersky P., Abbott S., Armstrong J.,
+RA   Belter E.A., Caruso L., Cedroni M., Cotton M., Davidson T., Desai A.,
+RA   Elliott G., Erb T., Fronick C., Gaige T., Haakenson W., Haglund K.,
+RA   Holmes A., Harkins R., Kim K., Kruchowski S.S., Strong C.M.,
+RA   Grewal N., Goyea E., Hou S., Levy A., Martinka S., Mead K.,
+RA   McLellan M.D., Meyer R., Randall-Maher J., Tomlinson C.,
+RA   Dauphin-Kohlberg S., Kozlowicz-Reilly A., Shah N.,
+RA   Swearengen-Shahid S., Snider J., Strong J.T., Thompson J., Yoakum M.,
+RA   Leonard S., Pearman C., Trani L., Radionenko M., Waligorski J.E.,
+RA   Wang C., Rock S.M., Tin-Wollam A.-M., Maupin R., Latreille P.,
+RA   Wendl M.C., Yang S.-P., Pohl C., Wallis J.W., Spieth J., Bieri T.A.,
+RA   Berkowicz N., Nelson J.O., Osborne J., Ding L., Meyer R., Sabo A.,
+RA   Shotland Y., Sinha P., Wohldmann P.E., Cook L.L., Hickenbotham M.T.,
+RA   Eldred J., Williams D., Jones T.A., She X., Ciccarelli F.D.,
+RA   Izaurralde E., Taylor J., Schmutz J., Myers R.M., Cox D.R., Huang X.,
+RA   McPherson J.D., Mardis E.R., Clifton S.W., Warren W.C.,
+RA   Chinwalla A.T., Eddy S.R., Marra M.A., Ovcharenko I., Furey T.S.,
+RA   Miller W., Eichler E.E., Bork P., Suyama M., Torrents D.,
+RA   Waterston R.H., Wilson R.K.;
+RT   "Generation and annotation of the DNA sequences of human chromosomes 2
+RT   and 4.";
+RL   Nature 434:724-731(2005).
+RN   [7]
+RP   NUCLEOTIDE SEQUENCE [LARGE SCALE GENOMIC DNA].
+RA   Mural R.J., Istrail S., Sutton G.G., Florea L., Halpern A.L.,
+RA   Mobarry C.M., Lippert R., Walenz B., Shatkay H., Dew I., Miller J.R.,
+RA   Flanigan M.J., Edwards N.J., Bolanos R., Fasulo D., Halldorsson B.V.,
+RA   Hannenhalli S., Turner R., Yooseph S., Lu F., Nusskern D.R.,
+RA   Shue B.C., Zheng X.H., Zhong F., Delcher A.L., Huson D.H.,
+RA   Kravitz S.A., Mouchard L., Reinert K., Remington K.A., Clark A.G.,
+RA   Waterman M.S., Eichler E.E., Adams M.D., Hunkapiller M.W., Myers E.W.,
+RA   Venter J.C.;
+RL   Submitted (SEP-2005) to the EMBL/GenBank/DDBJ databases.
+RN   [8]
+RP   NUCLEOTIDE SEQUENCE [LARGE SCALE MRNA] (ISOFORM 2C).
+RC   TISSUE=Kidney, Skin, and Testis;
+RX   PubMed=15489334; DOI=10.1101/gr.2596504;
+RG   The MGC Project Team;
+RT   "The status, quality, and expansion of the NIH full-length cDNA
+RT   project: the Mammalian Gene Collection (MGC).";
+RL   Genome Res. 14:2121-2127(2004).
+RN   [9]
+RP   NUCLEOTIDE SEQUENCE [MRNA] OF 82-448 (ISOFORM 2A).
+RX   MEDLINE=96101929; PubMed=8522607; DOI=10.1083/jcb.131.6.1507;
+RA   Vaughan K.T., Vallee R.B.;
+RT   "Cytoplasmic dynein binds dynactin through a direct interaction
+RT   between the intermediate chains and p150Glued.";
+RL   J. Cell Biol. 131:1507-1516(1995).
+RN   [10]
+RP   PROTEIN SEQUENCE OF 236-250, AND MASS SPECTROMETRY.
+RC   TISSUE=Brain, and Cajal-Retzius cell;
+RA   Lubec G., Afjehi-Sadat L.;
+RL   Submitted (MAR-2007) to UniProtKB.
+RN   [11]
+RP   PHOSPHORYLATION [LARGE SCALE ANALYSIS] AT SER-87, AND MASS
+RP   SPECTROMETRY.
+RC   TISSUE=Cervix carcinoma;
+RX   PubMed=15302935; DOI=10.1073/pnas.0404720101;
+RA   Beausoleil S.A., Jedrychowski M., Schwartz D., Elias J.E., Villen J.,
+RA   Li J., Cohn M.A., Cantley L.C., Gygi S.P.;
+RT   "Large-scale characterization of HeLa cell nuclear phosphoproteins.";
+RL   Proc. Natl. Acad. Sci. U.S.A. 101:12130-12135(2004).
+RN   [12]
+RP   PHOSPHORYLATION [LARGE SCALE ANALYSIS] AT SER-94, AND MASS
+RP   SPECTROMETRY.
+RC   TISSUE=Embryonic kidney;
+RX   PubMed=17287340; DOI=10.1073/pnas.0611217104;
+RA   Molina H., Horn D.M., Tang N., Mathivanan S., Pandey A.;
+RT   "Global proteomic profiling of phosphopeptides using electron transfer
+RT   dissociation tandem mass spectrometry.";
+RL   Proc. Natl. Acad. Sci. U.S.A. 104:2199-2204(2007).
+RN   [13]
+RP   PHOSPHORYLATION [LARGE SCALE ANALYSIS] AT SER-97 AND SER-101, AND MASS
+RP   SPECTROMETRY.
+RC   TISSUE=Embryonic kidney;
+RX   PubMed=17525332; DOI=10.1126/science.1140321;
+RA   Matsuoka S., Ballif B.A., Smogorzewska A., McDonald E.R. III,
+RA   Hurov K.E., Luo J., Bakalarski C.E., Zhao Z., Solimini N.,
+RA   Lerenthal Y., Shiloh Y., Gygi S.P., Elledge S.J.;
+RT   "ATM and ATR substrate analysis reveals extensive protein networks
+RT   responsive to DNA damage.";
+RL   Science 316:1160-1166(2007).
+RN   [14]
+RP   PHOSPHORYLATION [LARGE SCALE ANALYSIS] AT SER-94 AND SER-97, AND MASS
+RP   SPECTROMETRY.
+RC   TISSUE=Cervix carcinoma;
+RX   PubMed=18669648; DOI=10.1073/pnas.0805139105;
+RA   Dephoure N., Zhou C., Villen J., Beausoleil S.A., Bakalarski C.E.,
+RA   Elledge S.J., Gygi S.P.;
+RT   "A quantitative atlas of mitotic phosphorylation.";
+RL   Proc. Natl. Acad. Sci. U.S.A. 105:10762-10767(2008).
+RN   [15]
+RP   PHOSPHORYLATION [LARGE SCALE ANALYSIS] AT SER-92; SER-94; THR-95;
+RP   SER-101; SER-104 AND THR-162, AND MASS SPECTROMETRY.
+RC   TISSUE=Embryonic kidney;
+RX   PubMed=19413330; DOI=10.1021/ac9004309;
+RA   Gauci S., Helbig A.O., Slijper M., Krijgsveld J., Heck A.J.,
+RA   Mohammed S.;
+RT   "Lys-N and trypsin cover complementary parts of the phosphoproteome in
+RT   a refined SCX-based approach.";
+RL   Anal. Chem. 81:4493-4501(2009).
+RN   [16]
+RP   PHOSPHORYLATION [LARGE SCALE ANALYSIS] AT SER-87 AND SER-104, AND MASS
+RP   SPECTROMETRY.
+RC   TISSUE=Leukemic T-cell;
+RX   PubMed=19690332; DOI=10.1126/scisignal.2000007;
+RA   Mayya V., Lundgren D.H., Hwang S.-I., Rezaul K., Wu L., Eng J.K.,
+RA   Rodionov V., Han D.K.;
+RT   "Quantitative phosphoproteomic analysis of T cell receptor signaling
+RT   reveals system-wide modulation of protein-protein interactions.";
+RL   Sci. Signal. 2:RA46-RA46(2009).
+RN   [17]
+RP   INTERACTION WITH HUMAN ADENOVIRUS HEXON PROTEIN.
+RX   PubMed=20006841; DOI=10.1016/j.chom.2009.11.006;
+RA   Bremner K.H., Scherer J., Yi J., Vershinin M., Gross S.P.,
+RA   Vallee R.B.;
+RT   "Adenovirus transport via direct interaction of cytoplasmic dynein
+RT   with the viral capsid hexon subunit.";
+RL   Cell Host Microbe 6:523-535(2009).
+RN   [18]
+RP   IDENTIFICATION BY MASS SPECTROMETRY [LARGE SCALE ANALYSIS].
+RX   PubMed=21269460; DOI=10.1186/1752-0509-5-17;
+RA   Burkard T.R., Planyavsky M., Kaupe I., Breitwieser F.P.,
+RA   Buerckstuemmer T., Bennett K.L., Superti-Furga G., Colinge J.;
+RT   "Initial characterization of the human central proteome.";
+RL   BMC Syst. Biol. 5:17-17(2011).
+CC   -!- FUNCTION: Acts as one of several non-catalytic accessory
+CC       components of the cytoplasmic dynein 1 complex that are thought to
+CC       be involved in linking dynein to cargos and to adapter proteins
+CC       that regulate dynein function. Cytoplasmic dynein 1 acts as a
+CC       motor for the intracellular retrograde motility of vesicles and
+CC       organelles along microtubules. The intermediate chains mediate the
+CC       binding of dynein to dynactin via its 150 kDa component (p150-
+CC       glued) DCNT1. Involved in membrane-transport, such as Golgi
+CC       apparatus, late endosomes and lysosomes.
+CC   -!- SUBUNIT: Homodimer (By similarity). The cytoplasmic dynein 1
+CC       complex consists of two catalytic heavy chains (HCs) and a number
+CC       of non-catalytic subunits presented by intermediate chains (ICs),
+CC       light intermediate chains (LICs) and light chains (LCs); the
+CC       composition seems to vary in respect to the IC, LIC and LC
+CC       composition. The heavy chain homodimer serves as a scaffold for
+CC       the probable homodimeric assembly of the respective non-catalytic
+CC       subunits. The ICs and LICs bind directly to the HC dimer and the
+CC       LCs assemble on the IC dimer. Interacts with DYNLT1 and DYNLT3.
+CC       Interacts with DCNT1 (By similarity). Interacts with human
+CC       adenovirus 5 hexon protein; this interaction probably allows virus
+CC       intracellular transport.
+CC   -!- SUBCELLULAR LOCATION: Cytoplasm, cytoskeleton (By similarity).
+CC   -!- ALTERNATIVE PRODUCTS:
+CC       Event=Alternative splicing; Named isoforms=5;
+CC       Name=2A;
+CC         IsoId=Q13409-1; Sequence=Displayed;
+CC       Name=2B;
+CC         IsoId=Q13409-2; Sequence=VSP_001336;
+CC       Name=2C;
+CC         IsoId=Q13409-3; Sequence=VSP_001336, VSP_001337;
+CC       Name=2E;
+CC         IsoId=Q13409-5; Sequence=VSP_023011;
+CC       Name=2F;
+CC         IsoId=Q13409-6; Sequence=VSP_001336, VSP_001337, VSP_023011;
+CC   -!- PTM: Phosphorylated upon DNA damage, probably by ATM or ATR. The
+CC       phosphorylation status of Ser-90 appears to be involved in
+CC       dynactin-dependent target binding (By similarity).
+CC   -!- SIMILARITY: Belongs to the dynein intermediate chain family.
+CC   -!- SIMILARITY: Contains 7 WD repeats.
+CC   -!- SEQUENCE CAUTION:
+CC       Sequence=AAA89166.1; Type=Miscellaneous discrepancy; Note=Unlikely isoform. Several sequence problems;
+CC   -----------------------------------------------------------------------
+CC   Copyrighted by the UniProt Consortium, see http://www.uniprot.org/terms
+CC   Distributed under the Creative Commons Attribution-NoDerivs License
+CC   -----------------------------------------------------------------------
+DR   EMBL; AF134477; AAP97254.1; -; mRNA.
+DR   EMBL; AF250307; AAK37426.1; -; mRNA.
+DR   EMBL; AY037160; AAK67638.1; -; mRNA.
+DR   EMBL; BT007130; AAP35794.1; -; mRNA.
+DR   EMBL; AK055491; BAB70932.1; -; mRNA.
+DR   EMBL; AL137519; CAB70785.1; -; mRNA.
+DR   EMBL; BX537412; CAD97654.1; -; mRNA.
+DR   EMBL; AC064826; -; NOT_ANNOTATED_CDS; Genomic_DNA.
+DR   EMBL; AC068039; AAY24133.1; -; Genomic_DNA.
+DR   EMBL; CH471058; EAX11202.1; -; Genomic_DNA.
+DR   EMBL; CH471058; EAX11204.1; -; Genomic_DNA.
+DR   EMBL; CH471058; EAX11206.1; -; Genomic_DNA.
+DR   EMBL; CH471058; EAX11207.1; -; Genomic_DNA.
+DR   EMBL; CH471058; EAX11208.1; -; Genomic_DNA.
+DR   EMBL; CH471058; EAX11209.1; -; Genomic_DNA.
+DR   EMBL; BC091498; AAH91498.1; -; mRNA.
+DR   EMBL; BC109375; AAI09376.1; -; mRNA.
+DR   EMBL; BC015038; AAH15038.1; -; mRNA.
+DR   EMBL; U39575; AAA89166.1; ALT_SEQ; mRNA.
+DR   IPI; IPI00216348; -.
+DR   IPI; IPI00302712; -.
+DR   IPI; IPI00744015; -.
+DR   IPI; IPI00827813; -.
+DR   IPI; IPI00827859; -.
+DR   PIR; T46365; T46365.
+DR   RefSeq; NP_001369.1; NM_001378.1.
+DR   UniGene; Hs.546250; -.
+DR   ProteinModelPortal; Q13409; -.
+DR   SMR; Q13409; 136-164, 468-602.
+DR   IntAct; Q13409; 4.
+DR   MINT; MINT-5004520; -.
+DR   STRING; Q13409; -.
+DR   PhosphoSite; Q13409; -.
+DR   REPRODUCTION-2DPAGE; IPI00827813; -.
+DR   PRIDE; Q13409; -.
+DR   Ensembl; ENST00000397119; ENSP00000380308; ENSG00000077380.
+DR   Ensembl; ENST00000409773; ENSP00000386415; ENSG00000077380.
+DR   GeneID; 1781; -.
+DR   KEGG; hsa:1781; -.
+DR   UCSC; uc002uha.1; human.
+DR   UCSC; uc002uhc.2; human.
+DR   CTD; 1781; -.
+DR   GeneCards; GC02P164429; -.
+DR   H-InvDB; HIX0002589; -.
+DR   HGNC; HGNC:2964; DYNC1I2.
+DR   HPA; CAB033836; -.
+DR   MIM; 603331; gene.
+DR   neXtProt; NX_Q13409; -.
+DR   PharmGKB; PA27435; -.
+DR   eggNOG; prNOG09255; -.
+DR   HOVERGEN; HBG004083; -.
+DR   OMA; IVFSEYW; -.
+DR   OrthoDB; EOG4RBQJ5; -.
+DR   Reactome; REACT_152; Cell Cycle, Mitotic.
+DR   NextBio; 7247; -.
+DR   ArrayExpress; Q13409; -.
+DR   Bgee; Q13409; -.
+DR   Genevestigator; Q13409; -.
+DR   GermOnline; ENSG00000077380; Homo sapiens.
+DR   GO; GO:0005813; C:centrosome; IDA:UniProtKB.
+DR   GO; GO:0005829; C:cytosol; TAS:Reactome.
+DR   GO; GO:0030286; C:dynein complex; IEA:UniProtKB-KW.
+DR   GO; GO:0005874; C:microtubule; IEA:UniProtKB-KW.
+DR   GO; GO:0031982; C:vesicle; IDA:UniProtKB.
+DR   GO; GO:0003777; F:microtubule motor activity; NAS:UniProtKB.
+DR   GO; GO:0000086; P:G2/M transition of mitotic cell cycle; TAS:Reactome.
+DR   GO; GO:0044419; P:interspecies interaction between organisms; IEA:UniProtKB-KW.
+DR   GO; GO:0007018; P:microtubule-based movement; NAS:UniProtKB.
+DR   GO; GO:0006810; P:transport; IEA:UniProtKB-KW.
+DR   InterPro; IPR015943; WD40/YVTN_repeat-like_dom.
+DR   InterPro; IPR001680; WD40_repeat.
+DR   InterPro; IPR011046; WD40_repeat-like_dom.
+DR   InterPro; IPR017986; WD40_repeat_dom.
+DR   InterPro; IPR019781; WD40_repeat_subgr.
+DR   Gene3D; G3DSA:2.130.10.10; WD40/YVTN_repeat-like; 1.
+DR   Pfam; PF00400; WD40; 2.
+DR   SMART; SM00320; WD40; 5.
+DR   SUPFAM; SSF50978; WD40_like; 1.
+DR   PROSITE; PS00678; WD_REPEATS_1; FALSE_NEG.
+DR   PROSITE; PS50082; WD_REPEATS_2; FALSE_NEG.
+DR   PROSITE; PS50294; WD_REPEATS_REGION; 1.
+PE   1: Evidence at protein level;
+KW   Alternative splicing; Complete proteome; Cytoplasm; Cytoskeleton;
+KW   Direct protein sequencing; Dynein; Host-virus interaction;
+KW   Microtubule; Motor protein; Phosphoprotein; Reference proteome;
+KW   Repeat; Transport; WD repeat.
+FT   CHAIN         1    638       Cytoplasmic dynein 1 intermediate chain
+FT                                2.
+FT                                /FTId=PRO_0000114655.
+FT   REPEAT      277    326       WD 1.
+FT   REPEAT      330    370       WD 2.
+FT   REPEAT      379    420       WD 3.
+FT   REPEAT      429    469       WD 4.
+FT   REPEAT      474    519       WD 5.
+FT   REPEAT      522    562       WD 6.
+FT   REPEAT      568    607       WD 7.
+FT   MOD_RES      87     87       Phosphoserine.
+FT   MOD_RES      90     90       Phosphoserine (By similarity).
+FT   MOD_RES      92     92       Phosphoserine.
+FT   MOD_RES      94     94       Phosphoserine.
+FT   MOD_RES      95     95       Phosphothreonine.
+FT   MOD_RES      97     97       Phosphoserine.
+FT   MOD_RES     101    101       Phosphoserine.
+FT   MOD_RES     104    104       Phosphoserine.
+FT   MOD_RES     162    162       Phosphothreonine.
+FT   VAR_SEQ      77     82       Missing (in isoform 2B, isoform 2C and
+FT                                isoform 2F).
+FT                                /FTId=VSP_001336.
+FT   VAR_SEQ     113    132       Missing (in isoform 2C and isoform 2F).
+FT                                /FTId=VSP_001337.
+FT   VAR_SEQ     602    602       Missing (in isoform 2E and isoform 2F).
+FT                                /FTId=VSP_023011.
+FT   CONFLICT    510    510       T -> S (in Ref. 1; AAP97254).
+FT   CONFLICT    525    525       D -> G (in Ref. 1; AAP97254).
+FT   CONFLICT    572    572       A -> G (in Ref. 8; AAI09376).
+SQ   SEQUENCE   638 AA;  71457 MW;  2F868EC9556C47F2 CRC64;
+     MSDKSELKAE LERKKQRLAQ IREEKKRKEE ERKKKETDQK KEAVAPVQEE SDLEKKRREA
+     EALLQSMGLT PESPIVFSEY WVPPPMSPSS KSVSTPSEAG SQDSGDGAVG SRTLHWDTDP
+     SVLQLHSDSD LGRGPIKLGM AKITQVDFPP REIVTYTKET QTPVMAQPKE DEEEDDDVVA
+     PKPPIEPEEE KTLKKDEEND SKAPPHELTE EEKQQILHSE EFLSFFDHST RIVERALSEQ
+     INIFFDYSGR DLEDKEGEIQ AGAKLSLNRQ FFDERWSKHR VVSCLDWSSQ YPELLVASYN
+     NNEDAPHEPD GVALVWNMKY KKTTPEYVFH CQSAVMSATF AKFHPNLVVG GTYSGQIVLW
+     DNRSNKRTPV QRTPLSAAAH THPVYCVNVV GTQNAHNLIS ISTDGKICSW SLDMLSHPQD
+     SMELVHKQSK AVAVTSMSFP VGDVNNFVVG SEEGSVYTAC RHGSKAGISE MFEGHQGPIT
+     GIHCHAAVGA VDFSHLFVTS SFDWTVKLWT TKNNKPLYSF EDNADYVYDV MWSPTHPALF
+     ACVDGMGRLD LWNLNNDTEV PTASISVEGN PALNRVRWTH SGREIAVGDS EGQIVIYDVG
+     EQIAVPRNDE WARFGRTLAE INANRADAEE EAATRIPA
+//
+ID   B2L11_HUMAN             Reviewed;         198 AA.
+AC   O43521; A8K2W2; O43522; Q0MSE7; Q0MSE8; Q0MSE9; Q53R28; Q6JTU6;
+AC   Q6T851; Q6TE14; Q6TE15; Q6TE16; Q6V402; Q8WYL6; Q8WYL7; Q8WYL8;
+AC   Q8WYL9; Q8WYM0; Q8WYM1;
+DT   18-OCT-2001, integrated into UniProtKB/Swiss-Prot.
+DT   01-JUN-1998, sequence version 1.
+DT   19-OCT-2011, entry version 107.
+DE   RecName: Full=Bcl-2-like protein 11;
+DE            Short=Bcl2-L-11;
+DE   AltName: Full=Bcl2-interacting mediator of cell death;
+GN   Name=BCL2L11; Synonyms=BIM;
+OS   Homo sapiens (Human).
+OC   Eukaryota; Metazoa; Chordata; Craniata; Vertebrata; Euteleostomi;
+OC   Mammalia; Eutheria; Euarchontoglires; Primates; Haplorrhini;
+OC   Catarrhini; Hominidae; Homo.
+OX   NCBI_TaxID=9606;
+RN   [1]
+RP   NUCLEOTIDE SEQUENCE [MRNA] (ISOFORMS BIMEL AND BIML), AND FUNCTION.
+RC   TISSUE=Peripheral blood, and Spleen;
+RX   MEDLINE=98094360; PubMed=9430630; DOI=10.1093/emboj/17.2.384;
+RA   O'Connor L., Strasser A., O'Reilly L.A., Hausmann G., Adams J.M.,
+RA   Cory S., Huang D.C.S.;
+RT   "Bim: a novel member of the Bcl-2 family that promotes apoptosis.";
+RL   EMBO J. 17:384-395(1998).
+RN   [2]
+RP   NUCLEOTIDE SEQUENCE [MRNA] (ISOFORMS BIM-ALPHA1; BIM-ALPHA2;
+RP   BIM-BETA1; BIM-BETA2; BIM-BETA3 AND BIM-BETA4), FUNCTION (ISOFORMS
+RP   BIM-ALPHA1 AND BIM-ALPHA2), AND SUBCELLULAR LOCATION.
+RX   MEDLINE=21592301; PubMed=11734221; DOI=10.1016/S0014-5793(01)03145-3;
+RA   Mami U., Miyashita T., Shikama Y., Tadokoro K., Yamada M.;
+RT   "Molecular cloning and characterization of six novel isoforms of human
+RT   Bim, a member of the proapoptotic Bcl-2 family.";
+RL   FEBS Lett. 509:135-141(2001).
+RN   [3]
+RP   NUCLEOTIDE SEQUENCE [MRNA] (ISOFORM BIM-GAMMA), FUNCTION (ISOFORM
+RP   BIM-GAMMA), SUBCELLULAR LOCATION, AND TISSUE SPECIFICITY.
+RX   MEDLINE=22013778; PubMed=12019181;
+RA   Liu J.-W., Chandra D., Tang S.H., Chopra D., Tang D.G.;
+RT   "Identification and characterization of Bimgamma, a novel proapoptotic
+RT   BH3-only splice variant of Bim.";
+RL   Cancer Res. 62:2976-2981(2002).
+RN   [4]
+RP   NUCLEOTIDE SEQUENCE [MRNA] (ISOFORMS BIMS AND BIM-ALPHA3), AND
+RP   FUNCTION (ISOFORM BIM-ALPHA3).
+RX   PubMed=15147734;
+RA   Chen J.Z., Ji C.N., Gu S.H., Li J.X., Zhao E.P., Huang Y., Huang L.,
+RA   Ying K., Xie Y., Mao Y.M.;
+RT   "Over-expression of Bim alpha3, a novel isoform of human Bim, result
+RT   in cell apoptosis.";
+RL   Int. J. Biochem. Cell Biol. 36:1554-1561(2004).
+RN   [5]
+RP   NUCLEOTIDE SEQUENCE [MRNA] (ISOFORMS BIM-ALPHA3; BIM-ALPHA4;
+RP   BIM-ALPHA5; BIM-ALPHA6; BIM-BETA5; BIM-BETA6; BIM-BETA7).
+RX   PubMed=17503221; DOI=10.1007/s10495-007-0093-5;
+RA   Miao J., Chen G.G., Yun J.P., Chun S.Y., Zheng Z.Z., Ho R.L.K.,
+RA   Chak E.C., Xia N.S., Lai P.B.;
+RT   "Identification and characterization of BH3 domain protein Bim and its
+RT   isoforms in human hepatocellular carcinomas.";
+RL   Apoptosis 12:1691-1701(2007).
+RN   [6]
+RP   NUCLEOTIDE SEQUENCE [LARGE SCALE MRNA] (ISOFORMS BIMEL AND BIML).
+RC   TISSUE=Teratocarcinoma, and Tongue;
+RX   PubMed=14702039; DOI=10.1038/ng1285;
+RA   Ota T., Suzuki Y., Nishikawa T., Otsuki T., Sugiyama T., Irie R.,
+RA   Wakamatsu A., Hayashi K., Sato H., Nagai K., Kimura K., Makita H.,
+RA   Sekine M., Obayashi M., Nishi T., Shibahara T., Tanaka T., Ishii S.,
+RA   Yamamoto J., Saito K., Kawai Y., Isono Y., Nakamura Y., Nagahari K.,
+RA   Murakami K., Yasuda T., Iwayanagi T., Wagatsuma M., Shiratori A.,
+RA   Sudo H., Hosoiri T., Kaku Y., Kodaira H., Kondo H., Sugawara M.,
+RA   Takahashi M., Kanda K., Yokoi T., Furuya T., Kikkawa E., Omura Y.,
+RA   Abe K., Kamihara K., Katsuta N., Sato K., Tanikawa M., Yamazaki M.,
+RA   Ninomiya K., Ishibashi T., Yamashita H., Murakawa K., Fujimori K.,
+RA   Tanai H., Kimata M., Watanabe M., Hiraoka S., Chiba Y., Ishida S.,
+RA   Ono Y., Takiguchi S., Watanabe S., Yosida M., Hotuta T., Kusano J.,
+RA   Kanehori K., Takahashi-Fujii A., Hara H., Tanase T.-O., Nomura Y.,
+RA   Togiya S., Komai F., Hara R., Takeuchi K., Arita M., Imose N.,
+RA   Musashino K., Yuuki H., Oshima A., Sasaki N., Aotsuka S.,
+RA   Yoshikawa Y., Matsunawa H., Ichihara T., Shiohata N., Sano S.,
+RA   Moriya S., Momiyama H., Satoh N., Takami S., Terashima Y., Suzuki O.,
+RA   Nakagawa S., Senoh A., Mizoguchi H., Goto Y., Shimizu F., Wakebe H.,
+RA   Hishigaki H., Watanabe T., Sugiyama A., Takemoto M., Kawakami B.,
+RA   Yamazaki M., Watanabe K., Kumagai A., Itakura S., Fukuzumi Y.,
+RA   Fujimori Y., Komiyama M., Tashiro H., Tanigami A., Fujiwara T.,
+RA   Ono T., Yamada K., Fujii Y., Ozaki K., Hirao M., Ohmori Y.,
+RA   Kawabata A., Hikiji T., Kobatake N., Inagaki H., Ikema Y., Okamoto S.,
+RA   Okitani R., Kawakami T., Noguchi S., Itoh T., Shigeta K., Senba T.,
+RA   Matsumura K., Nakajima Y., Mizuno T., Morinaga M., Sasaki M.,
+RA   Togashi T., Oyama M., Hata H., Watanabe M., Komatsu T.,
+RA   Mizushima-Sugano J., Satoh T., Shirai Y., Takahashi Y., Nakagawa K.,
+RA   Okumura K., Nagase T., Nomura N., Kikuchi H., Masuho Y., Yamashita R.,
+RA   Nakai K., Yada T., Nakamura Y., Ohara O., Isogai T., Sugano S.;
+RT   "Complete sequencing and characterization of 21,243 full-length human
+RT   cDNAs.";
+RL   Nat. Genet. 36:40-45(2004).
+RN   [7]
+RP   NUCLEOTIDE SEQUENCE [LARGE SCALE GENOMIC DNA].
+RX   PubMed=15815621; DOI=10.1038/nature03466;
+RA   Hillier L.W., Graves T.A., Fulton R.S., Fulton L.A., Pepin K.H.,
+RA   Minx P., Wagner-McPherson C., Layman D., Wylie K., Sekhon M.,
+RA   Becker M.C., Fewell G.A., Delehaunty K.D., Miner T.L., Nash W.E.,
+RA   Kremitzki C., Oddy L., Du H., Sun H., Bradshaw-Cordum H., Ali J.,
+RA   Carter J., Cordes M., Harris A., Isak A., van Brunt A., Nguyen C.,
+RA   Du F., Courtney L., Kalicki J., Ozersky P., Abbott S., Armstrong J.,
+RA   Belter E.A., Caruso L., Cedroni M., Cotton M., Davidson T., Desai A.,
+RA   Elliott G., Erb T., Fronick C., Gaige T., Haakenson W., Haglund K.,
+RA   Holmes A., Harkins R., Kim K., Kruchowski S.S., Strong C.M.,
+RA   Grewal N., Goyea E., Hou S., Levy A., Martinka S., Mead K.,
+RA   McLellan M.D., Meyer R., Randall-Maher J., Tomlinson C.,
+RA   Dauphin-Kohlberg S., Kozlowicz-Reilly A., Shah N.,
+RA   Swearengen-Shahid S., Snider J., Strong J.T., Thompson J., Yoakum M.,
+RA   Leonard S., Pearman C., Trani L., Radionenko M., Waligorski J.E.,
+RA   Wang C., Rock S.M., Tin-Wollam A.-M., Maupin R., Latreille P.,
+RA   Wendl M.C., Yang S.-P., Pohl C., Wallis J.W., Spieth J., Bieri T.A.,
+RA   Berkowicz N., Nelson J.O., Osborne J., Ding L., Meyer R., Sabo A.,
+RA   Shotland Y., Sinha P., Wohldmann P.E., Cook L.L., Hickenbotham M.T.,
+RA   Eldred J., Williams D., Jones T.A., She X., Ciccarelli F.D.,
+RA   Izaurralde E., Taylor J., Schmutz J., Myers R.M., Cox D.R., Huang X.,
+RA   McPherson J.D., Mardis E.R., Clifton S.W., Warren W.C.,
+RA   Chinwalla A.T., Eddy S.R., Marra M.A., Ovcharenko I., Furey T.S.,
+RA   Miller W., Eichler E.E., Bork P., Suyama M., Torrents D.,
+RA   Waterston R.H., Wilson R.K.;
+RT   "Generation and annotation of the DNA sequences of human chromosomes 2
+RT   and 4.";
+RL   Nature 434:724-731(2005).
+RN   [8]
+RP   NUCLEOTIDE SEQUENCE [LARGE SCALE GENOMIC DNA].
+RA   Mural R.J., Istrail S., Sutton G.G., Florea L., Halpern A.L.,
+RA   Mobarry C.M., Lippert R., Walenz B., Shatkay H., Dew I., Miller J.R.,
+RA   Flanigan M.J., Edwards N.J., Bolanos R., Fasulo D., Halldorsson B.V.,
+RA   Hannenhalli S., Turner R., Yooseph S., Lu F., Nusskern D.R.,
+RA   Shue B.C., Zheng X.H., Zhong F., Delcher A.L., Huson D.H.,
+RA   Kravitz S.A., Mouchard L., Reinert K., Remington K.A., Clark A.G.,
+RA   Waterman M.S., Eichler E.E., Adams M.D., Hunkapiller M.W., Myers E.W.,
+RA   Venter J.C.;
+RL   Submitted (JUL-2005) to the EMBL/GenBank/DDBJ databases.
+RN   [9]
+RP   NUCLEOTIDE SEQUENCE [LARGE SCALE MRNA] (ISOFORM BIMEL).
+RC   TISSUE=Blood;
+RX   PubMed=15489334; DOI=10.1101/gr.2596504;
+RG   The MGC Project Team;
+RT   "The status, quality, and expansion of the NIH full-length cDNA
+RT   project: the Mammalian Gene Collection (MGC).";
+RL   Genome Res. 14:2121-2127(2004).
+RN   [10]
+RP   PHOSPHORYLATION [LARGE SCALE ANALYSIS] AT SER-77, AND MASS
+RP   SPECTROMETRY.
+RC   TISSUE=Cervix carcinoma;
+RX   PubMed=18220336; DOI=10.1021/pr0705441;
+RA   Cantin G.T., Yi W., Lu B., Park S.K., Xu T., Lee J.-D.,
+RA   Yates J.R. III;
+RT   "Combining protein-based IMAC, peptide-based IMAC, and MudPIT for
+RT   efficient phosphoproteomic analysis.";
+RL   J. Proteome Res. 7:1346-1351(2008).
+RN   [11]
+RP   PHOSPHORYLATION [LARGE SCALE ANALYSIS] AT SER-77, AND MASS
+RP   SPECTROMETRY.
+RC   TISSUE=Cervix carcinoma;
+RX   PubMed=18691976; DOI=10.1016/j.molcel.2008.07.007;
+RA   Daub H., Olsen J.V., Bairlein M., Gnad F., Oppermann F.S., Korner R.,
+RA   Greff Z., Keri G., Stemmann O., Mann M.;
+RT   "Kinase-selective enrichment enables quantitative phosphoproteomics of
+RT   the kinome across the cell cycle.";
+RL   Mol. Cell 31:438-448(2008).
+RN   [12]
+RP   INTERACTION WITH TRIM2.
+RX   PubMed=21478148; DOI=10.1074/jbc.M110.197707;
+RA   Thompson S., Pearson A.N., Ashley M.D., Jessick V., Murphy B.M.,
+RA   Gafken P., Henshall D.C., Morris K.T., Simon R.P., Meller R.;
+RT   "Identification of a novel Bcl-2-interacting mediator of cell death
+RT   (Bim) E3 ligase, tripartite motif-containing protein 2 (TRIM2), and
+RT   its role in rapid ischemic tolerance-induced neuroprotection.";
+RL   J. Biol. Chem. 286:19331-19339(2011).
+RN   [13]
+RP   X-RAY CRYSTALLOGRAPHY (1.55 ANGSTROMS) OF 141-166 IN COMPLEX WITH
+RP   MCL1.
+RX   PubMed=17389404; DOI=10.1073/pnas.0701297104;
+RA   Czabotar P.E., Lee E.F., van Delft M.F., Day C.L., Smith B.J.,
+RA   Huang D.C.S., Fairlie W.D., Hinds M.G., Colman P.M.;
+RT   "Structural insights into the degradation of Mcl-1 induced by BH3
+RT   domains.";
+RL   Proc. Natl. Acad. Sci. U.S.A. 104:6217-6222(2007).
+RN   [14]
+RP   X-RAY CRYSTALLOGRAPHY (2.2 ANGSTROMS) OF 141-165 IN COMPLEX WITH
+RP   BCL2A1.
+RG   Structural genomics consortium (SGC);
+RT   "Human BCL-2A1 in complex with BIM.";
+RL   Submitted (FEB-2008) to the PDB data bank.
+CC   -!- FUNCTION: Induces apoptosis. Isoform BimL is more potent than
+CC       isoform BimEL. Isoform Bim-alpha1, isoform Bim-alpha2 and isoform
+CC       Bim-alpha3 induce apoptosis, although less potent than the
+CC       isoforms BimEL, BimL and BimS. Isoform Bim-gamma induces
+CC       apoptosis.
+CC   -!- SUBUNIT: Forms heterodimers with a number of antiapoptotic Bcl-2
+CC       proteins including MCL1, BCL2, BCL2L1 isoform Bcl-X(L),
+CC       BCL2A1/BFL-1, and BHRF1. Does not heterodimerize with proapoptotic
+CC       proteins such as BAD, BOK, BAX or BAK (By similarity). Interacts
+CC       with DYNLL1 and YWHAZ (By similarity). When phosphorylated,
+CC       interacts with TRIM2; this interaction is associated with
+CC       ubiquitination and degradation (By similarity).
+CC   -!- INTERACTION:
+CC       P10415:BCL2; NbExp=3; IntAct=EBI-526406, EBI-77694;
+CC       Q07817-1:BCL2L1; NbExp=5; IntAct=EBI-526406, EBI-287195;
+CC       Q92843:BCL2L2; NbExp=3; IntAct=EBI-526406, EBI-707714;
+CC       P63244:GNB2L1; NbExp=2; IntAct=EBI-526406, EBI-296739;
+CC       Q07820:MCL1; NbExp=4; IntAct=EBI-526406, EBI-1003422;
+CC       P97287:Mcl1 (xeno); NbExp=4; IntAct=EBI-526406, EBI-707292;
+CC       P14174:MIF; NbExp=5; IntAct=EBI-526420, EBI-372712;
+CC   -!- SUBCELLULAR LOCATION: Endomembrane system; Peripheral membrane
+CC       protein (By similarity). Note=Associated with intracytoplasmic
+CC       membranes (By similarity).
+CC   -!- SUBCELLULAR LOCATION: Isoform BimEL: Mitochondrion.
+CC   -!- SUBCELLULAR LOCATION: Isoform BimL: Mitochondrion.
+CC   -!- SUBCELLULAR LOCATION: Isoform BimS: Mitochondrion.
+CC   -!- SUBCELLULAR LOCATION: Isoform Bim-alpha1: Mitochondrion.
+CC   -!- ALTERNATIVE PRODUCTS:
+CC       Event=Alternative splicing; Named isoforms=17;
+CC       Name=BimEL; Synonyms=Bim(EL);
+CC         IsoId=O43521-1; Sequence=Displayed;
+CC       Name=BimL; Synonyms=Bim(L);
+CC         IsoId=O43521-2; Sequence=VSP_000535;
+CC       Name=BimS; Synonyms=BCL2-like 11 transcript variant 9, Bim(S);
+CC         IsoId=O43521-3; Sequence=VSP_035608;
+CC       Name=Bim-alpha1;
+CC         IsoId=O43521-4; Sequence=VSP_035620;
+CC       Name=Bim-alpha2;
+CC         IsoId=O43521-5; Sequence=VSP_000535, VSP_035620;
+CC       Name=Bim-alpha3; Synonyms=BCL2-like 11 transcript variant 10;
+CC         IsoId=O43521-6; Sequence=VSP_035608, VSP_035620;
+CC       Name=Bim-alpha4;
+CC         IsoId=O43521-7; Sequence=VSP_035608, VSP_035618;
+CC       Name=Bim-alpha5;
+CC         IsoId=O43521-8; Sequence=VSP_035619;
+CC       Name=Bim-alpha6;
+CC         IsoId=O43521-9; Sequence=VSP_035608, VSP_035619;
+CC       Name=Bim-beta1;
+CC         IsoId=O43521-10; Sequence=VSP_035615, VSP_035616;
+CC       Name=Bim-beta2;
+CC         IsoId=O43521-11; Sequence=VSP_035614, VSP_035616;
+CC       Name=Bim-beta3;
+CC         IsoId=O43521-12; Sequence=VSP_035609;
+CC       Name=Bim-beta4;
+CC         IsoId=O43521-13; Sequence=VSP_035610, VSP_035611;
+CC       Name=Bim-beta5;
+CC         IsoId=O43521-14; Sequence=VSP_035613, VSP_035617;
+CC       Name=Bim-beta6;
+CC         IsoId=O43521-15; Sequence=VSP_000535, VSP_035614, VSP_035616;
+CC       Name=Bim-beta7;
+CC         IsoId=O43521-16; Sequence=VSP_000535, VSP_035613, VSP_035617;
+CC       Name=Bim-gamma;
+CC         IsoId=O43521-17; Sequence=VSP_000535, VSP_035612;
+CC   -!- TISSUE SPECIFICITY: Isoform BimEL, isoform BimL and isoform BimS
+CC       are the predominant isoforms and are ubiquitously expressed with a
+CC       tissue-specific variation. Isoform Bim-gamma is most abundantly
+CC       expressed in small intestine and colon, and in lower levels in
+CC       spleen, prostate, testis, heart, liver and kidney.
+CC   -!- DOMAIN: The BH3 motif is required for Bcl-2 binding and
+CC       cytotoxicity.
+CC   -!- PTM: Phosphorylation by MAPK1/MAPK3 induces interaction with
+CC       TRIM2, followed by ubiquitination (By similarity).
+CC   -!- PTM: Ubiquitinated by TRIM2 following phosphorylation by
+CC       MAPK1/MAPK3, leading to degradation by the proteasome (By
+CC       similarity).
+CC   -!- SIMILARITY: Belongs to the Bcl-2 family.
+CC   -!- WEB RESOURCE: Name=Atlas of Genetics and Cytogenetics in Oncology
+CC       and Haematology;
+CC       URL="http://atlasgeneticsoncology.org/Genes/BCL2L11ID772ch2q13.html";
+CC   -----------------------------------------------------------------------
+CC   Copyrighted by the UniProt Consortium, see http://www.uniprot.org/terms
+CC   Distributed under the Creative Commons Attribution-NoDerivs License
+CC   -----------------------------------------------------------------------
+DR   EMBL; AF032457; AAC39593.1; -; mRNA.
+DR   EMBL; AF032458; AAC39594.1; -; mRNA.
+DR   EMBL; AB071195; BAB78589.1; -; mRNA.
+DR   EMBL; AB071196; BAB78590.1; -; mRNA.
+DR   EMBL; AB071197; BAB78591.1; -; mRNA.
+DR   EMBL; AB071198; BAB78592.1; -; mRNA.
+DR   EMBL; AB071199; BAB78593.1; -; mRNA.
+DR   EMBL; AB071200; BAB78594.1; -; mRNA.
+DR   EMBL; AY352518; AAQ62569.1; -; mRNA.
+DR   EMBL; AY305714; AAQ82546.1; -; mRNA.
+DR   EMBL; AY305715; AAQ82547.1; -; mRNA.
+DR   EMBL; AY423441; AAQ99148.1; -; mRNA.
+DR   EMBL; AY423442; AAQ99149.1; -; mRNA.
+DR   EMBL; AY423443; AAQ99150.1; -; mRNA.
+DR   EMBL; AY428962; AAR06908.1; -; mRNA.
+DR   EMBL; DQ849200; ABI13589.1; -; mRNA.
+DR   EMBL; DQ849201; ABI13590.1; -; mRNA.
+DR   EMBL; DQ849202; ABI13591.1; -; mRNA.
+DR   EMBL; AK290377; BAF83066.1; -; mRNA.
+DR   EMBL; AK291269; BAF83958.1; -; mRNA.
+DR   EMBL; AC096670; AAY14797.1; -; Genomic_DNA.
+DR   EMBL; CH471237; EAW50365.1; -; Genomic_DNA.
+DR   EMBL; CH471237; EAW50367.1; -; Genomic_DNA.
+DR   EMBL; CH471237; EAW50369.1; -; Genomic_DNA.
+DR   EMBL; CH471237; EAW50370.1; -; Genomic_DNA.
+DR   EMBL; CH471237; EAW50371.1; -; Genomic_DNA.
+DR   EMBL; CH471237; EAW50372.1; -; Genomic_DNA.
+DR   EMBL; CH471237; EAW50373.1; -; Genomic_DNA.
+DR   EMBL; CH471237; EAW50374.1; -; Genomic_DNA.
+DR   EMBL; BC033694; AAH33694.1; -; mRNA.
+DR   IPI; IPI00012853; -.
+DR   IPI; IPI00103743; -.
+DR   IPI; IPI00216585; -.
+DR   IPI; IPI00410159; -.
+DR   IPI; IPI00428840; -.
+DR   IPI; IPI00451139; -.
+DR   IPI; IPI00514401; -.
+DR   IPI; IPI00873921; -.
+DR   IPI; IPI00878323; -.
+DR   IPI; IPI00914559; -.
+DR   IPI; IPI00914560; -.
+DR   IPI; IPI00914563; -.
+DR   IPI; IPI00914586; -.
+DR   IPI; IPI00914592; -.
+DR   IPI; IPI00914600; -.
+DR   IPI; IPI00914670; -.
+DR   IPI; IPI00914677; -.
+DR   RefSeq; NP_001191035.1; NM_001204106.1.
+DR   RefSeq; NP_001191036.1; NM_001204107.1.
+DR   RefSeq; NP_001191037.1; NM_001204108.1.
+DR   RefSeq; NP_001191038.1; NM_001204109.1.
+DR   RefSeq; NP_001191039.1; NM_001204110.1.
+DR   RefSeq; NP_001191040.1; NM_001204111.1.
+DR   RefSeq; NP_001191041.1; NM_001204112.1.
+DR   RefSeq; NP_001191042.1; NM_001204113.1.
+DR   RefSeq; NP_006529.1; NM_006538.4.
+DR   RefSeq; NP_619527.1; NM_138621.4.
+DR   RefSeq; NP_619528.1; NM_138622.3.
+DR   RefSeq; NP_619529.1; NM_138623.3.
+DR   RefSeq; NP_619530.1; NM_138624.3.
+DR   RefSeq; NP_619531.1; NM_138625.3.
+DR   RefSeq; NP_619532.1; NM_138626.3.
+DR   RefSeq; NP_619533.1; NM_138627.3.
+DR   RefSeq; NP_996885.1; NM_207002.3.
+DR   RefSeq; NP_996886.1; NM_207003.2.
+DR   UniGene; Hs.469658; -.
+DR   PDB; 2K7W; NMR; -; B=145-164.
+DR   PDB; 2NL9; X-ray; 1.55 A; B=141-166.
+DR   PDB; 2V6Q; X-ray; 2.70 A; B=141-166.
+DR   PDB; 2VM6; X-ray; 2.20 A; B=141-165.
+DR   PDB; 2WH6; X-ray; 1.50 A; B=141-166.
+DR   PDB; 3D7V; X-ray; 2.03 A; B=141-166.
+DR   PDB; 3FDL; X-ray; 1.78 A; B=141-166.
+DR   PDB; 3IO8; X-ray; 2.30 A; B/D=141-166.
+DR   PDB; 3IO9; X-ray; 2.40 A; B=141-166.
+DR   PDB; 3KJ0; X-ray; 1.70 A; B=143-165.
+DR   PDB; 3KJ1; X-ray; 1.94 A; B=143-163.
+DR   PDB; 3KJ2; X-ray; 2.35 A; B=143-163.
+DR   PDBsum; 2K7W; -.
+DR   PDBsum; 2NL9; -.
+DR   PDBsum; 2V6Q; -.
+DR   PDBsum; 2VM6; -.
+DR   PDBsum; 2WH6; -.
+DR   PDBsum; 3D7V; -.
+DR   PDBsum; 3FDL; -.
+DR   PDBsum; 3IO8; -.
+DR   PDBsum; 3IO9; -.
+DR   PDBsum; 3KJ0; -.
+DR   PDBsum; 3KJ1; -.
+DR   PDBsum; 3KJ2; -.
+DR   ProteinModelPortal; O43521; -.
+DR   SMR; O43521; 141-173.
+DR   DIP; DIP-29185N; -.
+DR   IntAct; O43521; 24.
+DR   MINT; MINT-1664421; -.
+DR   STRING; O43521; -.
+DR   PhosphoSite; O43521; -.
+DR   PRIDE; O43521; -.
+DR   Ensembl; ENST00000357682; ENSP00000350311; ENSG00000153094.
+DR   Ensembl; ENST00000393256; ENSP00000376943; ENSG00000153094.
+DR   GeneID; 10018; -.
+DR   KEGG; hsa:10018; -.
+DR   UCSC; uc002tgu.1; human.
+DR   UCSC; uc002tgv.1; human.
+DR   CTD; 10018; -.
+DR   GeneCards; GC02P104757; -.
+DR   H-InvDB; HIX0002369; -.
+DR   HGNC; HGNC:994; BCL2L11.
+DR   HPA; CAB026332; -.
+DR   MIM; 603827; gene.
+DR   neXtProt; NX_O43521; -.
+DR   PharmGKB; PA25305; -.
+DR   eggNOG; prNOG19086; -.
+DR   GeneTree; ENSGT00390000003178; -.
+DR   InParanoid; O43521; -.
+DR   OMA; IRLVWRM; -.
+DR   OrthoDB; EOG4C87TR; -.
+DR   PhylomeDB; O43521; -.
+DR   Pathway_Interaction_DB; foxopathway; FoxO family signaling.
+DR   Pathway_Interaction_DB; p75ntrpathway; p75(NTR)-mediated signaling.
+DR   Reactome; REACT_11061; Signalling by NGF.
+DR   Reactome; REACT_578; Apoptosis.
+DR   NextBio; 37849; -.
+DR   PMAP-CutDB; O43521; -.
+DR   ArrayExpress; O43521; -.
+DR   Bgee; O43521; -.
+DR   Genevestigator; O43521; -.
+DR   GermOnline; ENSG00000153094; Homo sapiens.
+DR   GO; GO:0005829; C:cytosol; TAS:Reactome.
+DR   GO; GO:0012505; C:endomembrane system; IEA:UniProtKB-SubCell.
+DR   GO; GO:0005741; C:mitochondrial outer membrane; TAS:Reactome.
+DR   GO; GO:0005886; C:plasma membrane; TAS:Reactome.
+DR   GO; GO:0005515; F:protein binding; IPI:UniProtKB.
+DR   GO; GO:0008633; P:activation of pro-apoptotic gene products; TAS:Reactome.
+DR   GO; GO:0008624; P:induction of apoptosis by extracellular signals; TAS:Reactome.
+DR   GO; GO:0008629; P:induction of apoptosis by intracellular signals; TAS:Reactome.
+DR   GO; GO:0048011; P:nerve growth factor receptor signaling pathway; TAS:Reactome.
+DR   GO; GO:0032464; P:positive regulation of protein homooligomerization; IDA:BHF-UCL.
+DR   GO; GO:0090200; P:positive regulation of release of cytochrome c from mitochondria; IGI:BHF-UCL.
+DR   InterPro; IPR014771; Apoptosis_Bim_N.
+DR   InterPro; IPR017288; Bcl-2-like_11.
+DR   InterPro; IPR015040; Bcl-x_interacting.
+DR   Pfam; PF08945; Bclx_interact; 1.
+DR   Pfam; PF06773; Bim_N; 1.
+DR   PIRSF; PIRSF037827; Bcl-2-like_p11; 1.
+DR   PROSITE; PS01259; BH3; FALSE_NEG.
+PE   1: Evidence at protein level;
+KW   3D-structure; Alternative splicing; Apoptosis; Complete proteome;
+KW   Membrane; Mitochondrion; Phosphoprotein; Reference proteome;
+KW   Ubl conjugation.
+FT   CHAIN         1    198       Bcl-2-like protein 11.
+FT                                /FTId=PRO_0000143109.
+FT   MOTIF       148    162       BH3.
+FT   MOD_RES      69     69       Phosphoserine (By similarity).
+FT   MOD_RES      77     77       Phosphoserine.
+FT   MOD_RES      87     87       Phosphoserine (By similarity).
+FT   VAR_SEQ      42    131       Missing (in isoform BimS, isoform Bim-
+FT                                alpha3, isoform Bim-alpha6 and isoform
+FT                                Bim-alpha4).
+FT                                /FTId=VSP_035608.
+FT   VAR_SEQ      42    101       Missing (in isoform BimL, isoform Bim-
+FT                                alpha2, isoform Bim-gamma, isoform Bim-
+FT                                beta6 and isoform Bim-beta7).
+FT                                /FTId=VSP_000535.
+FT   VAR_SEQ      42     75       GNPEGNHGGEGDSCPHGSPQGPLAPPASPGPFAT -> VSL
+FT                                CHPGWSALVRSWLTATSNSQVQAVLLPQPPK (in
+FT                                isoform Bim-beta3).
+FT                                /FTId=VSP_035609.
+FT   VAR_SEQ      43     44       NP -> IF (in isoform Bim-beta4).
+FT                                /FTId=VSP_035610.
+FT   VAR_SEQ      45    198       Missing (in isoform Bim-beta4).
+FT                                /FTId=VSP_035611.
+FT   VAR_SEQ     132    198       ASMRQAEPADMRPEIWIAQELRRIGDEFNAYYARRVFLNNY
+FT                                QAAEDHPRMVILRLLRYIVRLVWRMH -> VVILEDIGDLS
+FT                                LCFGFIFTGLDLYGHHHSQDTEQLNHKDFS (in
+FT                                isoform Bim-gamma).
+FT                                /FTId=VSP_035612.
+FT   VAR_SEQ     132    140       ASMRQAEPA -> VREIEEVVV (in isoform Bim-
+FT                                beta5 and isoform Bim-beta7).
+FT                                /FTId=VSP_035613.
+FT   VAR_SEQ     132    135       ASMR -> GIFE (in isoform Bim-beta2 and
+FT                                isoform Bim-beta6).
+FT                                /FTId=VSP_035614.
+FT   VAR_SEQ     133    135       SMR -> NWD (in isoform Bim-beta1).
+FT                                /FTId=VSP_035615.
+FT   VAR_SEQ     136    198       Missing (in isoform Bim-beta1, isoform
+FT                                Bim-beta2 and isoform Bim-beta6).
+FT                                /FTId=VSP_035616.
+FT   VAR_SEQ     141    198       Missing (in isoform Bim-beta5 and isoform
+FT                                Bim-beta7).
+FT                                /FTId=VSP_035617.
+FT   VAR_SEQ     167    198       VFLNNYQAAEDHPRMVILRLLRYIVRLVWRMH -> LEK
+FT                                (in isoform Bim-alpha1, isoform Bim-
+FT                                alpha2 and isoform Bim-alpha3).
+FT                                /FTId=VSP_035620.
+FT   VAR_SEQ     167    198       VFLNNYQAAEDHPRMVILRLLRYIVRLVWRMH -> LAKLL
+FT                                ASST (in isoform Bim-alpha4).
+FT                                /FTId=VSP_035618.
+FT   VAR_SEQ     167    198       VFLNNYQAAEDHPRMVILRLLRYIVRLVWRMH -> MPLPP
+FT                                D (in isoform Bim-alpha5 and isoform Bim-
+FT                                alpha6).
+FT                                /FTId=VSP_035619.
+FT   CONFLICT     33     33       P -> L (in Ref. 6; BAF83066).
+FT   HELIX       144    164
+SQ   SEQUENCE   198 AA;  22171 MW;  D75735E469CA6997 CRC64;
+     MAKQPSDVSS ECDREGRQLQ PAERPPQLRP GAPTSLQTEP QGNPEGNHGG EGDSCPHGSP
+     QGPLAPPASP GPFATRSPLF IFMRRSSLLS RSSSGYFSFD TDRSPAPMSC DKSTQTPSPP
+     CQAFNHYLSA MASMRQAEPA DMRPEIWIAQ ELRRIGDEFN AYYARRVFLN NYQAAEDHPR
+     MVILRLLRYI VRLVWRMH
+//

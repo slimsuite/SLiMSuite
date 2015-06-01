@@ -1,0 +1,184 @@
+# The following modules have dependencies:
+extras/compass: rje, rje_seq, rje_tm, rje_uniprot, gopher, ned_eigenvalues, rje_aaprop, rje_ancseq, rje_blast_V1, rje_blast_V2, rje_db, rje_dismatrix_V2, rje_disorder, rje_html, rje_obj, rje_pam, rje_scoring, rje_seqlist, rje_sequence, rje_slim, rje_slimcalc, rje_svg, rje_tree, rje_tree_group, rje_zen
+extras/file_monster: rje, rje_db, rje_obj, rje_zen, rje_scoring
+extras/peptide_dismatrix: rje, rje_aaprop, rje_dismatrix, rje_pam, rje_seq, gopher, ned_eigenvalues, rje_ancseq, rje_blast_V1, rje_blast_V2, rje_db, rje_dismatrix_V2, rje_disorder, rje_html, rje_obj, rje_scoring, rje_seqlist, rje_sequence, rje_slim, rje_slimcalc, rje_svg, rje_tree, rje_tree_group, rje_uniprot, rje_zen
+extras/peptide_stats: rje, rje_aaprop, rje_seq, gopher, ned_eigenvalues, rje_ancseq, rje_blast_V1, rje_blast_V2, rje_db, rje_dismatrix_V2, rje_disorder, rje_html, rje_obj, rje_pam, rje_scoring, rje_seqlist, rje_sequence, rje_slim, rje_slimcalc, rje_svg, rje_tree, rje_tree_group, rje_uniprot, rje_zen
+extras/pic_html: rje
+extras/prodigis: rje, rje_db, rje_obj, rje_seq, rje_sequence, rje_zen, gopher, ned_eigenvalues, rje_aaprop, rje_ancseq, rje_blast_V1, rje_blast_V2, rje_dismatrix_V2, rje_disorder, rje_html, rje_pam, rje_scoring, rje_seqlist, rje_slim, rje_slimcalc, rje_svg, rje_tree, rje_tree_group, rje_uniprot
+extras/rem_parser: rje
+extras/rje_dbase: rje, rje_ensembl, rje_seq, rje_seqlist, rje_uniprot, rje_xml, rje_zen, rje_blast_V1, gopher, ned_eigenvalues, rje_aaprop, rje_ancseq, rje_blast, rje_blast_V2, rje_db, rje_dismatrix_V2, rje_disorder, rje_forker, rje_hmm_V1, rje_html, rje_menu, rje_obj, rje_pam, rje_scoring, rje_sequence, rje_slim, rje_slimcalc, rje_svg, rje_taxonomy, rje_tm, rje_tree, rje_tree_group, seqmapper
+extras/rje_glossary: rje, rje_html, rje_obj, rje_zen
+extras/rje_itunes: rje, rje_db, rje_html, rje_obj, rje_zen, rje_scoring
+extras/rje_mysql: rje
+extras/rje_pattern_discovery: rje, rje_seq, gopher, ned_eigenvalues, rje_aaprop, rje_ancseq, rje_blast_V1, rje_blast_V2, rje_db, rje_dismatrix_V2, rje_disorder, rje_html, rje_obj, rje_pam, rje_scoring, rje_seqlist, rje_sequence, rje_slim, rje_slimcalc, rje_svg, rje_tree, rje_tree_group, rje_uniprot, rje_zen
+extras/rje_phos: rje, rje_seq, rje_uniprot, rje_zen, rje_blast_V1, gopher, ned_eigenvalues, rje_aaprop, rje_ancseq, rje_blast_V2, rje_db, rje_dismatrix_V2, rje_disorder, rje_html, rje_obj, rje_pam, rje_scoring, rje_seqlist, rje_sequence, rje_slim, rje_slimcalc, rje_svg, rje_tree, rje_tree_group
+extras/rje_pydocs: rje, rje_db, rje_html, rje_obj, rje_ppi, rje_zen, rje_scoring, rje_svg, rje_xgmml
+extras/rje_scansite: rje
+extras/rje_seqgen: rje, rje_markov, rje_seq, rje_sequence, rje_zen, rje_blast_V1, gopher, ned_eigenvalues, rje_aaprop, rje_ancseq, rje_blast_V2, rje_db, rje_dismatrix_V2, rje_disorder, rje_html, rje_obj, rje_pam, rje_scoring, rje_seqlist, rje_slim, rje_slimcalc, rje_svg, rje_tree, rje_tree_group, rje_uniprot
+extras/rje_seqplot: rje, rje_disorder, rje_seq, rje_slimcalc, rje_zen, gopher, ned_eigenvalues, rje_aaprop, rje_ancseq, rje_blast_V1, rje_blast_V2, rje_db, rje_dismatrix_V2, rje_html, rje_obj, rje_pam, rje_scoring, rje_seqlist, rje_sequence, rje_slim, rje_svg, rje_tree, rje_tree_group, rje_uniprot
+extras/rje_sleeper: rje
+extras/rje_ssds: rje, rje_zen
+extras/rje_yeast: rje, rje_db, rje_seq, rje_sequence, rje_uniprot, rje_zen, rje_blast_V1, gopher, ned_eigenvalues, rje_aaprop, rje_ancseq, rje_blast_V2, rje_dismatrix_V2, rje_disorder, rje_html, rje_obj, rje_pam, rje_scoring, rje_seqlist, rje_slim, rje_slimcalc, rje_svg, rje_tree, rje_tree_group
+extras/seqforker: rje, rje_seq, gopher, ned_eigenvalues, rje_aaprop, rje_ancseq, rje_blast_V1, rje_blast_V2, rje_db, rje_dismatrix_V2, rje_disorder, rje_html, rje_obj, rje_pam, rje_scoring, rje_seqlist, rje_sequence, rje_slim, rje_slimcalc, rje_svg, rje_tree, rje_tree_group, rje_uniprot, rje_zen
+extras/sfmap2png: rje, rje_disorder, rje_seq, rje_zen, gopher, ned_eigenvalues, rje_aaprop, rje_ancseq, rje_blast_V1, rje_blast_V2, rje_db, rje_dismatrix_V2, rje_html, rje_obj, rje_pam, rje_scoring, rje_seqlist, rje_sequence, rje_slim, rje_slimcalc, rje_svg, rje_tree, rje_tree_group, rje_uniprot
+extras/slim_pickings: gopher, rje, rje_disorder, rje_scoring, rje_seq, rje_sequence, rje_uniprot, ned_eigenvalues, rje_aaprop, rje_ancseq, rje_blast_V1, rje_blast_V2, rje_db, rje_dismatrix_V2, rje_html, rje_obj, rje_pam, rje_seqlist, rje_slim, rje_slimcalc, rje_svg, rje_tree, rje_tree_group, rje_zen
+extras/wormpump: rje, rje_menu, rje_zen
+legacy/gopher_V2: rje, rje_seq, rje_tree, rje_blast_V1, rje_dismatrix_V2, gopher, ned_eigenvalues, rje_aaprop, rje_ancseq, rje_blast_V2, rje_db, rje_disorder, rje_html, rje_obj, rje_pam, rje_scoring, rje_seqlist, rje_sequence, rje_slim, rje_slimcalc, rje_svg, rje_tree_group, rje_uniprot, rje_zen
+legacy/qslimfinder_V1.9: rje, rje_seq, slimfinder, rje_slim, rje_slimcalc, rje_slimlist, comparimotif_V3, gablam, gopher, ned_eigenvalues, ned_rankbydistribution, peptcluster, rje_aaprop, rje_ancseq, rje_blast_V1, rje_blast_V2, rje_db, rje_dismatrix_V2, rje_dismatrix_V3, rje_disorder, rje_forker, rje_html, rje_menu, rje_motif_V3, rje_obj, rje_pam, rje_ppi, rje_scoring, rje_seqlist, rje_sequence, rje_slimcore, rje_svg, rje_tm, rje_tree, rje_tree_group, rje_uniprot, rje_xgmml, rje_zen, slimmaker, unifake
+legacy/slimbench_V1: rje, rje_db, rje_obj, rje_seq, rje_seqlist, rje_slim, rje_slimcore, rje_slimlist, rje_uniprot, rje_zen, comparimotif_V3, slimmaker, slimprob, slimsearch, gablam, gopher, ned_eigenvalues, peptcluster, rje_aaprop, rje_ancseq, rje_blast_V1, rje_blast_V2, rje_dismatrix_V2, rje_dismatrix_V3, rje_disorder, rje_forker, rje_html, rje_menu, rje_motif_V3, rje_pam, rje_ppi, rje_scoring, rje_sequence, rje_slimcalc, rje_svg, rje_tm, rje_tree, rje_tree_group, rje_xgmml, unifake
+legacy/slimdisc_V1.4: 
+legacy/slimfinder_V4.9: rje, rje_seq, rje_sequence, rje_scoring, rje_xgmml, rje_slim, rje_slimcalc, rje_slimlist, slimmaker, rje_motif_V3, comparimotif_V3, ned_rankbydistribution, gablam, gopher, ned_eigenvalues, peptcluster, rje_aaprop, rje_ancseq, rje_blast_V1, rje_blast_V2, rje_db, rje_dismatrix_V2, rje_dismatrix_V3, rje_disorder, rje_forker, rje_html, rje_menu, rje_obj, rje_pam, rje_ppi, rje_seqlist, rje_slimcore, rje_svg, rje_tm, rje_tree, rje_tree_group, rje_uniprot, rje_zen, unifake
+legacy/slimprob_V1.4: rje, rje_seq, rje_sequence, rje_scoring, rje_slim, rje_slimcalc, rje_slimlist, rje_zen, gopher, ned_eigenvalues, rje_aaprop, rje_ancseq, rje_blast_V1, rje_blast_V2, rje_db, rje_dismatrix_V2, rje_disorder, rje_html, rje_motif_V3, rje_obj, rje_pam, rje_seqlist, rje_svg, rje_tree, rje_tree_group, rje_uniprot
+tools/aphid: rje, rje_db, rje_genemap, rje_scoring, rje_seq, rje_slimcore, gablam, pingu_V3, rje_dismatrix_V2, comparimotif_V3, gopher, ned_eigenvalues, ned_rankbydistribution, peptcluster, qslimfinder, rje_aaprop, rje_ancseq, rje_biogrid, rje_blast_V1, rje_blast_V2, rje_dismatrix_V3, rje_disorder, rje_forker, rje_genecards, rje_go, rje_hprd, rje_html, rje_menu, rje_motif_V3, rje_obj, rje_pam, rje_ppi, rje_seqlist, rje_sequence, rje_slim, rje_slimcalc, rje_slimlist, rje_svg, rje_tm, rje_tree, rje_tree_group, rje_uniprot, rje_xgmml, rje_zen, slimfinder, slimmaker, unifake
+tools/badasp: rje, rje_aaprop, rje_ancseq, rje_conseq, rje_seq, rje_specificity, rje_tree, gopher, ned_eigenvalues, rje_blast_V1, rje_blast_V2, rje_db, rje_dismatrix_V2, rje_disorder, rje_html, rje_obj, rje_pam, rje_scoring, rje_seqlist, rje_sequence, rje_slim, rje_slimcalc, rje_svg, rje_tree_group, rje_uniprot, rje_zen
+tools/budapest: fiesta, haqesac, rje, rje_db, rje_mascot, rje_menu, rje_seq, rje_seqlist, rje_sequence, rje_tree, rje_zen, rje_blast_V2, gopher, multihaq, ned_eigenvalues, rje_aaprop, rje_ancseq, rje_blast_V1, rje_dismatrix_V2, rje_disorder, rje_haq, rje_html, rje_obj, rje_pam, rje_scoring, rje_slim, rje_slimcalc, rje_svg, rje_tree_group, rje_uniprot
+tools/comparimotif_V3: rje, rje_menu, rje_seq, rje_slim, rje_slimlist, rje_xgmml, rje_zen, rje_forker, gopher, ned_eigenvalues, rje_aaprop, rje_ancseq, rje_blast_V1, rje_blast_V2, rje_db, rje_dismatrix_V2, rje_disorder, rje_html, rje_motif_V3, rje_obj, rje_pam, rje_scoring, rje_seqlist, rje_sequence, rje_slimcalc, rje_svg, rje_tree, rje_tree_group, rje_uniprot
+tools/fiesta: multihaq, rje, rje_seq, rje_sequence, rje_tree, rje_zen, rje_blast_V2, gopher, haqesac, ned_eigenvalues, rje_aaprop, rje_ancseq, rje_blast_V1, rje_db, rje_dismatrix_V2, rje_disorder, rje_haq, rje_html, rje_obj, rje_pam, rje_scoring, rje_seqlist, rje_slim, rje_slimcalc, rje_svg, rje_tree_group, rje_uniprot
+tools/gablam: rje, rje_db, rje_ppi, rje_seq, rje_seqlist, rje_tree, rje_blast_V2, rje_dismatrix_V2, gopher, ned_eigenvalues, rje_aaprop, rje_ancseq, rje_blast_V1, rje_disorder, rje_html, rje_obj, rje_pam, rje_scoring, rje_sequence, rje_slim, rje_slimcalc, rje_svg, rje_tree_group, rje_uniprot, rje_xgmml, rje_zen
+tools/gasp: rje, rje_ancseq, rje_seq, rje_tree, gopher, ned_eigenvalues, rje_aaprop, rje_blast_V1, rje_blast_V2, rje_db, rje_dismatrix_V2, rje_disorder, rje_html, rje_obj, rje_pam, rje_scoring, rje_seqlist, rje_sequence, rje_slim, rje_slimcalc, rje_svg, rje_tree_group, rje_uniprot, rje_zen
+tools/gfessa: budapest, rje_seq, rje_seqlist, rje_sequence, rje_blast_V2, rje, rje_db, rje_zen, fiesta, gopher, haqesac, multihaq, ned_eigenvalues, rje_aaprop, rje_ancseq, rje_blast_V1, rje_dismatrix_V2, rje_disorder, rje_haq, rje_html, rje_mascot, rje_menu, rje_obj, rje_pam, rje_scoring, rje_slim, rje_slimcalc, rje_svg, rje_tree, rje_tree_group, rje_uniprot
+tools/gopher: rje, rje_seq, rje_sequence, rje_tree, rje_uniprot, rje_blast_V2, rje_dismatrix_V2, gopher, ned_eigenvalues, rje_aaprop, rje_ancseq, rje_blast_V1, rje_db, rje_disorder, rje_html, rje_obj, rje_pam, rje_scoring, rje_seqlist, rje_slim, rje_slimcalc, rje_svg, rje_tree_group, rje_zen
+tools/happi: rje, rje_db, rje_go, rje_html, rje_ppi, rje_sequence, rje_slim, rje_uniprot, rje_zen, rje_dismatrix_V2, rje_tree, gopher, ned_eigenvalues, rje_aaprop, rje_ancseq, rje_blast_V1, rje_blast_V2, rje_disorder, rje_obj, rje_pam, rje_scoring, rje_seq, rje_seqlist, rje_slimcalc, rje_svg, rje_tree_group, rje_xgmml
+tools/haqesac: rje, rje_ancseq, rje_haq, rje_seq, rje_tree, rje_blast_V2, gopher, ned_eigenvalues, rje_aaprop, rje_blast_V1, rje_db, rje_dismatrix_V2, rje_disorder, rje_html, rje_obj, rje_pam, rje_scoring, rje_seqlist, rje_sequence, rje_slim, rje_slimcalc, rje_svg, rje_tree_group, rje_uniprot, rje_zen
+tools/multihaq: haqesac, rje, rje_seq, rje_zen, gopher, ned_eigenvalues, rje_aaprop, rje_ancseq, rje_blast_V1, rje_blast_V2, rje_db, rje_dismatrix_V2, rje_disorder, rje_haq, rje_html, rje_obj, rje_pam, rje_scoring, rje_seqlist, rje_sequence, rje_slim, rje_slimcalc, rje_svg, rje_tree, rje_tree_group, rje_uniprot
+tools/peptcluster: rje, rje_aaprop, rje_obj, rje_pam, rje_slim, rje_tree, rje_zen, rje_dismatrix_V2, gopher, ned_eigenvalues, rje_ancseq, rje_blast_V1, rje_blast_V2, rje_db, rje_disorder, rje_html, rje_scoring, rje_seq, rje_seqlist, rje_sequence, rje_slimcalc, rje_svg, rje_tree_group, rje_uniprot
+tools/picsi: budapest, rje, rje_seq, rje_zen, rje_blast_V2, fiesta, gopher, haqesac, multihaq, ned_eigenvalues, rje_aaprop, rje_ancseq, rje_blast_V1, rje_db, rje_dismatrix_V2, rje_disorder, rje_haq, rje_html, rje_mascot, rje_menu, rje_obj, rje_pam, rje_scoring, rje_seqlist, rje_sequence, rje_slim, rje_slimcalc, rje_svg, rje_tree, rje_tree_group, rje_uniprot
+tools/pingu_V3: rje, rje_biogrid, rje_genemap, rje_go, rje_hprd, rje_ppi, rje_seq, rje_uniprot, rje_xgmml, rje_zen, rje_dismatrix_V2, gablam, qslimfinder, rje_slimcore, rje_tree, comparimotif_V3, gopher, ned_eigenvalues, ned_rankbydistribution, peptcluster, rje_aaprop, rje_ancseq, rje_blast_V1, rje_blast_V2, rje_db, rje_dismatrix_V3, rje_disorder, rje_forker, rje_genecards, rje_html, rje_menu, rje_motif_V3, rje_obj, rje_pam, rje_scoring, rje_seqlist, rje_sequence, rje_slim, rje_slimcalc, rje_slimlist, rje_svg, rje_tm, rje_tree_group, slimfinder, slimmaker, unifake
+tools/pingu_V4: rje, rje_db, rje_go, rje_obj, rje_ppi, rje_seqlist, rje_uniprot, rje_xgmml, rje_xref, pingu_V3, rje_hprd, rje_biogrid, rje_mitab, comparimotif_V3, gablam, gopher, ned_eigenvalues, ned_rankbydistribution, peptcluster, qslimfinder, rje_aaprop, rje_ancseq, rje_blast_V1, rje_blast_V2, rje_dismatrix_V2, rje_dismatrix_V3, rje_disorder, rje_forker, rje_genecards, rje_genemap, rje_html, rje_menu, rje_motif_V3, rje_pam, rje_scoring, rje_seq, rje_sequence, rje_slim, rje_slimcalc, rje_slimcore, rje_slimlist, rje_svg, rje_tm, rje_tree, rje_tree_group, rje_zen, slimfinder, slimmaker, unifake
+tools/presto_V5: rje, rje_motif_V3, rje_motif_stats, rje_scoring, rje_seq, rje_sequence, rje_motiflist, gopher, gopher_V2, ned_eigenvalues, rje_aaprop, rje_ancseq, rje_blast_V1, rje_blast_V2, rje_db, rje_dismatrix_V2, rje_disorder, rje_html, rje_motifocc, rje_obj, rje_pam, rje_seqlist, rje_slim, rje_slimcalc, rje_svg, rje_tree, rje_tree_group, rje_uniprot, rje_zen
+tools/qslimfinder: rje, rje_seq, slimfinder, rje_slim, rje_slimcalc, rje_slimcore, rje_slimlist, comparimotif_V3, gablam, gopher, ned_eigenvalues, ned_rankbydistribution, peptcluster, rje_aaprop, rje_ancseq, rje_blast_V1, rje_blast_V2, rje_db, rje_dismatrix_V2, rje_dismatrix_V3, rje_disorder, rje_forker, rje_html, rje_menu, rje_motif_V3, rje_obj, rje_pam, rje_ppi, rje_scoring, rje_seqlist, rje_sequence, rje_svg, rje_tm, rje_tree, rje_tree_group, rje_uniprot, rje_xgmml, rje_zen, slimmaker, unifake
+tools/seqmapper: rje, rje_menu, rje_obj, rje_seq, rje_seqlist, rje_zen, rje_blast_V2, rje_sequence, gopher, ned_eigenvalues, rje_aaprop, rje_ancseq, rje_blast_V1, rje_db, rje_dismatrix_V2, rje_disorder, rje_html, rje_pam, rje_scoring, rje_slim, rje_slimcalc, rje_svg, rje_tree, rje_tree_group, rje_uniprot
+tools/seqsuite: rje, rje_obj, rje_zen, rje_dbase, rje_ensembl, rje_genbank, rje_mitab, rje_pydocs, rje_seq, rje_seqlist, rje_taxonomy, rje_tree, rje_uniprot, rje_xref, fiesta, gablam, gopher, haqesac, multihaq, pingu_V4, comparimotif_V3, ned_eigenvalues, ned_rankbydistribution, peptcluster, pingu_V3, qslimfinder, rje_aaprop, rje_ancseq, rje_biogrid, rje_blast, rje_blast_V1, rje_blast_V2, rje_db, rje_dismatrix_V2, rje_dismatrix_V3, rje_disorder, rje_forker, rje_genecards, rje_genemap, rje_go, rje_haq, rje_hmm_V1, rje_hprd, rje_html, rje_menu, rje_motif_V3, rje_pam, rje_ppi, rje_scoring, rje_sequence, rje_slim, rje_slimcalc, rje_slimcore, rje_slimlist, rje_svg, rje_tm, rje_tree_group, rje_xgmml, rje_xml, seqmapper, slimfinder, slimmaker, unifake
+tools/slimbench: rje, rje_db, rje_obj, rje_ppi, rje_seq, rje_seqlist, rje_slim, rje_slimcore, rje_slimlist, rje_uniprot, comparimotif_V3, slimmaker, slimprob, slimsearch, gablam, gopher, ned_eigenvalues, peptcluster, rje_aaprop, rje_ancseq, rje_blast_V1, rje_blast_V2, rje_dismatrix_V2, rje_dismatrix_V3, rje_disorder, rje_forker, rje_html, rje_menu, rje_motif_V3, rje_pam, rje_scoring, rje_sequence, rje_slimcalc, rje_svg, rje_tm, rje_tree, rje_tree_group, rje_xgmml, rje_zen, unifake
+tools/slimfarmer: rje, rje_hpc, rje_obj, rje_iridis, rje_qsub, gopher, gopher_V2, ned_eigenvalues, rje_aaprop, rje_ancseq, rje_blast_V1, rje_blast_V2, rje_db, rje_dismatrix_V2, rje_disorder, rje_html, rje_motif_V3, rje_pam, rje_scoring, rje_seq, rje_seqlist, rje_sequence, rje_slim, rje_slimcalc, rje_slimlist, rje_svg, rje_tree, rje_tree_group, rje_uniprot, rje_zen
+tools/slimfinder: rje, rje_seq, rje_sequence, rje_scoring, rje_xgmml, rje_slim, rje_slimcalc, rje_slimcore, rje_slimlist, slimmaker, rje_motif_V3, comparimotif_V3, ned_rankbydistribution, gablam, gopher, ned_eigenvalues, peptcluster, rje_aaprop, rje_ancseq, rje_blast_V1, rje_blast_V2, rje_db, rje_dismatrix_V2, rje_dismatrix_V3, rje_disorder, rje_forker, rje_html, rje_menu, rje_obj, rje_pam, rje_ppi, rje_seqlist, rje_svg, rje_tm, rje_tree, rje_tree_group, rje_uniprot, rje_zen, unifake
+tools/slimmaker: rje, rje_obj, rje_slim, rje_zen, peptcluster, gopher, ned_eigenvalues, rje_aaprop, rje_ancseq, rje_blast_V1, rje_blast_V2, rje_db, rje_dismatrix_V2, rje_disorder, rje_html, rje_pam, rje_scoring, rje_seq, rje_seqlist, rje_sequence, rje_slimcalc, rje_svg, rje_tree, rje_tree_group, rje_uniprot
+tools/slimmutant: rje, rje_db, rje_obj, rje_seq, rje_seqlist, rje_slim, rje_slimlist, rje_slimcore, rje_uniprot, pingu_V4, slimprob, comparimotif_V3, gablam, gopher, ned_eigenvalues, ned_rankbydistribution, peptcluster, pingu_V3, qslimfinder, rje_aaprop, rje_ancseq, rje_biogrid, rje_blast_V1, rje_blast_V2, rje_dismatrix_V2, rje_dismatrix_V3, rje_disorder, rje_forker, rje_genecards, rje_genemap, rje_go, rje_hprd, rje_html, rje_menu, rje_mitab, rje_motif_V3, rje_pam, rje_ppi, rje_scoring, rje_sequence, rje_slimcalc, rje_svg, rje_tm, rje_tree, rje_tree_group, rje_xgmml, rje_xref, rje_zen, slimfinder, slimmaker, unifake
+tools/slimparser: rje, rje_obj, rje_html, rje_zen
+tools/slimprob: rje, rje_seq, rje_sequence, rje_scoring, rje_slim, rje_slimcore, rje_slimcalc, rje_slimlist, rje_zen, gablam, gopher, ned_eigenvalues, rje_aaprop, rje_ancseq, rje_blast_V1, rje_blast_V2, rje_db, rje_dismatrix_V2, rje_dismatrix_V3, rje_disorder, rje_html, rje_motif_V3, rje_obj, rje_pam, rje_ppi, rje_seqlist, rje_svg, rje_tm, rje_tree, rje_tree_group, rje_uniprot, rje_xgmml, unifake
+tools/slimsearch: rje, rje_seq, rje_sequence, rje_scoring, rje_slim, rje_slimcore, rje_slimcalc, rje_slimlist, rje_zen, gablam, gopher, ned_eigenvalues, rje_aaprop, rje_ancseq, rje_blast_V1, rje_blast_V2, rje_db, rje_dismatrix_V2, rje_dismatrix_V3, rje_disorder, rje_html, rje_motif_V3, rje_obj, rje_pam, rje_ppi, rje_seqlist, rje_svg, rje_tm, rje_tree, rje_tree_group, rje_uniprot, rje_xgmml, unifake
+tools/slimsuite: rje, rje_obj, rje_slimcore, rje_slimlist, comparimotif_V3, seqsuite, qslimfinder, slimbench, slimfarmer, slimfinder, slimmaker, slimprob, slimmutant, gablam, gopher, haqesac, multihaq, peptcluster, pingu_V4, presto_V5, badasp, budapest, fiesta, gasp, gfessa, picsi, unifake, seqmapper, seqforker, rje_seqgen, gopher_V2, ned_eigenvalues, ned_rankbydistribution, pingu_V3, rje_aaprop, rje_ancseq, rje_biogrid, rje_blast, rje_blast_V1, rje_blast_V2, rje_conseq, rje_db, rje_dbase, rje_dismatrix_V2, rje_dismatrix_V3, rje_disorder, rje_ensembl, rje_forker, rje_genbank, rje_genecards, rje_genemap, rje_go, rje_haq, rje_hmm_V1, rje_hpc, rje_hprd, rje_html, rje_iridis, rje_markov, rje_mascot, rje_menu, rje_mitab, rje_motif_V3, rje_motif_stats, rje_motiflist, rje_motifocc, rje_pam, rje_ppi, rje_pydocs, rje_qsub, rje_scoring, rje_seq, rje_seqlist, rje_sequence, rje_slim, rje_slimcalc, rje_specificity, rje_svg, rje_taxonomy, rje_tm, rje_tree, rje_tree_group, rje_uniprot, rje_xgmml, rje_xml, rje_xref, rje_zen, slimsearch
+tools/unifake: rje, rje_seq, rje_tm, rje_uniprot, rje_zen, gopher, ned_eigenvalues, rje_aaprop, rje_ancseq, rje_blast_V1, rje_blast_V2, rje_db, rje_dismatrix_V2, rje_disorder, rje_html, rje_obj, rje_pam, rje_scoring, rje_seqlist, rje_sequence, rje_slim, rje_slimcalc, rje_svg, rje_tree, rje_tree_group
+
+# Full module list required, including dependencies:
+extras/compass
+extras/file_monster
+extras/peptide_dismatrix
+extras/peptide_stats
+extras/pic_html
+extras/prodigis
+extras/rem_parser
+extras/rje_dbase
+extras/rje_glossary
+extras/rje_itunes
+extras/rje_mysql
+extras/rje_pattern_discovery
+extras/rje_phos
+extras/rje_pydocs
+extras/rje_scansite
+extras/rje_seqgen
+extras/rje_seqplot
+extras/rje_sleeper
+extras/rje_ssds
+extras/rje_yeast
+extras/seqforker
+extras/sfmap2png
+extras/slim_pickings
+extras/wormpump
+legacy/gopher_V2
+legacy/qslimfinder_V1.9
+legacy/slimbench_V1
+legacy/slimdisc_V1.4
+legacy/slimfinder_V4.9
+legacy/slimprob_V1.4
+libraries/ned_eigenvalues
+libraries/ned_rankbydistribution
+libraries/rje
+libraries/rje_aaprop
+libraries/rje_ancseq
+libraries/rje_biogrid
+libraries/rje_blast
+libraries/rje_blast_V1
+libraries/rje_blast_V2
+libraries/rje_conseq
+libraries/rje_db
+libraries/rje_dismatrix
+libraries/rje_dismatrix_V2
+libraries/rje_dismatrix_V3
+libraries/rje_disorder
+libraries/rje_ensembl
+libraries/rje_forker
+libraries/rje_genbank
+libraries/rje_genecards
+libraries/rje_genemap
+libraries/rje_go
+libraries/rje_haq
+libraries/rje_hmm_V1
+libraries/rje_hpc
+libraries/rje_hprd
+libraries/rje_html
+libraries/rje_iridis
+libraries/rje_markov
+libraries/rje_mascot
+libraries/rje_menu
+libraries/rje_mitab
+libraries/rje_motif_V3
+libraries/rje_motif_stats
+libraries/rje_motiflist
+libraries/rje_motifocc
+libraries/rje_obj
+libraries/rje_pam
+libraries/rje_ppi
+libraries/rje_qsub
+libraries/rje_scoring
+libraries/rje_seq
+libraries/rje_seqlist
+libraries/rje_sequence
+libraries/rje_slim
+libraries/rje_slimcalc
+libraries/rje_slimcore
+libraries/rje_slimlist
+libraries/rje_specificity
+libraries/rje_svg
+libraries/rje_taxonomy
+libraries/rje_tm
+libraries/rje_tree
+libraries/rje_tree_group
+libraries/rje_uniprot
+libraries/rje_xgmml
+libraries/rje_xml
+libraries/rje_xref
+libraries/rje_zen
+tools/aphid
+tools/badasp
+tools/budapest
+tools/comparimotif_V3
+tools/fiesta
+tools/gablam
+tools/gasp
+tools/gfessa
+tools/gopher
+tools/happi
+tools/haqesac
+tools/multihaq
+tools/peptcluster
+tools/picsi
+tools/pingu_V3
+tools/pingu_V4
+tools/presto_V5
+tools/qslimfinder
+tools/seqmapper
+tools/seqsuite
+tools/slimbench
+tools/slimfarmer
+tools/slimfinder
+tools/slimmaker
+tools/slimmutant
+tools/slimparser
+tools/slimprob
+tools/slimsearch
+tools/slimsuite
+tools/unifake
+
+# Orphan modules, not required:
+libraries/rje_slimhtml

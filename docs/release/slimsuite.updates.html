@@ -1,0 +1,1374 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html lang="en">
+
+<!-- ~~~~~~~~~~~~~~~ HTML head data ~~~~~~~~~~~~~~~~~ -->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+<title>SLiMSuite updates</title>
+
+<link rel="stylesheet" href="http://www.southampton.ac.uk/~re1u06/rje_tabber.css" TYPE="text/css" MEDIA="screen">
+<link rel="stylesheet" href="http://www.southampton.ac.uk/~re1u06/re1u06.css" TYPE="text/css" MEDIA="screen">
+
+<!-- ~~~~~~~~~~~ Tabber Javascript ~~~~~~~~~~~ -->
+<script type="text/javascript">
+document.write('<style type="text/css">.tabber{display:none;}<\/style>');
+var tabberOptions = {
+ /* Optional: start manually (run tabber) at end of file
+*/
+'manualStartup':true
+};
+</script>
+<!-- Load the tabber code -->
+<script type="text/javascript" src="http://www.southampton.ac.uk/~re1u06/tabber.js"></script>
+
+</head>
+<!-- ~~~~~~~~~~~~~~~ End of HTML head data ~~~~~~~~~~~~~~~~~ -->
+
+<body>
+<h1>SLiMSuite updates</h1>
+<h2>Updates in extras/:</h2>
+
+<p><b>&bull; compass:</b> <i>Updated from Version -.</i>
+</p>
+<p><b>&bull; file_monster:</b> <i>Created/Renamed.</i>
+<br>&rarr; Version 0.0: Initial Compilation.
+<br>&rarr; Version 1.0: Initial Working version
+<br>&rarr; Version 1.1: Broadened away from strict extension-based scavenging to whole file names with wildcards
+<br>&rarr; Version 1.2: Added DirSum function and updated FileMonster slightly.
+<br>&rarr; Version 1.3: Added redundant file cleanup
+<br>&rarr; Version 1.4: Added skiplist and purgelist
+<br>&rarr; Version 1.5: Added rename function (to replace rename.pl Perl module)
+<br>&rarr; Version 1.6: Minor bug fix.
+<br>&rarr; Version 2.0: Major reworking with new object making use of rje_db tables etc. Old functions to be ported with time.
+<br>&rarr; Version 2.1: Added dirsum function.
+<br>&rarr; Version 2.2: Added fixendings=FILELIST to convert Mac \\r into UNIX \\n
+</p>
+<p><b>&bull; peptide_dismatrix:</b> <i>Updated from Version -.</i>
+</p>
+<p><b>&bull; peptide_stats:</b> <i>Updated from Version -.</i>
+</p>
+<p><b>&bull; pic_html:</b> <i>Updated from Version -.</i>
+</p>
+<p><b>&bull; prodigis:</b> <i>Created/Renamed.</i>
+<br>&rarr; Version 0.0: Initial Compilation.
+<br>&rarr; Version 0.1: Added probability calculations based on hydrophobicity, serine and cysteine.
+<br>&rarr; Version 0.2: Added cysteine count and cysteine weighting.
+</p>
+<p><b>&bull; rem_parser:</b> <i>Updated from Version -.</i>
+</p>
+<p><b>&bull; rje_dbase:</b> <i>Created/Renamed.</i>
+<br>&rarr; Version 1.0: Initial working version for use with rje_uniprot V2.0
+<br>&rarr; Version 1.1: Added automated downloading of databases from file
+<br>&rarr; Version 1.2: Incorporated RJE_ENSEMBL for handling EnsEMBL genomes and making a one-protein-per-gene proteome.
+<br>&rarr; Version 1.3: Tidied code a little and improved comments/docstrings.
+<br>&rarr; Version 2.0: Heavily reorganised and modified module.
+<br>&rarr; Version 2.1: Added seqfilter=T/F to speed up TaxaDB manufacture.
+<br>&rarr; Version 2.2: Added use of rje_seqlist for TaxaDB manufacture.
+<br>&rarr; Version 2.3: Added construction of EnsEMBL TaxaDB sets during TaxaDB construction.
+</p>
+<p><b>&bull; rje_glossary:</b> <i>Created/Renamed.</i>
+<br>&rarr; Version 0.0: Initial Compilation.
+<br>&rarr; Version 1.0: Working version, including text setup for webserver.
+<br>&rarr; Version 1.1: Added href=T option to add external hyperlinks for <url> and <url>[text] in descriptions [True]
+<br>&rarr; Version 1.2: Added recognition of _italics_ markup.
+<br>&rarr; Version 1.3: Fixed minor italicising bug.
+<br>&rarr; Version 1.4: Added keeporder=T/F to maintain input order (e.g. for MapTime).
+</p>
+<p><b>&bull; rje_itunes:</b> <i>Created/Renamed.</i>
+<br>&rarr; Version 0.0: Initial Compilation.
+<br>&rarr; Version 0.1: Added Plays/Track, default Album Artist and topHTML() method.
+</p>
+<p><b>&bull; rje_mysql:</b> <i>Updated from Version -.</i>
+</p>
+<p><b>&bull; rje_pattern_discovery:</b> <i>Updated from Version -.</i>
+</p>
+<p><b>&bull; rje_phos:</b> <i>Created/Renamed.</i>
+<br>&rarr; Version 0.0: Initial Compilation. Basic pELM parsing done.
+<br>&rarr; Version 0.1: Added phosBLAST method.
+</p>
+<p><b>&bull; rje_pydocs:</b> <i>Created/Renamed.</i>
+<br>&rarr; Version 2.0: Initial Compilation based on rje_pydocs 1.7 (now rje_pydocs_V1.py), converted to new module framework.
+<br>&rarr; Version 2.1: Added R code and INI directory.
+<br>&rarr; Version 2.2: Minor bug fixes for distribution making code.
+<br>&rarr; Version 2.3: Added Release text (default YYMMDD) to be inserted into downloads.
+<br>&rarr; Version 2.4: Implemented reading of version numbers and outputting updates to log.
+<br>&rarr; Version 2.5: Converted to make use of settings/ directory in place of libraries/ini/
+<br>&rarr; Version 2.6: Minor bug fixes for readme etc. Changed to read ini for packages from ./defaults/.
+<br>&rarr; Version 2.7: Added rje_ppi output for module links.
+<br>&rarr; Version 2.8: Added parsing of commandline options from docstring and cmdRead calls. Added docsource=PATH  : Input path for Python Module documentation (manuals etc.) ['../docs/']
+<br>&rarr; Version 2.9: Attempts to fix some broken links and sort out manuals confusion.
+<br>&rarr; Version 2.10: Added legacy/ to default drives for processing.
+<br>&rarr; Version 2.11: Added development option for multifile HTML readme output.
+<br>&rarr; Version 2.12: Continued modification of the HTML output for SLiMSuite package generation.
+<br>&rarr; Version 2.13: Centred logo and altered restricted width (300) to height (120).
+<br>&rarr; Version 2.14.0: Added handling of X.Y.Z versions.
+<br>&rarr; Version 2.15.0: Added parsing and generation of "pages" for new rest server docs functions.
+<br>&rarr; Version 2.15.1: Tweaked formatting of outfmt and docstring documentation.
+<br>&rarr; Version 2.15.2: Tweaked formatting of docstring documentation.
+<br>&rarr; Version 2.15.3: Fixed URL formatting of docstring documentation.
+<br>&rarr; Version 2.16.0: Added Webserver tab to doc parsing from settings/*.form.
+<br>&rarr; Version 2.16.1: Added parsing of imports within a try/except block. (Cannot be on same line as try: or except:)
+<br>&rarr; Version 2.16.2: Tweaked makePages() output.
+</p>
+<p><b>&bull; rje_scansite:</b> <i>Updated from Version -.</i>
+</p>
+<p><b>&bull; rje_seqgen:</b> <i>Created/Renamed.</i>
+<br>&rarr; Version 0.0: Initial Compilation.
+<br>&rarr; Version 1.0: Initial Working version
+<br>&rarr; Version 1.1: Added max hydrophobicity
+<br>&rarr; Version 1.3: Added peptide scrambler
+<br>&rarr; Version 1.4: Separated Xmer screen and Teiresias pattern screen
+<br>&rarr; Version 1.5: Added BLASTGen Method
+<br>&rarr; Version 1.6: Checked function with DNA. Added EST randomiser function.
+<br>&rarr; Version 1.7: Modified/fixed ESTgen function to work for protein sequences.
+</p>
+<p><b>&bull; rje_seqplot:</b> <i>Created/Renamed.</i>
+<br>&rarr; Version 0.0: Initial Compilation.
+</p>
+<p><b>&bull; rje_sleeper:</b> <i>Updated from Version -.</i>
+</p>
+<p><b>&bull; rje_ssds:</b> <i>Created/Renamed.</i>
+<br>&rarr; Version 0.0: Initial Compilation.
+</p>
+<p><b>&bull; rje_yeast:</b> <i>Created/Renamed.</i>
+<br>&rarr; Version 0.0: Initial Compilation.
+</p>
+<p><b>&bull; seqforker:</b> <i>Updated from Version -.</i>
+</p>
+<p><b>&bull; sfmap2png:</b> <i>Created/Renamed.</i>
+<br>&rarr; Version 0.0: Initial Compilation.
+</p>
+<p><b>&bull; slim_pickings:</b> <i>Updated from Version -.</i>
+</p>
+<p><b>&bull; wormpump:</b> <i>Created/Renamed.</i>
+<br>&rarr; Version 0.0: Initial Compilation.
+</p>
+<h2>Updates in legacy/:</h2>
+
+<p><b>&bull; gopher_V2:</b> <i>Created/Renamed.</i>
+<br>&rarr; Version 0.0: Initial Working Compilation.
+<br>&rarr; Version 1.0: Preliminary working version up to alignment stage
+<br>&rarr; Version 2.0: Complete reworking of main _orthFas() method. See archived GOPHER 1.9 for history and obselete options.
+<br>&rarr; Version 2.1: Updated the parafam etc. methods to work with the new ensloci data
+<br>&rarr; Version 2.2: Added dna=T option.
+<br>&rarr; Version 2.3: Added soaplab=T settings.
+<br>&rarr; Version 2.4: Tidied up a bit.
+<br>&rarr; Version 2.5: Added soaplab file cleanup.
+<br>&rarr; Version 2.6: Replaced Query sequence with input to avoid shared ID problems.
+<br>&rarr; Version 2.7: Added sticky Orthologue method and maxpara=X.
+<br>&rarr; Version 2.8: Made dropout an option.
+<br>&rarr; Version 2.9: Deleted oldStigg() method. Added simple Reciprocal Best Hit orthology prediction.
+</p>
+<p><b>&bull; qslimfinder_V1.9:</b> <i>Created/Renamed.</i>
+<br>&rarr; Version 0.0: Initial Compilation based on SLiMFinder 3.5.
+<br>&rarr; Version 1.0: Test & Modified to include AA masking.
+<br>&rarr; Version 1.1: Added sizesort.
+<br>&rarr; Version 1.2: Added the addquery function.
+<br>&rarr; Version 1.3: Updated the output for Max/Min filtering and the pickup options.
+<br>&rarr; Version 1.4: Added additional dictionary and list to store Query dimers and SLiMs for motif space calculations. Added qexact=T/F option for calculating Exact Query motif space (True) or estimating from dimers (False).
+<br>&rarr; Version 1.5: Implemented SigV calculation. Modified extras setting.
+<br>&rarr; Version 1.6: Removed excess module imports.
+<br>&rarr; Version 1.7: Fixed "MustHave=LIST" correction of motif space.
+<br>&rarr; Version 1.8: Added cloudfix=T/F Restrict output to clouds with 1+ fixed motif (recommended) [False]. Consolidating output.
+<br>&rarr; Version 1.9: Preparation for QSLiMFinder V2.0 & SLiMCore V2.0 using newer RJE_Object.
+</p>
+<p><b>&bull; slimbench_V1:</b> <i>Created/Renamed.</i>
+<br>&rarr; Version 0.0: Initial Compilation.
+<br>&rarr; Version 0.1: Functional version with benchmarking dataset generation.
+<br>&rarr; Version 1.0: Consolidation of "working" version with additional basic benchmarking analysis.
+<br>&rarr; Version 1.1: Added simulated dataset construction and benchmarking.
+<br>&rarr; Version 1.2: Added MinIC filtering to benchmark assessment. Sorted beginning/end of line for reduced ELMs.
+<br>&rarr; Version 1.3: Made SimCount a list rather than Integer. Sorted CompariMotif assessment issue.
+<br>&rarr; Version 1.4: Added ICCut and SLiMLenCut as lists and output columns.
+<br>&rarr; Version 1.5: Added Summary Results output table. Removed PropRes.
+<br>&rarr; Version 1.6: Added "simonly" to datatype - calculates both SN and FPR from "sim" data (ignores "ran") to check query bias.
+<br>&rarr; Version 1.7: Added Benchmarking of ELM datasets without queries.
+<br>&rarr; Version 1.8: Partially added Benchmarking dataset generation from PPI data and 3DID.
+<br>&rarr; Version 1.9: Added memsaver option. Replaced SLiMSearch with SLiMProb. Altered default IO paths.
+</p>
+<p><b>&bull; slimdisc_V1.4:</b> <i>Updated from Version -.</i>
+</p>
+<p><b>&bull; slimfinder_V4.9:</b> <i>Created/Renamed.</i>
+<br>&rarr; Version 0.0: Initial Compilation.
+<br>&rarr; Version 1.0: Preliminary working version with Poisson probabilities
+<br>&rarr; Version 1.1: Binomial probabilities, bonferroni corrections and complexity masking
+<br>&rarr; Version 1.2: Added musthave=LIST option and denferroni correction.
+<br>&rarr; Version 1.3: Added resfile=FILE output
+<br>&rarr; Version 1.4: Added option for termini
+<br>&rarr; Version 1.5: Reworked slim mechanics to be ai-x-aj strings for future ambiguity (split on '-' to make list)
+<br>&rarr; Version 1.6: Added basic ambiguity and flexible wildcards plus MST weighting for UP clusters
+<br>&rarr; Version 1.7: Added counting of generic dimer frequencies for improved Bonferroni and probability calculation (No blockmask.)
+<br>&rarr; Version 1.8: Added *.upc rather than *.self.blast. Added basic randomiser function.
+<br>&rarr; Version 1.9: Added MotifList object to handle extra calculations and occurrence filtering.
+<br>&rarr; Version 2.0: Tidied up and standardised output. Implemented extra filtering and scoring options.
+<br>&rarr; Version 2.1: Changed defaults. Removed poisson as option and other obseleted functions.
+<br>&rarr; Version 2.2: Tidied and reorganised code using SLiMBuild/SLiMChance subdivision of labour. Removed rerun=T/F (just Force.)
+<br>&rarr; Version 2.3: Added AAFreq "smear" and "better" p1+ calculation. Added extra cloud summary output.
+<br>&rarr; Version 2.4: Minor bug fixes and tidying. Removed power output. (Rubbish anyway!) Can read UPC from distance matrix.
+<br>&rarr; Version 3.0: Dumped useless stats and calculations. Simplified output. Improved ambiguity & clouds.
+<br>&rarr; Version 3.1: Added minwild and alphahelix options. (Partial aadimerfreq & negatives)
+<br>&rarr; Version 3.2: Tidied up with SLiMCore, replaced old Motif objects with SLiM objects and SLiMCalc.
+<br>&rarr; Version 3.3: Added XGMML output. Added webserver option with additional output.
+<br>&rarr; Version 3.4: Added consmask relative conservation masking.
+<br>&rarr; Version 3.5: Standardised masking options. Add motifmask and motifcull.
+<br>&rarr; Version 3.6: Added aamasking and alphabet.
+<br>&rarr; Version 3.7: Added option to switch off dimfreq and better handling of given aafreq
+<br>&rarr; Version 3.8: Added SLiMDisc & SLiMPickings scores and options to rank on them.
+<br>&rarr; Version 3.9: Added clouding consensus information. [Aborted due to technical challenges.]
+<br>&rarr; Version 3.10: Added differentiation of methods for pickling and tarring.
+<br>&rarr; Version 4.0: Added SigPrime and SigV calculation from Norman. Added graded extras output.
+<br>&rarr; Version 4.1: Added SizeSort, AltUPC and NewUPC options. Added #END output for webserver.
+<br>&rarr; Version 4.2: Added fixlen option and improved Alphahelix option
+<br>&rarr; Version 4.3: Updated the output for Max/Min filtering and the pickup options. Removed TempMaxSetting.
+<br>&rarr; Version 4.4: Modified to work with GOPHER V3.0.
+<br>&rarr; Version 4.5: Minor modifications to fix sigV and sigPrime bugs. Modified extras setting. Added palindrome setting for DNA motifs.
+<br>&rarr; Version 4.6: Minor modification to seqocc=T function. !Experimental! Added main occurrence output and modified savespace.
+<br>&rarr; Version 4.7: Added SLiMMaker generation to motif clouds. Added Q and Occ to Chance column.
+<br>&rarr; Version 4.8: Modified cloud generation to avoid issues with flexible-length wildcards.
+<br>&rarr; Version 4.9: Preparation for SLiMFinder V5.0 & SLiMCore V2.0 using newer RJE_Object.
+</p>
+<p><b>&bull; slimprob_V1.4:</b> <i>Created/Renamed.</i>
+<br>&rarr; Version 1.0: SLiMProb 1.0 based on SLiMSearch 1.7. Altered output files to be *.csv and *.occ.csv.
+<br>&rarr; Version 1.1: Tidied import commands.
+<br>&rarr; Version 1.2: Increased extras=X levels. Adjusted maxsize=X assessment to be post-masking.
+<br>&rarr; Version 1.3: Consolidating output file naming for consistency across SLiMSuite. (SLiMBuild = Motif input)
+<br>&rarr; Version 1.4: Preparation for SLiMProb V2.0 & SLiMCore V2.0 using newer RJE_Object.
+</p>
+<h2>Updates in libraries/:</h2>
+
+<p><b>&bull; ned_eigenvalues:</b> <i>Updated from Version -.</i>
+</p>
+<p><b>&bull; ned_rankbydistribution:</b> <i>Created/Renamed.</i>
+<br>&rarr; Version 1.0: Initial Compilation based on "25 september version". (Probably not!)
+<br>&rarr; Version 1.1: Minor bug fixes for SLiMFinder 4.5 SigV and SigPrime implementation.
+<br>&rarr; Version 1.2: Replaced depracated Set module.
+</p>
+<p><b>&bull; rje:</b> <i>Created/Renamed.</i>
+<br>&rarr; Version 0.0: Initial Compilation based on RJE_General01.plx. Simplified Class Names
+<br>&rarr; Version 0.1: Added comments and changed capitilisation etc.
+<br>&rarr; Version 0.2: Added RJE_Object class and 'No Log' concept
+<br>&rarr; Version 0.3: Updated RJE_Object to not need Out object (restrict Out Object to Log object?)
+<br>&rarr; Version 1.0: Better Documentation to go with GASP V:1.2
+<br>&rarr; Version 1.1: Added make Path and sorted ErrorLog def errorLog(self, text='Missing text for errorLog() call!',quitchoice=False,printerror=True):
+<br>&rarr; Version 1.2: Added Norman's error-tracking and 'basefile/outfile' options as Object defaults
+<br>&rarr; Version 2.0: Major Overhaul of Module. Out, Log and RJE_Object will now inherit RJE_Object_Shell (see also changes below)
+<br>&rarr; Version 2.1: Added X="Y" options
+<br>&rarr; Version 2.2: Added confirm=T/F option to choice()
+<br>&rarr; Version 2.3: Added more delimited text functions
+<br>&rarr; Version 2.4: Added listFromCommand() function
+<br>&rarr; Version 2.5: Added Force opt
+<br>&rarr; Version 3.0: Added self.list and self.dict dictionaries to RJE_Object. Added 'list', 'clist' and 'glist' to cmdRead.
+<br>&rarr; Version 3.1: Added object save and load methods
+<br>&rarr; Version 3.2: Added more refined path options
+<br>&rarr; Version 3.3: Added general delimitedFileOut() method based on slim_pickings.py compileOut()
+<br>&rarr; Version 3.4: Added cmdReadList for handling lists of "standard" options
+<br>&rarr; Version 3.5: Added getFileName for interactive input of file names with confirmation/existence options and checkInputFiles()
+<br>&rarr; Version 3.6: Added dataDict() method for extracting data from delimited file into dictionary
+<br>&rarr; Version 3.7: Added extra dictionary methods for storage and retrieval of results in a dict['Data'] dictionary
+<br>&rarr; Version 3.8: Gave module a general tidy up.
+<br>&rarr; Version 3.9: Added RunPath to control where program is run.
+<br>&rarr; Version 3.10: Added errorlog=FILE option to redirect errors to an additional error file.
+<br>&rarr; Version 3.11: Added dictionary ranking method.
+<br>&rarr; Version 3.12: Added more list methods.
+<br>&rarr; Version 4.0: Added RJE_ObjectLite for data storage objects with minimal generic methods and attributes.
+<br>&rarr; Version 4.1: Added a bioware_server switch for reading iniServer/ ini files on bioware.
+<br>&rarr; Version 4.2: Modified INI reading across the board to look in ../settings/ and look for defaults.ini as well as rje.ini. Enabled handing on -ini FILE in addition to ini=FILE.
+<br>&rarr; Version 4.3: Added ilist and nlist types to cmdRead for objects. (Lists of integers and floats). Add ratio() function.
+<br>&rarr; Version 4.4: Added lineFromIndex(target,file,re_index='^(\S+)\s',sortunique=False,xreplace=True).
+<br>&rarr; Version 4.5: Modified randomString() and added stringShuffle() methods.
+<br>&rarr; Version 4.6: Added dev and warn options. Fixed -h lack of help.
+<br>&rarr; Version 4.7: Added self.warn list and self.warnLog() functions to Log object. Modified i=-1 quitchoice to raise not quit.
+<br>&rarr; Version 4.8: Added perc cmdtype = float that is multiplied by 100.0 if < 1.0. Removed server option from iniCmds().
+<br>&rarr; Version 4.9: Added rje.slimsuite, which determines the slimsuite home directory from rje.py file path.
+<br>&rarr; Version 4.10: Added osx=T/F option for Mac-specific running options.
+<br>&rarr; Version 4.11: Enabled '\t#' comments in ini files. Modified getStrLC to return '' for 'none' by default. Added listMax(). Added self.name() to basic object class.
+<br>&rarr; Version 4.12: Added 'bool' and 'str' to _cmdRead() to ease switchover to new RJE_Objects.
+<br>&rarr; Version 4.13.0: Added new built-in attributes/options for REST services.
+<br>&rarr; Version 4.13.1: Fixed MemSaver typo in WarnLog output. Modified mkDir() to avoid clashes raising errors.
+<br>&rarr; Version 4.13.2: Removed excess REST HTML methods.
+<br>&rarr; Version 4.13.3: Added uselower=False to dataDict() method.
+<br>&rarr; Version 4.13.4: Added maxrep=X to listCombos() method.
+<br>&rarr; Version 4.14.0: Added listToDict() method.
+<br>&rarr; Version 4.15.1: Fixed matchExp method to be able to handline multilines. (Shame re.DOTALL doesn't work!)
+</p>
+<p><b>&bull; rje_aaprop:</b> <i>Updated from Version -.</i>
+</p>
+<p><b>&bull; rje_ancseq:</b> <i>Created/Renamed.</i>
+<br>&rarr; Version 0.0: Initial Compilation.
+<br>&rarr; Version 0.1: No Out Object in Objects
+<br>&rarr; Version 1.0: Better documentation for GASP V:1.2
+<br>&rarr; Version 1.1: Neatened up
+<br>&rarr; Version 1.2: Added 'RST Text' to gaspnode.rst list containing RST file-style data
+<br>&rarr; Version 1.3: Changed "biproblem" error handling in gaspProbs()
+</p>
+<p><b>&bull; rje_biogrid:</b> <i>Created/Renamed.</i>
+<br>&rarr; Version 0.0: Initial Compilation with BioGRID Flat-File parsing information and sequence extraction for yeast.
+<br>&rarr; Version 1.0: Added cross-referencing via GeneCards output to generate Human Datasests.
+<br>&rarr; Version 1.1: Added IntAct and MINT parsing.
+<br>&rarr; Version 1.2: Add option to pull out host-virus interactions.
+<br>&rarr; Version 1.3: Added Reactome & DIP parsing.
+<br>&rarr; Version 1.4: Added rje_genemap object functionality.
+<br>&rarr; Version 1.5: Added Domino parsing and tracking of evidence codes.
+<br>&rarr; Version 1.6: Updated BioGRID parsing to use mitab format.
+</p>
+<p><b>&bull; rje_blast:</b> <i>Created/Renamed.</i>
+<br>&rarr; Version 0.0: Initial Working Compilation.
+<br>&rarr; Version 0.1: No Out Object in Objects
+<br>&rarr; Version 1.0: Corrected to work with blastn (and blastp)
+<br>&rarr; Version 1.1: Added special calling for Cerberus
+<br>&rarr; Version 1.2: Added GABLAM and GABLAMO to BlastHit
+<br>&rarr; Version 1.3: Added GABLAM calculation upon reading BLAST results and clearing Alignment sequences to save memory
+<br>&rarr; Version 1.4: Tidied up the module with improved logging and progress reporting. Added dbCleanup.
+<br>&rarr; Version 1.5: Added checking for multiple hits with same name and modified BLAST_Run.hitToSeq()
+<br>&rarr; Version 1.6: Added nucleotide vs protein searches to GABLAM
+<br>&rarr; Version 1.7: Added nucleotide vs nucleotide searches to GABLAM
+<br>&rarr; Version 1.8: Added local alignment summary output to ReadBLAST()
+<br>&rarr; Version 1.9: Added BLAST -C
+<br>&rarr; Version 1.10: Added BLAST -g
+<br>&rarr; Version 1.11: Added gablamfrag=X : Length of gaps between mapped residue for fragmenting local hits [100]
+<br>&rarr; Version 1.12: Altered checkDB and cleanupDB to spot index files split over multiple files (*.00.p* etc.)
+<br>&rarr; Version 1.13: Added localcut=X : Cut-off length for local alignments contributing to global GABLAM stats) [0]
+<br>&rarr; Version 1.14: Added blast.checkProg(qtype,stype) to check whether blastp setting matches sequence formats.
+</p>
+<p><b>&bull; rje_blast_V1:</b> <i>Created/Renamed.</i>
+<br>&rarr; Version 0.0: Initial Working Compilation.
+<br>&rarr; Version 0.1: No Out Object in Objects
+<br>&rarr; Version 1.0: Corrected to work with blastn (and blastp)
+<br>&rarr; Version 1.1: Added special calling for Cerberus
+<br>&rarr; Version 1.2: Added GABLAM and GABLAMO to BlastHit
+<br>&rarr; Version 1.3: Added GABLAM calculation upon reading BLAST results and clearing Alignment sequences to save memory
+<br>&rarr; Version 1.4: Tidied up the module with improved logging and progress reporting. Added dbCleanup.
+<br>&rarr; Version 1.5: Added checking for multiple hits with same name and modified BLAST_Run.hitToSeq()
+<br>&rarr; Version 1.6: Added nucleotide vs protein searches to GABLAM
+<br>&rarr; Version 1.7: Added nucleotide vs nucleotide searches to GABLAM
+<br>&rarr; Version 1.8: Added local alignment summary output to ReadBLAST()
+<br>&rarr; Version 1.9: Added BLAST -C
+<br>&rarr; Version 1.10: Added BLAST -g
+<br>&rarr; Version 1.11: Added gablamfrag=X : Length of gaps between mapped residue for fragmenting local hits [100]
+<br>&rarr; Version 1.12: Altered checkDB and cleanupDB to spot index files split over multiple files (*.00.p* etc.)
+<br>&rarr; Version 1.13: Added localcut=X : Cut-off length for local alignments contributing to global GABLAM stats) [0]
+<br>&rarr; Version 1.14: Added blast.checkProg(qtype,stype) to check whether blastp setting matches sequence formats.
+<br>&rarr; Version 1.15: Added OldBLAST/Legacy option to Object for compatibility with rje_blast_V2. (Always True!)
+</p>
+<p><b>&bull; rje_blast_V2:</b> <i>Created/Renamed.</i>
+<br>&rarr; Version 2.0: Initial Compilation from rje_blast_V1 V1.14.
+<br>&rarr; Version 2.1: Tweaking code to work with GOPHER 3.x - removing self.info etc. Added blastObj() method.
+<br>&rarr; Version 2.2: Added gablamData() to return old-style GABLAM dictionary from table.
+<br>&rarr; Version 2.3: Added blastCluster() method to return UPC clustering and GABLAM distance matrix from a file.
+<br>&rarr; Version 2.4: Scrapped BLAST "Run" field to simplify code - keep a single run per BLASTRun object.
+<br>&rarr; Version 2.5: Minor modifications for SLiMCore UPC generation.
+<br>&rarr; Version 2.6: Minor bug fixes.
+<br>&rarr; Version 2.7: Fixed occasional oneline versus description mismatch error. Fixed some localhits bugs.
+<br>&rarr; Version 2.7.1: Added capacity to keep alignments following GABLAM calculations.
+<br>&rarr; Version 2.7.2: Fixed bug with hitToSeq fasta output for rje_seqlist.SeqList objects.
+<br>&rarr; Version 2.8.0: A more significant BLAST e-value setting will filter read results.
+<br>&rarr; Version 2.9.0: Added     qassemble=T/F   : Whether to fully assemble query stats from all hits [False].
+<br>&rarr; Version 2.9.1: Updated default BLAST and BLAST+ paths to '' for added modules.
+</p>
+<p><b>&bull; rje_conseq:</b> <i>Updated from Version -.</i>
+</p>
+<p><b>&bull; rje_db:</b> <i>Created/Renamed.</i>
+<br>&rarr; Version 0.0: Initial Compilation.
+<br>&rarr; Version 0.1: Added merge tables option.
+<br>&rarr; Version 0.2: Miscellaneous updates to various methods.
+<br>&rarr; Version 0.3: Minor doc tweaks and added keepFields().
+<br>&rarr; Version 0.4: Improved use of AutoID and added Table.autoID() method.
+<br>&rarr; Version 0.5: Initial coding of index mode. (Not yet fully functional.)
+<br>&rarr; Version 1.0: Working, so upgraded to version 1.0!
+<br>&rarr; Version 1.1: Added sortedEntries() function.
+<br>&rarr; Version 1.2: Added Table.hasField(field). Add openTable(), readEntry() and readSet() methods.
+<br>&rarr; Version 1.3: Minor modifications for SLiMCore FUPC development.
+<br>&rarr; Version 1.4: Added list checking with addEmptyTable.
+<br>&rarr; Version 1.5: Fixed occasional key error following addField. Added indexReport() method.
+<br>&rarr; Version 1.6: Added option to save a subset of entries using saveToFile(savekeys=LIST).
+<br>&rarr; Version 1.7.0: Added splitchar to table splitting.
+<br>&rarr; Version 1.7.1: Reinstated raise error if expected table missing.
+<br>&rarr; Version 1.7.2: Fixed numerical join issue during Table.compress().
+<br>&rarr; Version 1.7.3: Added lower case enforcement of headers for reading tables from file.
+<br>&rarr; Version 1.7.4: Added optional restricted Field set for output.
+<br>&rarr; Version 1.7.5: Added more error messages and tableNames() method.
+</p>
+<p><b>&bull; rje_dismatrix:</b> <i>Updated from Version -.</i>
+</p>
+<p><b>&bull; rje_dismatrix_V2:</b> <i>Created/Renamed.</i>
+<br>&rarr; Version 0.0: Initial Compilation.
+<br>&rarr; Version 1.0: Working version used in several programs.
+<br>&rarr; Version 2.0: Updated module inline with newer modules and layout. Incorporation of Minimum Spanning Tree.
+<br>&rarr; Version 2.1: Attempted in incorporate pylab heatmap generation from distance matrix.
+<br>&rarr; Version 2.2: Added loading of matrix from GABLAM-style database file.
+<br>&rarr; Version 2.3: Added UPGMA method.
+<br>&rarr; Version 2.4: Added UPGMA branch length return.
+<br>&rarr; Version 2.5: Added PNG output based on rje_slimhtml.
+<br>&rarr; Version 2.6: Added nsf2nwk=T/F - Whether to convert extension for Newick Standard Format from nsf to nwk (for MEGA)
+<br>&rarr; Version 2.7: Added reading of BLOSUM matrix and standalone functionality. Removed pylab heatmap from docstring.
+<br>&rarr; Version 2.8: Slightly modified clustering output.
+<br>&rarr; Version 2.9: Modified PNG output to use rje_tree code instead. Added Graph output using rje_ppi.
+<br>&rarr; Version 2.10: Minor modifications for SLiMCore UPC.
+</p>
+<p><b>&bull; rje_dismatrix_V3:</b> <i>Created/Renamed.</i>
+<br>&rarr; Version 0.0: Initial Compilation.
+<br>&rarr; Version 1.0: Working version used in several programs.
+<br>&rarr; Version 2.0: Updated module inline with newer modules and layout. Incorporation of Minimum Spanning Tree.
+<br>&rarr; Version 2.1: Attempted in incorporate pylab heatmap generation from distance matrix.
+<br>&rarr; Version 2.2: Added loading of matrix from GABLAM-style database file.
+<br>&rarr; Version 2.3: Added UPGMA method.
+<br>&rarr; Version 2.4: Added UPGMA branch length return.
+<br>&rarr; Version 2.5: Added PNG output based on rje_slimhtml.
+<br>&rarr; Version 2.6: Added nsf2nwk=T/F - Whether to convert extension for Newick Standard Format from nsf to nwk (for MEGA)
+<br>&rarr; Version 2.7: Added reading of BLOSUM matrix and standalone functionality. Removed pylab heatmap from docstring.
+<br>&rarr; Version 2.8: Slightly modified clustering output.
+<br>&rarr; Version 2.9: Modified PNG output to use rje_tree code instead. Added Graph output using rje_ppi.
+<br>&rarr; Version 2.10: Minor modifications for SLiMCore UPC.
+<br>&rarr; Version 3.0: Updated to new rje_obj.RJE_Object class.
+</p>
+<p><b>&bull; rje_disorder:</b> <i>Created/Renamed.</i>
+<br>&rarr; Version 0.0: Initial Compilation.
+<br>&rarr; Version 0.1: Added parsing of disorder from name as an option instead of disorder prediction
+<br>&rarr; Version 0.2: Added Folded tuple as well as disordered
+<br>&rarr; Version 0.3: Added PrintLog opt attribute
+<br>&rarr; Version 0.4: Added option for correct use of IUPred_PATH environment variable
+<br>&rarr; Version 0.5: Added Minimum length of an ordered/disordered region
+<br>&rarr; Version 0.6: Added ANCHOR prediction.
+<br>&rarr; Version 0.7: Added globProportion calculation.
+<br>&rarr; Version 0.8: Added makeRegions() method.
+</p>
+<p><b>&bull; rje_ensembl:</b> <i>Created/Renamed.</i>
+<br>&rarr; Version 0.0: Initial compilation.
+<br>&rarr; Version 1.0: Initial working version with download and EnsLoci functions.
+<br>&rarr; Version 1.1: Added reformatDB() method to be called by rje_dbase
+<br>&rarr; Version 1.2: Fixed known-ccds bug
+<br>&rarr; Version 1.3: SwissProt bug still remained. Fixed and added speclist=LIST
+<br>&rarr; Version 1.4: Improved EnsLoci mapping to ignore Xs and use SeqMapper for better match to SwissProt
+<br>&rarr; Version 1.5: Fixed bug that results in multiple occurrences of some sequence names
+<br>&rarr; Version 1.6: Added crap-sequence catching
+<br>&rarr; Version 1.7: Added GO dataset partitioning
+<br>&rarr; Version 1.8: Modification to the GO dataset generation, and GO adaptation for use with PINGU.
+<br>&rarr; Version 1.9: Added the possibility to restrict GO data to certain evidence codes
+<br>&rarr; Version 2.0: Added new EnsDat functionality. (Now part of "UniFake" module.)
+<br>&rarr; Version 2.1: Made changes in line with new EnsEMBL setup.
+<br>&rarr; Version 2.2: Made changes in line with new EnsEMBL setup. Again. Grrrr. Stop changing things, EnsEMBL!
+<br>&rarr; Version 2.3: Added new species, metlist and option to download chromosome sequences.
+<br>&rarr; Version 2.4: Modified to allow HGNC evidence for Human EnsEMBL.
+<br>&rarr; Version 2.5: Modified to allow additional species-specific evidence in *.map.tdt file. (Mouse, Yeast, Zebrafish)
+<br>&rarr; Version 2.6: Added additional EnsEMBL sites to metazoa: fungi, plants, protists
+<br>&rarr; Version 2.7: Updated for new EnsEMBL format with ID mapping in gene.txt file.
+<br>&rarr; Version 2.8: Bug fixes for updated EnsEMBL release.
+<br>&rarr; Version 2.9: Reduced DNA chromosome downloads. Updated some species data. Added "known_by_projection" handling.
+<br>&rarr; Version 2.10: Miscellaneous fixes.
+<br>&rarr; Version 2.11: Added rje_taxonomy and makeuniprot=T/F. Removed metlist. Moved release and species data extraction.
+<br>&rarr; Version 2.12: Changed chromspec to enable downloads of all species but also download toplevel files, not chromosomes.
+<br>&rarr; Version 2.13: Added speedskip=T/F [True] that will skip when pep.all, cdna.all and dna.toplevel are found.
+<br>&rarr; Version 2.14: Add enspep=T/F      : Create full gnspacc EnsEMBL peptide datasets [False]
+<br>&rarr; Version 2.15.0: Added capacity to download/process a section of Ensembl with speclist=LIST.
+<br>&rarr; Version 2.15.1: Improved error handling for too many FTP connections: still need to fix problem!
+<br>&rarr; Version 2.15.2: Trying to improve speed of Uniprot parsing for EnsLoci.
+</p>
+<p><b>&bull; rje_forker:</b> <i>Created/Renamed.</i>
+<br>&rarr; Version 0.0: Initial Compilation.
+</p>
+<p><b>&bull; rje_genbank:</b> <i>Created/Renamed.</i>
+<br>&rarr; Version 0.0: Initial Compilation.
+<br>&rarr; Version 0.1: Modified and Tidied output a little.
+<br>&rarr; Version 0.2: Added details to skip and option to use different detail for protein accession number.
+<br>&rarr; Version 0.3: Added reloading of features.
+<br>&rarr; Version 1.0: Basic functioning version. Added fetchuid=LIST Genbank retrieval to generate seqin=FILE.
+<br>&rarr; Version 1.1: Added use of rje_taxonomy for getting Species Code from TaxID.
+<br>&rarr; Version 1.2: Modified to deal with genbank protein entries.
+<br>&rarr; Version 1.2.1: Fixed feature bug that was breaking parser and removing trailing '*' from protein sequences.
+<br>&rarr; Version 1.2.2: Fixed more features that were breaking parser.
+<br>&rarr; Version 1.3.0: Added split viral output.
+<br>&rarr; Version 1.3.1: Fixed bug in split viral output.
+</p>
+<p><b>&bull; rje_genecards:</b> <i>Created/Renamed.</i>
+<br>&rarr; Version 0.0: Initial Compilation.
+<br>&rarr; Version 0.1: Added EnsLoci processing.
+<br>&rarr; Version 0.2: Added altsource and generally improved function and commenting.
+<br>&rarr; Version 0.3: Added more interactivity and options.
+<br>&rarr; Version 0.4: Added reading of HGNC download.
+</p>
+<p><b>&bull; rje_genemap:</b> <i>Created/Renamed.</i>
+<br>&rarr; Version 0.0: Initial Compilation based loosely on rje_genecards V0.4 (28-Mar-08).
+<br>&rarr; Version 1.0: Standalone working version with basic functions.
+<br>&rarr; Version 1.1: Added bestMap() function for better compatibility with PINGU (V3.0)
+<br>&rarr; Version 1.2: Fixed bug of mapping current Approved Gene Symbols to other Gene Symbols due to redundant Aliases.
+<br>&rarr; Version 1.3: Add reduction of data to gene list.
+<br>&rarr; Version 1.4: Modified to read in MOUSE data.
+<br>&rarr; Version 1.5: Minor tweak of expected HGNC input following change to downloads.
+</p>
+<p><b>&bull; rje_go:</b> <i>Created/Renamed.</i>
+<br>&rarr; Version 0.0: Initial Compilation.
+<br>&rarr; Version 1.0: Working version with RJE modules. Added EnsGO Mapping from SLiMJIM.
+<br>&rarr; Version 1.1: Updated EnsGO mapping for new BioMart structure.
+<br>&rarr; Version 1.2: And again.
+</p>
+<p><b>&bull; rje_haq:</b> <i>Updated from Version -.</i>
+</p>
+<p><b>&bull; rje_hmm_V1:</b> <i>Created/Renamed.</i>
+<br>&rarr; Version 0.0: Initial Working Compilation.
+<br>&rarr; Version 1.0: Working version with multiple HMM capacity
+<br>&rarr; Version 1.1: Added hmmpfam option
+<br>&rarr; Version 1.2: Cleaned up and debugged for rje_ensembl.ensDat()
+<br>&rarr; Version 1.3: Minor updates.
+</p>
+<p><b>&bull; rje_hpc:</b> <i>Created/Renamed.</i>
+<br>&rarr; Version 1.0: Initial Compilation based on rje_iridis V1.10.
+<br>&rarr; Version 1.1: Disabled memory checking in Windows and OSX.
+</p>
+<p><b>&bull; rje_hprd:</b> <i>Created/Renamed.</i>
+<br>&rarr; Version 1.0: Working version based on rje_ppi.
+<br>&rarr; Version 1.1: Added protein complexes and PPI Types.
+<br>&rarr; Version 1.2: Added tracking of evidence.
+</p>
+<p><b>&bull; rje_html:</b> <i>Created/Renamed.</i>
+<br>&rarr; Version 0.0: Initial Compilation.
+<br>&rarr; Version 0.1: Added additional commandline options, including Google Analytics
+<br>&rarr; Version 0.2.0: Added delimited text to HTML table conversion.
+<br>&rarr; Version 0.2.1: Updated default CSS to http://www.slimsuite.unsw.edu.au/stylesheets/slimhtml.css.
+</p>
+<p><b>&bull; rje_iridis:</b> <i>Created/Renamed.</i>
+<br>&rarr; Version 0.0: Initial Compilation.
+<br>&rarr; Version 1.0: Added additional functions to call other programs
+<br>&rarr; Version 1.1: Added UniFake.
+<br>&rarr; Version 1.2: Added generic seqbyseq option
+<br>&rarr; Version 1.3: Modified for IRIDIS3.
+<br>&rarr; Version 1.4: Added catching of IOErrors.
+<br>&rarr; Version 1.5: Added QSLiMFinder iRun
+<br>&rarr; Version 1.6: Modified iSLiMFinder job processing to try to catch errors better. (Not sure what is happening.)
+<br>&rarr; Version 1.7: Added memory checking before a run is spawned.
+<br>&rarr; Version 1.8: Added load balance option for SortRun: splits jobs equally between large and small input (& ends in middle).
+<br>&rarr; Version 1.9: Added scanning of legacy folder - moving GOPHER_V2!
+<br>&rarr; Version 1.10: Modified freemem setting to run on Katana. Made rsh optional. Removed defunct IRIDIS3 option.
+</p>
+<p><b>&bull; rje_markov:</b> <i>Created/Renamed.</i>
+<br>&rarr; Version 0.0: Initial Compilation.
+<br>&rarr; Version 1.0: Basic working model, with suffix tree
+<br>&rarr; Version 1.1: Added splitting. Committed to suffix tree. Removed autoload and suftree options.
+<br>&rarr; Version 1.2: Removed obs/exp calculation from output - can calculate it from frequencies. Removed redundant methods.
+<br>&rarr; Version 2.0: Added reverse reading of markov chains and general tidy up. Removed XCount method - use V1.2 for this.
+<br>&rarr; Version 2.1: Temp fixed suftree problem. Module needs a major overhaul! Still broken in places.
+<br>&rarr; Version 2.2: Minor modifications. Main methods still need checking/fixing.
+</p>
+<p><b>&bull; rje_mascot:</b> <i>Created/Renamed.</i>
+<br>&rarr; Version 0.0: Initial Compilation based on BUDAPEST 1.9 for use with BUDAPEST 2.0.
+<br>&rarr; Version 1.0: Working version including reading in of iTRAQ data.
+<br>&rarr; Version 1.1: Fixed bugs for reading in data with unmatched peptides and iTRAQ data.
+<br>&rarr; Version 1.2: Added 
+</p>
+<p><b>&bull; rje_menu:</b> <i>Created/Renamed.</i>
+<br>&rarr; Version 0.0: Initial Compilation.
+<br>&rarr; Version 0.1: Added infile and outfile
+<br>&rarr; Version 0.2: Added extra addcommand and printtext menu options.
+<br>&rarr; Version 0.3: Modified to work with new object types.
+</p>
+<p><b>&bull; rje_mitab:</b> <i>Created/Renamed.</i>
+<br>&rarr; Version 0.0.0: Initial Compilation.
+<br>&rarr; Version 0.1.0: Added complex=LIST : Complex identifier prefixes to expand from mapped PPI [complex]
+<br>&rarr; Version 0.1.1: Fixed Evidence/IType parsing bug for BioGrid/Intact.
+<br>&rarr; Version 0.2.0: Added splicevar=T/F option.
+</p>
+<p><b>&bull; rje_motif_V3:</b> <i>Created/Renamed.</i>
+<br>&rarr; Version 2.0: Revised version based on RJE_MOTIF 1.1 and bits of PRESTO 1.8.
+<br>&rarr; Version 2.1: Added "n of m" style elements in the form <X:n:m>
+<br>&rarr; Version 2.2: AmbCut now limits the number of ambiguous choices when compare=T
+<br>&rarr; Version 2.3: Added Information Content Methods
+<br>&rarr; Version 2.4: Added defineMotif method
+<br>&rarr; Version 2.5: Added reformatMiniMotif method
+<br>&rarr; Version 3.0: Reworked for use with MotifList and MotifOcc objects. Add Expect dictionary.
+<br>&rarr; Version 3.1: Fixed minor code bugs.
+</p>
+<p><b>&bull; rje_motif_stats:</b> <i>Created/Renamed.</i>
+<br>&rarr; Version 1.0: Initial compilation based of rje_motif_cons V1.1.
+</p>
+<p><b>&bull; rje_motiflist:</b> <i>Updated from Version -.</i>
+</p>
+<p><b>&bull; rje_motifocc:</b> <i>Updated from Version -.</i>
+</p>
+<p><b>&bull; rje_obj:</b> <i>Created/Renamed.</i>
+<br>&rarr; Version 0.0: Initial Compilation based on rje.py objects.
+<br>&rarr; Version 1.0: Fully working version, so upgraded to 1.0. Added dev and warn options.
+<br>&rarr; Version 1.1: Added rje_zen import and self.zen() to call rje_zen.Zen().wisdom().
+<br>&rarr; Version 1.2: Added warnLog functions.
+<br>&rarr; Version 1.3: Added perc cmdtype = float that is multiplied by 100.0 if < 1.0. Also added cmdtype = date for YYYY-MM-DD.
+<br>&rarr; Version 1.4: Added sourceDataFile() method from SLiMBench for wider use.
+<br>&rarr; Version 1.5: Added 'basefile' cmdlist types.
+<br>&rarr; Version 1.6: Added osx=T/F option for Mac-specific running options.
+<br>&rarr; Version 1.7: Added self.name() to basic object class.
+<br>&rarr; Version 1.8: Cleaned up some erroeneous opt, stat and info references.
+<br>&rarr; Version 2.0: Added self.file dictionary and methods for handling file handles with matching self.str filenames.
+<br>&rarr; Version 2.1.0: Added new built-in attributes/options for REST services.
+<br>&rarr; Version 2.1.1: Removed excess REST HTML methods.
+<br>&rarr; Version 2.1.2: Tweaked glist cmdRead warnings.
+</p>
+<p><b>&bull; rje_pam:</b> <i>Updated from Version -.</i>
+</p>
+<p><b>&bull; rje_ppi:</b> <i>Created/Renamed.</i>
+<br>&rarr; Version 2.0: Initial Compilation from earlier version. Complete reworking, including generation of PPI Object.
+<br>&rarr; Version 2.1: Added method for generating subnetworks based on +/- scoring.
+<br>&rarr; Version 2.2: Minor misc modifications.
+<br>&rarr; Version 2.3: Added extra Complex options.
+<br>&rarr; Version 2.4: Added SVG output.
+<br>&rarr; Version 2.5: Minor tweaks to R output and walltime default.
+<br>&rarr; Version 2.6: Added addPPI(hub,spoke,evidence) method. Added nodelist option.
+<br>&rarr; Version 2.7: Added tabout=T/F Output PPI data as Node and Edge tables [False]
+<br>&rarr; Version 2.8: Tweaked Spring Layout. Stores original Hub and Spoke Field.
+<br>&rarr; Version 2.8.1: Fixed bug with Spring Layout interruption message.
+</p>
+<p><b>&bull; rje_qsub:</b> <i>Created/Renamed.</i>
+<br>&rarr; Version 1.0: Initial working script.
+<br>&rarr; Version 1.1: Reworked for running on Iridis.
+<br>&rarr; Version 1.2: Added showstart.
+<br>&rarr; Version 1.3: Converted for IRIDIS3.
+<br>&rarr; Version 1.4: Added showstart pause.
+<br>&rarr; Version 1.5: Added emailing of job stats after run. Added vmem limit.
+<br>&rarr; Version 1.6: Added modules=LIST : List of modules to add in job file [clustalo,mafft]
+<br>&rarr; Version 1.6.1: Added R/3.1.1 to modules.
+<br>&rarr; Version 1.6.2: Updated module list: blast+/2.2.30,clustalw,clustalo,fsa,mafft,muscle,pagan,R/3.1.1
+</p>
+<p><b>&bull; rje_scoring:</b> <i>Updated from Version -.</i>
+</p>
+<p><b>&bull; rje_seq:</b> <i>Created/Renamed.</i>
+<br>&rarr; Version 0.0: Initial Compilation.
+<br>&rarr; Version 0.1: Renamed major attributes
+<br>&rarr; Version 0.2: New implementation on more generic OO approach. Non-Redundancy Output
+<br>&rarr; Version 0.3: No Out Object in Objects
+<br>&rarr; Version 1.0: Better Documentation to go with GASP V:1.2
+<br>&rarr; Version 1.1: Better DNA stuff
+<br>&rarr; Version 1.2: Added ClustalW align
+<br>&rarr; Version 1.3: Separated Sequence object into rje_sequence.py
+<br>&rarr; Version 1.4: Add rudimentary gnspacc=T/F
+<br>&rarr; Version 1.5: Changed pwAln to use popen()
+<br>&rarr; Version 1.6: Fixed nrdic problem in Redundancy check and added user-definition of database list
+<br>&rarr; Version 1.8: Added UniProt input and acclist reading
+<br>&rarr; Version 1.9: Added 'reformat=scanseq' option but not properly implemented. Added align=T/F.
+<br>&rarr; Version 2.0: Major reworking of commandline options and introduction of self.list dictionary (rje v3.0)
+<br>&rarr; Version 2.1: Added reformat of UniProt with memsaver=T.
+<br>&rarr; Version 2.2: Added GABLAM non-redundancy
+<br>&rarr; Version 2.3: Added NR in memsaver mode
+<br>&rarr; Version 2.4: Changed some of the log output (REM and redundancy) to look better.
+<br>&rarr; Version 2.5: Added nr_qry to makeNR()
+<br>&rarr; Version 2.6: Added mysql reformat output: fastacmd, protein_id, acc_num, spec_code, description (delimited)
+<br>&rarr; Version 2.7: Added SeqCount() method. Incorporated reading of sequence case.
+<br>&rarr; Version 2.8: Added NEXUS output for MrBayes compatibility
+<br>&rarr; Version 2.9: Added setupSubDict(masking=True) for use in probabilistic conservation scores
+<br>&rarr; Version 3.0: Start of improvements for DNA sequences with dna=T.
+<br>&rarr; Version 3.1: Added relative conservation calculations for a whole alignment.
+<br>&rarr; Version 3.2: Added output of sequences for making alignments in R.
+<br>&rarr; Version 3.3: Added 6RF reformatting for DNA sequences.
+<br>&rarr; Version 3.4: Added HAQBAT option
+<br>&rarr; Version 3.5: Added extra alignment program, MAFFT
+<br>&rarr; Version 3.6: Added stripGap() method. Replaced self.seq with self.seqs() for reading. (Replace with list at some point.)
+<br>&rarr; Version 3.7: Added raw option for single sequence load.
+<br>&rarr; Version 3.8: Added maxGlob setting for screening out globular proteins.
+<br>&rarr; Version 3.9: Added reading of mafft format when not producing standard fasta.
+<br>&rarr; Version 3.10: Added ntrim=X : Trims of regions >= X proportion N bases (X residues for protein) [0.5]
+<br>&rarr; Version 3.11: Added mapdna=FILE option to map DNA sequences onto protein alignment
+<br>&rarr; Version 3.12: Added countspec=T/F   : Generate counts of different species and output in log [False]
+<br>&rarr; Version 3.13: Updated sequence type checking for use with GABLAM 2.10.
+<br>&rarr; Version 3.14: Added CLUSTAL Omega alignment program ['clustalo']
+<br>&rarr; Version 3.15: Added PAGAN alignment program ['pagan'] and (hopefully) fixed minor Windows fastacmd bug.
+<br>&rarr; Version 3.16: Added BLAST+ path and seqFromBlastDBCmd()
+<br>&rarr; Version 3.17: Updated to use BLAST+ and rje_blast_V2
+<br>&rarr; Version 3.18: Minor BLAST+ bug fixes. Added exceptions to readBLAST failure.
+<br>&rarr; Version 3.19: Fixed BLAST+ sequence extraction name truncation error.
+<br>&rarr; Version 3.20: Added run() method for SeqSuite.
+<br>&rarr; Version 3.21.0: Added extraction of uniprot IDs for seqin.
+<br>&rarr; Version 3.22.0: Added loading sequences from provided sequence files contents directly, bypassing file reading.
+<br>&rarr; Version 3.22.1: Fixed problem if seqin is blank, triggering odd Uniprot download.
+<br>&rarr; Version 3.23.0: Add speclist to reformat options.
+</p>
+<p><b>&bull; rje_seqlist:</b> <i>Created/Renamed.</i>
+<br>&rarr; Version 0.0: Initial Compilation. Based on rje_seq 3.10.
+<br>&rarr; Version 0.1: Added basic species filtering and sequence output.
+<br>&rarr; Version 0.2: Added upper case filtering.
+<br>&rarr; Version 0.3: Added accnum filtering and sequence renaming.
+<br>&rarr; Version 0.4: Added sequence redundancy filtering.
+<br>&rarr; Version 0.5: Added newgene=X for sequence renaming (newgene_spcode__newaccXXX). NewAcc no longer fixed Upper Case.
+<br>&rarr; Version 1.0: Upgraded to "ready" Version 1.0. Added concatenate=T and split=X options for sequence concatenation. Added reading of sequence type from rje_seq.py and mixed=T/F.
+<br>&rarr; Version 1.1: Added shortName() and modified SeqDict.
+<br>&rarr; Version 1.2: Added seqshuffle option for randomising sequences.
+<br>&rarr; Version 1.3: Modified use of index file (appends, not replaces, file extension)
+<br>&rarr; Version 1.4: Added dna2prot reformat function.
+<br>&rarr; Version 1.5: Added sampler=N(,X)   : Generate (X) file(s) sampling a random N sequences from input into seqout.N.X.fas [0]
+<br>&rarr; Version 1.6: Modified currSeq() and nextSeq() slightly to fix index mode breakage. Look out for other programs breaking. Add sequence fragment extraction.
+<br>&rarr; Version 1.7: Added code to create rje_sequence.Sequence objects.
+<br>&rarr; Version 1.8: Added sortseq=X : Whether to sort sequences prior to output (size/invsize/accnum/name/seq/species/desc) [None]
+<br>&rarr; Version 1.9.0: Added extra functions for returning sequence AccNum, ID or Species code.
+<br>&rarr; Version 1.10.0: Added extraction of uniprot IDs for seqin.
+<br>&rarr; Version 1.11.0: Added more dna2prot reformatting options.
+</p>
+<p><b>&bull; rje_sequence:</b> <i>Created/Renamed.</i>
+<br>&rarr; Version 1.0: Separated Sequence object from rje_seq.py
+<br>&rarr; Version 1.1: Rudimentary opt['GeneSpAcc'] added
+<br>&rarr; Version 1.2: Modified RegExp for sequence detail extraction
+<br>&rarr; Version 1.3: Added list of secondary accession numbers and hasID() method to check ID and all AccNum (and gnspacc combos)
+<br>&rarr; Version 1.4: Added Peptide Design methods
+<br>&rarr; Version 1.5: Added storing of case in a dictionary self.dict['Case'] = {'Upper':[(start,stop)],'Lower':[(start,stop)]}
+<br>&rarr; Version 1.6: Added disorder and case masking
+<br>&rarr; Version 1.7: Added FudgeFactor and AA codes
+<br>&rarr; Version 1.8: Added position-specific AA masking
+<br>&rarr; Version 1.9: Added EST translation functions. Fixed fudging. Added dna() method.
+<br>&rarr; Version 1.10: Fixed sequence name bug
+<br>&rarr; Version 1.11: Added recognition of UniRef
+<br>&rarr; Version 1.12: Added AA masking
+<br>&rarr; Version 1.13: Added Taxonomy list and UniProt dictionary for UniProt sourced sequences (primarily).
+<br>&rarr; Version 1.14: Added maskRegion()
+<br>&rarr; Version 1.15: Added disorder proportion calculations.
+<br>&rarr; Version 1.16: Added additional Genbank and EnsEMBL BioMart sequence header recognition.
+<br>&rarr; Version 1.17: Added nematode sequence conversion.
+<br>&rarr; Version 2.0: Replaced RJE_Object with RJE_ObjectLite.
+<br>&rarr; Version 2.1: Added re_unirefprot = re.compile('^([A-Za-z0-9\-]+)\s+([A-Za-z0-9]+)_([A-Za-z0-9]+)\s+')
+<br>&rarr; Version 2.2: Added more yeast species.
+<br>&rarr; Version 2.3: Added alternative self.info keys for sequence (for UniProt splice variants). Added SpliceVar dict.
+<br>&rarr; Version 2.4: Added recognition of modified IPI format. Added standalone low complexity masking.
+<br>&rarr; Version 2.4.1: Moved the gnspacc fragment recognition to reduce issues. Should perhaps remove completely?
+</p>
+<p><b>&bull; rje_slim:</b> <i>Created/Renamed.</i>
+<br>&rarr; Version 0.0: Initial Compilation.
+<br>&rarr; Version 1.0: Initial working version.
+<br>&rarr; Version 1.1: Added DNA option.
+<br>&rarr; Version 1.2: Added "N of M or B" format options.
+<br>&rarr; Version 1.3: Fixed the terminal variant bug.
+<br>&rarr; Version 1.4: Added makeSLiM method for converting a list of instances into a regexp
+<br>&rarr; Version 1.5: Added method to report whether motif splitting is necessary.
+<br>&rarr; Version 1.6: Fixed splitting bug introduced by lower case motifs.
+<br>&rarr; Version 1.7: Fixed import slimFix(slim) error that was reporting slimProb().
+<br>&rarr; Version 1.8: Modified use of aa/dna defaults to (hopefully) not break when using extended alphabets.
+<br>&rarr; Version 1.9: Reinstated ambcut for slimToPattern()
+<br>&rarr; Version 1.10.0: Added varlength option to makeSlim() method.
+<br>&rarr; Version 1.10.1: Fixed varlength and terminal position compatibility.
+<br>&rarr; Version 1.10.2: Fixed issue of [] returns.
+<br>&rarr; Version 1.10.3: Fixed makeSlim bug with variable length wildcards at start of sequence.
+<br>&rarr; Version 1.11.0: Added splitMotif() function.
+<br>&rarr; Version 1.12.0: Added equiv to makeSlim() function.
+</p>
+<p><b>&bull; rje_slimcalc:</b> <i>Created/Renamed.</i>
+<br>&rarr; Version 0.0: Initial Compilation based on rje_motifstats methods.
+<br>&rarr; Version 0.1: Added new probability-based method, inspired by (but different to) Dinkel & Sticht (2007)
+<br>&rarr; Version 0.2: Mended OccPos finding for wildcards. Added new relative conservation score.
+<br>&rarr; Version 0.3: Added von Neumann entropy code.
+<br>&rarr; Version 0.4: Added Webserver pickling of RLC lists.
+<br>&rarr; Version 0.5: Altered to use GOPHER V3 and handle nested alignment directories.
+<br>&rarr; Version 0.6: Minor tweak to avoid unwanted GOPHER directory generation.
+<br>&rarr; Version 0.7: Added RLC to "All" conscore running.
+<br>&rarr; Version 0.8: Made RLC the default.
+<br>&rarr; Version 0.9: Improvements to use of GOPHER.
+</p>
+<p><b>&bull; rje_slimcore:</b> <i>Created/Renamed.</i>
+<br>&rarr; Version 0.0: Initial Compilation based on SLiMFinder 3.1.
+<br>&rarr; Version 0.1: Tidied with respect to SLiMFinder and SLiMSearch.
+<br>&rarr; Version 0.2: Added DNA mode.
+<br>&rarr; Version 0.3: Added relative conservation masking.
+<br>&rarr; Version 0.4: Altered TarGZ to *not* include *.pickle.gz
+<br>&rarr; Version 1.0: Standardised masking options. Added motifmask and motifcull.
+<br>&rarr; Version 1.1: Checked/updated Randomise option.
+<br>&rarr; Version 1.2: Added generation of UniFake file to maskInput() method. (fakemask=T)
+<br>&rarr; Version 1.3: Added aamask effort
+<br>&rarr; Version 1.4: Added DomTable option
+<br>&rarr; Version 1.5: Added masktext and maskpickle options to accelerate runs with large masked datasets.
+<br>&rarr; Version 1.6: Fixed occurrence table bugs.
+<br>&rarr; Version 1.7: Added SizeSort and NewUPC. Add server #END statements.
+<br>&rarr; Version 1.8: Added BLOSUM2equiv method for making equivalent lists from a BLOSUM matrix.
+<br>&rarr; Version 1.9: Minor modifications to Log output. Updated motifSeq() function to output unmasked sequences.
+<br>&rarr; Version 1.10: Bypass UPC generation for single sequences.
+<br>&rarr; Version 1.11: Tidied some of the module imports.
+<br>&rarr; Version 1.12: Upgraded BLAST to BLAST+. Can use old BLAST with oldblast=T.
+<br>&rarr; Version 1.13: Modified the savespace settings to reduce numbers of files. targz file now uses RunID not Build Info.
+<br>&rarr; Version 1.14: Started adding code for Fragmented UPC (FUPC) clustering.
+<br>&rarr; Version 1.15: Added pre-running GOPHER if no alndir and usegopher=T. Updated dataset() to use Input not Basefile.
+<br>&rarr; Version 1.16: Preparation for SLiMCore V2.0 using newer RJE_Object.
+<br>&rarr; Version 2.0: Converted to use rje_obj.RJE_Object as base. Version 1.16 moved to legacy/.
+<br>&rarr; Version 2.1: Added megaslim=FILE option to make/use precomputed results for a proteome. Upgraded MotifSeq method.
+<br>&rarr; Version 2.2: Modified aa frequency calculations to use alphabet to generate 0.0 frequencies (rather than missing aa).
+<br>&rarr; Version 2.3: Docstring edits. Minor tweak to walltime() to close open files.
+<br>&rarr; Version 2.4: Added megaslimfix=T/F : Whether to run megaslim in "fix" mode to tidy/repair existing files [False]
+<br>&rarr; Version 2.5: Added (hidden) slimmutant=T/F : Whether to ignore '.p.\D\d+\D' at end of accnum. Made default append=True.
+<br>&rarr; Version 2.6.0: Added uniprotid=LIST  : Extract IDs/AccNums in list from Uniprot into BASEFILE.dat and use as seqin=FILE. []
+<br>&rarr; Version 2.6.1: Removed the maxseq default setting.
+<br>&rarr; Version 2.7.0: Updating MegaSLiM function to work with REST server. Allow megaslim=seqin. Added iuscoredir=PATH and protscores=T/F.
+<br>&rarr; Version 2.7.1: Modified iuscoredir=PATH and protscores=T/F to work without megaslim. Fixed UPC/SLiMdb issue for GOPHER.
+<br>&rarr; Version 2.7.2: Fixed iuscoredir=PATH to stop raising errors when file not previously made.
+<br>&rarr; Version 2.7.3: Fixed serverend message error.
+</p>
+<p><b>&bull; rje_slimhtml:</b> <i>Created/Renamed.</i>
+<br>&rarr; Version 0.0: Initial Compilation.
+<br>&rarr; Version 0.3: Added code for making Random Dataset pages
+<br>&rarr; Version 0.4: Updated UPC pages and added additional front pages.
+<br>&rarr; Version 0.5: Split front page into front and full. Added GO tabs/pages.
+<br>&rarr; Version 0.6: Added XGMML output.
+<br>&rarr; Version 0.7: Modified output for HumSF10 and HAPPI analysis.
+<br>&rarr; Version 0.8: Added SVG output. Integrated better with HAPPI code.
+<br>&rarr; Version 0.9: Added SLiM Descriptions.
+</p>
+<p><b>&bull; rje_slimlist:</b> <i>Created/Renamed.</i>
+<br>&rarr; Version 0.0: Initial Compilation.
+<br>&rarr; Version 0.1: Added SLiMCalc object to replace rje_motif_stats.
+<br>&rarr; Version 0.2: Added DNA option.
+<br>&rarr; Version 0.3: Added wildcard spacer scrambling - good for generating a test comparison data set.
+<br>&rarr; Version 0.4: Added motif-splitting based on ("|") options.
+<br>&rarr; Version 0.5: Fixed minor typo bug.
+<br>&rarr; Version 0.6: Added reading of ELM classes download for motifs. Modified splitting functions to cope with non-wildcard runs.
+<br>&rarr; Version 1.0: Functional module with lower case motif splitting fixed and ? -> .{0,1} replacement.
+<br>&rarr; Version 1.1: Modified to work with GOPHER V3.0 for alignments.
+<br>&rarr; Version 1.2: Added some extra functions for CompariMotif Memsaver mode
+<br>&rarr; Version 1.3: Added auto-download of ELM data.
+<br>&rarr; Version 1.4: Modified code to be compatible with SLiMCore V2.x objects.
+<br>&rarr; Version 1.5: Added run() method for slimsuite.py compatibility. Improved split motif handling.
+<br>&rarr; Version 1.6: Modified to read in new ELM class download file with extra header information. Added varlength=T/F filter. Modified so that filtering one element of a split motif removes all.
+<br>&rarr; Version 1.7.0: Added direct feeding of motif file content for loading (for REST servers).
+<br>&rarr; Version 1.7.1: Modified input to allow motif=X in additon to motifs=X.
+<br>&rarr; Version 1.7.2: Fixed bug that could not accept variable length motifs from commandline. Improved error message.
+</p>
+<p><b>&bull; rje_specificity:</b> <i>Updated from Version -.</i>
+</p>
+<p><b>&bull; rje_svg:</b> <i>Created/Renamed.</i>
+<br>&rarr; Version 0.0: Initial Compilation.
+</p>
+<p><b>&bull; rje_taxonomy:</b> <i>Created/Renamed.</i>
+<br>&rarr; Version 0.0: Initial Compilation.
+<br>&rarr; Version 0.1: Initial working version with rje_ensembl.
+<br>&rarr; Version 1.0: Fully functional version with modified viral species code creation.
+</p>
+<p><b>&bull; rje_tm:</b> <i>Created/Renamed.</i>
+<br>&rarr; Version 0.0: Initial Compilation.
+<br>&rarr; Version 1.0: Basic functional version.
+<br>&rarr; Version 1.1: Output of 'truncated' proteins - cleaved signalp peptides replaced with Xs.
+<br>&rarr; Version 1.2: Added standalone parsing methods as first step in development (& for rje_ensembl.ensDat())
+</p>
+<p><b>&bull; rje_tree:</b> <i>Created/Renamed.</i>
+<br>&rarr; Version 0.0: Initial Compilation.
+<br>&rarr; Version 0.1: Changed CladeList to lists inside tuple
+<br>&rarr; Version 0.2: Completely reworked with a much greater OO focus
+<br>&rarr; Version 0.3: No Out Object in Objects
+<br>&rarr; Version 1.0: Better
+<br>&rarr; Version 1.1: Added tree-drawing with ClustalW
+<br>&rarr; Version 1.2: Bug fixing.
+<br>&rarr; Version 1.3: Added separate maketree=PATH command to enable replacement of ClustalW tree drawing
+<br>&rarr; Version 1.4: Added toggling of full sequence description in TextTree/EditTree
+<br>&rarr; Version 1.5: Added ability to read in integer branch lengths
+<br>&rarr; Version 1.6: Added PHYLIP tree making
+<br>&rarr; Version 1.7: Modified text/log output. Added commandline scale option for text trees.
+<br>&rarr; Version 1.8: Updating reporting of redundant duplication finding.
+<br>&rarr; Version 1.9: Modified mapSeq() method to be more robust to different formats
+<br>&rarr; Version 1.10: Fixed some bugs and had a minor tidy.
+<br>&rarr; Version 2.0: Updated code to be more inline with newer RJE modules. Fixed some bugs.
+<br>&rarr; Version 2.1: Added tree savetype
+<br>&rarr; Version 2.2: Added treeformats=LIST option to eventually replace savetype. Added te (TreeExplorer) format.
+<br>&rarr; Version 2.3: Added specdup=X   : Minimum number of different species in clade to be identified as a duplication [1]
+<br>&rarr; Version 2.4: Added fasttree generation of trees.
+<br>&rarr; Version 2.5: Added qryvar=T/F  : Allow variants of query species within a group (over-rides allowvar=F). [False]
+<br>&rarr; Version 2.6: Added PNG R variants.
+<br>&rarr; Version 2.7: Added Improved NSF Tree reading.
+<br>&rarr; Version 2.8: Added SVG and HTML Tree output.
+<br>&rarr; Version 2.9: Added NWK output (=NSF output with different extension for MEGA!)
+<br>&rarr; Version 2.10: Added cleanup of *.r.csv file following R-based PNG generation.
+<br>&rarr; Version 2.11.0: Modified for standalone running as part of SeqSuite.
+<br>&rarr; Version 2.11.1: Tweaked QryVar interactivity.
+<br>&rarr; Version 2.11.2: Updated tree paths.
+</p>
+<p><b>&bull; rje_tree_group:</b> <i>Updated from Version -.</i>
+</p>
+<p><b>&bull; rje_uniprot:</b> <i>Created/Renamed.</i>
+<br>&rarr; Version 0.0: Initial Compilation.
+<br>&rarr; Version 1.0: Initial working version for interaction_motifs.py
+<br>&rarr; Version 1.1: Minor tidying and modification
+<br>&rarr; Version 2.0: Moved functions to rje_dbase. Added option to extract using index files.
+<br>&rarr; Version 2.1: Added possibility to extract splice variants
+<br>&rarr; Version 2.2: Added output of feature table for the entries in memory (not compatible with memsaver mode)
+<br>&rarr; Version 2.3: Added ID to tabout and also added accShortName() method to extract dictionary of {acc:ID__PrimaryAcc}
+<br>&rarr; Version 2.4: Add method for converting Sequence object and dictionary into UniProt objects... and saving
+<br>&rarr; Version 2.5: Added cc2ft Extra whole-length features added for TISSUE and LOCATION [False] and ftout=FILE
+<br>&rarr; Version 2.6: Added features based on case of sequence. (Uses seq.dict['Case'])
+<br>&rarr; Version 2.7: Added masking of features - Entry.maskFT(type='EM',inverse=False)
+<br>&rarr; Version 2.8: Added making of Taxa-specific databases using a list of UniProt Species codes
+<br>&rarr; Version 2.9: Added extraction of EnsEMBL, HGNC, UniProt and EntrezGene from IPI DAT file.
+<br>&rarr; Version 3.0: Added some module-level methods for use with rje_dbase.
+<br>&rarr; Version 3.1: Added extra linking of databases from UniProt entries
+<br>&rarr; Version 3.2: Added feature masking and TM conversion.
+<br>&rarr; Version 3.3: Added DBase processing options.
+<br>&rarr; Version 3.4: Made modifications to allow extended EMBL functionality as part of rje_embl.
+<br>&rarr; Version 3.5: Added SplitOut to go with rje_embl V0.1
+<br>&rarr; Version 3.6: Added longlink=T/F  : Whether link table is to be "long" (acc,db,dbacc) or "wide" (acc, dblinks) [True]
+<br>&rarr; Version 3.7: Added cleardata=T/F : Whether to clear unprocessed Entry data or retain in Entry & Sequence objects [True]
+<br>&rarr; Version 3.8: Added extraction of NCBI Taxa ID.
+<br>&rarr; Version 3.9: Added grepdat=T/F     : Whether to use GREP in attempt to speed up processing [False]
+<br>&rarr; Version 3.10: Added forking for speeding up of processing.
+<br>&rarr; Version 3.11: Added storing of Reference information in UniProt entries.
+<br>&rarr; Version 3.12: Added addition accdict extraction method for all entries read in.
+<br>&rarr; Version 3.13: Minor bug fix for link table output.
+<br>&rarr; Version 3.14: Added direct retrieval of UniProt entries from URL, including full proteomes. Updated output file naming. Added dblist=LIST and dbsplit=T/F for additional DB link output control. Set unipath default to url.
+<br>&rarr; Version 3.15: Added extraction of taxonomic groups. Add UniFormat to improve pure downloads.
+<br>&rarr; Version 3.16: Added WBGene ID's from WormBase as one of the recognised DB XRef to parse.
+<br>&rarr; Version 3.17: Efficiency tweak to URL-based extraction of acclist.
+<br>&rarr; Version 3.18: Minor modification to database parsing.
+<br>&rarr; Version 3.19: Updated and consolidated dbxref table generation (formerly linkout) using rje_db. Changed acc_num to accnum.
+<br>&rarr; Version 3.20: Updated dbsplit=T output and checked function with Pfam. Probably needs work for other databases.
+<br>&rarr; Version 3.20.1: Added uniprotid=LIST as an alias to acclist=LIST and extract=LIST.
+<br>&rarr; Version 3.20.2: Added extra sequence return methods to UniprotEntry. Added fasta REST output.
+<br>&rarr; Version 3.20.3: Fixed bug if new uniprot extraction method fails.
+<br>&rarr; Version 3.20.4: Fixed bug introduced by REST access modifications.
+<br>&rarr; Version 3.20.5: Improved handling of downloads for uniprot IDs that have been updated (i.e. no direct mapping).
+<br>&rarr; Version 3.20.6: Improved handling of zero accession numbers for extraction.
+<br>&rarr; Version 3.20.7: Fixed uniformat default error.
+<br>&rarr; Version 3.21.0: Added uparse=LIST option to try and accelerate parsing of large datasets for limited information.
+<br>&rarr; Version 3.21.1: FullText is no longer stored in Uniprot object. Will need special handling if required.
+<br>&rarr; Version 3.21.2: Fixed single uniprot extraction bug.
+<br>&rarr; Version 3.21.3: Added REST datout to proteomes extraction.
+</p>
+<p><b>&bull; rje_xgmml:</b> <i>Created/Renamed.</i>
+<br>&rarr; Version 0.0: Initial Compilation.
+<br>&rarr; Version 1.0: Basic functional version for use with other modules. Disabled attributes by default for Cytoscape.
+</p>
+<p><b>&bull; rje_xml:</b> <i>Created/Renamed.</i>
+<br>&rarr; Version 0.0: Initial Compilation.
+<br>&rarr; Version 0.1: Added xml.sax functions.
+<br>&rarr; Version 0.2: Added parsing from URL.
+</p>
+<p><b>&bull; rje_xref:</b> <i>Created/Renamed.</i>
+<br>&rarr; Version 0.0: Initial Compilation.
+<br>&rarr; Version 1.0: Added xfrom and xto fields and xMap() function for mapping from one ID set to another.
+<br>&rarr; Version 1.1: Added output of ID lists to text files. Major reworking. Tested with HPRD and HGNC.
+<br>&rarr; Version 1.2: Added join=LIST Run in join mode for list of FILE:key1|...|keyN:JoinField [] and naturaljoin=T/F.
+<br>&rarr; Version 1.3.0: Added compress=LIST to handle 1:many input data. []
+<br>&rarr; Version 1.3.1: Fixed xref list bug.
+<br>&rarr; Version 1.4.0: Added optional Mapping dictionary for speeding up recurring mapping (should avoid if memsaver=F).
+<br>&rarr; Version 1.5.0: Added stripvar=CDICT removal of variants using Field:Char list, e.g. Uniprot:-,GenPept:. []
+<br>&rarr; Version 1.6.0: Added mapxref=LIST List of identifiers to map to KeyIDs using mapfields []
+</p>
+<p><b>&bull; rje_zen:</b> <i>Created/Renamed.</i>
+<br>&rarr; Version 0.0: Initial Compilation.
+<br>&rarr; Version 1.0: Full working version with four zen types and reasonable vocabulary.
+<br>&rarr; Version 1.1: Added a few more words here and there.
+<br>&rarr; Version 1.2: Added a webserver mode to return text directly.
+<br>&rarr; Version 1.3.0: Modified output to work with new REST service calls.
+<br>&rarr; Version 1.3.1: Added some more words.
+</p>
+<h2>Updates in tools/:</h2>
+
+<p><b>&bull; aphid:</b> <i>Created/Renamed.</i>
+<br>&rarr; Version 0.0: Initial Compilation.
+<br>&rarr; Version 0.1: Added fam NR using GABLAM and SLiMCore.
+<br>&rarr; Version 0.2: Added replicates and pepnum abundance.
+<br>&rarr; Version 0.3: Improvements incorporating GeneMap version of Pingu.
+<br>&rarr; Version 0.4: Allowed mutliple runs from one call. Added fullmonty option. Moved and corrected compare mode.
+<br>&rarr; Version 1.0: Full initial working version.
+<br>&rarr; Version 1.1: Added PNG visualisations.
+<br>&rarr; Version 1.2: Added additional filtering according to replicate counts (minrep=X).
+<br>&rarr; Version 1.3: Added additional filtering according to min peptide occurrences (minpep=X,Y)
+<br>&rarr; Version 2.0: Reduced options and tidied code substantially with additional intermediate data outputs.
+<br>&rarr; Version 2.1: Reduced import commands.
+<br>&rarr; Version 2.2: Updated for revised SLiMCore.
+</p>
+<p><b>&bull; badasp:</b> <i>Updated from Version -.</i>
+</p>
+<p><b>&bull; budapest:</b> <i>Created/Renamed.</i>
+<br>&rarr; Version 0.0: Initial Compilation.
+<br>&rarr; Version 0.1: Reworked the pipeline in the light of discoveries made from version 0.0 runs.
+<br>&rarr; Version 1.0: Working version for basic analysis.
+<br>&rarr; Version 1.1: Modified to work with new MASCOT column headers.
+<br>&rarr; Version 1.2: Added tracking of MASCOT data, results tables and division of EST-RFs.
+<br>&rarr; Version 1.3: Split clustering into two levels: peptide and sequence clustering
+<br>&rarr; Version 1.4: Added FIESTA auto-construction of consensi from BUDAPEST RF translations [True]
+<br>&rarr; Version 1.5: Added MinPep filtering.
+<br>&rarr; Version 1.6: Improved tracking of peptides to final consensus sequences and output details.
+<br>&rarr; Version 1.7: Added menu and extra control of interactivity. Removed rfhits=F option.
+<br>&rarr; Version 1.8: Added preliminary iTRAQ handling.
+<br>&rarr; Version 1.9: Bug fixed for new MASCOT output.
+<br>&rarr; Version 2.0: Revised version using rje_mascot object for loading.
+<br>&rarr; Version 2.1: Improved handling of iTRAQ data using rje_mascot V1.2.
+<br>&rarr; Version 2.2: Removed unrequired rje_dismatrix import.
+<br>&rarr; Version 2.3: Updated to use rje_blast_V2. Needs further updates for BLAST+. Deleted obsolete OLDreadMascot() method.
+</p>
+<p><b>&bull; comparimotif_V3:</b> <i>Created/Renamed.</i>
+<br>&rarr; Version 0.0: Initial Compilation.
+<br>&rarr; Version 1.0: Full working version with menu
+<br>&rarr; Version 1.1: Added extra output options
+<br>&rarr; Version 2.0: Reworked for functionality with MotifList instead of PRESTO and using own methods.
+<br>&rarr; Version 2.1: Minor bug fixing and tidying. Removed matchic=F option. Added score and normcut=X.
+<br>&rarr; Version 3.0: Replaced rje_motif* modules with rje_slim* modules and improved handling of termini.
+<br>&rarr; Version 3.1: Added XGMML output.
+<br>&rarr; Version 3.2: Added mismatches=X option. (NB. mismatch=X is used in SLiMSearch.)
+<br>&rarr; Version 3.3: Added "Match" column, summarising matches
+<br>&rarr; Version 3.4: Added a DNA option and AA frequencies.
+<br>&rarr; Version 3.5: Miscellaneous modifications lost in the midst of time!
+<br>&rarr; Version 3.6: Slightly re-worked SLiM splitting with rje_slimlist V0.8 and capability to use ELM download.
+<br>&rarr; Version 3.7: Added coreIC and output of unmatched motifs.
+<br>&rarr; Version 3.8: Added overlaps=T/F  : Whether to include overlapping ambiguities (e.g. [KR] vs [HK]) as match [True] Changed scoring of overlapping ambiguities - uses IC of all possible ambiguities. Added "Ugly" match type.
+<br>&rarr; Version 3.9: Added xgformat=T/F : Whether to use default CompariMotif formatting or leave blank for e.g. Cytoscape [True]
+<br>&rarr; Version 3.10: Added MemSaver option, which will read and process input motifs (not searchdb) one motif at a time. Added forking.
+<br>&rarr; Version 3.11: Added additional overlap/matchfix checks during basic comparison to try and speed up.
+<br>&rarr; Version 3.12: Replaced deprecated sets.Set() with set().
+</p>
+<p><b>&bull; fiesta:</b> <i>Created/Renamed.</i>
+<br>&rarr; Version 0.0: Initial Compilation.
+<br>&rarr; Version 0.1: Added FIESTA pipeline for protein-based clustering in addition to TIGR based (partial) method
+<br>&rarr; Version 0.2: Removed TIGR pipeline and replaced with DNA version of FIESTA.
+<br>&rarr; Version 0.3: Added annotation method and extra mapping.
+<br>&rarr; Version 0.4: Added oneqry method for GABLAM consensus generation
+<br>&rarr; Version 1.0: Added querydb search option
+<br>&rarr; Version 1.1: Added assmode option = Mode to use for EST assembly (nogab,gablam,oneqry) [oneqry]
+<br>&rarr; Version 1.2: Added FwdOnly option for EST annotation.
+<br>&rarr; Version 1.3: Add HAQESAC run following annotation.
+<br>&rarr; Version 1.4: Tidied and modified QueryESTs analysis.
+<br>&rarr; Version 1.5: Bug removal and additional tidying for MultiHAQ and annotateEST methods.
+<br>&rarr; Version 1.6: Removed HAQESAC import (uses MultiHAQ).
+<br>&rarr; Version 1.7: Updated to use rje_blast_V2. Needs work to make function with BLAST+.
+<br>&rarr; Version 1.8: Minor crash fixes. Updated more functions to work with BLAST+.
+<br>&rarr; Version 1.8.1: Replaced type with stype throughout to try and avoid TypeError crashes.
+<br>&rarr; Version 1.9.0: Altered HAQDB to be a list of files rather than just one.
+</p>
+<p><b>&bull; gablam:</b> <i>Created/Renamed.</i>
+<br>&rarr; Version 0.0: Initial Compilation.
+<br>&rarr; Version 1.0: First working version based on BAM 1.4
+<br>&rarr; Version 1.1: Added blastres=FILE option
+<br>&rarr; Version 1.2: Added percres=T/F option
+<br>&rarr; Version 1.3: Added option to use a GABLAM stat as a cut-off
+<br>&rarr; Version 1.4: Added more output options for webserver
+<br>&rarr; Version 2.0: Major tidy up of module.
+<br>&rarr; Version 2.1: Added DNA GABLAM
+<br>&rarr; Version 2.2: Added reduced=LIST : List of terms that must be included in reduced output headers (e.g. Hit or Qry_Ordered)
+<br>&rarr; Version 2.3: Added local alignment stat output.
+<br>&rarr; Version 2.4: Added distance matrix output and visualisation.
+<br>&rarr; Version 2.5: Miscellaneous cleanup and bug fixes. Updated output file names to use basefile.
+<br>&rarr; Version 2.6: Added full name output for NSF tree.
+<br>&rarr; Version 2.7: Added cluster output.
+<br>&rarr; Version 2.8: Added graph output and replaced dispng and disnsf with distrees. Replaced dismatrix PNG with just tree.
+<br>&rarr; Version 2.9: Added LocalMin and LocalCut for controlling how local alignments are output and/or contribute to GABLAM.
+<br>&rarr; Version 2.10: Added dot plot PNG output using gablam.r. Added sequence checking with rje_seqlist -> correct BLAST type.
+<br>&rarr; Version 2.11: Altered to use BLAST+ and rje_blast_V2.
+<br>&rarr; Version 2.12: Consolidated use of BLAST V2.
+<br>&rarr; Version 2.13: Fixed Protein vs DNA GABLAM. Modified sequence extraction to handle larger sequences. Add blastdir=PATH/.
+<br>&rarr; Version 2.14: Added checktype=T/F option to check sequence/BLAST type.
+<br>&rarr; Version 2.15.0: Added seqnr function. Add run() method.
+<br>&rarr; Version 2.16.0: Added fullblast=T/F : Whether to perform full BLAST followed by blastres analysis [False]
+<br>&rarr; Version 2.16.1: Fixed a bug where the fullblast option was failing to return scores and evalues.
+<br>&rarr; Version 2.17.0: Added localalnfas=T/F : Whether to output local alignments to *.local.fas fasta file (if local=T) [False]
+<br>&rarr; Version 2.17.1: Fixed bug where query and hit lengths were not being output for fullblast.
+<br>&rarr; Version 2.18.0: Added blaste filtering to be applied to existing BLAST results.
+<br>&rarr; Version 2.19.0: Added maxall=X limits to all-by-all analyses. Added qassemble=T.
+<br>&rarr; Version 2.19.1: Fixed handling of basefile and results generation for blastres=FILE.
+<br>&rarr; Version 2.19.2: Modified output to be in rank order.
+</p>
+<p><b>&bull; gasp:</b> <i>Created/Renamed.</i>
+<br>&rarr; Version 0.0: Initial Compilation.
+<br>&rarr; Version 1.0: Improved version with second pass.
+<br>&rarr; Version 1.1: Improved OO. Restriction to descendant AAs. (Good for BAD etc.)
+<br>&rarr; Version 1.2: No Out Object in Objects
+<br>&rarr; Version 1.3: Added more interactive load options
+<br>&rarr; Version 1.4: Minor tweaks to imports.
+</p>
+<p><b>&bull; gfessa:</b> <i>Created/Renamed.</i>
+<br>&rarr; Version 0.0: Initial Compilation using exact matches only.
+<br>&rarr; Version 0.1: BLAST-based inexact search method.
+<br>&rarr; Version 0.2: Removed sequence annotation and clustering. Added extra enrichment clustering.
+<br>&rarr; Version 1.0: Updated to fix basefile issue and improve documentation, including manual. Add mean cluster enrichment.
+<br>&rarr; Version 1.1: Added  minabstag and minexptag to give more control over low abundance tag filtering
+<br>&rarr; Version 1.2: Added longtdt to output "Long" format file needed for R analysis.
+<br>&rarr; Version 1.3: Tidied module imports.
+<br>&rarr; Version 1.4: Switched to rje_blast_V2. More work needed for BLAST+.
+</p>
+<p><b>&bull; gopher:</b> <i>Created/Renamed.</i>
+<br>&rarr; Version 3.0: See archived GOPHER 1.9 and gopher_V2 2.9 for history and obselete options. Added organise=T/F and gopherdir=PATH for improved file organisation. Tightened savespace.  Added compfilter=T/F for improved complexity filter and composition statistics control for *initial* BLAST. Changed default tree extension to *.nwk for compatibility with MEGA. Deleted _phosAlign() method. Added orthology ID option and alignment program to customise output further.
+<br>&rarr; Version 3.1: Added full reciprocal best hit method. (fullrbh=T/F)
+<br>&rarr; Version 3.2: Minor tweak to prevent unwanted directory generation for programs using existing GOPHER alignments.
+<br>&rarr; Version 3.3: Added rje_blast_V2 to use BLAST+. Run with oldblast=T to stick with old NCBI BLAST.
+<br>&rarr; Version 3.4: Fixed FullRBH paralogue duplication issue.
+<br>&rarr; Version 3.4.1: Fixed stripXGap issue. (Why was this being implemented anyway?). Added REST output.
+</p>
+<p><b>&bull; happi:</b> <i>Created/Renamed.</i>
+<br>&rarr; Version 0.0: Initial Compilation. Based on rje_hm_html.
+<br>&rarr; Version 0.1: Added special methods for specific analyses.
+<br>&rarr; Version 0.2: Added multiclass capability.
+<br>&rarr; Version 0.3: Added GO enrichment to MCODE complexes.
+<br>&rarr; Version 0.4: Added "expanded" MCODE complex and updated GO enrichment of complexes.
+<br>&rarr; Version 0.5: Added class colour compilation.
+<br>&rarr; Version 0.6: Replaced ppcomplex=T/F with list of different evidence codes for special MCODE analyses ['Complex']
+<br>&rarr; Version 0.7: Added ppextra option for adding additional pages for genes added and returned in MCODE clusters.
+<br>&rarr; Version 0.8: Added use of SVG PPI images in place of PNG.
+<br>&rarr; Version 0.9: Added GZipping of XGMML files to save space.
+<br>&rarr; Version 1.0: Fixed PNG/SVG XGMML directory issue. First release.
+<br>&rarr; Version 1.1: Fixed SVG class naming issue (Cannot have *.class.svg!)
+<br>&rarr; Version 1.2: Added addclass and refined output for Host-Pathogen PPI analysis.
+</p>
+<p><b>&bull; haqesac:</b> <i>Created/Renamed.</i>
+<br>&rarr; Version 0.0: Initial Compilation.
+<br>&rarr; Version 0.1: Added clustalw for early stages
+<br>&rarr; Version 1.0: Fully working version. (Improvements still to be made!) Added BLAST to front-end.
+<br>&rarr; Version 1.1: Added backup.
+<br>&rarr; Version 1.2: Added basename and interactive menu to start if nothing given
+<br>&rarr; Version 1.3: Added specification of query subportion. Changed scoring to use sub matrix. Added GASP.
+<br>&rarr; Version 1.4: Added option to use BLAST coverage rather than ALIGN
+<br>&rarr; Version 1.5: Added PHYLIP for tree drawing (rje_tree.py 1.6)
+<br>&rarr; Version 1.6: Added multiHAQ for more rapid treatment of multiple consecutive datasets (and "pickup")
+<br>&rarr; Version 1.7: Added qryvar=T/F  : Allow variants of query species within a group (over-rides allowvar=F). [False]
+<br>&rarr; Version 1.8: Added qspec tree option
+<br>&rarr; Version 1.9: Added rje_blast_V2 implementation and BLAST+. Use oldblast=T for old BLAST.
+<br>&rarr; Version 1.10: Added exceptions for BLAST failure.
+<br>&rarr; Version 1.10.1: Tweaked QryVar interactivity.
+<br>&rarr; Version 1.10.2: Corrected typos and disabled buggy post-HAQESAC data reduction.
+</p>
+<p><b>&bull; multihaq:</b> <i>Created/Renamed.</i>
+<br>&rarr; Version 0.0: Initial Compilation.
+<br>&rarr; Version 0.1: Added chaser and autoskip options.
+<br>&rarr; Version 1.0: Fully working version. Fixed minor basefile bug. Added blastcut filter.
+<br>&rarr; Version 1.1: Improved pickup of aborted run.
+<br>&rarr; Version 1.2: Changed defaults to autoskip=F.
+<br>&rarr; Version 1.2.1: Updated documentation to include the HAQESAC reference.
+<br>&rarr; Version 1.2.2: Switched default to keepblast=T. Added forking blasta=X command to BLAST.
+</p>
+<p><b>&bull; peptcluster:</b> <i>Created/Renamed.</i>
+<br>&rarr; Version 0.0: Initial Compilation.
+<br>&rarr; Version 1.0: Initial working version.
+<br>&rarr; Version 1.1: Modified output a little.
+<br>&rarr; Version 1.2: CGI Output tuple.
+<br>&rarr; Version 1.3: PAM clustering and WPGMA.
+<br>&rarr; Version 1.4: Bug fixes for end of sequence characters and different length peptides.
+<br>&rarr; Version 1.5.0: Added peptalign=T/F/X function for aligning peptides using regex or minimal gap addition. Added REST.
+<br>&rarr; Version 1.5.1: Updated REST output. Removed peptide redundancy.
+</p>
+<p><b>&bull; picsi:</b> <i>Created/Renamed.</i>
+<br>&rarr; Version 0.0: Initial Compilation.
+<br>&rarr; Version 1.0: Basic working version.
+<br>&rarr; Version 1.1: Updated to blast_V2 and BLAST+.
+<br>&rarr; Version 1.2: Updated to BUDAPEST 2.3 and rje_mascot.
+</p>
+<p><b>&bull; pingu_V3:</b> <i>Created/Renamed.</i>
+<br>&rarr; Version 0.1: Initial Compilation. Basic GO mapping for EnsEMBL data.
+<br>&rarr; Version 0.2: Mapping of EnsEMBL genes onto Gene Symbols and summary data table output.
+<br>&rarr; Version 0.3: Reading and collation of PPI data.
+<br>&rarr; Version 0.4: All-by-all PPI and sample overlap analyses.
+<br>&rarr; Version 0.5: Cytoscape output from all-by-all analysis.
+<br>&rarr; Version 0.6: Option to add interactors of baits as additional samples. Added resdir=PATH option. Added pickling.
+<br>&rarr; Version 0.7: Added generation of EnsLoci datasets
+<br>&rarr; Version 0.8: Combined PPI Dataset output
+<br>&rarr; Version 0.9: Added DAT output option.
+<br>&rarr; Version 1.0: Full working version with XGMML output including GABLAM relationships.
+<br>&rarr; Version 1.1: Added Reactome and DIP.
+<br>&rarr; Version 1.2: Added an output of shared PPIs for clustering. (*.cluster.tdt)
+<br>&rarr; Version 2.0: Replace GeneCards with GeneMap. Improved compatibility with APHID and functioning of new options.
+<br>&rarr; Version 2.1: Added rje_go.GO Object to store GO mappings etc.
+<br>&rarr; Version 2.2: Altered the Pingu data input to be a list of files, not just one file.
+<br>&rarr; Version 2.3: Added acclist and GO dataset outputs.
+<br>&rarr; Version 2.4: Added tracking of source databases and evidence codes.
+<br>&rarr; Version 2.5: Added PNG visualisations.
+<br>&rarr; Version 2.6: Added loading interactions from pingu.pairwise.tdt.
+<br>&rarr; Version 2.7: Expanded XGMML options and added pathfinder output.
+<br>&rarr; Version 3.0: Major tidying of gene/peptide mapping. Added extra bait, experiment and protein family options.
+<br>&rarr; Version 3.1: Removal of sticky spokes/hubs
+<br>&rarr; Version 3.2: Added Domain-based PPI output.
+<br>&rarr; Version 3.3: Added crude Complex filtering.
+<br>&rarr; Version 3.4: Updated GO stuff.
+<br>&rarr; Version 3.5: Added Experiment association output.
+<br>&rarr; Version 3.6: Added addlinks=T/F option.
+<br>&rarr; Version 3.7: Improved XGMML output.
+<br>&rarr; Version 3.8: Hopefully fixed issue of Fasta file generation log output writing to wrong log file.
+<br>&rarr; Version 3.9: Tidied imports.
+</p>
+<p><b>&bull; pingu_V4:</b> <i>Created/Renamed.</i>
+<br>&rarr; Version 4.0: Initial Compilation based on code from SLiMBench and PINGU 3.9 (inherited as pingu_V3).
+<br>&rarr; Version 4.1: Adding compilation of PPI databases using new rje_xref V1.1 and older objects from PINGU V3.
+<br>&rarr; Version 4.2: Bug fixes for use of PPISource to create PPI databases. Add HGNC to sourcedata (xrefdata=HGNC)
+<br>&rarr; Version 4.3: Modified to use Pfam as hub field for DomPPI generation. Modified naming of PPI output after ppisource.
+<br>&rarr; Version 4.4.0: Converted ppicompile=T to ppicompile=LIST.
+<br>&rarr; Version 4.5.0: Added hublist=LIST : List of hub genes to restrict pairwise PPI to, and pairwise parsing.
+</p>
+<p><b>&bull; presto_V5:</b> <i>Updated from Version -.</i>
+</p>
+<p><b>&bull; qslimfinder:</b> <i>Created/Renamed.</i>
+<br>&rarr; Version 0.0: Initial Compilation based on SLiMFinder 3.5.
+<br>&rarr; Version 1.0: Test & Modified to include AA masking.
+<br>&rarr; Version 1.1: Added sizesort.
+<br>&rarr; Version 1.2: Added the addquery function.
+<br>&rarr; Version 1.3: Updated the output for Max/Min filtering and the pickup options.
+<br>&rarr; Version 1.4: Added additional dictionary and list to store Query dimers and SLiMs for motif space calculations. Added qexact=T/F option for calculating Exact Query motif space (True) or estimating from dimers (False).
+<br>&rarr; Version 1.5: Implemented SigV calculation. Modified extras setting.
+<br>&rarr; Version 1.6: Removed excess module imports.
+<br>&rarr; Version 1.7: Fixed "MustHave=LIST" correction of motif space.
+<br>&rarr; Version 1.8: Added cloudfix=T/F Restrict output to clouds with 1+ fixed motif (recommended) [False]. Consolidating output.
+<br>&rarr; Version 1.9: Preparation for QSLiMFinder V2.0 & SLiMCore V2.0 using newer RJE_Object.
+<br>&rarr; Version 2.0: Converted to use rje_obj.RJE_Object as base. Version 1.9 moved to legacy/.
+<br>&rarr; Version 2.1.0: Added PTMData and PTMList options.
+</p>
+<p><b>&bull; seqmapper:</b> <i>Created/Renamed.</i>
+<br>&rarr; Version 0.0: Initial Compilation.
+<br>&rarr; Version 1.0: Basic working version for protein databases.
+<br>&rarr; Version 1.1: Modified run() method to be called from other programs
+<br>&rarr; Version 1.2: Added grep method
+<br>&rarr; Version 2.0: Reworked with new Object format, new BLAST(+) module and new seqlist module.
+<br>&rarr; Version 2.1: Added catching of failure to read input sequences. Removed 'Run' from GABLAM table.
+</p>
+<p><b>&bull; seqsuite:</b> <i>Created/Renamed.</i>
+<br>&rarr; Version 0.0: Initial Compilation.
+<br>&rarr; Version 0.1: Added rje_seq and FIESTA. Added Uniprot.
+<br>&rarr; Version 1.0: Moved to tools/ for general release. Added HAQESAC and MultiHAQ. Moved mod to enable easy external access.
+<br>&rarr; Version 1.1: Added XRef = rje_xref.XRef. Identifier cross-referencing module.
+<br>&rarr; Version 1.2: Added taxonomy.
+<br>&rarr; Version 1.3.0: Added rje_zen.Zen. Modified code to work with REST services.
+<br>&rarr; Version 1.4.0: Added rje_tree.Tree, GABLAM and GOPHER.
+<br>&rarr; Version 1.5.0: Added extatic.ExTATIC and revert.REVERT. NOTE: Dev only.
+<br>&rarr; Version 1.5.1: Added 'seq' as alias for 'rje_seq' - want to avoid rje_ prefix requirements.
+<br>&rarr; Version 1.6.0: Added mitab and rje_mitab for MITAB parsing.
+<br>&rarr; Version 1.6.1: Added extra error messages.
+<br>&rarr; Version 1.7.0: Added pingu_V4.PINGU.
+<br>&rarr; Version 1.8.0: Added rje_pacbio.PacBio.
+</p>
+<p><b>&bull; slimbench:</b> <i>Created/Renamed.</i>
+<br>&rarr; Version 0.0: Initial Compilation.
+<br>&rarr; Version 0.1: Functional version with benchmarking dataset generation.
+<br>&rarr; Version 1.0: Consolidation of "working" version with additional basic benchmarking analysis.
+<br>&rarr; Version 1.1: Added simulated dataset construction and benchmarking.
+<br>&rarr; Version 1.2: Added MinIC filtering to benchmark assessment. Sorted beginning/end of line for reduced ELMs.
+<br>&rarr; Version 1.3: Made SimCount a list rather than Integer. Sorted CompariMotif assessment issue.
+<br>&rarr; Version 1.4: Added ICCut and SLiMLenCut as lists and output columns.
+<br>&rarr; Version 1.5: Added Summary Results output table. Removed PropRes.
+<br>&rarr; Version 1.6: Added "simonly" to datatype - calculates both SN and FPR from "sim" data (ignores "ran") to check query bias.
+<br>&rarr; Version 1.7: Added Benchmarking of ELM datasets without queries.
+<br>&rarr; Version 1.8: Partially added Benchmarking dataset generation from PPI data and 3DID.
+<br>&rarr; Version 1.9: Added memsaver option. Replaced SLiMSearch with SLiMProb. Altered default IO paths. Removed 3DID again: new ELM interaction_domains file has position-specific PPI details.
+<br>&rarr; Version 2.0: Major overhaul of input options to standardise/clarify. Implemented auto-downloads and PPI datasets.
+<br>&rarr; Version 2.1: Fixed memsaver=T unless in development mode (dev=T). Removed old Assessment. Tested with simbench analysis.
+<br>&rarr; Version 2.2: Replaced searchini=LIST with searchini=FILE and moved to SimBench commands. Modified the FN/TN and ResNum calculations. No longer rate TP in random data as OT.
+<br>&rarr; Version 2.3: Changed the default to queries=F. SearchINI bug fix. Added occbench generation.
+<br>&rarr; Version 2.4: Improved error messages.
+<br>&rarr; Version 2.5: Basic OccBench assessment benchmarking. Added ELM Uniprot acclist output. (Download issues?)
+<br>&rarr; Version 2.6: Added ELM domain interactions table: http://www.elm.eu.org/infos/browse_elm_interactiondomains.tsv. Fixed issues introduced with new SLiMCore V2.0 SLiMSuite code.
+<br>&rarr; Version 2.7: Reinstate filtering. (Not sure why disabled.) Add genspec=LIST to filter by species. Added domlink=T/F.
+<br>&rarr; Version 2.8.0: Implemented PPIBench benchmarking for datasets without Motifs in name.
+<br>&rarr; Version 2.8.1: Removed use of Protein name for ELM Uniprot entries due to problems mapping old IDs.
+<br>&rarr; Version 2.9.0: Added SLiMMaker ELM reduction table and output.
+<br>&rarr; Version 2.9.1: Enabled download only with generate=F benchmark=F.
+<br>&rarr; Version 2.10.0: Add generation of table mapping PPIBench dataset generation.
+</p>
+<p><b>&bull; slimfarmer:</b> <i>Created/Renamed.</i>
+<br>&rarr; Version 0.0: Initial Compilation.
+<br>&rarr; Version 1.0: Functional version using rje_qsub and rje_iridis to fork out SLiMSuite runs.
+<br>&rarr; Version 1.1: Updated to use rje_hpc.JobFarmer and incorporate main SLiMSuite farming within SLiMFarmer class.
+<br>&rarr; Version 1.2: Implemented the slimsuite=T/F option and got SLiMFarmer qsub to work with GOPHER forking.
+<br>&rarr; Version 1.3: Modified default vmem request to 127GB from 64GB.
+<br>&rarr; Version 1.4: Added modules=LIST : List of modules to add in job file [clustalo,mafft]
+<br>&rarr; Version 1.4.1: Fixed farm=batch mode for qsub=T.
+<br>&rarr; Version 1.4.2: Fixed log transfer issues due to new #VIO line. Better handling of crashed runs.
+</p>
+<p><b>&bull; slimfinder:</b> <i>Created/Renamed.</i>
+<br>&rarr; Version 0.0: Initial Compilation.
+<br>&rarr; Version 1.0: Preliminary working version with Poisson probabilities
+<br>&rarr; Version 1.1: Binomial probabilities, bonferroni corrections and complexity masking
+<br>&rarr; Version 1.2: Added musthave=LIST option and denferroni correction.
+<br>&rarr; Version 1.3: Added resfile=FILE output
+<br>&rarr; Version 1.4: Added option for termini
+<br>&rarr; Version 1.5: Reworked slim mechanics to be ai-x-aj strings for future ambiguity (split on '-' to make list)
+<br>&rarr; Version 1.6: Added basic ambiguity and flexible wildcards plus MST weighting for UP clusters
+<br>&rarr; Version 1.7: Added counting of generic dimer frequencies for improved Bonferroni and probability calculation (No blockmask.)
+<br>&rarr; Version 1.8: Added *.upc rather than *.self.blast. Added basic randomiser function.
+<br>&rarr; Version 1.9: Added MotifList object to handle extra calculations and occurrence filtering.
+<br>&rarr; Version 2.0: Tidied up and standardised output. Implemented extra filtering and scoring options.
+<br>&rarr; Version 2.1: Changed defaults. Removed poisson as option and other obseleted functions.
+<br>&rarr; Version 2.2: Tidied and reorganised code using SLiMBuild/SLiMChance subdivision of labour. Removed rerun=T/F (just Force.)
+<br>&rarr; Version 2.3: Added AAFreq "smear" and "better" p1+ calculation. Added extra cloud summary output.
+<br>&rarr; Version 2.4: Minor bug fixes and tidying. Removed power output. (Rubbish anyway!) Can read UPC from distance matrix.
+<br>&rarr; Version 3.0: Dumped useless stats and calculations. Simplified output. Improved ambiguity & clouds.
+<br>&rarr; Version 3.1: Added minwild and alphahelix options. (Partial aadimerfreq & negatives)
+<br>&rarr; Version 3.2: Tidied up with SLiMCore, replaced old Motif objects with SLiM objects and SLiMCalc.
+<br>&rarr; Version 3.3: Added XGMML output. Added webserver option with additional output.
+<br>&rarr; Version 3.4: Added consmask relative conservation masking.
+<br>&rarr; Version 3.5: Standardised masking options. Add motifmask and motifcull.
+<br>&rarr; Version 3.6: Added aamasking and alphabet.
+<br>&rarr; Version 3.7: Added option to switch off dimfreq and better handling of given aafreq
+<br>&rarr; Version 3.8: Added SLiMDisc & SLiMPickings scores and options to rank on them.
+<br>&rarr; Version 3.9: Added clouding consensus information. [Aborted due to technical challenges.]
+<br>&rarr; Version 3.10: Added differentiation of methods for pickling and tarring.
+<br>&rarr; Version 4.0: Added SigPrime and SigV calculation from Norman. Added graded extras output.
+<br>&rarr; Version 4.1: Added SizeSort, AltUPC and NewUPC options. Added #END output for webserver.
+<br>&rarr; Version 4.2: Added fixlen option and improved Alphahelix option
+<br>&rarr; Version 4.3: Updated the output for Max/Min filtering and the pickup options. Removed TempMaxSetting.
+<br>&rarr; Version 4.4: Modified to work with GOPHER V3.0.
+<br>&rarr; Version 4.5: Minor modifications to fix sigV and sigPrime bugs. Modified extras setting. Added palindrome setting for DNA motifs.
+<br>&rarr; Version 4.6: Minor modification to seqocc=T function. !Experimental! Added main occurrence output and modified savespace.
+<br>&rarr; Version 4.7: Added SLiMMaker generation to motif clouds. Added Q and Occ to Chance column.
+<br>&rarr; Version 4.8: Modified cloud generation to avoid issues with flexible-length wildcards.
+<br>&rarr; Version 4.9: Preparation for SLiMFinder V5.0 & SLiMCore V2.0 using newer RJE_Object.
+<br>&rarr; Version 5.0: Converted to use rje_obj.RJE_Object as base. Version 4.9 moved to legacy/.
+<br>&rarr; Version 5.1: Modified SLiMChance slightly to catch missing aafreq.
+<br>&rarr; Version 5.1.1: Modified alphabet handling and fixed musthave bug.
+<br>&rarr; Version 5.2.0: Added PTMList and PTMData modes (dev only).
+</p>
+<p><b>&bull; slimmaker:</b> <i>Created/Renamed.</i>
+<br>&rarr; Version 0.0: Initial Compilation.
+<br>&rarr; Version 1.0: Initial Working Version. Some minor modifications for SLiMBench including iterative SLiMMaker.
+<br>&rarr; Version 1.1: Modified to work with end of line characters.
+<br>&rarr; Version 1.2.0: Modified to work with REST servers.
+<br>&rarr; Version 1.3.0: Added varlength option to identify gaps in aligned peptides and generate variable length motif.
+<br>&rarr; Version 1.3.1: Fixed varlength option to work with end of peptide gaps. (Gaps ignored completely - should not be there!)
+<br>&rarr; Version 1.4.0: Add iteration REST output.
+<br>&rarr; Version 1.4.1: Add unmatched peptides REST output.
+<br>&rarr; Version 1.4.2: Fixed bug with variable length wildcards at start of sequence.
+<br>&rarr; Version 1.5.0: Added peptalign=X functionality, using PeptCluster peptide alignment.
+<br>&rarr; Version 1.6.0: Added equiv=LIST : List (or file) of TEIRESIAS-style ambiguities to use [AGS,ILMVF,FYW,FYH,KRH,DE,ST]
+<br>&rarr; Version 1.6.1: Fixed peptide case bug.
+</p>
+<p><b>&bull; slimmutant:</b> <i>Created/Renamed.</i>
+<br>&rarr; Version 0.0: Initial Compilation.
+<br>&rarr; Version 1.0: Working version with standalone functionality.
+<br>&rarr; Version 1.1: Minor tweaks to generate method to increase speed. (Make index in method.) Added splitfield=X.
+<br>&rarr; Version 1.2: Added a batch mode for mutfiles - all other options will be kept fixed. Added maxmutant and minmutant.
+<br>&rarr; Version 1.3: Added SLiMPPI analysis (will set analyse=T). Started basing on SLiMCore
+</p>
+<p><b>&bull; slimparser:</b> <i>Created/Renamed.</i>
+<br>&rarr; Version 0.0.0: Initial Compilation.
+<br>&rarr; Version 0.0.1: Fixed RestKeys bug.
+<br>&rarr; Version 0.1.0: Added retrieval and parsing of existing server job. Added password.
+<br>&rarr; Version 0.2.0: Added API access to REST server if restin is REST call (i.e. starts with http:)
+<br>&rarr; Version 0.2.1: Added PureAPI output of API REST call returned text.
+<br>&rarr; Version 0.3.0: Added parsing of input files to give to rest calls.
+<br>&rarr; Version 0.3.1: Fixed issue that had broken REST server full output.
+</p>
+<p><b>&bull; slimprob:</b> <i>Created/Renamed.</i>
+<br>&rarr; Version 1.0: SLiMProb 1.0 based on SLiMSearch 1.7. Altered output files to be *.csv and *.occ.csv.
+<br>&rarr; Version 1.1: Tidied import commands.
+<br>&rarr; Version 1.2: Increased extras=X levels. Adjusted maxsize=X assessment to be post-masking.
+<br>&rarr; Version 1.3: Consolidating output file naming for consistency across SLiMSuite. (SLiMBuild = Motif input)
+<br>&rarr; Version 1.4: Preparation for SLiMProb V2.0 & SLiMCore V2.0 using newer RJE_Object.
+<br>&rarr; Version 2.0: Converted to use rje_obj.RJE_Object as base. Version 1.4 moved to legacy/.
+<br>&rarr; Version 2.1: Modified output of N-terminal motifs to correctly start at position 1.
+<br>&rarr; Version 2.2.0: Added basic REST functionality.
+<br>&rarr; Version 2.2.1: Updated REST output.
+<br>&rarr; Version 2.2.2: Modified input to allow motif=X in addition to motifs=X.
+<br>&rarr; Version 2.2.3: Tweaked basefile setting and citation.
+</p>
+<p><b>&bull; slimsearch:</b> <i>Created/Renamed.</i>
+<br>&rarr; Version 0.0: Initial Compilation.
+<br>&rarr; Version 1.0: Standardised masking options. Still not fully tested.
+<br>&rarr; Version 1.1: Added background=FILE option for determing mean(p1+) for SLiMs based on background file.
+<br>&rarr; Version 1.2: Added maxsize option.
+<br>&rarr; Version 1.3: Add aamask option (and alphabet)
+<br>&rarr; Version 1.4: Fixed zero-size UPC bug.
+<br>&rarr; Version 1.5: Add MaxOcc setting.
+<br>&rarr; Version 1.6: Minor tweaks to Log output. Add option for UPC number in occ output.
+<br>&rarr; Version 1.7: Modified to work with GOPHER V3.0.
+</p>
+<p><b>&bull; slimsuite:</b> <i>Created/Renamed.</i>
+<br>&rarr; Version 0.0: Initial Compilation based on SeqSuite.
+<br>&rarr; Version 1.0: Moved to tools/ for general release. Added reading and using of SeqSuite programs.
+<br>&rarr; Version 1.1: Added slimlist.
+<br>&rarr; Version 1.2: Added SLiMBench.
+<br>&rarr; Version 1.3.0: Added SLiMMaker and modified code to work with REST services.
+<br>&rarr; Version 1.4.0: Added RLC and Disorder progs to call SLiMCore. Added CompariMotif.
+<br>&rarr; Version 1.5.0: Added peptcluster and peptalign calls.
+</p>
+<p><b>&bull; unifake:</b> <i>Created/Renamed.</i>
+<br>&rarr; Version 0.0: Initial Compilation.
+<br>&rarr; Version 1.0: Version with full functionality.
+<br>&rarr; Version 1.1: Made changes to temp file names for parallel running
+<br>&rarr; Version 1.2: Added option for reading in Features and limited other info from real UniProt entry
+<br>&rarr; Version 1.3: Removed searching in UniProt if not UniReal features given.
+</p>
+<!-- ~~~~~~~~~~~~~~ HTML tail data ~~~~~~~~~~~~~~~~~ -->
+<HR><FONT COLOR=#979E45 SIZE=2>&copy; RJ Edwards 2015. Last modified 1 Jun 2015.</FONT></P>
+
+<script type="text/javascript">
+/* manualStartup=true so need to run it now */
+tabberAutomatic(tabberOptions);
+</script>
+
+</body>
+</html>
+<!-- ~~~~~~~~~~~~~~ End of HTML tail data ~~~~~~~~~~~~~~~~~ -->
