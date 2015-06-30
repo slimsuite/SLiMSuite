@@ -1051,7 +1051,7 @@ class SeqList(rje.RJE_Object):
                 for missing in missing_list:
                     if filetype == 'uniprot': self.printLog('#ERR','%s not found in %s: check for UniProt secondary AccNum.' % (missing,self.info['Name']))
                     else: self.printLog('#ERR','%s not found in %s!' % (missing,self.info['Name']))
-                if self.seqNum() == 0: self.printLog('No sequences retained!',printerror=False); return False
+                if self.seqNum() == 0: self.errorLog('No sequences retained!',printerror=False); return False
 
             ### ~ [4] ~ Sequence Details ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if seqtype and seqtype.lower() not in ['none','read']: self.info['Type'] = seqtype
