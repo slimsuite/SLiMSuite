@@ -361,7 +361,7 @@ class Gopher(rje.RJE_Object):
             if self.opt['DNA']: gopherblast.setStr({'Type':'blastn'})
             ### ~ [2] FormatDB ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if not os.path.exists(self.getStr('OrthDB')):
-                self.errorLog('Database file %s missing!' % self.getStr('OrthDB'),printerror=False)
+                self.errorLog('BLAST Database file %s missing!' % self.getStr('OrthDB'),printerror=False)
                 sys.exit(1)
             gopherblast.formatDB(protein=not self.getBool('DNA'),force=False,checkage=not self.getBool('IgnoreDate'),details=True)
             self.obj['BLAST'] = gopherblast

@@ -1079,7 +1079,7 @@ class Tree(rje.RJE_Object):     ### Class for handling phylogenetic trees.
                         mapped.info['Name'] = details[1]
                         mapped.extractDetails()
                     else:
-                        self.log.printLog('AncSeqMatch Error - Node %d (%s) mapped to Sequence %s without ID.' % (node.stat['ID'],node.info['Name'],mapped.info['ID']),printerror=False)
+                        self.log.errorLog('AncSeqMatch Error - Node %d (%s) mapped to Sequence %s without ID.' % (node.stat['ID'],node.info['Name'],mapped.info['ID']),printerror=False)
                         raise ValueError
                     self.verbose(1,4,'\rNode %d (%s) mapped to Sequence %d: %s.' % (node.stat['ID'],node.info['Name'],s,self.nodeList(node.neighbours(ignore=[node.ancNode()]))),1)
                     #print mapped,anclist.seq.index(mapped)

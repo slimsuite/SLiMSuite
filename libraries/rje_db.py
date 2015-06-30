@@ -1241,7 +1241,7 @@ class Table(rje.RJE_Object):
         '''
         try:### ~ [1] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             for newf in splitlist:
-                if newf in self.fields(): return self.log.printLog('Cannot split field to overwrite exisiting field',printerror=False)
+                if newf in self.fields(): return self.log.errorLog('Cannot split field to overwrite exisiting field',printerror=False)
             self.list['Fields'] += splitlist
             ### ~ [2] Split ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             for dkey in self.data():

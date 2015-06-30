@@ -324,7 +324,7 @@ class BLASTRun(rje_obj.RJE_Object):
             if os.popen({'BLAST':'formatdb','BLAST+':'makeblastdb'}[blast]).read():
                 self.printLog('#NCBI','Installation of %s detected. Path not required.' % blast)
             else:
-                self.printLog('#NCBI','Installation of %s not detected and no path given.' % blast,printerror=False)
+                self.errorLog('#NCBI','Installation of %s not detected and no path given.' % blast,printerror=False)
                 pathfail = True
         elif not pathfound:
             self.errorLog('%s Path not found: "%s"' % (blast,self.getStr('%s Path' % blast)),printerror=False)
