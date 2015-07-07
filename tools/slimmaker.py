@@ -129,7 +129,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copyyear) = ('SLiMMaker', '1.6.0', 'May 2015', '2012')
+    (program, version, last_edit, copyyear) = ('SLiMMaker', '1.6.1', 'May 2015', '2012')
     description = 'SLiM generator from aligned peptide sequences'
     author = 'Dr Richard J. Edwards.'
     comments = ['Cite: Palopoli N, Lythgow KT & Edwards RJ. Bioinformatics 2015; doi: 10.1093/bioinformatics/btv155 [PMID: 25792551]',

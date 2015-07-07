@@ -19,8 +19,8 @@
 """
 Program:      SLiMProb
 Description:  Short Linear Motif Probability tool
-Version:      2.2.3
-Last Edit:    26/04/15
+Version:      2.2.4
+Last Edit:    11/06/15
 Citation:     Davey, Haslam, Shields & Edwards (2010), Lecture Notes in Bioinformatics 6282: 50-61. 
 Copyright (C) 2007  Richard J. Edwards - See source code for GNU License Notice
 
@@ -135,6 +135,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 2.2.1 - Updated REST output.
     # 2.2.2 - Modified input to allow motif=X in addition to motifs=X.
     # 2.2.3 - Tweaked basefile setting and citation.
+    # 2.2.4 - Improved slimcalc output (s.f.).
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -154,7 +155,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo():     ### Makes Info object
     '''Makes rje.Info object for program.'''
-    (program, version, last_edit, copyyear) = ('SLiMProb', '2.2.2', 'April 2015', '2007')
+    (program, version, last_edit, copyyear) = ('SLiMProb', '2.2.4', 'June 2015', '2007')
     description = 'Short Linear Motif Probability tool'
     author = 'Dr Richard J. Edwards.'
     comments = ['Please cite: Davey, Haslam, Shields & Edwards (2010), Lecture Notes in Bioinformatics 6282: 50-61.']
@@ -587,6 +588,8 @@ class SLiMProb(rje_slimcore.SLiMCore):
                         occ['Desc'] = seq.info['Description']
                         occ['Pattern'] = slim.pattern()
                         if self.getBool('OccUPC'): occ['UPC'] = self.list['UP'].index(self.getUP(seq)) + 1
+                        for occstat in ['Cons','SA','Hyd','Fold','IUP','Comp']:
+                            if occstat in occ: occ[occstat] = rje_slim.expectString(occ[occstat])
                         results['%s-%s-%s' % (rje.preZero(occ['Start_Pos'],occ['Prot_Len']),rje.preZero(occ['End_Pos'],occ['Prot_Len']),occ['Variant'])] = occ
                     ## ~ [1b] Filtering & Output ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
                     results = rje_scoring.statFilter(self,results,self.dict['OccFilter'])  #!# Add restrict/exclude #!#
@@ -633,7 +636,7 @@ class SLiMProb(rje_slimcore.SLiMCore):
                 datadict = rje.combineDict(datadict,slim.stat)
                 for dkey in datadict.keys():
                     if string.split(dkey,'_')[0] in ['E','p','pUnd']: datadict[dkey] = rje_slim.expectString(datadict[dkey])
-
+                    elif string.split(dkey,'_')[-1] in ['mean']: datadict[dkey] = rje_slim.expectString(datadict[dkey])
                 rje.delimitedFileOutput(self,self.getStr('SummaryFile'),self.resHead(),datadict=datadict)
             self.printLog('#OUT','Summary data for %s saved to %s' % (self.dataset(),self.getStr('SummaryFile')))
         except: self.errorLog('Error in combMotifOccStats()')

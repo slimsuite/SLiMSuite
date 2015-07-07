@@ -19,8 +19,8 @@
 """
 Module:       rje_slimlist
 Description:  SLiM dataset manager
-Version:      1.7.2
-Last Edit:    28/03/15
+Version:      1.7.3
+Last Edit:    12/06/15
 Copyright (C) 2007  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -117,6 +117,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 1.7.0 - Added direct feeding of motif file content for loading (for REST servers).
     # 1.7.1 - Modified input to allow motif=X in additon to motifs=X.
     # 1.7.2 - Fixed bug that could not accept variable length motifs from commandline. Improved error message.
+    # 1.7.3 - Fixed bug that could not accept variable length motifs from commandline. Improved error message.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -395,12 +396,14 @@ class SLiMList(rje.RJE_Object):
                 if os.path.exists(motfile): mlines = self.loadFromFile(motfile,chomplines=True)
                 if mlines: self.info['Name'] = motfile
                 elif not os.path.exists(motfile):
+                    #self.debug(motfile)
                     if motfile.find(',') > 0:
                         mlines = string.split(motfile,',')  # Motif List
                         i = 0
                         while i < (len(mlines)-1):
-                            if string.count(mlines[0],'{') == string.count(mlines[0],'}'): i += 1
-                            else: mlines[0] += mlines.pop(1)
+                            if string.count(mlines[i],'{') == string.count(mlines[i],'}'): i += 1
+                            else: mlines[i] += ',%s' % mlines.pop(i+1)
+                        #self.debug('%s' % mlines)
                     elif motfile.lower() not in ['','none'] and (self.stat['Interactive'] < 1 or rje.yesNo('No lines read from "%s". Use as motif?' % motfile)):
                         #self.warnLog('File "%s" not found!' % motfile)
                         self.log.printLog('#MOT','No lines read from "%s": using as motif.' % motfile)

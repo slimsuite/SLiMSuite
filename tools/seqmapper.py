@@ -268,7 +268,7 @@ class SeqMapper(rje_obj.RJE_Object):
                 #self._cmdReadList(cmd,'int',['Att'])   # Integers
                 #self._cmdReadList(cmd,'min',['Att'])   # Integer value part of min,max command
                 #self._cmdReadList(cmd,'max',['Att'])   # Integer value part of min,max command
-                #self._cmdReadList(cmd,'list',['Att'])  # List of strings (split on commas or file lines)
+                self._cmdReadList(cmd,'list',['Mapping'])  # List of strings (split on commas or file lines)
                 #self._cmdReadList(cmd,'clist',['Att']) # Comma separated list as a *string* (self.str)
                 #self._cmdReadList(cmd,'glist',['Att']) # List of files using wildcards and glob
                 #self._cmdReadList(cmd,'cdict',['Att']) # Splits comma separated X:Y pairs into dictionary
@@ -351,6 +351,7 @@ class SeqMapper(rje_obj.RJE_Object):
             if not self.list['Mapping']:
                 self.errorLog('No mapping methods selected!' % method,printerror=False)
                 raise ValueError
+            self.printLog('#MAP','Mapping: %s' % string.join(self.list['Mapping'],', '))
             self.checkInputFiles(['SeqIn','MapDB'],imenu)   ## Sequence Files ##
             return True
         except: self.errorLog('Problem during %s setup.' % self); return False  # Setup failed

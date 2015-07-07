@@ -19,8 +19,8 @@
 """
 Module:       rje
 Description:  Contains General Objects for all my (Rich's) scripts
-Version:      4.14.1
-Last Edit:    01/06/15
+Version:      4.14.2
+Last Edit:    09/06/15
 Copyright (C) 2005  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -150,7 +150,8 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 4.13.3 - Added uselower=False to dataDict() method.
     # 4.13.4 - Added maxrep=X to listCombos() method.
     # 4.14.0 - Added listToDict() method.
-    # 4.15.1 - Fixed matchExp method to be able to handline multilines. (Shame re.DOTALL doesn't work!)
+    # 4.14.1 - Fixed matchExp method to be able to handline multilines. (Shame re.DOTALL doesn't work!)
+    # 4.14.2 - Modified integer commands to read/convert floats.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -345,7 +346,11 @@ class RJE_Object_Shell(object):     ### Metaclass for inheritance by other class
         elif type == 'path': self.info[att] = makePath(value)
         elif type == 'abspath': self.info[att] = makePath(os.path.abspath(value))
         elif type in ['fullpath','file']: self.info[att] = makePath(value,wholepath=True)
-        elif type == 'int': self.stat[att] = string.atoi(value)
+        elif type == 'int':
+            try: self.stat[att] = string.atoi(value)
+            except:
+                self.stat[att] = int(string.atof(value))
+                self.log.warnLog('%s=%s needs integer -> %s=%d' % (arg,value,arg,self.stat[att]))
         elif type in ['float','stat','num']: self.stat[att] = string.atof(value)
         elif type == 'max' and matchExp('^\d+,(\d+)',value): self.stat[att] = string.atoi(matchExp('^\d+,(\d+)',value)[0])
         elif type in ['min','max'] and matchExp('^(\d+)',value): self.stat[att] = string.atoi(matchExp('^(\d+)',value)[0])

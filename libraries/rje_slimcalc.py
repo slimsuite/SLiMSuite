@@ -19,8 +19,8 @@
 """
 Module:       rje_slimcalc
 Description:  SLiM Attribute Calculation Module
-Version:      0.9
-Last Edit:    04/06/14
+Version:      0.9.2
+Last Edit:    12/06/15
 Copyright (C) 2007  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -49,13 +49,13 @@ Commandline:
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
     ### Conservation Parameters ###   
     conspec=LIST    : List of species codes for conservation analysis. Can be name of file containing list. [None]
-    conscore=X      : Type of conservation score used:  [pos]
+    conscore=X      : Type of conservation score used:  [rlc]
                         - abs = absolute conservation of motif using RegExp over matched region
                         - pos = positional conservation: each position treated independently
                         - prob = conservation based on probability from background distribution
                         - prop = conservation of amino acid properties
-                        - rel = relative local conservation (rlc)
-                        - all = all three methods for comparison purposes
+                        - rlc = relative local conservation
+                        - all = all methods for comparison purposes
     consamb=T/F     : Whether to calculate conservation allowing for degeneracy of motif (True) or of fixed variant (False) [True]
     consinfo=T/F    : Weight positions by information content (does nothing for conscore=abs) [True]
     consweight=X    : Weight given to global percentage identity for conservation, given more weight to closer sequences [0]
@@ -104,6 +104,8 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 0.7 - Added RLC to "All" conscore running.
     # 0.8 - Made RLC the default.
     # 0.9 - Improvements to use of GOPHER.
+    # 0.9.1 - Modified combining of motif stats to handle expectString format for individual values.
+    # 0.9.2 - Changed default conscore in docstring to RLC.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -580,12 +582,12 @@ class SLiMCalc(rje.RJE_Object):
                 ## ~ [3e] Update Stats ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
                     if taxa == 'ALL': 
                         Occ['HomNum'] = len(hithom[taxa])
-                        Occ['GlobID'] = globid[taxa]
-                        Occ['LocID'] = locid[taxa]
+                        Occ['GlobID'] = rje_slim.expectString(globid[taxa])
+                        Occ['LocID'] = rje_slim.expectString(locid[taxa])
                     else:
                         Occ['%s_HomNum' % taxa] = len(hithom[taxa])
-                        Occ['%s_GlobID' % taxa] = globid[taxa]
-                        Occ['%s_LocID' % taxa] = locid[taxa]
+                        Occ['%s_GlobID' % taxa] = rje_slim.expectString(globid[taxa])
+                        Occ['%s_LocID' % taxa] = rje_slim.expectString(locid[taxa])
                     if self.info['ConScore'] == 'all':
                         for method in hitcons.keys():
                             outmethod = method.upper()[:1] + method.lower()[1:]
@@ -1007,7 +1009,7 @@ class SLiMCalc(rje.RJE_Object):
             ## ~ [2a] Generate list of values for each occurrence ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             occval = []     # List of given stat for each occurrence
             for occ in occlist:
-                try: occval.append(occ[stat])
+                try: occval.append(float(occ[stat]))
                 except: self.deBug('%s occurrence missing %s value' % (SLiM.info['Name'],stat))
             if not occval: continue     # Nothing to combine
             ## ~ [2b] Basic Mean ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##

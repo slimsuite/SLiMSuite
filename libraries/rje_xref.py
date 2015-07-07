@@ -19,8 +19,8 @@
 """
 Module:       rje_xref
 Description:  Generic identifier cross-referencing 
-Version:      1.6.0
-Last Edit:    13/05/15
+Version:      1.8.0
+Last Edit:    28/06/15
 Copyright (C) 2014  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -60,7 +60,7 @@ Function:
     although the case will be switched to uppercase unless in keepcase=LIST.
 
 Commandline:
-    ### ~ INPUT/PROCESSING OPTIONS ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+    ### ~ Input/Field Options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     xrefdata=FILES  : List of files with delimited data of identifier cross-referencing (wildcards allowed) []
     newheaders=LIST : List of new Field headers for XRefData (will replace old - must be complete) []
     keepcase=LIST   : Any fields matching keepcase will retain mixed case, otherwise be converted to upper case ['Desc','Description','Name']
@@ -72,6 +72,11 @@ Commandline:
     splitskip=LIST  : List of fields to bypass for field splitting ['Desc','Description','Name']
     sortxref=T/F    : Whether to sort multiple xref data alphabetically [True]
     keyid=X         : Key field header to be used in main Data dictionary - aliases map to this ['Gene']
+    comments=LIST   : List of comment line prefixes marking lines to ignore (throughout file) ['//','%']
+    xreformat=T/F   : Whether to apply field reformatting to input xrefdata (True) or just xrefs to map (False) [False]
+    yeastxref=T/F   : First xrefdata file is a yeast.txt file to convert. (http://www.uniprot.org/docs/yeast.txt)
+
+    ### ~ XRef/Processing Options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     altkeys=LIST    : Alternative fields to look for in Alias Data ['Symbol','HGNC symbol']
     onetomany=T/F   : Whether to keep potential one-to-many altkeys IDs [False]
     mapfields=X     : Fields to be used for Alias mapping plus KeyID. (Must be in XRef). []
@@ -82,10 +87,12 @@ Commandline:
     filexref=FILE   : File to XRef and expand with xrefs before re-saving []
     badid=LIST      : List of XRef IDs to ignore ['!FAILED!','None','N/A','-']
     aliases=LIST    : Combine XRef fields into single 'Aliases' field (and remove KeyID if found)
+
+    ### ~ Join Method Options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     join=LIST       : Run in join mode for list of FILE:key1|...|keyN:JoinField []
     naturaljoin=T/F : Whether to only output entries that join to all tables [False]
 
-    ### ~ OUTPUT OPTIONS ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+    ### ~ Output Options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     basefile=X      : Basefile for output files [Default: filexref or first xrefdata input file w/o path]
     savexref=T/F    : Save the xrefdata table (*.xref.tdt) following compilation of data [True]
     idlist=LIST     : Subset of key IDs to map onto. (All if blank) []
@@ -115,6 +122,9 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 1.4.0 - Added optional Mapping dictionary for speeding up recurring mapping (should avoid if memsaver=F).
     # 1.5.0 - Added stripvar=CDICT removal of variants using Field:Char list, e.g. Uniprot:-,GenPept:. []
     # 1.6.0 - Added mapxref=LIST List of identifiers to map to KeyIDs using mapfields []
+    # 1.7.0 - Added comments=LIST ist of comment line prefixes marking lines to ignore (throughout file) ['//','%']
+    # 1.7.1 - Added xreformat=T/F : Whether to apply field reformatting to input xrefdata (True) or just xrefs to map (False) [False]
+    # 1.8.0 - Added recognition and parsing of yeast.txt XRef file from Uniprot (http://www.uniprot.org/docs/yeast.txt)
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -146,7 +156,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copyyear) = ('RJE_XRef', '1.6.0', 'May 2015', '2014')
+    (program, version, last_edit, copyyear) = ('RJE_XRef', '1.8.0', 'June 2015', '2014')
     description = 'Generic identifier cross-referencing'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_obj.zen()]
@@ -218,6 +228,8 @@ class XRef(rje_obj.RJE_Object):
     - SortXRef = Whether to sort multiple xref data alphabetically [True]
     - SplitCSV = Whether to also split fields based on comma separation [True]
     - UniqueXRef = Whether to restrict analysis to unique XRef IDs [False]
+    - XReformat=T/F   : Whether to apply field reformatting to input xrefdata (True) or just xrefs to map (False) [False]
+    - YeastXRef=T/F   : Whether the first xrefdata is a yeast.txt file. (http://www.uniprot.org/docs/yeast.txt)
 
     Int:integer
 
@@ -227,6 +239,7 @@ class XRef(rje_obj.RJE_Object):
     - Aliases = Combine XRef fields into single 'Aliases' field (and remove KeyID if found)
     - AltKeys = Alternative fields to look for in Alias Data ['Symbol','HGNC symbol']
     - BadID = List of XRef IDs to ignore ['!FAILED!','None','NA','N/A']
+    - Comments = List of comment line prefixes marking lines to ignore (throughout file) ['//','%']
     - Compress = Compress listed fields into lists (using splitchar) to allow 1:many mapping in xrefdata. []
     - DBPrefix = List of fields that should have the field added to the ID as a prefix, e.g. HGNC:0001 []
     - IDList = Subset of key IDs to map onto. (All if blank) []
@@ -254,16 +267,16 @@ class XRef(rje_obj.RJE_Object):
         '''Sets Attributes of Object.'''
         ### ~ Basics ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         self.strlist = ['FileXRef','KeyID','SplitChar']
-        self.boollist = ['FullMap','MapToMany','NaturalJoin','OneToMany','SaveXRef','SortXRef','SplitCSV','UniqueXRef']
+        self.boollist = ['FullMap','MapToMany','NaturalJoin','OneToMany','SaveXRef','SortXRef','SplitCSV','UniqueXRef','XReformat','YeastXRef']
         self.intlist = []
         self.numlist = []
-        self.listlist = ['Aliases','AltKeys','BadID','Compress','DBPrefix','IDList','Join','KeepCase','MapFields','MapXRef','NewHeaders','SplitSkip','XRefs','XRefList','XRefData']
+        self.listlist = ['Aliases','AltKeys','BadID','Comments','Compress','DBPrefix','IDList','Join','KeepCase','MapFields','MapXRef','NewHeaders','SplitSkip','XRefs','XRefList','XRefData']
         self.dictlist = ['Mapping','StripVar']
         self.objlist = ['DB']
         ### ~ Defaults ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         self._setDefaults(str='None',bool=False,int=0,num=0.0,obj=None,setlist=True,setdict=True)
         self.setStr({'KeyID':'Gene','SplitChar':'|'})
-        self.setBool({'FullMap':False,'MapToMany':True,'OneToMany':False,'SortXRef':True,'SplitCSV':True,'SaveXRef':True,'UniqueXRef':False})
+        self.setBool({'FullMap':False,'MapToMany':True,'OneToMany':False,'SortXRef':True,'SplitCSV':True,'SaveXRef':True,'UniqueXRef':False,'XReformat':False,'YeastXRef':False})
         self.setInt({})
         self.setNum({})
         self.list['AltKeys'] = ['Symbol','HGNC symbol']
@@ -271,6 +284,7 @@ class XRef(rje_obj.RJE_Object):
         self.list['KeepCase'] = ['Desc','Description','Name']
         self.list['XRefList'] = []
         self.list['BadID'] = ['!FAILED!','None','N/A','-']
+        self.list['Comments'] = ['//','%']
         ### ~ Other Attributes ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         self._setForkAttributes()   # Delete if no forking
         self.obj['DB'] = rje_db.Database(self.log,self.cmd_list)
@@ -289,12 +303,12 @@ class XRef(rje_obj.RJE_Object):
                 self._cmdReadList(cmd,'str',['KeyID','SplitChar'])   # Normal strings
                 #self._cmdReadList(cmd,'path',['Att'])  # String representing directory path 
                 self._cmdReadList(cmd,'file',['FileXRef'])  # String representing file path
-                self._cmdReadList(cmd,'bool',['FullMap','MapToMany','NaturalJoin','OneToMany','SaveXRef','SortXRef','SplitCSV','UniqueXRef'])  # True/False Booleans
+                self._cmdReadList(cmd,'bool',['FullMap','MapToMany','NaturalJoin','OneToMany','SaveXRef','SortXRef','SplitCSV','UniqueXRef','XReformat','YeastXRef'])  # True/False Booleans
                 #self._cmdReadList(cmd,'int',['Att'])   # Integers
                 #self._cmdReadList(cmd,'float',['Att']) # Floats
                 #self._cmdReadList(cmd,'min',['Att'])   # Integer value part of min,max command
                 #self._cmdReadList(cmd,'max',['Att'])   # Integer value part of min,max command
-                self._cmdReadList(cmd,'list',['Aliases','AltKeys','BadID','Compress','DBPrefix','IDList','Join','KeepCase','MapFields','MapXRef','NewHeaders','SplitSkip','XRefs','XRefList'])  # List of strings (split on commas or file lines)
+                self._cmdReadList(cmd,'list',['Aliases','AltKeys','BadID','Comments','Compress','DBPrefix','IDList','Join','KeepCase','MapFields','MapXRef','NewHeaders','SplitSkip','XRefs','XRefList'])  # List of strings (split on commas or file lines)
                 #self._cmdReadList(cmd,'clist',['Att']) # Comma separated list as a *string* (self.str)
                 self._cmdReadList(cmd,'glist',['XRefData']) # List of files using wildcards and glob
                 self._cmdReadList(cmd,'cdict',['StripVar']) # Splits comma separated X:Y pairs into dictionary
@@ -326,16 +340,31 @@ class XRef(rje_obj.RJE_Object):
             ## ~ [2b] ~ Reduce to IDList will happen after all other mapping done ~~~~~~~~~~~~~~~~~ ##
             if keyid not in self.list['KeepCase']:
                 self.list['IDList'] = rje.listUpper(self.list['IDList'])
-                self.printLog('#CASE','%s "%s" identifiers convertered to uppercase.' % (rje.iLen(self.list['IDList']),keyid))
+                self.printLog('#CASE','%s "%s" identifiers converted to uppercase.' % (rje.iLen(self.list['IDList']),keyid))
             if self.list['IDList']: xdb.dropEntriesDirect(keyid,self.list['IDList'],inverse=True,log=True)
             if not xdb.entryNum():
                 self.warnLog('No XRef entries retained.')
                 return False
 
             ### ~ [3] ~ Output ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            if self.getBool('SaveXRef'): xdb.saveToFile()
+            if self.getBool('SaveXRef'): self.dict['Output']['tab'] = xdb.saveToFile()
             if '*' in self.list['XRefList']: self.list['XRefList'] = xdb.fields()[0:]
-            for field in self.list['XRefList']: self.xrefList(field)
+            for field in self.list['XRefList']:
+                xfile = self.xrefList(field)
+                if field.lower() in self.dict['Output']: self.dict['Output'][field.lower()] = xfile
+            ## ~ [3a] Additional REST Outputs ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            if self.getStrLC('Rest'):
+                self.dict['Output']['failed'] = []
+                mdb = self.db().addEmptyTable('mapped',['MapID','XRef'],['MapID'],log=True)
+                xfield = self.getStr('KeyID')
+                for mkey in self.dict['Mapping'][xfield]:
+                    mxref = self.dict['Mapping'][xfield][mkey]
+                    if mxref: mdb.addEntry({'MapID':mkey,'XRef':mxref})
+                    else: self.dict['Output']['failed'].append(mkey)
+                self.dict['Output']['mapped'] = mdb.saveToFile()
+                self.dict['Output']['failed'].sort()
+                if self.dict['Output']['failed']: self.dict['Output']['failed'] = string.join(self.dict['Output']['failed'],'\n')
+                else: self.dict['Output']['failed'] = 'None'
             return True
         except:
             self.errorLog(rje_obj.zen())
@@ -366,6 +395,8 @@ class XRef(rje_obj.RJE_Object):
             ## ~ [0b] BaseFile ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             if self.baseFile().lower() in ['','none']: self.setBaseFile(rje.baseFile(xrefdata,strip_path=True))
             #self.debug(db.baseFile())
+            ## ~ [0c] Yeast.txt file ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            if self.getBool('YeastXRef'): xrefdata = self.yeastXRef(xrefdata)
 
             ### ~ [1] Load XRefData ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             ## ~ [1a] Apply NewHeader and compressed field lists ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
@@ -374,9 +405,9 @@ class XRef(rje_obj.RJE_Object):
             if self.list['Compress']: loadkey = '#'
             else: loadkey = [keyid]
             if self.list['NewHeaders']:
-                xdb = db.addTable(filename=xrefdata,mainkeys=loadkey,name='xref',headers=self.list['NewHeaders'],ignore=[])
+                xdb = db.addTable(filename=xrefdata,mainkeys=loadkey,name='xref',headers=self.list['NewHeaders'],ignore=self.list['Comments'])
             else:
-                xdb = db.addTable(filename=xrefdata,mainkeys=loadkey,name='xref',ignore=[])
+                xdb = db.addTable(filename=xrefdata,mainkeys=loadkey,name='xref',ignore=self.list['Comments'])
             if self.list['Compress']:
                 if '*' in self.list['Compress']: self.list['Compress'] = xdb.fields(); self.list['Compress'].remove(keyid)
                 rules = {}
@@ -399,15 +430,16 @@ class XRef(rje_obj.RJE_Object):
             self.list['SplitSkip'].append(keyid)
             ## ~ [1b] Reformat entry fields ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             for field in xdb.fields():
-                for entry in xdb.entries(): self.reformatEntryField(entry,field)
-                rftxt = []
-                if field in self.list['DBPrefix']: rftxt.append('DBPrefix')
-                if field in self.dict['StripVar']: rftxt.append('StripVar')
-                if field not in self.list['KeepCase']: rftxt.append('Case')
-                if rftxt: rftxt = '%s ' % string.join(rftxt,'/')
-                else: rftxt = ''
-                self.printLog('#FORMAT','Applied %sreformatting to "%s".' % (rftxt,field))
-                if field == keyid: xdb.remakeKeys()
+                if self.getBool('XReformat'):
+                    for entry in xdb.entries(): self.reformatEntryField(entry,field)
+                    rftxt = []
+                    if field in self.list['DBPrefix']: rftxt.append('DBPrefix')
+                    if field in self.dict['StripVar']: rftxt.append('StripVar')
+                    if field not in self.list['KeepCase']: rftxt.append('Case')
+                    if rftxt: rftxt = '%s ' % string.join(rftxt,'/')
+                    else: rftxt = ''
+                    self.printLog('#FORMAT','Applied %sreformatting to "%s".' % (rftxt,field))
+                    if field == keyid: xdb.remakeKeys()
                 if field in self.list['AltKeys'] + self.list['MapFields']:
                     if field in self.list['SplitSkip']: xdb.index(field)
                     else: xdb.index(field,splitchar=self.getStr('SplitChar'))
@@ -424,14 +456,15 @@ class XRef(rje_obj.RJE_Object):
                     if self.list['XRefs'] and field not in xdb.fields() + self.list['XRefs'] + tdb.keys() + self.list['Aliases']:
                         tdb.dropField(field)
                         continue
-                    for entry in tdb.entries(): self.reformatEntryField(entry,field)
-                    rftxt = []
-                    if field in self.list['DBPrefix']: rftxt.append('DBPrefix')
-                    if field in self.dict['StripVar']: rftxt.append('StripVar')
-                    if field not in self.list['KeepCase']: rftxt.append('Case')
-                    if rftxt: rftxt = '%s ' % string.join(rftxt,'/')
-                    else: rftxt = ''
-                    self.printLog('#FORMAT','Applied %sreformatting to "%s".' % (rftxt,field))
+                    if self.getBool('XReformat'):
+                        for entry in tdb.entries(): self.reformatEntryField(entry,field)
+                        rftxt = []
+                        if field in self.list['DBPrefix']: rftxt.append('DBPrefix')
+                        if field in self.dict['StripVar']: rftxt.append('StripVar')
+                        if field not in self.list['KeepCase']: rftxt.append('Case')
+                        if rftxt: rftxt = '%s ' % string.join(rftxt,'/')
+                        else: rftxt = ''
+                        self.printLog('#FORMAT','Applied %sreformatting to "%s".' % (rftxt,field))
                 #for field in self.list['MapFields']:
                 #    if field in self.list['SplitSkip']: tdb.index(field)
                 #    else: tdb.index(field,splitchar=self.getStr('SplitChar'))
@@ -466,9 +499,52 @@ class XRef(rje_obj.RJE_Object):
                 for field in self.list['Aliases'][0:]:
                     if self.list['XRefs'] and field not in self.list['XRefs'] + xdb.keys(): xdb.dropField(field)
 
+            self.restSetup()
             self.printLog('#SETUP','XRef setup complete.')
             return True     # Setup successful
         except: self.errorLog('Problem during %s setup.' % self); return False  # Setup failed
+#########################################################################################################################
+    def yeastXRef(self,xrefdata): ### Convert a yeast.txt file to *.tdt file
+        '''Convert a yeast.txt file to *.tdt file.'''
+        try:### ~ [0]  Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            self.printLog('#YEAST',xrefdata)
+            YTXT = open(xrefdata,'r')
+            ytabfile = '%s.tdt' % self.basefile()
+            yfields = ['Gene','Synonyms','OLN','Uniprot','UniprotID','SGD','Size','3D','CH']
+            ydb = self.db().addEmptyTable('yeast',yfields,['Gene'],log=True)
+            ### ~ [1]  Process Headers ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            ystart = [0]; yi = 1
+            yline = YTXT.readline(); self.debug(yline)
+            while not yline.startswith('_'): yline = YTXT.readline()
+            while yi < len(yline):
+                if yline[yi] == '_' and yline[yi-1] != '_': ystart.append(yi)
+                yi += 1
+            ystart.append(len(yline))   # List of field position starts
+            yline = YTXT.readline()
+            while not yline.startswith('_'): yline = YTXT.readline()
+            ### ~ [2]  Process Data ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            yline = YTXT.readline(); self.debug(yline)
+            while yline and not yline.startswith('-'):
+                yline = string.replace(yline,';',' ')
+                yentry = {}
+                for yx in range(len(ystart)-1):
+                    data = string.split(yline[ystart[yx]:ystart[yx+1]])
+                    self.bugPrint(data)
+                    if yx:
+                        ykey = yfields[yx+1]
+                        if data: yentry[ykey] = data[0]
+                        else: yentry[ykey] = ''
+                    else:
+                        if data:
+                            yentry['Gene'] = data[0]
+                            yentry['Synonyms'] = string.join(data[1:],self.getStr('SplitChar'))
+                        else: break
+                self.debug(yentry)
+                if yentry: ydb.addEntry(yentry)
+                yline = YTXT.readline()
+            ydb.saveToFile(ytabfile)
+            return ytabfile
+        except: self.errorLog('Problem during %s yeastXRef.' % self); return False  # Setup failed
 #########################################################################################################################
     def checkOneToMany(self,filestr):   ### Checks and optionally purges one-to-many mappings
         '''Checks and optionally purges one-to-many mappings.'''
@@ -621,11 +697,16 @@ class XRef(rje_obj.RJE_Object):
 #########################################################################################################################
     def xref(self,mapdict,xfield=None,mapfields=[],altfields=[],fullmap=None,unique=None,usedict=False,strictmap=False):    ### Cross-reference xentry to keyid
         '''
-        Cross-reference xid to keyid (or idfield if given).
+        Cross-reference xid to keyid (or idfield if given). Identifiers are always mapped first onto the keyid field, and
+        then subsequently return the xfield mapping if this is not the keyid. If mapdict is a dictionary then any
+        mapfields fields will try to be mapped onto XRef fields. If a mapfields field is in altfields then it will also
+        try to be mapped directly onto KeyID, else against an altfield (if present), i.e. all xfield + altfields values
+        will try to be mapped against xfield + altfields. If mapdict is a string then the value will be used for all
+        mapfields. If strictmap=False, it will also be used for xfield and all altfields.
         >> mapdict:dict = Dictionary of {field:value} to map onto KeyID(s). Can be str, assigned to ALL mapfields.
         >> xfield:str [None] = Field to map IDs onto. Will use self.str['KeyID'] if None
-        >> mapfields:list [] = List of fields to use for mapping (from). (self.list['MapFields'] if None)
-        >> altfields:list [] = List of alternative fields for xfield. (self.list['AltKeys'] if None and xfield==keyid)
+        >> mapfields:list [] = List of fields to use for mapping from. (self.list['MapFields'] if None)
+        >> altfields:list [] = List of alternative fields for mapping xfield identifiers onto. (self.list['AltKeys'] if None and xfield==keyid)
         >> fullmap:bool [None] = Whether to use all mapping fields or stop at first hit.
         >> unique:bool [None] = Whether to only return unique mappings, None if missing and False if 2+ mapped IDs.
         >> usedict:bool [False] = Whether to use Mapping dictionary to speed up recurrent mappings. (mapdict=str only)
@@ -633,31 +714,39 @@ class XRef(rje_obj.RJE_Object):
         << xlist:list = List of mapped IDs, or single ID/None/False if unique=True.
         '''
         try:### ~ [0] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            #!# This method needs reworking, tidying and documenting. #!#
             xdb = self.db('xref')
-            if not xfield: xfield = self.getStr('KeyID')
+            if not xfield: xfield = self.getStr('KeyID')    # By default, the KeyID is returned.
             if xfield not in xdb.fields(): raise ValueError('XRef field "%s" not found!' % xfield)
             if usedict and xfield not in self.dict['Mapping']: self.dict['Mapping'][xfield] = {}
-            if not mapfields: mapfields = self.list['MapFields']
-            if not altfields and xfield == self.getStr('KeyID'): altfields = self.list['AltKeys']
+            ## ~ [0a] Setup mapping field lists ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            if not mapfields: mapfields = self.list['MapFields']    # This is the subset of mapdict fields to use
+            if not altfields and xfield == self.getStr('KeyID'):
+                altfields = self.list['AltKeys']    # This is the set of additional fields to map KeyID fields onto
+            # Note that xfield + altfields in the mapdict and xref will all try to be mapped onto each other.
+            # xfield and altfields should therefore be of the same type
             if fullmap == None: fullmap = self.getBool('FullMap')
             if unique == None: unique = self.getBool('UniqueXRef')
+            ## ~ [0b] Setup the dictionary of mapping fields and values ~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             entry = mapdict
             try:
                 entry.keys()
                 usedict = False     # Only usedict if mapdict is a single str
             except:
                 entry = {}
-                for mfield in mapfields: entry[mfield] = mapdict
-                if not strictmap:
+                for mfield in mapfields: entry[mfield] = mapdict    # Enables mapping via any mapfield.
+                if not strictmap:                                   # Try mapping to keyid identifiers directly first.
                     for mfield in [xfield] + altfields: entry[mfield] = mapdict
             if usedict and mapdict in self.dict['Mapping'][xfield]: return self.dict['Mapping'][xfield][mapdict]
-            xkeys = []
             ### ~ [1] Get list of XRef keys for mapping ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            xkeys = []      # First get the set of xref keys that mapdict maps onto
             ## ~ [1a] KeyID and AltKeys ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             for tfield in [xfield] + altfields:     # Try mapping ONTO these fields, starting with KeyID
                 if tfield not in xdb.fields(): continue
+                elif strictmap and tfield not in mapfields: continue
                 for mfield in [xfield] + altfields: # Try mapping FROM these fields, starting with KeyID
                     if mfield not in entry: continue
+                    elif strictmap and tfield not in mapfields: continue
                     #mupper = xfield.upper()
                     mdata = self.reformatEntryField(entry,mfield,inplace=False) # Should now match target dbprefix
                     if mfield == self.getStr('KeyID') or mfield in self.list['SplitSkip']: mids = [mdata]
@@ -667,10 +756,11 @@ class XRef(rje_obj.RJE_Object):
                         if xid in xdb.index(tfield): xkeys += xdb.index(tfield)[xid]
                         #elif '%s:%s' % (xfield,id) in xdb.index(xfield): xkeys += xdb.index(xfield)['%s:%s' % (xfield,id)]
                         #elif '%s:%s' % (mupper,id) in xdb.index(xfield): xkeys += xdb.index(xfield)['%s:%s' % (mupper,id)]
-                    #self.bugPrint('%s -> %s: %s? => %s' % (mfield,tfield,mids,xkeys))
+                    self.bugPrint('%s -> %s: %s? => %s' % (mfield,tfield,mids,xkeys))
                     if xkeys and not fullmap: break
             ## ~ [1b] MapFields ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-            for mfield in mapfields:
+            #self.debug(mapfields)
+            for mfield in mapfields:    # This is a direct mapping of mfield content to mfield content
                 if xkeys and not fullmap: break
                 if mfield not in entry: continue
                 if mfield not in xdb.fields(): continue
@@ -685,8 +775,8 @@ class XRef(rje_obj.RJE_Object):
                 #self.bugPrint('%s -> %s: %s? => %s' % (mfield,mfield,mids,xkeys))
                 if xkeys and not fullmap: continue
             xlist = rje.sortUnique(xkeys)
-            #if len(xlist) > 1: self.debug('Final %s => %s' % (xfield,xlist))
-            #else: self.bugPrint('Final %s => %s' % (xfield,xlist))
+            if len(xlist) > 1: self.debug('Final %s => %s' % (xfield,xlist))
+            else: self.bugPrint('Final %s => %s' % (xfield,xlist))
             ### ~ [2] Map mapped KeyIDs onto idfield ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if xfield != self.getStr('KeyID'):
                 klist = xlist[0:]
@@ -704,7 +794,7 @@ class XRef(rje_obj.RJE_Object):
                 elif len(xlist) == 1: xref = xlist[0]
                 else: xref = False
             else:
-                if len(xlist) > 1: self.warnLog('Entry mapped to multiple KeyIDs: %s' % string.join(xlist,'|'),'one-to-many',suppress=self.i()>0)
+                if len(xlist) > 1: self.warnLog('Entry mapped to multiple %s IDs: %s' % (xfield,string.join(xlist,'|')),'one-to-many',suppress=self.i()>0)
                 xref = xlist[0:]
             if usedict: self.dict['Mapping'][xfield][mapdict] = xref
             return xref
@@ -729,14 +819,14 @@ class XRef(rje_obj.RJE_Object):
                     self.list['MapXRef'] = rje.listUpper(self.list['MapXRef'])
                     self.printLog('#CASE','%s "MapXRef" identifiers converted to uppercase.' % (rje.iLen(self.list['MapXRef'])))
                 for mid in self.list['MapXRef']:
-                    kid = self.xref(mid,unique=True)
+                    kid = self.xref(mid,unique=True,usedict=True)
                     if not kid: kid = ''
                     fdb.addEntry({'#':fdb.entryNum(),'MapXRef':mid,keyid:kid})
             jfields = fdb.fields()
             for xfield in xfields[0:]:
                 if xfield not in jfields:
                     jfields.append(xfield)
-                    self.printLog('#ADD','Field "%s" added to %s for output.' % (xfield,filexref))
+                    if not mapxref: self.printLog('#ADD','Field "%s" added to %s for output.' % (xfield,filexref))
                 if xfield not in xdb.fields():
                     self.warnLog('Xref field "%s" not found in xrefdata.' % xfield)
                     xfields.remove(xfield)
@@ -745,7 +835,7 @@ class XRef(rje_obj.RJE_Object):
             nx = 0  # Entries with no mapping
             for entry in fdb.entries()[0:]:
                 #X#for field in fdb.fields(): self.reformatEntryField(entry,field)
-                xids = self.xref(entry,unique=unique)
+                xids = self.xref(entry,unique=unique,usedict=True)
                 if not xids:
                     self.warnLog('No mapping for %s' % entry,dev=True,suppress=True)
                     nx +=1; continue
@@ -776,7 +866,8 @@ class XRef(rje_obj.RJE_Object):
             if '' in xlist: xlist.remove('')
             if ' ' in xlist: xlist.remove(' ')
             open(xfile,'w').write(string.join(xlist,'\n'))
-            self.printLog('#OUT','Saved %s %s IDs to %s.' % (rje.iLen(xlist),field,xfile))
+            if not self.getStrLC('Rest'): self.printLog('#OUT','Saved %s %s IDs to %s.' % (rje.iLen(xlist),field,xfile))
+            return xfile
         except: self.errorLog('Problem with xrefList(%s)' % field); raise
 #########################################################################################################################
     ### <4> ### Special Join Method                                                                                     #
@@ -790,7 +881,7 @@ class XRef(rje_obj.RJE_Object):
                 try:
                     [jfile,jkeys,jjoin] = string.split(joiner,':')
                     jkeys = string.split(jkeys,'|')
-                    jdb = db.addTable(jfile,jkeys,ignore=[])
+                    jdb = db.addTable(jfile,jkeys,ignore=self.list['Comments'])
                     if self.list['XRefs']: joinlist.append((jdb,jjoin,rje.listIntersect(jdb.fields(),self.list['XRefs'])))
                     else: joinlist.append((jdb,jjoin))
                     if not self.getStrLC('Basefile'): self.basefile(rje.baseFile(jfile))
@@ -818,6 +909,35 @@ class XRef(rje_obj.RJE_Object):
                 if field in jdb.fields(): self.xrefList(field)
             return jdb
         except: self.errorLog('Problem with XRef.join()'); return False
+#########################################################################################################################
+    ### <5> ### XRef REST Methods                                                                                       #
+#########################################################################################################################
+    def restSetup(self):    ### Sets up self.dict['Output'] and associated output options if appropriate.
+        '''
+        Run with &rest=help for general options. Run with &rest=full to get full server output as text or &rest=format
+        for more user-friendly formatted output. Individual outputs can be identified/parsed using &rest=OUTFMT:
+
+        tab = main table of identified elements. [tdt]
+        mapped = pairs of provided identifiers and the primary ID mapped onto. [tdt]
+        failed = list of identifiers that failed to map. [list]
+
+        In addition, there will be a tab per field of the XRef file listing the sorted unique identifiers mapped.
+        '''
+        try:### ~ [0] ~ Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            xdb = self.db('xref')
+            if self.getStrLC('Rest'): self.list['XRefList'] = xdb.fields()[0:]
+            for outfmt in self.restOutputOrder(): self.dict['Output'][outfmt] = 'No output generated.'
+            #!# Add specific program output here. Point self.dict['Output'][&rest=X] to self.str key.
+            return
+        except: self.errorLog('RestSetup error')
+#########################################################################################################################
+    def restOutputOrder(self):
+        xdb = self.db('xref')
+        outlist = ['tab','mapped','failed']
+        for field in xdb.fields():
+            if field.lower() in ['log','xref','status']: continue
+            if field not in outlist: outlist.append(field.lower())
+        return outlist
 #########################################################################################################################
 ### End of SECTION II: XRef Class                                                                                       #
 #########################################################################################################################

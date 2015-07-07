@@ -19,8 +19,8 @@
 """
 Module:       rje_uniprot
 Description:  RJE Module to Handle Uniprot Files
-Version:      3.21.3
-Last Edit:    25/05/15
+Version:      3.21.4
+Last Edit:    11/06/15
 Copyright (C) 2007 Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -159,6 +159,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 3.21.1 - FullText is no longer stored in Uniprot object. Will need special handling if required.
     # 3.21.2 - Fixed single uniprot extraction bug.
     # 3.21.3 - Added REST datout to proteomes extraction.
+    # 3.21.4 - Fixed Feature masking. Should this be switched off by default?
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -184,11 +185,12 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
     # [ ] : Add ftlist=LIST subset of features to extract.
     # [ ] : Code up proper zero fork index generation.
     # [ ] : Need to add retrieval in batches to extractProteinsFromURL method.
+    # [ ] : Why does extract from a Uniprot file no longer work?!
     '''
 #########################################################################################################################
 def makeInfo():     ### Makes Info object
     '''Makes rje.Info object for program.'''
-    (program, version, last_edit, copyyear) = ('RJE_UNIPROT', '3.21.2', 'May 2015', '2007')
+    (program, version, last_edit, copyyear) = ('RJE_UNIPROT', '3.21.4', 'June 2015', '2007')
     description = 'RJE Uniprot Parsing/Extraction Module'
     author = 'Dr Richard J. Edwards.'
     comments = []
@@ -2601,6 +2603,7 @@ class UniProtEntry(rje.RJE_Object):
         >> log:bool [True] = whether to log the affects of masking
         '''
         try:### Setup ###
+            types = rje.listUpper(types)
             oldseq = self.obj['Sequence'].info['Sequence'][0:]
             newseq = mask * len(oldseq)
             mx = 0
@@ -2609,7 +2612,7 @@ class UniProtEntry(rje.RJE_Object):
                 (newseq,oldseq) = (oldseq,newseq)
             ### Mask ###
             for ft in self.list['Feature']:
-                if ft['Type'] in types:
+                if ft['Type'].upper() in types:
                     oldseq = oldseq[:ft['Start']-1] + newseq[ft['Start']-1:ft['End']] + oldseq[ft['End']:]
                     mx += 1
             ### Update ###

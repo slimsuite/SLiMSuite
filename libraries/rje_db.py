@@ -1081,6 +1081,7 @@ class Table(rje.RJE_Object):
                 OUT.write('%s\n' % string.join(outlist,delimit)); sx += 1
             OUT.close()
             if log: self.printLog('\r#SAVE','Table "%s" saved to "%s": %s entries.' % (self.info['Name'],filename,rje.iStr(sx)))
+            return filename
         except: self.errorLog('Problem saving table "%s" to "%s"' % (self.info['Name'],filename))
 #########################################################################################################################
     def readEntry(self,add=True,close=True):    ### Reads next entry from open file                                 #V2.0

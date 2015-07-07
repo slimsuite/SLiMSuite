@@ -77,7 +77,8 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
     # [Y] : Create initial working version of program.
     # [ ] : Add REST outputs to restSetup() and restOutputOrder()
     # [Y] : Add to SLiMSuite or SeqSuite.
-    # [ ] : unionly=T/F         : Whether to restrict PPI to pairwise with UniProt IDs [False] ?
+    # [Y] : unionly=T/F : Whether to restrict PPI to pairwise with UniProt IDs [False] ?
+    # [ ] : Properly sort out the setup and use of MapFields, incorporating XRef KeyID etc.
     '''
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
@@ -270,7 +271,7 @@ class MITAB(rje_obj.RJE_Object):
             pfields = ['#','Hub','Spoke','HubUni','SpokeUni','HubTaxID','SpokeTaxID','Evidence','IType']
             if not pdb: self.db().addEmptyTable('pairwise',pfields,['#'],log=True)
             if not self.obj['XRef']:
-                xcmd = ['mapfields=%s,Secondary,Ensembl,Aliases,Accessions,RefSeq,Previous Symbols,Synonyms' % self.getStr('UniField')]
+                xcmd = ['mapfields=Gene,%s,Secondary,Ensembl,Aliases,Accessions,RefSeq,Previous Symbols,Synonyms' % self.getStr('UniField')]
                 self.obj['XRef'] = rje_xref.XRef(self.log,xcmd+self.cmd_list)
                 self.obj['XRef'].setup()
             skip_comments = True
@@ -485,7 +486,7 @@ class MITAB(rje_obj.RJE_Object):
                         fax += 1; continue
                     #self.bugPrint(mline); self.debug(entry)
                     fx += 1; continue
-                if self.dev() and 'PCNA' not in [entry['Hub'],entry['Spoke']]: continue
+                #if self.dev() and 'PCNA' not in [entry['Hub'],entry['Spoke']]: continue
                 entry['HubTaxID'] = taxa['A']
                 entry['SpokeTaxID'] = taxa['B']
                 if complexid['A'] and complexid['A'] not in complexidlist: complexidlist.append(complexid['A'])
@@ -513,7 +514,7 @@ class MITAB(rje_obj.RJE_Object):
                 #self.debug(itypes)
                 entry['IType'] = string.join(itypes,'|')
                 pdb.addEntry(entry); ex += 1
-                #self.debug(entry)
+                if self.dev(): self.bugPrint(uni); self.debug(entry)
                 if self.getBool('Symmetry') and not complexid['A'] and not complexid['B']:
                     pdb.addEntry({'#':pdb.entryNum(),'Hub':entry['Spoke'],'Spoke':entry['Hub'],
                                   'HubUni':entry['SpokeUni'],'SpokeUni':entry['HubUni'],
@@ -621,6 +622,7 @@ class MITAB(rje_obj.RJE_Object):
         '''Returns first Uniprot ID for given sequence ID and mapfields.'''
         xref = self.obj['XRef']
         unixref = xref.xref(seqid,self.getStr('UniField'),mapfields=mapfields,unique=False,usedict=True)
+        if self.dev(): self.debug('%s -> %s' % (seqid,unixref))
         if unixref: return unixref[0]
         else: return ''
 #########################################################################################################################

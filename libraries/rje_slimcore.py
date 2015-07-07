@@ -19,8 +19,8 @@
 """
 Module:       SLiMCore
 Description:  SLiMSuite core module
-Version:      2.7.3
-Last Edit:    25/05/15
+Version:      2.7.5
+Last Edit:    11/06/15
 Copyright (C) 2007  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -174,6 +174,8 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 2.7.1 - Modified iuscoredir=PATH and protscores=T/F to work without megaslim. Fixed UPC/SLiMdb issue for GOPHER.
     # 2.7.2 - Fixed iuscoredir=PATH to stop raising errors when file not previously made.
     # 2.7.3 - Fixed serverend message error.
+    # 2.7.4 - Fixed walltime server bug.
+    # 2.7.5 - Fixed feature masking.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -442,6 +444,7 @@ class SLiMCore(rje_obj.RJE_Object):
                                              'MegaSLiMFix','SLiMMutant','ProtScores'])
                 self._cmdRead(cmd,'bool','MaskM','metmask')
                 self._cmdRead(cmd,'bool','MegaGABLAM','megablam')
+                self._cmdRead(cmd,'list','FTMask','featuremask')
                 self._cmdReadList(cmd,'list',['FTMask','IMask','AAMask','Alphabet','Batch','QRegion','PTMList','UniprotID'])
                 self._cmdReadList(cmd,'cdict',['MotifSeq','MaskPos'])
                 self._cmdRead(cmd,'cdict','MaskPos','posmask')
@@ -454,6 +457,13 @@ class SLiMCore(rje_obj.RJE_Object):
         if self.getStrLC('MegaSLiM') and self.getBool('MegaGABLAM'):
             self.setStr({'GablamDis':"%s.gablam.tdt" % rje.baseFile(self.getStr('MegaSLiM'))})
             self.printLog('#GDIS','MegaSLiM: set GABLAMDis=%s for UPC generation.' % self.getStr('GablamDis'))
+        self.list['FTMask'] = rje.listUpper(self.list['FTMask'])
+        if self.list['FTMask'] == ['F'] or self.list['FTMask'] == ['FALSE']:
+            self.list['FTMask'] = []
+            self.warnLog('Command ftmask=F interpreted as empty FTMask list.')
+        elif self.list['FTMask'] == ['T'] or self.list['FTMask'] == ['TRUE']:
+            self.list['FTMask'] = ['EM','DOMAIN','TRANSMEM']
+            self.warnLog('Command ftmask=T converted to default ftmask=EM,DOMAIN,TRANSMEM.')
 #########################################################################################################################
     def prog(self):
         if self.getStrLC('Prog'): return self.getStrLC('Prog')
@@ -641,8 +651,8 @@ class SLiMCore(rje_obj.RJE_Object):
         '''Exits if walltime has been reached.'''
         if self.getNum('WallTime') <= 0 or (time.time() - self.getNum('StartTime')) < (self.getNum('WallTime')*3600): return
         self.errorLog('%s Walltime (%.2f hours) reached! Try increasing WallTime=X.' % (self.prog(),self.getNum('WallTime')),printerror=False)
-        self.serverEnd('Walltime',exit=False)
         self.close()
+        self.serverEnd('Walltime',exit=True)
         sys.exit()
 #########################################################################################################################
     def newBatchRun(self,infile):   ### Returns SLiMCore object for new batch run
@@ -2367,8 +2377,8 @@ class SLiMCore(rje_obj.RJE_Object):
                     ifile = '%s%s.%s.txt' % (self.getStr('IUScoreDir'),acc,dkey)
                     if os.path.exists(ifile): fline = open(ifile,'r').readline()
                     for dstr in string.split(fline)[1:]: disobj.list['ResidueDisorder'].append(string.atof(dstr))
-                    if len(disobj.list['ResidueDisorder']) != seq.aaLen():
-                        self.errorLog('%s Disorder score length mismatch (%d score vs %d pos)' % (sname,len(disobj.list['ResidueDisorder']),seq.aaLen()),printerror=False)
+                    if len(disobj.list['ResidueDisorder']) != len(sequence):
+                        self.errorLog('%s Disorder score length mismatch (%d score vs %d pos)' % (sname,len(disobj.list['ResidueDisorder']),len(sequence)),printerror=False)
                         fline = ''; disobj.list['ResidueDisorder'] = []
 
                 if not fline:   # Calculate

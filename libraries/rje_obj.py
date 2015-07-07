@@ -19,8 +19,8 @@
 """
 Module:       rje_obj
 Description:  Contains revised General Object templates for Rich Edwards scripts and bioinformatics programs
-Version:      2.1.2
-Last Edit:    14/05/15
+Version:      2.1.3
+Last Edit:    09/06/15
 Copyright (C) 2011  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -106,6 +106,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 2.1.0 - Added new built-in attributes/options for REST services.
     # 2.1.1 - Removed excess REST HTML methods.
     # 2.1.2 - Tweaked glist cmdRead warnings.
+    # 2.1.3 - Modified integer commands to read/convert floats.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -534,7 +535,11 @@ class RJE_Object(object):     ### Metaclass for inheritance by other classes
         elif type == 'path': self.str[att] = rje.makePath(value)
         elif type == 'abspath': self.str[att] = rje.makePath(os.path.abspath(value))
         elif type in ['fullpath','file']: self.str[att] = rje.makePath(value,wholepath=True)
-        elif type == 'int': self.int[att] = string.atoi(value)
+        elif type == 'int':
+            try: self.int[att] = string.atoi(value)
+            except:
+                self.int[att] = int(string.atof(value))
+                self.warnLog('%s=%s needs integer -> %s=%d' % (arg,value,arg,self.int[att]))
         elif type in ['float','stat','num']: self.num[att] = string.atof(value)
         elif type == 'max' and rje.matchExp('^\d+,(\d+)',value): self.int[att] = string.atoi(rje.matchExp('^\d+,(\d+)',value)[0])
         elif type in ['min','max'] and rje.matchExp('^(\d+)',value): self.int[att] = string.atoi(rje.matchExp('^(\d+)',value)[0])

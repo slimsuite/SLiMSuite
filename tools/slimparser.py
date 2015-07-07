@@ -19,8 +19,8 @@
 """
 Module:       SLiMParser
 Description:  SLiMSuite REST output parsing tool.
-Version:      0.3.1
-Last Edit:    15/05/15
+Version:      0.3.2
+Last Edit:    05/06/15
 Copyright (C) 2014  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -69,6 +69,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 0.2.1 - Added PureAPI output of API REST call returned text.
     # 0.3.0 - Added parsing of input files to give to rest calls.
     # 0.3.1 - Fixed issue that had broken REST server full output.
+    # 0.3.2 - Fixed issue reading files for full output.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -83,7 +84,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copy_right) = ('SLiMParser', '0.3.1', 'May 2015', '2014')
+    (program, version, last_edit, copy_right) = ('SLiMParser', '0.3.2', 'June 2015', '2014')
     description = 'SLiMSuite REST output parsing tool'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_obj.zen()]
@@ -343,7 +344,10 @@ class SLiMParser(rje_obj.RJE_Object):
                     resturl = '%sretrieve&jobid=%s&rest=%s[&password=X]' % (self.getStr('RestURL'),jobid,outfmt)
                     if not jobid or outfmt == self.getStrLC('Rest'): return 'ERROR: %s' % (otext)
                     else: return '%s in full output. Try %s.' % (otext,resturl)
-                else: return open(rfile,'r').read()
+                else:
+                    outtxt = open(rfile,'r').read()
+                    if not outtxt.endswith('\n'): outtxt += '\n'
+                    return outtxt
             return self.dict['Output'][outfmt]
         elif outfmt in ['parse','format']:
             intro = '<pre>%s</pre>\n\n' % self.restOutput('intro')
@@ -368,7 +372,10 @@ class SLiMParser(rje_obj.RJE_Object):
                     otext = '%s is too large to return (%s)' % (os.path.basename(rfile),rje.humanByteSize(nbytes))
                     resturl = '%sretrieve&jobid=%s&rest=%s[&password=X]' % (self.getStr('RestURL'),jobid,rkey)
                     rtxt += '%s in full output. Try %s.' % (otext,resturl)
-                else: rtxt += open(rfile,'r').read()
+                else:
+                    outtxt = open(rfile,'r').read()
+                    if not outtxt.endswith('\n'): outtxt += '\n'
+                    rtxt += outtxt
             else: rtxt += '%s\n' % self.dict['Output'][rkey]
         return rtxt
 #########################################################################################################################

@@ -19,8 +19,8 @@
 """
 Module:       SLiMSuite
 Description:  Short Linear Motif analysis Suite
-Version:      1.5.0
-Last Edit:    04/04/15
+Version:      1.5.1
+Last Edit:    17/06/15
 Citation:     Edwards RJ & Palopoli N (2015): Methods Mol Biol. 1268:89-141. [PMID: 25555723]
 Copyright (C) 2014  Richard J. Edwards - See source code for GNU License Notice
 
@@ -95,6 +95,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 1.3.0 - Added SLiMMaker and modified code to work with REST services.
     # 1.4.0 - Added RLC and Disorder progs to call SLiMCore. Added CompariMotif.
     # 1.5.0 - Added peptcluster and peptalign calls.
+    # 1.5.1 - Changed disorder to iuscore to avoid module conflict.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -109,7 +110,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copy_right) = ('SLiMSuite', '1.5.0', 'April 2015', '2014')
+    (program, version, last_edit, copy_right) = ('SLiMSuite', '1.5.1', 'June 2015', '2014')
     description = 'Short Linear Motif analysis Suite'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',
@@ -159,7 +160,7 @@ def setupProgram(argcmd,fullcmd=True): ### Basic Setup of Program when called fr
 #########################################################################################################################
 mod = {'slimcore':rje_slimcore,'rje_slimcore':rje_slimcore,'slimlist':rje_slimlist,'rje_slimlist':rje_slimlist,
        'slimfinder':slimfinder,'qslimfinder':qslimfinder,'slimprob':slimprob,'slimmaker':slimmaker,
-       'slimfarmer':slimfarmer,'farm':slimfarmer,'slimbench':slimbench,'rlc':rje_slimcore,'disorder':rje_slimcore,
+       'slimfarmer':slimfarmer,'farm':slimfarmer,'slimbench':slimbench,'rlc':rje_slimcore,'iuscore':rje_slimcore,
        'comparimotif':comparimotif,'peptcluster':peptcluster,'peptalign':peptcluster}
 #########################################################################################################################
 ### END OF SECTION I                                                                                                    #
@@ -258,7 +259,7 @@ class SLiMSuite(rje_obj.RJE_Object):
     def run(self,rest=False,expectpickle=False):  ### Main run method
         '''Main run method.'''
         try:### ~ [1] ~ Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            if not self.setup(): return False
+            if not self.setup(rest): return False
             slimobj = self.obj['Prog']
             self.obj['Info'] = self.log.obj['Info']
             slimobj.log.obj['Info'] = info = self.obj['ProgInfo']
@@ -288,7 +289,7 @@ class SLiMSuite(rje_obj.RJE_Object):
             else: raise
         except: self.errorLog(self.zen()); return False
 #########################################################################################################################
-    def setup(self):    ### Main class setup method.
+    def setup(self,rest=False):    ### Main class setup method.
         '''Main class setup method.'''
         try:### ~ [1] ~ Setup Program ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             self.obj['Prog'] = None
@@ -305,7 +306,7 @@ class SLiMSuite(rje_obj.RJE_Object):
                 #self.debug(prog)
             ## ~ [1a] ~ Make self.obj['Prog'] ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
                 if prog in ['slimcore','rje_slimcore']: self.obj['Prog'] = rje_slimcore.SLiMCore(self.log,progcmd)
-                elif prog in ['rlc','disorder']: self.obj['Prog'] = rje_slimcore.SLiMCore(self.log,progcmd+['prog=%s' % prog])
+                elif prog in ['rlc','iuscore']: self.obj['Prog'] = rje_slimcore.SLiMCore(self.log,progcmd+['prog=%s' % prog])
                 elif prog in ['slimlist','rje_slimlist']: self.obj['Prog'] = rje_slimlist.SLiMList(self.log,progcmd)
                 elif prog in ['slimfinder']: self.obj['Prog'] = slimfinder.SLiMFinder(self.log,progcmd)
                 elif prog in ['qslimfinder']: self.obj['Prog'] = qslimfinder.QSLiMFinder(self.log,progcmd)
@@ -325,8 +326,8 @@ class SLiMSuite(rje_obj.RJE_Object):
 
             ### ~ [2] ~ Failure to recognise program ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if not self.obj['Prog']:
-                self.printLog('#ERR','Program "%s" not recognised.' % self.getStr('Name'))
-                if self.i() < 0: return False
+                if not rest: self.printLog('#ERR','Program "%s" not recognised.' % self.getStr('Name'))
+                if self.i() < 0 or rest: return False
                 #!# Try SeqSuite? #!#
                 if rje.yesNo('Show SLiMSuite help with program options?'):
                     extracmd = cmdHelp(cmd_list=['help'])[1:]

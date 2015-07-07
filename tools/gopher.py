@@ -19,8 +19,8 @@
 '''
 Program:      GOPHER
 Description:  Generation of Orthologous Proteins from Homology-based Estimation of Relationships
-Version:      3.4.1
-Last Edit:    31/01/15
+Version:      3.4.2
+Last Edit:    17/06/15
 Citation:     Davey, Edwards & Shields (2007), Nucleic Acids Res. 35(Web Server issue):W455-9. [PMID: 17576682]
 Copyright (C) 2005 Richard J. Edwards - See source code for GNU License Notice
 
@@ -186,6 +186,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 3.3 - Added rje_blast_V2 to use BLAST+. Run with oldblast=T to stick with old NCBI BLAST.
     # 3.4 - Fixed FullRBH paralogue duplication issue.
     # 3.4.1 - Fixed stripXGap issue. (Why was this being implemented anyway?). Added REST output.
+    # 3.4.2 - Removed GOPHER System Exit on IOError to prevent breaking of REST server.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -214,7 +215,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo():     ### Makes Info object
     '''Makes rje.Info object for program.'''
-    (program, version, last_edit, cyear) = ('GOPHER', '3.4.1', 'January 2015', '2005')
+    (program, version, last_edit, cyear) = ('GOPHER', '3.4.2', 'June 2015', '2005')
     description = 'Generation of Orthologous Proteins from Homology-based Estimation of Relationships'
     author = 'Dr Richard J. Edwards.'
     comments = ['Please cite SLiMDisc webserver paper. (Davey, Edwards & Shields 2007)']
@@ -362,7 +363,7 @@ class Gopher(rje.RJE_Object):
             ### ~ [2] FormatDB ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if not os.path.exists(self.getStr('OrthDB')):
                 self.errorLog('Database file %s missing!' % self.getStr('OrthDB'),printerror=False)
-                sys.exit(1)
+                raise IOError('Database file %s missing!' % self.getStr('OrthDB'))
             gopherblast.formatDB(protein=not self.getBool('DNA'),force=False,checkage=not self.getBool('IgnoreDate'),details=True)
             self.obj['BLAST'] = gopherblast
             return gopherblast

@@ -19,8 +19,8 @@
 """
 Program:      SLiMFinder
 Description:  Short Linear Motif Finder
-Version:      5.2.0
-Last Edit:    31/03/15
+Version:      5.2.1
+Last Edit:    11/06/15
 Citation:     Edwards, Davey & Shields (2007), PLoS ONE 2(10): e967. [PMID: 17912346]
 ConsMask Citation: Davey NE, Shields DC & Edwards RJ (2009), Bioinformatics 25(4): 443-50. [PMID: 19136552]
 SigV/SigPrime Citation: Davey NE, Edwards RJ & Shields DC (2010), BMC Bioinformatics 11: 14. [PMID: 20055997]
@@ -268,6 +268,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 5.1 - Modified SLiMChance slightly to catch missing aafreq.
     # 5.1.1 - Modified alphabet handling and fixed musthave bug.
     # 5.2.0 - Added PTMList and PTMData modes (dev only).
+    # 5.2.1 - Fixed ambocc<1 and minocc<1 issue. (Using integers rather than floats.) Fixed OccRes Sig output format.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -307,7 +308,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo():     ### Makes Info object
     '''Makes rje.Info object for program.'''
-    (program, version, last_edit, copyyear) = ('SLiMFinder', '5.2.0', 'March 2015', '2007')
+    (program, version, last_edit, copyyear) = ('SLiMFinder', '5.2.1', 'June 2015', '2007')
     description = 'Short Linear Motif Finder'
     author = 'Richard J. Edwards, Norman E. Davey & Denis C. Shields'
     comments = ['Cite: Edwards, Davey & Shields (2007), PLoS ONE 2(10): e967. [PMID: 17912346]',
@@ -869,12 +870,12 @@ class SLiMFinder(rje_slimcore.SLiMCore):
         if self.getNum('AmbOcc') <= 0: self.setNum({'AmbOcc':self.getInt('MinOcc')})
         for occ in ['AmbOcc','MinOcc']:
             if self.getNum(occ) < 1:
-                newmin = self.getInt(occ) * self.UPNum()
+                newmin = self.getNum(occ) * self.UPNum()
                 if int(newmin) == newmin: newmin = int(newmin)
                 else: newmin = int(newmin) + 1
                 if occ == 'MinOcc' and newmin < self.getInt('AbsMin'): newmin = self.getInt('AbsMin')
                 if occ == 'AmbOcc' and newmin < self.getInt('AbsMinAmb'): newmin = self.getInt('AbsMinAmb')
-                self.printLog('#MIN','%s %.2f & %d UP => %s %d UPC.' % (occ,self.getInt(occ),self.UPNum(),occ,newmin))
+                self.printLog('#MIN','%s %.2f & %d UP => %s %d UPC.' % (occ,self.getNum(occ),self.UPNum(),occ,newmin))
                 self.setNum({occ:newmin})
         if self.getInt('AmbOcc') > self.getInt('MinOcc'):
             self.printLog('#MIN','AmbOcc > MinOcc => reduced to %d UPC.' % self.getInt('MinOcc'))
@@ -2487,7 +2488,9 @@ class SLiMFinder(rje_slimcore.SLiMCore):
                 for p in ['ExpUP','Prob','Sig','E','R','S','SigV','SigPrime','SigPrimeV']:
                     if self.dict['Slim'][slim].has_key(p): datadict[p] = rje_slim.expectString(self.dict['Slim'][slim][p])
                 for h in self.list['Headers']:
-                    if Motif and h not in datadict and h in Motif.stat: datadict[h] = Motif.stat[h]
+                    if Motif and h not in datadict and h in Motif.stat:
+                        if h.endswith('_mean'): datadict[h] = rje_slim.expectString(Motif.stat[h])
+                        else: datadict[h] = Motif.stat[h]
                 #X#print Motif.stat
                 ## Main Output ##
                 if self.getStrLC('ResFile') and self.getBool('SlimChance'):
@@ -2747,8 +2750,10 @@ class SLiMFinder(rje_slimcore.SLiMCore):
                         ## Add Occurrence to Data Files ##
                         occdata = {'Dataset':self.dataset(),'RunID':self.getStr('RunID'),'Rank':self.dict['Slim'][slim]['Rank'],'Desc':Seq.info['Description'],
                                    'Pattern':pattern,'PepDesign':rje_sequence.peptideDetails(Occ['PepSeq'],self),
-                                   'Sig':self.dict['Slim'][slim]['Sig']}
+                                   'Sig':rje_slim.expectString(self.dict['Slim'][slim]['Sig'])}
                         rje.combineDict(occdata,Occ)
+                        for occstat in ['Cons','SA','Hyd','Fold','IUP','Comp']:
+                            if occstat in occdata: occdata[occstat] = rje_slim.expectString(occdata[occstat])
                         occdata['Seq'] = Seq.shortName()
                         rje.delimitedFileOutput(self,occfile,occhead,',',occdata)
                         rje.delimitedFileOutput(self,self.getStr('OccResFile'),self.list['OccHeaders'],datadict=occdata)

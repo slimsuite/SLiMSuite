@@ -310,6 +310,7 @@ class QSLiMFinder(slimfinder.SLiMFinder):
             if not self.list['Query']:
                 if self.i() < 0 or rje.yesNo('No query=X parameter set. Use first sequence in file?'):
                     self.list['Query']= ['1']; self.cmd_list.append('query=1')
+                    self.warnLog('No Query given: set query=1')
             if not self.list['Query']: return self.errorLog('Need query for QSLiMFinder. None set.')                
 
             ###~INPUT~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~###

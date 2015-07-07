@@ -7,8 +7,8 @@
 """
 Module:       rje_sequence
 Description:  DNA/Protein sequence object
-Version:      2.4.1
-Last Edit:    17/11/14
+Version:      2.5.0
+Last Edit:    06/07/15
 Copyright (C) 2006  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -58,6 +58,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 2.3 - Added alternative self.info keys for sequence (for UniProt splice variants). Added SpliceVar dict.
     # 2.4 - Added recognition of modified IPI format. Added standalone low complexity masking.
     # 2.4.1 - Moved the gnspacc fragment recognition to reduce issues. Should perhaps remove completely?
+    # 2.5.0 - Added yeast genome renaming.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -311,6 +312,21 @@ class Sequence(rje.RJE_ObjectLite):
                 self.setInfo({'Gene':'p','SpecCode':'TREPA','ID':'%s_%s' % (self.getInfo('Gene'),self.getInfo('SpecCode'))})
             ### ~ [2] ~ Yeast ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if self.getAtt('opt','Yeast',default=False):
+                if rje.matchExp('gi\|\d+\|gb\|(\S+)\| Saccharomyces cerevisiae (\S+) (\S.+\S)$',self.info['Name']):
+                    #gi|803443638|gb|CP005241.1| Saccharomyces cerevisiae YJM1304 chromosome VII sequence
+                    #gi|785784932|gb|CP004567.1| Saccharomyces cerevisiae YJM1615 plasmid 2 micron, complete sequence
+                    #gi|768457878|gb|CP006507.1| Saccharomyces cerevisiae YJM996 mitochondrion, complete genome
+                    #gi|763972742|gb|CP006294.1| Saccharomyces cerevisiae YJM1342 chromosome III
+                    ydata = rje.matchExp('gi\|\d+\|gb\|(\S+)\| Saccharomyces cerevisiae (\S+) (\S.+\S)$',self.info['Name'])
+                    gene = string.split(string.split(ydata[2],',')[0])
+                    if len(gene) > 1: gene = gene[0][:3] + gene[1]
+                    else: gene = gene[0][:3]
+                    self.setInfo({'Gene':gene,'SpecCode':ydata[1],'AccNum':ydata[0],'Description':self.info['Name']})
+                    self.info['ID'] = '%s_%s' % (self.info['Gene'],self.info['SpecCode'])
+                    #self.obj['Parent'].deBug('%s -> %s %s' % (self.info['Name'],self.info['ID'],self.info['AccNum']))
+                    return
+                self.obj['Parent'].deBug(self.info['Name'])
+                #!# Add yeast genome recognition here!
                 if self.info['Description'].lower() in ['','none']: self.info['Description'] = '[YGOB: %s]' % self.shortName()
                 else: self.info['Description'] += ' [YGOB: %s]' % self.shortName()
                 if self.shortName()[4:5] == '_': self.info['AccNum'] = self.shortName()[:4].upper() + self.shortName()[5:]
