@@ -477,10 +477,10 @@ class SLiMBench(rje_obj.RJE_Object):
                     lastfile = gfile    # Possibly use the latest dated version
             if lastfile in [self.getStr(str), datefile, sourcefile, nowfile]: lastfile = None   # Only interested if different
             ## ~ [0b] Source URLs for downloads ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-            sourceurl = {'ELMClass':'http://elm.eu.org/elms/browse_elms.html?q=&submit=tsv',
-                         'ELMInstance':'http://elm.eu.org/elms/browse_instances.tsv?q=*&taxon=&instance_logic=',
+            sourceurl = {'ELMClass':'http://elm.eu.org/elms/index.html?q=&reset_form=Reset&submit=tsv',
+                         'ELMInstance':'http://elm.eu.org/instances.tsv?q=*&taxon=&instance_logic=',
                          'ELMInteractors':'http://elm.eu.org/interactions/as_tsv',
-                         'ELMDomains':'http://www.elm.eu.org/infos/browse_elm_interactiondomains.tsv',
+                         'ELMDomains':'http://elm.eu.org/interactiondomains.tsv',
                          'HINT.HUMAN':'http://hint.yulab.org/HumanBinaryHQ.txt',
                          'HINT.YEAST':'http://hint.yulab.org/CervBinaryHQ.txt',
                          'HINT.MOUSE':'http://hint.yulab.org/MouseBinaryHQ.txt',
