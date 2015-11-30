@@ -313,6 +313,7 @@ class RJE_Object(object):     ### Metaclass for inheritance by other classes
         elif self.obj['Parent']: return self.obj['Parent'].getInt(key,default,checkdata)
         else: return default
 #########################################################################################################################
+    def getPerc(self,key=None,default=0.0,checkdata=False): return self.getNum(key,default,checkdata)/100.0
     def getNum(self,key=None,default=0.0,checkdata=False):    ### Returns float attribute
         '''Returns float attribute.'''
         try:
@@ -543,6 +544,8 @@ class RJE_Object(object):     ### Metaclass for inheritance by other classes
         elif type in ['float','stat','num']: self.num[att] = string.atof(value)
         elif type == 'max' and rje.matchExp('^\d+,(\d+)',value): self.int[att] = string.atoi(rje.matchExp('^\d+,(\d+)',value)[0])
         elif type in ['min','max'] and rje.matchExp('^(\d+)',value): self.int[att] = string.atoi(rje.matchExp('^(\d+)',value)[0])
+        elif type == 'fmax' and rje.matchExp('^[\.\d]+,([\.\d]+)',value): self.num[att] = string.atof(rje.matchExp('^[\.\d]+,([\.\d]+)',value)[0])
+        elif type in ['fmin','fmax'] and rje.matchExp('^([\.\d]+)',value): self.num[att] = string.atof(rje.matchExp('^([\.\d]+)',value)[0])
         elif type == 'date' and rje.matchExp('^(\d\d\d\d)-?(\d\d)-?(\d\d)$',value):
             self.str[att] = '%s-%s-%s' % rje.matchExp('^(\d\d\d\d)-?(\d\d)-?(\d\d)$',value)
         elif type == 'list': self.list[att] = rje.listFromCommand(value)

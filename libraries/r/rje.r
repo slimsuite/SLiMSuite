@@ -7,12 +7,12 @@
 #rdir = "/home/re1u06/researchfiles/SBSBINF/Tools/_Serpentry/"
 #rdir = "/home/re1u06/researchfiles/SBSBINF/Tools/svn/libraries/r/"
 rdir = "/Users/redwards/Dropbox/_Repository_/slimsuite/libraries/r/"
-argsettings = list("rdir"=rdir)
+# Ideally, rdir will be read from the commandline
 
 ## ~ Read commandline arguments ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
 args <- commandArgs(TRUE)
 rtype = args[1]             #!# Update to use CommandArg instead?
-arglist = list(rtype=rtype,basefile=args[2])    # Access with arglist[["basefile"]] or arglist$basefile
+arglist = list(rdir=rdir,rtype=rtype,basefile=args[2])    # Access with arglist[["basefile"]] or arglist$basefile
 argsplit = strsplit(args[-c(1:2)],"=")
 if(length(argsplit)>0){
   for(i in 1:length(argsplit)){
@@ -22,9 +22,10 @@ if(length(argsplit)>0){
     arglist[[cmd]] = val
   }
 }
+(arglist)
 
 ## ~ General functions and objects~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-rdir = argsettings$rdir             # Can now be replaced by commandArgs
+rdir = arglist$rdir    # Hopefully will have been set by commandline and over-ruled default.
 rjesource = function(rfile){
     source(paste(rdir,rfile,sep=""))
 }
@@ -32,22 +33,43 @@ rjesource("rje_col.r")
 rjesource("rje_misc.r")
 
 ############# ::: PARAMETER SETUP ::: ###################################
-
-
 ## ~ Commandline formatting functions ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
 argBool = function(args,bools){   # Sets all values to TRUE/FALSE
   for(cmd in bools){
-    if(sum(c('f','F') == (substr(args[[cmd]],1,1))) > 0){ args[[cmd]] = FALSE }
-    else{ args[[cmd]] = TRUE }
+    if(length(args[[cmd]])>0){
+      if(sum(c('f','F') == (substr(args[[cmd]],1,1))) > 0){ args[[cmd]] = FALSE }
+      else{ args[[cmd]] = TRUE }
+    }
   }
   return(args)
 }
 argNum = function(args,nums){   # Converts all values to numerics
-  for(cmd in nums){ args[[cmd]] = as.numeric(args[[cmd]]) }
+  for(cmd in nums){ 
+    if(length(args[[cmd]])>0){
+      args[[cmd]] = as.numeric(args[[cmd]]) 
+    }
+  }
+  return(args)
+}
+argList = function(args,lists){
+  for(cmd in lists){ 
+    if(length(args[[cmd]])>0){
+      args[[cmd]] = strsplit(args[[cmd]],",")[[1]] 
+    }
+  }
   return(args)
 }
 
 ############# ::: CALL APPROPRIATE SCRIPT ::: ###########################
+# Newer scripts that make use of commandline argument capability
+if (rtype == 'pagsat'){ rjesource("pagsat.R") }
+if (rtype == 'pacbio'){ rjesource("pacbio.R") }
+if (rtype == 'tree'){ rjesource("tree.R") }
+
+
+
+
+# Old scripts, not yet implementing commands etc. properly
 slimjims = c("spokealn","motif")
 for (sj in slimjims){
 	if (rtype == sj){ rjesource("slimjim.r") }

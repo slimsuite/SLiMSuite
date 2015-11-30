@@ -19,8 +19,8 @@
 """
 Module:       rje_seqlist
 Description:  RJE Nucleotide and Protein Sequence List Object (Revised)
-Version:      1.14.0
-Last Edit:    06/07/15
+Version:      1.15.3
+Last Edit:    16/11/15
 Copyright (C) 2011  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -148,6 +148,10 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 1.12.0 - Added peptides/qregion reformatting and region=X,Y.
     # 1.13.0 - Added summarise=T option for generating some summary statistics for sequence data. Added minlen & maxlen.
     # 1.14.0 - Added splitseq=X split output sequence file according to X (gene/species) [None]
+    # 1.15.0 - Added names() method.
+    # 1.15.1 - Fixed bug with storage and return of summary stats.
+    # 1.15.2 - Fixed dna2prot reformatting.
+    # 1.15.3 - Fixed summarise bug (n=1).
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -159,11 +163,13 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
     # [ ] : Add sequence masking based on rje_slimcore: mask and add second SeqList object containing masked sequences.
     # [ ] : Add method/options to return old-style rje_seq.SeqList object.
     # [Y] : Add additional sorting methods using sort=X: size/name/sequence/revsize/accnum
+    # [ ] : Fix dna2prot reformatting output using minlen.
+    # [ ] : Add assemble=FILE mode with reformat=assemble: list sequences on each line to join/revcomp into single seqs.
     '''
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copy_right) = ('SeqList', '1.14.0', 'July 2015', '2011')
+    (program, version, last_edit, copy_right) = ('SeqList', '1.15.3', 'November 2015', '2011')
     description = 'RJE Nucleotide and Protein Sequence List Object (Revised)'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_zen.Zen().wisdom()]
@@ -356,6 +362,11 @@ class SeqList(rje_obj.RJE_Object):
             if self.list['Sampler'][0] > 0: self.sampler()
             elif self.getStrLC('SplitSeq'): self.splitSeq()
             elif self.getStr('SeqOut').lower() not in ['','none']: self.saveSeq()
+            elif self.getStrLC('ReFormat') and self.getStrLC('ReFormat') != 'fasta':
+                if self.getStrLC('Basefile'):  seqout = '%s.%s.fas' % (self.baseFile(),self.getStrLC('ReFormat'))
+                else:  seqout = '%s.%s.fas' % (rje.baseFile(self.getStr('SeqIn')),self.getStrLC('ReFormat'))
+                if self.i() < 0 or rje.yesNo('Reformat (%s) and save to %s?' % (self.getStrLC('ReFormat'),seqout)):
+                    self.saveSeq(seqfile=seqout)
 #########################################################################################################################
     def _filterCmd(self,cmd_list=None,clear=True):   ### Reads filter commands into attributes
         '''
@@ -525,6 +536,14 @@ class SeqList(rje_obj.RJE_Object):
         if sid == sacc: return False
         return True
 #########################################################################################################################
+    def names(self,short=True): ### Returns list of sequence (short) names
+        '''Returns list of sequence (short) names.'''
+        names = []
+        for seq in self.seqs():
+            if short: names.append(self.shortName(seq))
+            else: names.append(self.seqName(seq))
+        return names
+#########################################################################################################################
     def getDictSeq(self,dkey,format=None,mode=None,case=None,errors=True):   ### Returns sequence from dictionary key
         '''Returns sequence from dictionary key with option to raise error or return None if missing.'''
         try: return self.getSeq(self.dict['SeqDict'][dkey],format,mode,case)
@@ -682,13 +701,13 @@ class SeqList(rje_obj.RJE_Object):
                 elif seqtype == 'Protein': prot = 2
                 elif seqtype == 'RNA': rna = 4
             total = dna + rna + prot
-            if total == 1: self.str['Type'] = 'DNA'
-            elif total == 2: self.str['Type'] = 'Protein'
-            elif total == 4: self.str['Type'] = 'RNA'
-            elif total == 5: self.str['Type'] = 'NA'
-            else: self.str['Type'] = 'Mixed'
-            if log: self.printLog('#TYPE','Sequence type: %s' % self.str['Type'])
-            return self.str['Type']
+            if total == 1: self.str['SeqType'] = 'DNA'
+            elif total == 2: self.str['SeqType'] = 'Protein'
+            elif total == 4: self.str['SeqType'] = 'RNA'
+            elif total == 5: self.str['SeqType'] = 'NA'
+            else: self.str['SeqType'] = 'Mixed'
+            if log: self.printLog('#TYPE','Sequence type: %s' % self.str['SeqType'])
+            return self.str['SeqType']
         except: self.errorLog('Error in "%s" readSeqType' % self.str['Name']); raise
 #########################################################################################################################
     ### <3> ### Main Class Backbone                                                                                     #
@@ -718,34 +737,54 @@ class SeqList(rje_obj.RJE_Object):
             return True
         except: self.errorLog('Problem during %s tidy.' % self); return False   # Tidy failed
 #########################################################################################################################
-    def summarise(self):    ### Generates summary statistics for sequences
+    def summarise(self,seqs=None,basename=None):    ### Generates summary statistics for sequences
         '''Generates summary statistics for sequences.'''
         try:### ~ [0] ~ Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            seqbase = rje.baseFile(self.getStr('SeqIn'),strip_path=True)
+            if not self.getStrLC('SeqIn'): seqbase = self.getStr('Basefile')
+            if not basename: basename = seqbase
+            seqdata = {}    # SeqNum, TotLength, MinLength, MaxLength, MeanLength, MedLength, N50Length
+            self.printLog('#~~#','# ~~~~~~~~~~~~~~~~~~~~~~~ SEQUENCE SUMMARY FOR %s ~~~~~~~~~~~~~~~~~~~~~~~~~~~ #' % basename)
             seqlen = []
+            if not seqs: seqs = self.seqs()
             # Total number of sequences
-            for seq in self.seqs():
+            for seq in seqs:
+                self.progLog('\r#SUM','Total number of sequences: %s' % rje.iLen(seqlen),rand=0.01)
                 seqlen.append(self.seqLen(seq))
             self.printLog('#SUM','Total number of sequences: %s' % rje.iLen(seqlen))
+            if not seqs: return {}
             # Total sequence length
             sumlen = sum(seqlen)
             self.printLog('#SUM','Total length of sequences: %s' % rje.iStr(sumlen))
+            seqdata['SeqNum'] = len(seqlen)
+            seqdata['TotLength'] = sumlen
             # Min, Max
             seqlen.sort()
             self.printLog('#SUM','Min. length of sequences: %s' % rje.iStr(seqlen[0]))
             self.printLog('#SUM','Max. length of sequences: %s' % rje.iStr(seqlen[-1]))
+            seqdata['MinLength'] = seqlen[0]
+            seqdata['MaxLength'] = seqlen[-1]
             # Mean & Median sequence lengths
             meanlen = float(sumlen)/len(seqlen)
             meansplit = string.split('%.2f' % meanlen,'.')
             self.printLog('#SUM','Mean length of sequences: %s.%s' % (rje.iStr(meansplit[0]),meansplit[1]))
+            seqdata['MeanLength'] = meanlen
             if rje.isOdd(len(seqlen)): median = seqlen[len(seqlen)/2]
             else: median = sum(seqlen[len(seqlen)/2:][:2]) / 2.0
             self.printLog('#SUM','Median length of sequences: %s' % (rje.iStr(median)))
+            seqdata['MedLength'] = median
             ## N50 calculation
             n50len = sumlen / 2.0
             n50 = seqlen[0:]
-            while n50len > 0: n50len -= n50.pop(-1)
-            self.printLog('#SUM','N50 length of sequences: %s' % rje.iStr(n50[-1]))
-        except: self.errorLog('Problem during %s summarise.' % self.prog()); return False   # Tidy failed
+            while n50len > 0 and n50: n50len -= n50.pop(-1)
+            if n50:
+                self.printLog('#SUM','N50 length of sequences: %s' % rje.iStr(n50[-1]))
+                seqdata['N50Length'] = n50[-1]
+            else:
+                self.printLog('#SUM','N50 length of sequences: %s' % rje.iStr(seqlen[-1]))
+                seqdata['N50Length'] = seqlen[-1]
+            return seqdata
+        except: self.errorLog('Problem during %s summarise.' % self.prog()); return {}   # Summarise failed
 #########################################################################################################################
     ### <4> ### Class Loading Methods                                                                                   #
 #########################################################################################################################
@@ -1473,7 +1512,7 @@ class SeqList(rje_obj.RJE_Object):
             goodseq = []
             #!# Add seqfilter option for switching on sequence-based (not name-based) filtering? Or auto-assess?)
             minlen = max(0,self.getInt('MinLen')); maxlen = max(0,self.getInt('MaxLen'))
-            self.debug('Min: %s; Max: %s' % (minlen,maxlen))
+            #self.debug('Min: %s; Max: %s' % (minlen,maxlen))
             seqfilter = minlen + maxlen
             ### ~ [1] ~ Simple Filter ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             simplefilter = self.mode() == 'file' and self.dict['SeqDict'] and not seqfilter and self.getStr('SeqDictType') in ['short','name']
@@ -1572,7 +1611,8 @@ class SeqList(rje_obj.RJE_Object):
             if reformat == None: reformat = self.getStr('ReFormat')
             if reformat == 'speclist': speclist = []
             if reformat in ['dna2prot','rna2prot','translate','nt2prot'] and not self.nt():
-                self.warnLog('Trying to translate possible non-nucleotide sequence (dna=F).')
+                self.readSeqType()
+                if not self.nt(): self.warnLog('Trying to translate possible non-nucleotide sequence (dna=F).')
             ifile = '%s.index' % rje.baseFile(seqfile)
             if rje.exists(ifile):
                 self.warnLog('%s deleted.' % ifile)
@@ -1620,7 +1660,7 @@ class SeqList(rje_obj.RJE_Object):
                 #else: self.printLog('#OUT','Create new file: "%s"' % seqfile,log=log,screen=screen)
                 SEQOUT = open(seqfile,'w')
             ### ~ [1] ~ Output sequences ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            sx = 0.0; stot = len(seqs)
+            sx = 0.0; stot = len(seqs); fasx = stot
             for seq in seqs:
                 if screen: self.progLog('\r#OUT','Sequence output: %.2f%%' % (sx/stot)); sx += 100.0
                 (name,sequence) = self.getSeq(seq,format='tuple')
@@ -1650,7 +1690,9 @@ class SeqList(rje_obj.RJE_Object):
                         if spec not in speclist: speclist.append(spec)
                 elif reformat in ['dna2prot','rna2prot','translate','nt2prot']:
                     #SEQOUT.write('>%s\n%s\n' % (name,rje_sequence.dna2prot(sequence)))
-                    SEQOUT.write(self.dna2protFasta(name,sequence))
+                    pfasta = self.dna2protFasta(name,sequence)
+                    fasx = fasx + (pfasta.count('\n')/2) - 1
+                    SEQOUT.write(pfasta)
                 else:
                     self.errorLog('Cannot recognise reformat type "%s": changing to Fasta' % reformat)
                     reformat = 'fasta'
@@ -1658,7 +1700,7 @@ class SeqList(rje_obj.RJE_Object):
             ### ~ [3] ~ Close files and tidy ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if reformat == 'speclist': SEQOUT.write(string.join(speclist+[''],'\n'))
             SEQOUT.close()
-            self.printLog('\r#OUT','%s Sequences %s %s' % (rje.iStr(stot),outlog,seqfile),log=log,screen=screen)
+            self.printLog('\r#OUT','%s Sequences %s %s' % (rje.iStr(fasx),outlog,seqfile),log=log,screen=screen)
             
         except(IOError): self.errorLog("Cannot create %s" % seqfile); raise
         except: self.errorLog("Problem saving sequences to %s" % seqfile); raise
@@ -1715,6 +1757,54 @@ class SeqList(rje_obj.RJE_Object):
             if terminorf < 0: terminorf = minorf
             rforfs = {}; longorf = False
             for frame in rje.sortKeys(rfseq):
+                self.progLog('\r#ORF','Sequence RF%s ORFs...   ' % frame)
+                osplit = string.split(string.replace(rfseq[frame].upper(),'*','*|'),'|')
+                orfs = osplit[:1]
+                for orf in osplit[1:-1]:
+                    if self.getBool('ORFMet'):  # Trim to Nterminal Met
+                        if 'M' in orf: orf = orf[orf.find('M'):]
+                        else: continue
+                    if len(orf) < (minorf + 1): continue
+                    orfs.append(orf); longorf = True    # More than termini - internal ORFs meet length requirement
+                if len(osplit) > 1: orfs.append(osplit[-1])
+                rforfs[frame] = orfs
+            for frame in rje.sortKeys(rfseq):
+                self.progLog('\r#ORF','Sequence ORF Fasta...   ')
+                orfs = rforfs[frame]
+                if longorf:
+                    if len(orfs[-1]) < minorf: orfs = orfs[:-1]
+                    if len(orfs[0]) < (minorf + 1): orfs = orfs[1:]
+                else:
+                    if len(orfs[-1]) < terminorf: orfs = orfs[:-1]
+                    if orfs and len(orfs[0]) < (terminorf + 1): orfs = orfs[1:]
+                # Remaining ORFs should meet length requirements
+                for i in range(len(orfs)):
+                    tranfas += '>%s\n%s\n' % (string.join([namesplit[0]+'.RF%d.ORF%d' % (frame,i+1)]+namesplit[1:]+['Length=%d' % len(orfs[i])]),orfs[i])
+            return tranfas
+        except: self.errorLog("Problem with dna2protFasta()"); raise
+#########################################################################################################################
+    def OLDdna2protFasta(self,name,sequence): ### Returns fasta text for translated DNA sequence, using self.attributes.
+        '''Returns fasta text for translated DNA sequence, using self.attributes.'''
+        try:### ~ [0] ~ Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            rf = self.getInt('RFTran')
+            tranfas = ''
+            namesplit = string.split(name)
+            ### ~ [1] ~ Translate ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            if rf == 1: rfseq = {1:rje_sequence.dna2prot(sequence)}
+            elif rf == 3: rfseq = rje_sequence.threeFrameTranslation(sequence)
+            elif rf == 6: rfseq = rje_sequence.sixFrameTranslation(sequence)
+            else: raise ValueError('rftran=%d not recognised!' % rf)
+            ### ~ [2] ~ Full translation ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            if self.getInt('MinORF') < 1:   # Return full translated sequences, including STOP *
+                if rf == 1: return '>%s\n%s\n' % (name,rfseq[1])
+                for frame in rje.sortKeys(rfseq):
+                    tranfas += '>%s\n%s\n' % (string.join([namesplit[0]+'.RF%d' % frame]+namesplit[1:]),rfseq[frame])
+                return tranfas
+            ### ~ [3] ~ Selected ORFs only ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            minorf = self.getInt('MinORF'); terminorf = self.getInt('TerMinORF')
+            if terminorf < 0: terminorf = minorf
+            rforfs = {}; longorf = False
+            for frame in rje.sortKeys(rfseq):
                 orfs = string.split(string.replace(rfseq[frame].upper(),'*','*|'),'|')
                 if self.getBool('ORFMet'):  # Trim to Nterminal Met
                     for i in range(len(orfs)-1,0,-1):
@@ -1731,7 +1821,7 @@ class SeqList(rje_obj.RJE_Object):
                     if len(orfs[0]) < (minorf + 1): orfs = orfs[1:]
                 else:
                     if len(orfs[-1]) < terminorf: orfs = orfs[:-1]
-                    if len(orfs[0]) < (terminorf + 1): orfs = orfs[1:]
+                    if orfs and len(orfs[0]) < (terminorf + 1): orfs = orfs[1:]
                 # Remaining ORFs should meet length requirements
                 for i in range(len(orfs)):
                     tranfas += '>%s\n%s\n' % (string.join([namesplit[0]+'.RF%d.ORF%d' % (frame,i+1)]+namesplit[1:]+['Length=%d' % len(orfs[i])]),orfs[i])
@@ -1741,6 +1831,7 @@ class SeqList(rje_obj.RJE_Object):
     def fasta(self,seqs=[]):    ### Returns text of sequences in fasta format
         '''Returns text of sequences in fasta format.'''
         try:### ~ [0] ~ Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            if not type(seqs) == list: seqs = [seqs]
             if not seqs: seqs = self.seqs()
             fastxt = ''
             for seq in seqs: fastxt += '>%s\n%s\n' % self.getSeq(seq,format='tuple')

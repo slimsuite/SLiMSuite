@@ -201,14 +201,8 @@ class NewClass(rje_obj.RJE_Object):
 #########################################################################################################################
     def restSetup(self):    ### Sets up self.dict['Output'] and associated output options if appropriate.
         '''
-        There is currently no specific help available on REST output for this program. Run with &rest=help for general
-        options. Run with &rest=full to get full server output. Individual outputs can be identified/parsed:
-
-        ###~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~###
-        # OUTFMT:
-        ...
-
-        &rest=OUTFMT can then be used to retrieve individual parts of the output in future.
+        Run with &rest=help for general options. Run with &rest=full to get full server output as text or &rest=format
+        for more user-friendly formatted output. Individual outputs can be identified/parsed using &rest=OUTFMT.
         '''
         try:### ~ [0] ~ Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             for outfmt in self.restOutputOrder(): self.dict['Output'][outfmt] = 'No output generated.'

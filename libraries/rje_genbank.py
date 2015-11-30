@@ -19,8 +19,8 @@
 """
 Module:       rje_genbank
 Description:  RJE GenBank Module
-Version:      1.3.1
-Last Edit:    14/05/15
+Version:      1.3.2
+Last Edit:    21/11/15
 Copyright (C) 2011  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -68,16 +68,18 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 1.2.2 - Fixed more features that were breaking parser.
     # 1.3.0 - Added split viral output.
     # 1.3.1 - Fixed bug in split viral output.
+    # 1.3.2 - Fixed bug in reverse complement sequences with introns.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
     '''
     # [Y] : Add conversion of TaxID to SpCode using rje_taxonomy.
+    # [ ] : Add dealing with alternative genetic code.
     '''
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copy_right) = ('RJE_GenBank', '1.3.1', 'May 2015', '2011')
+    (program, version, last_edit, copy_right) = ('RJE_GenBank', '1.3.2', 'November 2015', '2011')
     description = 'RJE GenBank Module'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_zen.Zen().wisdom()]
@@ -211,6 +213,11 @@ class GenBank(rje_obj.RJE_Object):
                 self._cmdReadList(cmd,'list',['Details','DetailSkip','FasOut','Features','FetchUID'])
             except: self.errorLog('Problem with cmd:%s' % cmd)
         if self.getStr('SpCode').lower() in ['','none']: self.str['SpCode'] = ''
+        else:
+            self.printLog('#SPCODE',self.getStr('SpCode'))
+            if self.getStrLC('TaxDir') and not rje.exists(self.getStr('TaxDir')) and self.i() >= 0:
+                if rje.yesNo('Species code given and TaxDir not found. Set taxdir=None? (Otherwise, will create.)'):
+                    self.setStr({'TaxDir':'None'}); self.cmd_list.append('taxdir=None')
 #########################################################################################################################
     ### <2> ### Main Class Backbone                                                                                     #
 #########################################################################################################################
@@ -484,7 +491,26 @@ class GenBank(rje_obj.RJE_Object):
             if ftdic['feature'] == 'Protein':
                 if 'protein_id' not in ftdic or not ftdic['protein_id']: ftdic['protein_id'] = locus
             ### ~ [2] ~ Add sequence ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            #!# Make this a function ftdic['sequence'] = self.featureSequence(ftdict,locus)
+            ftdic['sequence'] = self.featureSequence(ftdic,force=True)
+            return ftdic
+        except: self.errorLog('%s.featureDict error' % self,quitchoice=not self.debugging()); self.deBug(ftentry); self.deBug(ftdic)
+#########################################################################################################################
+    def featureSequence(self,ftdic,force=False): ### Adds sequence to ftdic using locus, position and self.dict['Sequence']
+        '''
+        Adds sequence to ftdic using locus, position and self.dict['Sequence'].
+        >> ftdic:dict of feature information. This is updated with ftdic['sequence'], which is also returned.
+        >> force:bool [False] = Whether to regenerate sequence even if found.
+        '''
+        try:### ~ [0] ~ Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            if 'sequence' in ftdic and ftdic['sequence'] and not force: return ftdic['sequence']
+            try:
+                ftstart = ftdic['start']
+                ftend = ftdic['end']
+            except: ftstart = ftend = 0
             ftdic['sequence'] = ''
+            locus = ftdic['locus']
+            ### ~ [1] Generate list of positions to stick together ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             pos = ftdic['position'][0:]
             if pos.find('complement') == 0:
                 complement = True
@@ -493,6 +519,7 @@ class GenBank(rje_obj.RJE_Object):
             if pos.find('order') == 0: pos = pos[len('order('):-1]
             if pos.find('join') == 0: pos = pos[len('join('):-1]
             pos = string.split(pos,',')
+            ### ~ [2] Process list ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             try:
                 if '..' not in pos[0]:
                     if '^' in pos[0]: (ftdic['start'],ftdic['end']) = string.split(pos[0],'^')
@@ -506,7 +533,8 @@ class GenBank(rje_obj.RJE_Object):
                 if frag.find('complement') == 0:
                     fragcomp = True
                     frag = frag[len('complement('):-1]
-                else: fragcomp = complement
+                    if fragcomp: self.warnLog('Odd complementation for %s %s' % (ftdic['locus'],ftdic['position']))
+                else: fragcomp = False #complement
                 if '..' not in frag:
                     if '^' in frag: (start,end) = string.split(frag,'^')
                     elif frag[:1] in '<>': start = end = frag[1:]
@@ -522,10 +550,82 @@ class GenBank(rje_obj.RJE_Object):
                     self.printLog('#END','Corrected end position: %s -> %d' % (end,string.atoi(ftdic['end'])))
                 if fragcomp: ftdic['sequence'] += rje_sequence.reverseComplement(self.dict['Sequence'][locus][string.atoi(start)-1:string.atoi(ftdic['end'])])
                 else: ftdic['sequence'] += self.dict['Sequence'][locus][string.atoi(start)-1:string.atoi(ftdic['end'])]
-            #x# if complement: ftdic['sequence'] = rje_sequence.reverseComplement(ftdic['sequence'])
-            #x# Complement now handled for each fragment.
-            return ftdic
-        except: self.errorLog('%s.featureDict error' % self,quitchoice=not self.debugging()); self.deBug(ftentry); self.deBug(ftdic)
+            if complement: ftdic['sequence'] = rje_sequence.reverseComplement(ftdic['sequence'])
+            #x# V1.3.1: Complement was always handled for each fragment - this would give sequences stuck together
+            #X# in the wrong order!
+            if 'join(' in ftdic['position']:
+                #self.debug('%s => %s to %s = %d nt => %d nt sequence' % (ftdic['position'],ftdic['start'],ftdic['end'],int(ftdic['end'])-int(ftdic['start'])+1,len(ftdic['sequence'])))
+                if int(ftdic['end'])-int(ftdic['start'])+1 == len(ftdic['sequence']): self.warnLog('Exonic join failure for %s' % ftdic['position'])
+            ### ~ [3] Check and return ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            if ftstart:
+                if int(ftstart) != int(ftdic['start']): self.warnLog('Feature start mismatch (%s %s -> %s vs %s)' % (locus,ftdic['position'],ftstart,ftdic['start']))
+                ftdic['start'] = ftstart
+            if ftend:
+                if int(ftend) != int(ftdic['end']): self.warnLog('Feature start mismatch (%s %s -> %s vs %s)' % (locus,ftdic['position'],ftend,ftdic['end']))
+                ftdic['end'] = ftend
+            return ftdic['sequence']
+        except: self.errorLog('%s.featureSequence error' % self,quitchoice=not self.debugging()); self.deBug(ftdic)
+#########################################################################################################################
+    def featurePos(self,ftdic,genpos): ### Returns position relative to feature. (Both positions 1-L, not 0<L)
+        '''
+        Returns position relative to feature. (Both positions 1-L, not 0<L).
+        >> ftdic:dict of feature information. This is updated with ftdic['sequence'] if missing.
+        >> genpos:int = Genomic position to convert to feature position (1-L).
+        << ftpos:int = Position relative to ftdic['sequence'] (1-L). Will return 0 if outside or -1 for intron.
+        '''
+        try:### ~ [0] ~ Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            locus = ftdic['locus']
+            ftseq = '' #self.featureSequence(ftdic)
+            if ftdic['start'] < ftdic['end'] and (genpos < ftdic['start'] or genpos > ftdic['end']): return 0
+            elif ftdic['start'] > ftdic['end'] and (ftdic['start'] > genpos > ftdic['end']): return 0    # Feature over split circle
+            pos = ftdic['position'][0:]
+            if pos.find('complement') == 0:
+                complement = True
+                pos = pos[len('complement('):-1]
+            else: complement = False
+            if pos.find('order') == 0: pos = pos[len('order('):-1]
+            if pos.find('join') == 0: pos = pos[len('join('):-1]
+            pos = string.split(pos,',')
+            if 'join' in ftdic['position']: self.debug(pos)
+            # NB. start and end are sorted by featurePos even for strange positions
+            ### ~ [1] ~ Work through fragments ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            for frag in pos:
+                if frag.find('complement') == 0:
+                    fragcomp = True
+                    frag = frag[len('complement('):-1]
+                    if fragcomp: self.warnLog('Odd complementation for %s %s' % (ftdic['locus'],ftdic['position']))
+                else: fragcomp = False #complement
+                if '..' not in frag:
+                    if '^' in frag: (start,end) = string.split(frag,'^')
+                    elif frag[:1] in '<>': start = end = frag[1:]
+                    else: start = end = '%d' % string.atoi(frag)
+                else: (start,end) = string.split(frag,'..')
+                if start[:1] in ['<','>']: start = start[1:]
+                if end[:1] in ['>','>']: end = end[1:]
+                try: end = string.atoi(end)
+                except:
+                    self.debug('%s\n-> %s' % (ftdic['position'],pos))
+                    self.printLog('#ERR','Problem with locus %s position: %s' % (ftdic['locus'],ftdic['position']))
+                    end = string.atoi(rje.matchExp('(\d+)',end)[0])
+                ## Map position
+                start = int(start); end = int(end)
+                #!# might struggle with features spanning split circles. (Check and debug)
+                self.debug('%s <= %s <= %s?' % (start,genpos,end))
+                if genpos < start: return -1  # Intron
+                if genpos > end:
+                    if fragcomp: ftseq += rje_sequence.reverseComplement(self.dict['Sequence'][locus][start-1:end])
+                    else: ftseq += self.dict['Sequence'][locus][start-1:end]
+                    continue
+                if fragcomp:
+                    ftpos = end - genpos + 1 + len(ftseq)
+                else:
+                    ftpos = genpos - start + 1 + len(ftseq)
+                if complement: ftpos = len(ftdic['sequence']) - ftpos + 1
+                return ftpos
+            #x# V1.3.1: Complement was always handled for each fragment - this would give sequences stuck together
+            #X# in the wrong order!
+            raise ValueError('Genomic Position %s failed to map to %s' % (genpos,ftdic['position']))
+        except: self.errorLog('%s.featurePos error' % self,quitchoice=not self.debugging()); return 0
 #########################################################################################################################
     def loadFeatures(self,expect=False):     ### Load features and loci into database tables
         '''
@@ -600,6 +700,17 @@ class GenBank(rje_obj.RJE_Object):
                         FASOUT = open(fasfile,'a')
                     ftdic = self.featureDict(ftentry)
                     try:
+                        if ftentry['gene'] == 'COX3': self.debug(ftentry); self.debug(ftdic)
+                    except: pass
+                    #self.bugPrint(ftentry['details'])
+                    #self.debug(ftdic['details'])
+                    transl = rje.matchExp('/transl_table="?(\d+)"?',ftdic['details'])
+                    if transl: transl = transl[0]; self.bugPrint('%s %s => /transl_table="%s"' % (locus,ftdic['position'],transl))
+                    else:
+                        transl = '1'
+                        if 'transl_table' in ftdic['details']: self.debug(ftdic['details'])
+                        if 'transl_table' in ftentry['details']: self.debug(ftentry['details'])
+                    try:
                         name = '%s_%s' % (string.split(seqtype.lower(),'_')[0],ftdic['spcode'])
                         if seqtype in ['prot','CDS'] and self.getStr('ProtAcc') in ftdic and ftdic[self.getStr('ProtAcc')]:
                             accnum = ftdic[self.getStr('ProtAcc')]
@@ -608,13 +719,20 @@ class GenBank(rje_obj.RJE_Object):
                         else: accnum = ftdic['locus_tag']
                         name = '%s__%s' % (name,accnum)
                     except: self.errorLog('Cannot output %s %s %s' % (ftentry['locus'],ftentry['feature'],ftentry['position'])); continue
+                    if transl != '1': self.bugPrint('%s -> transl_table %s' % (name,transl))
                     for data in ['pseudo','protein_id','db_xref','product']:
                         if data in ftdic and ftdic[data] != accnum: name = '%s %s' % (name,ftdic[data])
                     addorg = '[%s]' % ftdic['organism']
                     if addorg not in name: name = '%s %s' % (name,addorg)
                     if seqtype == 'prot' and ftype == 'CDS':
                         try: sequence = string.join(ftdic['translation'],'')
-                        except: sequence = rje_sequence.dna2prot(ftdic['sequence'])
+                        except: sequence = rje_sequence.dna2prot(ftdic['sequence'],transl=transl)
+                        if self.test() and transl != '1':
+                            translseq = rje_sequence.dna2prot(ftdic['sequence'],transl=transl)
+                            if translseq == rje_sequence.dna2prot(ftdic['sequence']):
+                                self.warnLog('/transl_table="%s" does nothing for %s?' % (transl,name))
+                            if translseq != sequence: self.warnLog('%s seems to have ignored /transl_table="%s"?' % (name,transl))
+                        if '*' in sequence[:-1]: self.warnLog('Internal STOP codon in %s: possible alternative genetic code?' % name,'altcode',suppress=True)
                     else: sequence =  ftdic['sequence']
                     if sequence[-1:] == '*': sequence = sequence[:-1]
                     FASOUT.write('>%s\n%s\n' % (name,sequence)); fx += 1

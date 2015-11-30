@@ -19,8 +19,8 @@
 """
 Module:       rje
 Description:  Contains General Objects for all my (Rich's) scripts
-Version:      4.14.2
-Last Edit:    09/06/15
+Version:      4.15.0
+Last Edit:    27/07/15
 Copyright (C) 2005  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -152,6 +152,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 4.14.0 - Added listToDict() method.
     # 4.14.1 - Fixed matchExp method to be able to handline multilines. (Shame re.DOTALL doesn't work!)
     # 4.14.2 - Modified integer commands to read/convert floats.
+    # 4.15.0 - Added intList() and numList() functions.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -1805,6 +1806,7 @@ class Log(RJE_Object_Shell):
                 self._generalCmd(cmd)
                 ### <b> ### Log
                 self._cmdRead(cmd,type='info',att='LogFile',arg='log')
+                self._cmdRead(cmd,type='info',att='LogFile',arg='logfile')
                 self._cmdRead(cmd,type='info',att='LogFile',arg='basefile')
                 self._cmdReadList(cmd,'opt',['NewLog','Silent'])
             except: self.errorLog('Problem with cmd: %s' % cmd)
@@ -1971,7 +1973,7 @@ class Log(RJE_Object_Shell):
         if self.warnx: self.warnLog('%s warning messages: check log for details.' % iStr(self.warnx),warnlist=False)
         if errors: self.warnLog('%s error messages! Check log for details.' % iLen(errors),warnlist=False)
         ### End of Program Log entry
-        if proginfo: self.printLog('#LOG', '%s V:%s End: %s\n' % (proginfo.program,proginfo.version,time.asctime(time.localtime(time.time()))))
+        if proginfo: self.printLog('#LOG', '%s V%s End: %s\n' % (proginfo.program,proginfo.version,time.asctime(time.localtime(time.time()))))
         ### Optional repeat of warnings and error messages
         if warnings and self.i() >= 0 and yesNo('Repeat %s warnings?' % iLen(warnings),default='N'): print string.join(warnings+[''],'\n')
         if errors and self.i() >= 0 and yesNo('Repeat %s error messages?' % iLen(errors)): print string.join(errors,'\n')
@@ -2294,10 +2296,24 @@ def preZero(num,max):   ### Adds leading zeros to number and returns as string
     if neg: return '-%s' % prezero
     return prezero
 #########################################################################################################################
+def strSentence(instr,allwords=False,pure=False):     # Changes to sentence case
+    '''
+    Changes to sentence case. i.e. capitalisation of first letter.
+    >> instr:str = string to convert
+    >> allwords:bool [False] = whether to split on whitespace and convert all words.
+    >> pure:bool [False] = whether to enforce lower case on rest of letters.
+    '''
+    if allwords:
+        newstr = []
+        for word in string.split(instr): newstr.append(strSentence(word,pure=pure))
+        return string.join(newstr)
+    if pure: instr[:1].upper() + instr[1:].lower()
+    return instr[:1].upper() + instr[1:]
+#########################################################################################################################
 def strSub(instr,start,end,sub):   ### Replaces part of string and returns. Start and end are inclusive.
     '''
     Replaces part of string and returns. Start and end are inclusive.
-    >> string:str = full string
+    >> instr:str = full string
     >> start:int
     >> end:int
     >> sub:str = substitution
@@ -2873,7 +2889,7 @@ def dp(data,dp): ### Returns number rounded to X dp
     elif dp == 0: data = int(data + 0.5)
     return data
 #########################################################################################################################
-def sf(data,sf): ### Returns number rounded to X sf
+def sf(data,sf=3): ### Returns number rounded to X sf
     '''Returns number rounded to X sf.'''
     neg = data < 0
     if neg: data = -data
@@ -2893,6 +2909,7 @@ def sf(data,sf): ### Returns number rounded to X sf
         data = dp(data,sf)
         for i in range(x): data /= 10.0
     if neg: data = -data
+    if int(data) == data: data = int(data)
     return data
 #########################################################################################################################
 def eStr(_expect,strict=True): return expectString(_expect,strict)
@@ -3067,6 +3084,30 @@ def dictValueList(dict,keys):   ### Returns dictionary (subset) values in same o
 
 #########################################################################################################################
 ###  List Manipulation Functions                                                                                        #
+#########################################################################################################################
+def collapseTupleList(inlist):  ### Collapses a list of (x,y) values by merging/removing overlaps where required.
+    '''Collapses a list of (x,y) values by merging/removing overlaps where required.'''
+    inlist = inlist[0:] # Create a copy
+    inlist.sort()
+    i = 1
+    while i < len(inlist):
+        if inlist[i][0] <= inlist[i-1][1]+1:
+            inlist[i-1] = (inlist[i-1][0],max(inlist[i-1][1],inlist[i][1]))
+            inlist.pop(i)
+        else: i += 1
+    return inlist
+#########################################################################################################################
+def intList(inlist): ### Converts inlist to integers and returns
+    '''Converts inlist to integers and returns.'''
+    outlist = []
+    for x in inlist: outlist.append(int(x))
+    return outlist
+#########################################################################################################################
+def numList(inlist): ### Converts inlist to floats and returns
+    '''Converts inlist to integers and returns.'''
+    outlist = []
+    for x in inlist: outlist.append(float(x))
+    return outlist
 #########################################################################################################################
 def iLen(inlist): return integerString(len(inlist))
 #########################################################################################################################
@@ -4199,5 +4240,51 @@ def argString(arglist):    ### Returns correctly formatted string of commandline
     return string.join(argstr)
 #########################################################################################################################
 ###  End of Input Command Functions                                                                                     #
+#########################################################################################################################
+
+#########################################################################################################################
+###  Generic Error Handling Functions                                                                                   #
+#########################################################################################################################
+def errorReport(text='',quitchoice=False,killme=True):
+    '''
+    Raises text as error and prints to log.
+    >> text:str = Optional error description text to print.
+    >> quitchoice:bool = whether to give user choice to terminate program prematurely.
+    '''
+    ### Handle SystemExit and KeyboardInterrupt from previous sources
+    try: raise
+    except SystemExit: os._exit(1)
+    except KeyboardInterrupt: quitchoice = True
+    except: pass
+    if string.split(str(sys.exc_info()[0]),'.')[1] == 'SystemExit': os._exit(1)
+
+    try:
+        ### Setup error variables
+        error_type = str(sys.exc_info()[0])         # Error Type       : exceptions.IOError
+        error_type = string.replace(error_type,'exceptions.','')
+        error_value = str(sys.exc_info()[1])        # Error Value      : [Errno 9] Bad file descriptor
+        error_traceback = traceback.extract_tb(sys.exc_info()[2])
+        error_file = str(error_traceback[-1][0])    # File             : C:\Documents and Settings\normdavey\Desktop\Python\BLAST\Main.py
+        error_method = str(error_traceback[-1][2])  # Method           : readFile
+        error_line = str(error_traceback[-1][1])    # Line             : 15
+        error_error = str(error_traceback[-1][3])   # Error            : for lines in fileIn.readlines():
+        ### Output
+        print '### ----- ERROR! ----- ###'
+        if text: print text
+        print '%s %s' % (sys.exc_info()[0],sys.exc_info()[1])
+        print '%s: %s' % (error_type, error_value)
+        print 'File: %s' % error_file
+        print 'Method: %s (line %s)' % (error_method, error_line)
+        print 'Error: %s' % error_error
+        print '### ------------------ ###'
+        ### Kill program
+        if quitchoice:
+            print 'Quit program (y/n)?',
+            if raw_input().upper().startswith('Y'): os._exit(1)
+        elif killme: os._exit(1)
+    except:
+        print 'That\'s not right: Error in errorReport()!!:'
+#########################################################################################################################
+###  End of Generic Error Handling Functions                                                                            #
 #########################################################################################################################
 

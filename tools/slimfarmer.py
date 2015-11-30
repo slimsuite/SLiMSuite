@@ -19,8 +19,8 @@
 """
 Module:       SLiMFarmer
 Description:  SLiMSuite HPC job farming control program
-Version:      1.4.2
-Last Edit:    31/03/15
+Version:      1.4.3
+Last Edit:    10/07/15
 Copyright (C) 2014  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -87,7 +87,7 @@ Commandline:
     depend=LIST     : List of job ids to wait for before starting job (dependhpc=X added) []
     dependhpc=X     : Name of HPC system for depend ['blue30.iridis.soton.ac.uk']
     report=T/F      : Pull out running job IDs and run showstart [False]
-    modules=LIST    : List of modules to add in job file [clustalo,mafft,R/3.1.1]
+    modules=LIST    : List of modules to add in job file [blast+/2.2.30,clustalw,clustalo,fsa,mafft,muscle,pagan,R/3.1.1]
 
     ### ~ Main SLiMFarmer Options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     farm=X          : Execute a special SLiMFarm analysis on HPC [batch]
@@ -145,6 +145,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 1.4 - Added modules=LIST : List of modules to add in job file [clustalo,mafft]
     # 1.4.1 - Fixed farm=batch mode for qsub=T.
     # 1.4.2 - Fixed log transfer issues due to new #VIO line. Better handling of crashed runs.
+    # 1.4.3 - Added recognition of missing slimsuite programs and switching to slimsuite=F.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -161,11 +162,12 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
     # [ ] : Test seqbyseq=T mode.
     # [ ] : Add farm=['gopher','slimsearch','unifake']
     # [ ] : Check/sort out job naming oddity.
+    # [Y] : Add recognition of missing slimsuite programs and switching to slimsuite=F.
     '''
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copy_right) = ('SLiMFarmer', '1.4.2', 'March 2015', '2014')
+    (program, version, last_edit, copy_right) = ('SLiMFarmer', '1.4.3', 'July 2015', '2014')
     description = 'SLiMSuite HPC job farming control program'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_obj.zen()]
@@ -363,13 +365,29 @@ class SLiMFarmer(rje_hpc.JobFarmer):
             qsub = rje_qsub.QSub(self.log,qcmd)
             farm = string.split(self.getStr('Farm'))[0]
             if self.getBool('SLiMSuite') or farm == 'batch':
-                if farm == 'batch': program = 'python %stools/slimfarmer.py %s' % (self.getStr('PyPath'),string.join(sys.argv[1:]))
+                if farm == 'batch':
+                    program = 'python %stools/slimfarmer.py %s' % (self.getStr('PyPath'),string.join(sys.argv[1:]))
+                    self.setBool({'SLiMSuite':True})
                 elif self.getStrLC('HPCMode').startswith('fork') and farm not in ['slimfinder','qslimfinder','slimprob','slimcore']:
                     if farm.endswith('.py'): farm = farm[:-3]
-                    if '/' in farm: program = 'python %s%s.py %s' % (self.getStr('PyPath'),farm,string.join(sys.argv[1:]))
-                    else: program = 'python %stools/%s.py %s' % (self.getStr('PyPath'),farm,string.join(sys.argv[1:]))
+                    if '/' in farm:
+                        program = 'python %s%s.py %s' % (self.getStr('PyPath'),farm,string.join(sys.argv[1:]))
+                        progpath = '%s%s.py' % (self.getStr('PyPath'),farm)
+                        if not os.path.exists(progpath):
+                            if self.i() < 0 or rje.yesNo('Cannot find "%s". Switching SLiMSuite=False?' % progpath):
+                                self.warnLog('Cannot find "%s". Switching SLiMSuite=False.' % progpath)
+                                self.setBool({'SLiMSuite':False})
+                                program = self.getStr('Farm')
+                    else:
+                        program = 'python %stools/%s.py %s' % (self.getStr('PyPath'),farm,string.join(sys.argv[1:]))
+                        progpath = '%stools/%s.py' % (self.getStr('PyPath'),farm)
+                        if not os.path.exists(progpath):
+                            if self.i() < 0 or rje.yesNo('Cannot find "%s". Switching SLiMSuite=False?' % progpath):
+                                self.warnLog('Cannot find "%s". Switching SLiMSuite=False.' % progpath)
+                                self.setBool({'SLiMSuite':False})
+                                program = self.getStr('Farm')
                 else: program = 'python %stools/slimfarmer.py %s' % (self.getStr('PyPath'),string.join(sys.argv[1:]))
-                program += ' forks=%d qsub=F i=-1 v=-1 newlog=F' % qsub.getInt('PPN')
+                if self.getBool('SLiMSuite'): program += ' forks=%d qsub=F i=-1 v=-1 newlog=F' % qsub.getInt('PPN')
             else: program = self.getStr('Farm')
             #x#if self.getStrLC('JobINI'): program += ' ini=%s' % self.getStr('JobINI')
             self.printLog('#QSUB',program)

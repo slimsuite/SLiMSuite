@@ -19,8 +19,8 @@
 """
 Module:       rje_taxonomy
 Description:  Downloads, reads and converts Uniprot species codes and NCBI Taxa IDs
-Version:      1.0
-Last Edit:    28/05/14
+Version:      1.1.0
+Last Edit:    11/09/15
 Copyright (C) 2014  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -101,6 +101,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 0.0 - Initial Compilation.
     # 0.1 - Initial working version with rje_ensembl.
     # 1.0 - Fully functional version with modified viral species code creation.
+    # 1.1.0 - Added parsing of yeast strains.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -118,7 +119,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copy_right) = ('RJE_Taxonomy', '1.0', 'May 2014', '2014')
+    (program, version, last_edit, copy_right) = ('RJE_Taxonomy', '1.1.0', 'May 2014', '2014')
     description = 'Downloads, reads and converts Uniprot species codes and NCBI Taxa IDs'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_obj.zen()]
@@ -602,6 +603,7 @@ class Taxonomy(rje_obj.RJE_Object):
                 i = 1
                 while len(twords[0][:i]+spcode) < 6 and i <= len(twords[0]): i += 1
                 spcode = twords[0][:i]+spcode
+            elif taxa.startswith('Saccharomyces cerevisiae') and len(twords) == 3: spcode = twords[2]
             elif len(twords) > 1: spcode = twords[0][:3] + twords[1][:3]
             else: spcode = twords[0][:6]
             if not taxa: spcode = taxid

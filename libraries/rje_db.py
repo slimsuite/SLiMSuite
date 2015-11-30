@@ -19,8 +19,8 @@
 """
 Module:       rje_db
 Description:  R Edwards Relational Database module
-Version:      1.7.5
-Last Edit:    14/05/15
+Version:      1.8.0
+Last Edit:    16/11/15
 Copyright (C) 2007  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -70,6 +70,9 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 1.7.3 - Added lower case enforcement of headers for reading tables from file.
     # 1.7.4 - Added optional restricted Field set for output.
     # 1.7.5 - Added more error messages and tableNames() method.
+    # 1.7.6 - Added table.opt['Formatted'] = Whether table data has been successfully formatted using self.dataFormat()
+    # 1.7.7 - Added option to constrain table splitting to certain field values.
+    # 1.8.0 - Added option to store keys as tuples for correct sorting. (Make default at some point.)
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -87,7 +90,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo():     ### Makes Info object
     '''Makes rje.Info object for program.'''
-    (program, version, last_edit, copy_right) = ('RJE_DB', '1.7.5', 'May 2015', '2008')
+    (program, version, last_edit, copy_right) = ('RJE_DB', '1.8.0', 'November 2015', '2008')
     description = 'R Edwards Relational Database module'
     author = 'Dr Richard J. Edwards.'
     comments = ['Please report bugs to Richard.Edwards@UNSW.edu.au']
@@ -514,7 +517,7 @@ class Database(rje.RJE_Object):
                     for nkey in newkey:
                         if nkey not in newdata[xkey]: newdata[xkey][nkey] = ''  # Must have something for key
                         tkey.append('%s' % newdata[xkey][nkey])
-                    tkey = string.join(tkey,delimit)
+                    tkey = string.join(tkey,delimit)    #!# Tuples #!#
                 if tkey in newtable.dict['Data']: self.printLog('\n#DUP','Warning: duplicate values for "%s" dropped from table "%s"' % (tkey,newtable.info['Name']))
                 else: newtable.dict['Data'][tkey] = newdata.pop(xkey)
             del newdata
@@ -530,7 +533,7 @@ class Database(rje.RJE_Object):
         except: self.log.errorLog('Problem during joinTables()')
         return None
 #########################################################################################################################
-    def splitTable(self,table,field,asdict=False,keepfield=False,splitchar=None):   ### Splits table based on unique values of given field
+    def splitTable(self,table,field,asdict=False,keepfield=False,splitchar=None,values=[]):   ### Splits table based on unique values of given field
         '''
         Splits table based on unique values of given field. To split on multiple fields, first combine these into a
         single field using table.makeField(). New tables are named X_Y, where X is the name of the first table, and Y is
@@ -540,6 +543,7 @@ class Database(rje.RJE_Object):
         >> asdict:bool [False] = whether to return new tables dictionary of {field value:table}
         >> keepfield:bool [False] = whether to retain the field used for the split.
         >> splitchar:str [None] = character to split entries on when making index keys. (No split if no str given)
+        >> values:list [] = optional list of field values to restrict split to.
         << returns list of new tables
         '''
         try:### ~ [1] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -552,6 +556,10 @@ class Database(rje.RJE_Object):
             ## ~ [1b] Index table ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             del_index = field not in table.dict['Index']
             index = table.index(field,force=True,splitchar=splitchar)
+            if values:
+                for ikey in rje.sortKeys(index):    # Add each table in alphabetical order
+                    if ikey not in values: index.pop(ikey)
+                if len(values) != len(index): self.warnLog('%s %s values given for table split but only %s found.' % (rje.iLen(values),field,rje.iLen(index)))
             self.log.printLog('#SPLIT','Splitting table "%s" on "%s": %d new tables' % (table.name(),field,len(index)))
             if self.interactive() > 0 and not rje.yesNo('Proceed?'):
                 self.log.printLog('#SPLIT','Split cancelled by user.')
@@ -627,7 +635,9 @@ class Table(rje.RJE_Object):
     
     Opt:boolean
     - DBIndex = Whether to run in "index" mode, storing a file position rather than all data (experimental) [False]
+    - Formatted = Whether table data has been successfully formatted using self.dataFormat()
     - Lists = Whether individual data entries may be list (see rje.dataDict())
+    - TupleKeys = Whether to store keys as tuples for correct sorting.
 
     Stat:numeric
 
@@ -651,7 +661,7 @@ class Table(rje.RJE_Object):
         '''Sets Attributes of Object.'''
         ### Basics ###
         self.infolist = ['Name','Delimit','Source']
-        self.optlist = ['DBIndex','Lists']
+        self.optlist = ['DBIndex','Formatted','Lists','TupleKeys']
         self.statlist = []
         self.listlist = ['Keys','Fields','MatchData']
         self.dictlist = ['Data','DataTypes','Index']
@@ -659,6 +669,7 @@ class Table(rje.RJE_Object):
         ### Defaults ###
         self._setDefaults(info='None',opt=False,stat=0.0,obj=None,setlist=True,setdict=True)
         self.setInfo({'Delimit':'\t'})
+        self.setBool({'Formatted':False,'TupleKeys':False})
 #########################################################################################################################
     def _cmdList(self):     ### Sets Attributes from commandline
         '''
@@ -670,10 +681,12 @@ class Table(rje.RJE_Object):
                 self._generalCmd(cmd)   ### General Options ### 
                 ### Class Options ### 
                 self._cmdRead(cmd,type='opt',att='DBIndex')  # No need for arg if arg = att.lower()
+                self._cmdRead(cmd,type='opt',att='TupleKeys')  # No need for arg if arg = att.lower()
             except: self.log.errorLog('Problem with cmd:%s' % cmd)
 #########################################################################################################################
     ### <2> ### Table attribute methods                                                                                 #
 #########################################################################################################################
+    def formatted(self): return self.getBool('Formatted')
     def entryNum(self): return len(self.dict['Data'])
     def iNum(self): return rje.iStr(self.entryNum())
     def fieldNum(self): return len(self.list['Fields'])
@@ -789,11 +802,15 @@ class Table(rje.RJE_Object):
             newkey = self.entryNum()
             while newkey in self.data() or str(newkey) in self.data(): newkey += 1
             return newkey
-        elif self.keys() in [['#'],['AutoID']]:
+        elif self.keys() in [['#'],['AutoID']] or len(self.keys()) == 1:
             kfield = self.keys()[0]
             return entry[kfield]
-        for kfield in self.keys(): newkey.append(str(entry[kfield]))
-        return string.join(newkey,self.info['Delimit'])
+        if self.getBool('TupleKeys'):
+            for kfield in self.keys(): newkey.append(entry[kfield])
+            return tuple(newkey)
+        else:
+            for kfield in self.keys(): newkey.append(str(entry[kfield]))
+            return string.join(newkey,self.info['Delimit'])
 #########################################################################################################################
     def autoID(self,log=True,startx=0):   ### Replaces existing keys with AutoID
         '''Replaces existing keys with AutoID.'''
@@ -918,7 +935,8 @@ class Table(rje.RJE_Object):
                     entry = self.dict['Data'].pop(dkey); ax += 1
                     entry['#'] = rje.preZero(ax,max(len(self.dict['Data']),9999))
                     self.dict['Data'][entry['#']] = entry
-                self.printLog('#KEY','Added AutoID key for %s entries' % rje.integerString(ax))               
+                self.printLog('#KEY','Added AutoID key for %s entries' % rje.integerString(ax))
+            elif self.getBool('TupleKeys'): self.remakeKeys()
         except: self.errorLog('Problem loading data from %s! Check keys: %s' % (filename,mainkeys)); raise
 #########################################################################################################################
     def loadDataIndex(self,filename,mainkeys=[],datakeys='All',delimit=None,headers=[],ignore=[],screen=True,uselower=False):   ### Loads
@@ -1037,6 +1055,7 @@ class Table(rje.RJE_Object):
                     entry['#'] = rje.preZero(ax,max(len(self.dict['Data']),9999))
                     self.dict['Data'][entry['#']] = entry
                 self.printLog('#KEY','Added AutoID key for %s entries' % rje.integerString(ax))               
+            elif self.getBool('TupleKeys'): self.remakeKeys()
         except: self.errorLog('Problem loading data from %s! Check keys: %s' % (filename,mainkeys)); raise
 #########################################################################################################################
     def saveToFile(self,filename=None,delimit=None,backup=True,append=False,savekeys=[],savefields=[],log=True):    ### Saves data to delimited file
@@ -1115,16 +1134,16 @@ class Table(rje.RJE_Object):
             fend = rje.endPos(FILE)
             if clear: self.dict['Data'] = {}
             self.list['MatchData'] = matchdata = []; prex = self.entryNum()
-            sorted = not entry  # Whether to scan through until match broken
+            esorted = not entry  # Whether to scan through until match broken
             if not entry: entry = self.readEntry(add=True)
             if not entry: return []
             for field in fields: matchdata.append(entry[field])
-            if not sorted: FILE.seek(0)
+            if not esorted: FILE.seek(0)
             ### ~ [1] Read entries ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             self.progLog('\r#READ','Reading %s entries (%s)...' % (self.name(),string.join(matchdata,'|')))
             while FILE:
                 fpos = FILE.tell()
-                next = self.readEntry(add=False,close=sorted)
+                next = self.readEntry(add=False,close=esorted)
                 for f in range(len(fields)):
                     if not next or next[fields[f]] != matchdata[f]: next = None; break
                 if not next and sorted:
@@ -1135,7 +1154,7 @@ class Table(rje.RJE_Object):
                 elif FILE.tell() >= fend: break
             if prex: self.printLog('\r#READ','%s %s entries read (%s) -> %s entries' % (rje.iStr(self.entryNum()-prex),self.name(),string.join(matchdata,'|'),rje.iStr(self.entryNum())))
             else: self.printLog('\r#READ','%s %s entries read (%s)' % (rje.iStr(self.entryNum()),self.name(),string.join(matchdata,'|')))
-            if not sorted: FILE.seek(fstart)
+            if not esorted: FILE.seek(fstart)
             return matchdata
         except: self.errorLog('Something went wrong during %s readSet()' % self.name())
 #########################################################################################################################
@@ -1143,9 +1162,12 @@ class Table(rje.RJE_Object):
 #########################################################################################################################
     def newField(self,fieldname,after='',evalue=None,log=True): return self.makeField(fieldname=fieldname,after=after,evalue=evalue,log=log)
     def addField(self,fieldname,after='',evalue=None,log=True): return self.makeField(fieldname=fieldname,after=after,evalue=evalue,log=log)
+    def addFields(self,fields,after='',evalue=None,log=True):
+        for fieldname in fields: self.makeField(fieldname=fieldname,after=after,evalue=evalue,log=log)
     def makeField(self,formula='',fieldname='',after='',evalue=None,log=True): ### Adds a field using data, If cannot calculate, will concatenate
         '''
-        Adds a field using data, If cannot calculate, will concatenate using #Field# replacements.
+        Adds a field using data, If cannot calculate, will concatenate using #Field# replacements (i.e. the formula
+        should contain #Field# and this will be replaced (w/o #) with the contents of that field.
         >> formula:str [''] = formula for generating new field data.
         '''
         try:### ~ [1] Setup and test formula ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -1551,6 +1573,7 @@ class Table(rje.RJE_Object):
                     for key in newkeys: newdata[nkey][key] = self.data()[oldkeys[0]][key]
                     for field in rules:
                         if field in newkeys: continue   # No need to process this as will be unique
+                        if field not in self.fields(): continue # Excess rules over fields!
                         values = []
                         numeric = not rules[field] in ['text','list','str']
                         for okey in oldkeys:
@@ -1698,6 +1721,7 @@ class Table(rje.RJE_Object):
         >> skipblank:bool [True] = skip empty ('') entries
         '''
         try:### ~ [1] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            self.setBool({'Formatted':False})
             intwarn = []; rekey = False
             for field in reformat:
                 self.dict['DataTypes'][field] = reformat[field].lower()
@@ -1735,6 +1759,7 @@ class Table(rje.RJE_Object):
                     newkey = self.makeKey(entry)
                     self.dict['Data'][newkey] = self.dict['Data'].pop(oldkey)
             self.printLog('\r#FORMAT','Reformatting %s complete: %s format errors' % (self.info['Name'],fx))
+            if not fx: self.setBool({'Formatted':True})
         except: return self.log.errorLog('Major problem during Table.dataFormat()')            
 #########################################################################################################################
 ### End of SECTION III: Table Class                                                                                     #

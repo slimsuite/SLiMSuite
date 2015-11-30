@@ -19,8 +19,8 @@
 """
 Module:       SLiMBench
 Description:  Short Linear Motif prediction Benchmarking
-Version:      2.10.0
-Last Edit:    21/04/15
+Version:      2.10.1
+Last Edit:    25/11/15
 Citation:     Palopoli N, Lythgow KT & Edwards RJ. Bioinformatics 2015; doi: 10.1093/bioinformatics/btv155 [PMID: 25792551]
 Copyright (C) 2012  Richard J. Edwards - See source code for GNU License Notice
 
@@ -148,6 +148,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 2.9.0 - Added SLiMMaker ELM reduction table and output.
     # 2.9.1 - Enabled download only with generate=F benchmark=F.
     # 2.10.0 - Add generation of table mapping PPIBench dataset generation.
+    # 2.10.1 - Updated ELM Source URLs.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -195,7 +196,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copyyear) = ('SLiMBench', '2.10.0', 'April 2015', '2012')
+    (program, version, last_edit, copyyear) = ('SLiMBench', '2.10.1', 'November 2015', '2012')
     description = 'Short Linear Motif prediction Benchmarking'
     author = 'Dr Richard J. Edwards.'
     comments = ['Cite: Palopoli N, Lythgow KT & Edwards RJ. Bioinformatics 2015; doi: 10.1093/bioinformatics/btv155 [PMID: 25792551]',
@@ -477,9 +478,9 @@ class SLiMBench(rje_obj.RJE_Object):
                     lastfile = gfile    # Possibly use the latest dated version
             if lastfile in [self.getStr(str), datefile, sourcefile, nowfile]: lastfile = None   # Only interested if different
             ## ~ [0b] Source URLs for downloads ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-            sourceurl = {'ELMClass':'http://elm.eu.org/elms/browse_elms.html?q=&submit=tsv',
-                         'ELMInstance':'http://elm.eu.org/elms/browse_instances.tsv?q=*&taxon=&instance_logic=',
-                         'ELMInteractors':'http://elm.eu.org/interactions/as_tsv',
+            sourceurl = {'ELMClass':'http://www.elm.eu.org/elms/elms_index.tsv',
+                         'ELMInstance':'http://www.elm.eu.org/instances.tsv?q=*',
+                         'ELMInteractors':'http://www.elm.eu.org/interactions/as_tsv',
                          'ELMDomains':'http://www.elm.eu.org/infos/browse_elm_interactiondomains.tsv',
                          'HINT.HUMAN':'http://hint.yulab.org/HumanBinaryHQ.txt',
                          'HINT.YEAST':'http://hint.yulab.org/CervBinaryHQ.txt',
@@ -617,18 +618,20 @@ class SLiMBench(rje_obj.RJE_Object):
             ### ~ [2] Load UniProt Data ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             sentry = sdb.addEntry({'Name':'ELMDat'})
             uni = self.obj['UniProt']
-            ufile = self.sourceDataFile('ELMDat',expect=False)
+            ufile = self.sourceDataFile('ELMDat',expect=False,force=False)
             if ufile: uni.setInfo({'Name':self.getStr('ELMDat'),'UniPath':self.getStr('SourcePath')})
             else: uni.setInfo({'DATOut':self.sourceDataFile('ELMDat',check=False)})
             elmacc = elmi.indexKeys('Primary_Acc') #+ elmi.indexKeys('ProteinName')
             while '' in elmacc: elmacc.remove('')
+            if self.force() and ufile and rje.yesNo('%s found but force=T. Regenerate?' % ufile):
+                self.printLog('#FORCE','Ignoring %s. (force=T)' % ufile); ufile = None
             if not ufile:
                 accfile = '%s.acc' % rje.baseFile(uni.getStr('DATOut'))
                 open(accfile,'w').write('%s\n' % string.join(elmacc,'\n'))
                 self.printLog('#ELMACC','%s ELM Uniprot accession numbers output to %s for manual download in case of failure.' % (rje.iLen(elmacc),accfile))
             uni.readUniProt(acclist=elmacc,cleardata=False)         # Extract entries for ELM proteins
             elmaccdict = uni.accDictFromEntries(acc_list=elmacc)    # Generates dictionary of {acc:UniProtEntry}
-            self.sourceDataFile('ELMDat',expect=True,ask=False)     # This should perform integrity check
+            self.sourceDataFile('ELMDat',expect=True,ask=False,force=False)     # This should perform integrity check
             sentry['Entries'] = len(elmaccdict)
             ## ~ [2a] Generate ELM UniProt mapping ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             elmi.addField('UniProt'); missing = []

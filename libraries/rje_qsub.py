@@ -19,8 +19,8 @@
 """
 Module:       rje_qsub
 Description:  QSub Generating module
-Version:      1.6.2
-Last Edit:    15/05/15
+Version:      1.6.3
+Last Edit:    10/07/15
 Copyright (C) 2006  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -69,6 +69,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 1.6 - Added modules=LIST : List of modules to add in job file [clustalo,mafft]
     # 1.6.1 - Added R/3.1.1 to modules.
     # 1.6.2 - Updated module list: blast+/2.2.30,clustalw,clustalo,fsa,mafft,muscle,pagan,R/3.1.1
+    # 1.6.3 - Tweaked the showstart command for katana.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -80,7 +81,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo():     ### Makes Info object
     '''Makes rje.Info object for program.'''
-    (program, version, last_edit, copy_right) = ('RJE_QSUB', '1.6.2', 'May 2015', '2006')
+    (program, version, last_edit, copy_right) = ('RJE_QSUB', '1.6.3', 'July 2015', '2006')
     description = 'QSub Generating module'
     author = 'Dr Richard J. Edwards.'
     comments = [rje_zen.Zen().wisdom()]
@@ -268,7 +269,7 @@ class QSub(rje.RJE_Object):
             qid = string.split(qrun,'.')[0]
             self.printLog('#SHOW','Attempt showstart %s in %s sec' % (qid,self.stat['Pause']),log=False)
             time.sleep(self.stat['Pause'])
-            for qline in os.popen('showstart %s' % qid):
+            for qline in os.popen('showstart %s' % qrun):   #qid):
                 if rje.chomp(qline): self.printLog('#INFO', qline, timeout=False)
             return True
         except: self.errorLog('Error in qsub()'); return False

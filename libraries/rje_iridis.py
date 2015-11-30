@@ -19,8 +19,8 @@
 """
 Module:       RJE_IRIDIS
 Description:  Parallel processing on IRIDIS
-Version:      1.10
-Last Edit:    02/02/14
+Version:      1.10.2
+Last Edit:    29/11/15
 Copyright (C) 2008  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -90,6 +90,8 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 1.8 - Added load balance option for SortRun: splits jobs equally between large and small input (& ends in middle).
     # 1.9 - Added scanning of legacy folder - moving GOPHER_V2!
     # 1.10- Modified freemem setting to run on Katana. Made rsh optional. Removed defunct IRIDIS3 option.
+    # 1.10.1 - Attempted to fix SLiMFarmer batch run problem. (Should not be setting irun=batch!)
+    # 1.10.2 - Trying to clean up unknown 30s pause. Might be freemem issue?
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -103,7 +105,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo():     ### Makes Info object
     '''Makes rje.Info object for program.'''
-    (program, version, last_edit, copyright) = ('RJE_IRIDIS', '1.10', 'February 2014', '2008')
+    (program, version, last_edit, copyright) = ('RJE_IRIDIS', '1.10.2', 'November 2015', '2008')
     description = 'Parallel processing on IRIDIS'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_zen.Zen().wisdom()]
@@ -180,7 +182,7 @@ class IRIDIS(rje.RJE_Object):
     Stat:numeric
     - IOLimit = Limit of number of IOErrors before termination [50]
     - KeepFree = Number of processors to keep free on head node [1]
-    - MemFree = Min. proportion of node memory to be free before spawning job [0.1]
+    - MemFree = Min. proportion of node memory to be free before spawning job [0.0]
     - SubSleep = Sleep time (seconds) between cycles of subbing out jobs to hosts [1]
 
     List:list
@@ -260,12 +262,13 @@ class IRIDIS(rje.RJE_Object):
             ## ~ [1b] ~ Read list of node names in file $PBS_NODEFILE ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             self.setHosts()
             if self.opt['SeqBySeq']: return self.seqBySeq()
-            if self.info['iRun'] not in ['','None']:
+            if self.info['iRun'] not in ['','None','batch']:
                 self.printLog('#FARM','Performing %s run.' % self.getStr('iRun'))
                 return iRun(self,self.info['iRun'])
             ## ~ [1c] ~ Set subjobs if not already given ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             self.set_subjobs()
             self.printLog('#JOBS','Running %d subjobs on %d hosts' % (len(self.list['SubJobs']),self.nprocs()))
+            self.printLog('#TIME','%s second sleep between subjob cycles' % (self.getStat('SubSleep')))
             ### ~ [2] ~ Run Jobs ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             self.runJobs()
         except SystemExit: raise    # Child exit
@@ -323,12 +326,13 @@ class IRIDIS(rje.RJE_Object):
         '''Sets an new job running on host with given index.'''
         try:### ~ [1] ~ Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             node = self.list['Hosts'][host_id]
-            freemem = self.freeMem(node)
             if self.opt['SeqBySeq']: return self.nextSeqJob(host_id)
             jdict = self.dict['Running'][host_id] = {}      # Setup empty dictionary to fill, if jobs available
-            if self.stat['MemFree'] > 0.0 and freemem < self.stat['MemFree']: 
-                jdict['PID'] = 'WAIT - %.1f%% %s mem' % (freemem*100.0,node)
-                return
+            if self.stat['MemFree'] > 0.0:
+                freemem = self.freeMem(node)
+                if freemem < self.stat['MemFree']:
+                    jdict['PID'] = 'WAIT - %.1f%% %s mem' % (freemem*100.0,node)
+                    return
             if self.list['SubJobs']: job = self.list['SubJobs'].pop(0)
             else: return
             if self.opt['RjePy']: jdict['Log'] = '%si_%s.log' % (self.info['RunPath'],rje.randomString(6))
@@ -342,7 +346,9 @@ class IRIDIS(rje.RJE_Object):
             cpid = os.fork()        # Fork child process
             if cpid:                # parent process records pid of child rsh process
                 jdict['PID'] = cpid
-                self.printLog('#JOB','Running job as %s: %d remain; %.1f%% mem free' % (cpid,len(self.list['SubJobs']),freemem*100.0))
+                if self.stat['MemFree'] > 0.0:
+                    self.printLog('#JOB','Running job as %s: %d remain; %.1f%% mem free' % (cpid,len(self.list['SubJobs']),freemem*100.0))
+                else: self.printLog('#JOB','Running job as %s: %d remain' % (cpid,len(self.list['SubJobs'])))
             else:                   # child process
                 if self.getBool('RSH'): os.system(rsh)
                 else: os.system(job)
@@ -499,7 +505,7 @@ def iRun(irun,itype):    ### Executes a special IRIDIS running using IRIDIS obje
         elif itype.lower() == 'qslimfinder': i = iSLiMFinder(irun.log,irun.cmd_list+['qslimfinder=T'])
         elif itype.lower() == 'slimsearch': i = iSLiMSearch(irun.log,irun.cmd_list)
         elif itype.lower() == 'unifake': i = iUniFake(irun.log,irun.cmd_list)
-        else: raise ValueError
+        else: raise ValueError('%s is not a valid rje_iridis.IRun() type!' % itype)
         i.info['RunPath'] == rje.makePath(os.path.abspath(os.curdir))
         i.list['Hosts'] = irun.list['Hosts']
         return i.run()

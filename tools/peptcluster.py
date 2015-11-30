@@ -19,8 +19,8 @@
 """
 Module:       PeptCluster
 Description:  Peptide Clustering Module
-Version:      1.5.1
-Last Edit:    20/05/15
+Version:      1.5.2
+Last Edit:    26/11/15
 Webserver:    http://bioware.soton.ac.uk/peptcluster.html
 Copyright (C) 2012  Richard J. Edwards - See source code for GNU License Notice
 
@@ -85,6 +85,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 1.4 - Bug fixes for end of sequence characters and different length peptides.
     # 1.5.0 - Added peptalign=T/F/X function for aligning peptides using regex or minimal gap addition. Added REST.
     # 1.5.1 - Updated REST output. Removed peptide redundancy.
+    # 1.5.2 - Improved clarity of warning message.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -99,7 +100,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, cyear) = ('PeptCluster', '1.5.1', 'May 2015', '2012')
+    (program, version, last_edit, cyear) = ('PeptCluster', '1.5.2', 'November 2015', '2012')
     description = 'Peptide Clustering Module'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_zen.Zen().wisdom()]
@@ -415,7 +416,9 @@ class PeptCluster(rje_obj.RJE_Object):
                     else: variants[pept] = [pept]
                 ## ~ [1b] ~ Make list of peptide length variants, adding - to regex wildvar positions ##
                 else:
+                    self.debug(slimvar)
                     for var in slimvar:
+                        self.debug(var)
                         peptvar = ''    # Add new variant
                         i = 0
                         if termini: peptvar += pept[i]; i += 1
@@ -431,6 +434,7 @@ class PeptCluster(rje_obj.RJE_Object):
                             if regex[-1] != '$':
                                 if i < len(pept): peptvar += pept[i]
                                 i += 1
+                            self.debug('%s >> %s' % (pept,peptvar))
                             rmatch = rje.matchExp('(%s)' % regex,peptvar[1:-1])
                             self.bugPrint('%s vs %s: %s' % (regex,peptvar[1:-1],rmatch))
                             self.debug('%s vs %s and %s vs %s' % (i,len(pept),len(peptvar),maxlen))
@@ -440,7 +444,7 @@ class PeptCluster(rje_obj.RJE_Object):
                         if keepvar and peptvar not in variants[pept]: variants[pept].append(peptvar)
                 ## ~ [1c] ~ Check Peptide variants ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
                 if len(variants[pept]) == 1: singletons.append(variants.pop(pept)[0])
-                elif not variants[pept]: self.warnLog('No %s variants match %s!' % (pept,regex)); variants.pop(pept); failx += 1
+                elif not variants[pept]: self.warnLog('No %s gap variants completely match %s!' % (pept,regex)); variants.pop(pept); failx += 1
             self.printLog('#VAR','%s peptides: %s singletons; %s with possible variants.' % (rje.iLen(peptides),rje.iLen(singletons),rje.iLen(variants)))
             self.debug(singletons)
             self.debug(variants)

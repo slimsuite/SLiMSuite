@@ -19,8 +19,8 @@
 """
 Module:       SLiMParser
 Description:  SLiMSuite REST output parsing tool.
-Version:      0.3.2
-Last Edit:    05/06/15
+Version:      0.3.3
+Last Edit:    31/07/15
 Copyright (C) 2014  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -70,6 +70,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 0.3.0 - Added parsing of input files to give to rest calls.
     # 0.3.1 - Fixed issue that had broken REST server full output.
     # 0.3.2 - Fixed issue reading files for full output.
+    # 0.3.3 - Tidied output names when restbase=jobid.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -84,7 +85,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copy_right) = ('SLiMParser', '0.3.2', 'June 2015', '2014')
+    (program, version, last_edit, copy_right) = ('SLiMParser', '0.3.3', 'July 2015', '2014')
     description = 'SLiMSuite REST output parsing tool'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_obj.zen()]
@@ -297,6 +298,7 @@ class SLiMParser(rje_obj.RJE_Object):
                     rfile = '%s.%s' % (rbase,rje.baseFile(rparse[2],strip_path=True,keepext=True))
                 except: rfile = ''
                 if not rfile: rfile = '%s.%s' % (rbase,rkey)
+                rfile = string.replace(rfile,'%s.%s.' % (jobid,jobid),'%s.' % jobid)
                 self.dict['Output'][rkey] = string.join(restlines,'\n')
                 self.dict['Outfile'][rkey] = rfile
                 self.list['RestKeys'].append(rkey)

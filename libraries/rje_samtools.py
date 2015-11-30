@@ -19,8 +19,8 @@
 """
 Module:       rje_samtools
 Description:  RJE SAMtools parser and processor
-Version:      0.0
-Last Edit:    22/04/13
+Version:      0.1.0
+Last Edit:    17/11/15
 Copyright (C) 2013  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -57,6 +57,7 @@ import rje, rje_db, rje_obj, rje_zen
 def history():  ### Program History - only a method for PythonWin collapsing! ###
     '''
     # 0.0 - Initial Compilation.
+    # 0.1.0 - Modified version to handle multiple loci per file. (Original was for single bacterial chromosomes.)
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -69,11 +70,14 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
     # [ ] : Add option to output data for specific subset of positions (e.g. from different analysis)
     # [ ] : Add option to compare outputs with different QCs?
     # [ ] : Add options/warnings for low QN counts?
+    # [ ] : Add Locus to SNP table.
+    # [ ] : Add Locus to mpileup reading.
+    # [ ] : Add pvalue threshold and p-value cutoff summaries.
     '''
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copyyear) = ('rje_samtools', '0.0', 'April 2013', '2013')
+    (program, version, last_edit, copyyear) = ('rje_samtools', '0.1.0', 'November 2015', '2013')
     description = 'RJE SAMtools parser and processor'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_zen.Zen().wisdom()]
@@ -218,28 +222,32 @@ class SAMtools(rje_obj.RJE_Object):
     def setup(self):    ### Main class setup method.
         '''Main class setup method.'''
         try:### ~ [1] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            self.obj['DB'] = rje_db.Database(self.log,self.cmd_list)
+            self.obj['DB'] = rje_db.Database(self.log,self.cmd_list+['tuplekeys=T'])
             if self.baseFile().lower() in ['','none']: self.baseFile('%s.vs.%s.Q%d' % (rje.baseFile(self.getStr('MutPileup'),True),rje.baseFile(self.getStr('WTPileup'),True),self.getInt('QCut')))
             if not self.force() and os.path.exists('%s.fdr.tdt' % self.baseFile()): return
             ### ~ [2] Look for/process WT Data ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if self.force() or not os.path.exists('%s.WT.tdt' % self.baseFile()): self.parsePileup('WT',self.getStr('WTPileup'))
-            refseq = ''
-            majors = []
+            ### ~ [3] Generate Reference sequences and Major Alleles (by locus) ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            refseq = {}; rx = 0
+            majors = {}
+            locus = None
             WTDATA = open('%s.WT.tdt' % self.baseFile(),'r'); wx = 0
             for line in WTDATA:
-                self.progLog('\r#WT','Reading WT data: Reference seq length = %s nt' % (rje.iLen(refseq)),rand=0.01)
+                self.progLog('\r#WT','Reading WT data: Reference seq length = %s nt' % (rje.iStr(rx)),rand=0.01)
                 data = rje.readDelimit(line); wx += 1
-                if data[0] == 'Pos': continue
+                if data[0] == 'Locus': continue
                 else:
-                    pos = int(data[0])
-                    while (pos - 1) > len(refseq): refseq += '?'
-                    while (pos - 1) > len(majors): majors.append('-')
-                    refseq += data[1]; majors.append(data[4])
+                    if data[0] != locus: locus = data[0]; refseq[locus] = ''; majors[locus] = []
+                    pos = int(data[1])
+                    while (pos - 1) > len(refseq[locus]): refseq[locus] += '?'; rx += 1
+                    while (pos - 1) > len(majors[locus]): majors[locus].append('-')
+                    refseq[locus] += data[2]; majors[locus].append(data[5]); rx += len(data[2])
             WTDATA.close()
-            self.printLog('\r#WT','%s lines read from WT data: Reference seq length = %s nt' % (rje.iStr(wx),rje.iLen(refseq)))
-            if len(majors) != len(refseq): self.errorLog('WTMajor versus RefSeq length mismatch!',printerror=False); raise ValueError
-            self.list['WTMajor'] = majors
-            self.str['RefSeq'] = refseq
+            self.printLog('\r#WT','%s lines read from WT data: Reference seq length = %s nt' % (rje.iStr(wx),rje.iStr(rx)))
+            for locus in rje.sortKeys(majors):
+                if len(majors[locus]) != len(refseq[locus]): self.errorLog('%s WTMajor versus RefSeq length mismatch!' % locus,printerror=False); raise ValueError
+            self.dict['WTMajor'] = majors
+            self.dict['RefSeq'] = refseq
             ### ~ [3] Look for/process Mutant Data ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if self.force() or not os.path.exists('%s.Mut.tdt' % self.baseFile()): self.parsePileup('Mut',self.getStr('MutPileup'),True)
             return True     # Setup successful
@@ -250,21 +258,23 @@ class SAMtools(rje_obj.RJE_Object):
     def parsePileup(self,tname,filename,wtdb=None):  ### Extracts, filters and processes PileUp data
         '''Extracts, filters and processes PileUp data.'''
         try:### ~ [1] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            table = self.db().addEmptyTable(tname,['Pos','Seq','N','QN','Major','MajFreq'],keys=['Pos'])
+            table = self.db().addEmptyTable(tname,['Locus','Pos','Seq','N','QN','Major','MajFreq'],keys=['Locus','Pos'])
             qc = []
             if wtdb: table.addField('WTFreq')
             PILEUP = open(filename,'r'); px = 0; ex = 0
             PILEOUT = open('%s.%s.tdt' % (self.baseFile(),tname),'w')
             rje.writeDelimit(PILEOUT,outlist=table.fields(),delimit='\t')
-            refseq = ''
-            majors = []
+            locus = None
+            refseq = ''     #? What is this used for?
+            majors = []     #? What is this used for?
             ### ~ [2] Process each entry ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             for line in PILEUP:
                 data = string.split(rje.chomp(line))
                 if not data: break
                 self.progLog('\r#PARSE','Parsing %s: %s pos...' % (filename,rje.iStr(px)),rand=0.01); px += 1
                 ## ~ [2a] Extract Read Data ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-                entry = {'Pos':int(data[1]),'Seq':data[2],'N':int(data[3]),'QN':0}
+                entry = {'Locus':data[0],'Pos':int(data[1]),'Seq':data[2],'N':int(data[3]),'QN':0}
+                if entry['Locus'] != locus: locus = entry['Locus']; refseq = ''; majors = []
                 refseq += data[2]
                 #entry => 'Ref','Pos','Seq','N','Reads','Qual'
                 rseq = data[4]
@@ -308,7 +318,7 @@ class SAMtools(rje_obj.RJE_Object):
                     qual.append(ord(q) - 33)
                     qc += [0] * (qual[-1] - len(qc)); qc[qual[-1]-1] += 1
                 while len(qual) < len(reads) and reads[len(qual)][0] == '-': qual.append(self.getInt('QCut'))
-                while '*' in reads: reads[reads.index('*')] = '-1%s' % entry['Seq'].upper()
+                while '*' in reads: reads[reads.index('*')] = '-'   #'-1%s' % entry['Seq'].upper()
                 if len(reads) != len(qual):
                     self.deBug('%s = %d' % (reads,len(reads)))
                     self.deBug('%s = %d' % (qual,len(qual)))
@@ -324,7 +334,7 @@ class SAMtools(rje_obj.RJE_Object):
                     if qual[r] < self.getInt('QCut'): qual.pop(r); reads.pop(r)
                 entry['QN'] = len(reads)
                 ## ~ [2d] Major Allele ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-                alleles = {};
+                alleles = {}
                 if reads: major = reads[0]
                 else: major = '-'; alleles[major] = 0
                 for read in reads:
@@ -337,10 +347,10 @@ class SAMtools(rje_obj.RJE_Object):
                 else: entry['MajFreq'] = 0.0
                 if wtdb:
                     try:
-                        wtmajor = self.list['WTMajor'][entry['Pos']-1]
+                        wtmajor = self.dict['WTMajor'][locus][entry['Pos']-1]
                         if wtmajor in alleles and reads: entry['WTFreq'] = 1.0 - max(self.getNum('MinFreq'),(len(reads) - alleles[wtmajor]) / float(len(reads)))
                         else: entry['WTFreq'] = 0.0
-                    except: self.errorLog('WTFreq Error (Pos=%d)' % entry['Pos']); entry['WTFreq'] = 0.0
+                    except: self.warnLog('WTFreq Error (%s:Pos=%d) [Probably no WT read mapped]' % (locus,entry['Pos'])); entry['WTFreq'] = 0.0
                 if entry['Pos'] in [190359]:    #100,98901,183697,169284,
                     self.deBug(qual)
                     self.deBug(reads)
@@ -371,66 +381,87 @@ class SAMtools(rje_obj.RJE_Object):
             if not self.force() and os.path.exists(statfile): return self.pileUpFDR()
             ## ~ [0a] Load WT Data ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             wtdata = {}     # Load lists of data for compiling
-            for field in ['N','QN','MajFreq']: wtdata[field] = []
+            for locus in self.dict['RefSeq']:
+                wtdata[locus] = {}
+                for field in ['N','QN','MajFreq']: wtdata[locus][field] = []
             WTDATA = open('%s.WT.tdt' % self.baseFile(),'r'); wx = 1
             fields = []
             for line in WTDATA:
                 data = rje.readDelimit(line)
                 if fields:
-                    pos = int(data[0])
+                    locus = data[0]
+                    pos = int(data[1])
                     while pos > wx:
-                        wtdata['N'].append(0); wtdata['QN'].append(0); wtdata['MajFreq'].append(0.0); wx += 1
-                    for field in ['N','QN']: wtdata[field].append(int(data[fields.index(field)]))
-                    for field in ['MajFreq']: wtdata[field].append(string.atof(data[fields.index(field)]))
+                        wtdata[locus]['N'].append(0); wtdata[locus]['QN'].append(0); wtdata[locus]['MajFreq'].append(0.0); wx += 1
+                    for field in ['N','QN']: wtdata[locus][field].append(int(data[fields.index(field)]))
+                    for field in ['MajFreq']: wtdata[locus][field].append(string.atof(data[fields.index(field)]))
                     wx += 1
                 else: fields = data[0:]
             WTDATA.close()
             ## ~ [0b] Load WT Data ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             mutdata = {}     # Load lists of data for compiling
-            for field in ['N','QN','Major','MajFreq','WTFreq']: mutdata[field] = []
+            for locus in self.dict['RefSeq']:
+                mutdata[locus] = {}
+                for field in ['N','QN','Major','MajFreq','WTFreq']: mutdata[locus][field] = []
             MUTDATA = open('%s.Mut.tdt' % self.baseFile(),'r'); mx = 1
             fields = []
             for line in MUTDATA:
                 data = rje.readDelimit(line)
                 if fields:
-                    pos = int(data[0])
-                    if self.str['RefSeq'][pos-1] == '?': self.str['RefSeq'] = self.str['RefSeq'][:pos-1] + data[1] + self.str['RefSeq'][pos:]
+                    locus = data[0]
+                    self.str['RefSeq'] = self.dict['RefSeq'][locus]
+                    pos = int(data[1])
+                    try:
+                        if pos > len(self.str['RefSeq']):
+                            while (pos-1) > len(self.str['RefSeq']): self.str['RefSeq'] += '?'
+                            self.str['RefSeq'] += data[2]
+                            self.dict['RefSeq'][locus] = self.str['RefSeq']
+                        elif self.str['RefSeq'][pos-1] == '?':
+                            self.str['RefSeq'] = self.str['RefSeq'][:pos-1] + data[2] + self.str['RefSeq'][pos:]
+                            self.dict['RefSeq'][locus] = self.str['RefSeq']
+                    except: self.warnLog('Problem mapping Pos %s onto %snt %s RefSeq' % (rje.iStr(pos),locus,rje.iLen(self.str['RefSeq'])))
                     while pos > mx:
-                        mutdata['N'].append(0); mutdata['QN'].append(0); mutdata['Major'].append('-'); mutdata['MajFreq'].append(0.0); mutdata['WTFreq'].append(0.0); mx += 1
-                    for field in ['N','QN']: mutdata[field].append(int(data[fields.index(field)]))
-                    for field in ['MajFreq','WTFreq']: mutdata[field].append(string.atof(data[fields.index(field)]))
-                    for field in ['Major']: mutdata[field].append(data[fields.index(field)])
+                        mutdata[locus]['N'].append(0); mutdata[locus]['QN'].append(0); mutdata[locus]['Major'].append('-'); mutdata[locus]['MajFreq'].append(0.0); mutdata[locus]['WTFreq'].append(0.0); mx += 1
+                    for field in ['N','QN']: mutdata[locus][field].append(int(data[fields.index(field)]))
+                    for field in ['MajFreq','WTFreq']: mutdata[locus][field].append(string.atof(data[fields.index(field)]))
+                    for field in ['Major']: mutdata[locus][field].append(data[fields.index(field)])
                     mx += 1
                 else: fields = data[0:]
             MUTDATA.close()
             ## ~ [0c] Integrity check ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-            for field in wtdata:    #!# Won't be true - not all reference genome positions present in output (0 mapped reads)
-                if len(wtdata[field]) != len(self.str['RefSeq']): self.errorLog('Data length mismatch for WT %s' % field,printerror=False); raise ValueError
-            for field in mutdata:    #!# Won't be true - not all reference genome positions present in output (0 mapped reads)
-                if len(mutdata[field]) != len(self.str['RefSeq']): self.errorLog('Data length mismatch for Mutant %s' % field,printerror=False); raise ValueError
-            self.printLog('#REF','WT and Mutant data for %s reference positions' % rje.iLen(self.str['RefSeq']))
+            #!# Need a new check with locus info #!#
+            #for field in wtdata:    #!# Won't be true - not all reference genome positions present in output (0 mapped reads)
+            #    if len(wtdata[field]) != len(self.str['RefSeq']): self.errorLog('Data length mismatch for WT %s' % field,printerror=False); raise ValueError
+            #for field in mutdata:    #!# Won't be true - not all reference genome positions present in output (0 mapped reads)
+            #    if len(mutdata[field]) != len(self.str['RefSeq']): self.errorLog('Data length mismatch for Mutant %s' % field,printerror=False); raise ValueError
+            #self.printLog('#REF','WT and Mutant data for %s reference positions' % rje.iLen(self.str['RefSeq']))
             ### ~ [1] Assess and output ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             SAMSIG = open('%s.pdiff.tdt' % self.baseFile(),'w')
-            headers = ['Pos','Ref','WT.N','WT.QN','WT.Major','WT.MajFreq','Mut.N','Mut.QN','Mut.Major','Mut.MajFreq','Mut.WTFreq','p.Over','p.Under','p.Diff']
+            headers = ['Locus','Pos','Ref','WT.N','WT.QN','WT.Major','WT.MajFreq','Mut.N','Mut.QN','Mut.Major','Mut.MajFreq','Mut.WTFreq','p.Over','p.Under','p.Diff']
             SAMSIG.write('%s\n' % string.join(headers,'\t'))
-            for i in range(len(self.str['RefSeq'])):
-                sigdata = [i+1,self.str['RefSeq'][i],wtdata['N'][i],wtdata['QN'][i],self.list['WTMajor'][i],wtdata['MajFreq'][i],
-                           mutdata['N'][i],mutdata['QN'][i],mutdata['Major'][i],mutdata['MajFreq'][i],mutdata['WTFreq'][i]]
-                if self.getBool('MajDif') and self.list['WTMajor'][i] == mutdata['Major'][i]: sigdata += [1.0,1.0]
-                elif not wtdata['MajFreq'][i]:    # No Data for WT
-                    if mutdata['WTFreq'][i]: sigdata += [0.0,1.0]
+            for locus in rje.sortKeys(self.dict['RefSeq']):
+                self.str['RefSeq'] = self.dict['RefSeq'][locus]
+                self.list['WTMajor'] = self.dict['WTMajor'][locus]
+                for i in range(len(self.str['RefSeq'])):
+                    try:
+                        sigdata = [locus,i+1,self.str['RefSeq'][i],wtdata[locus]['N'][i],wtdata[locus]['QN'][i],self.list['WTMajor'][i],wtdata[locus]['MajFreq'][i],
+                                   mutdata[locus]['N'][i],mutdata[locus]['QN'][i],mutdata[locus]['Major'][i],mutdata[locus]['MajFreq'][i],mutdata[locus]['WTFreq'][i]]
+                    except: self.warnLog('Incomplete data for %s:%s (no pdiff output)' % (locus,rje.iStr(i+1))); continue
+                    if self.getBool('MajDif') and self.list['WTMajor'][i] == mutdata[locus]['Major'][i]: sigdata += [1.0,1.0]
+                    elif not wtdata[locus]['MajFreq'][i]:    # No Data for WT
+                        if mutdata[locus]['WTFreq'][i]: sigdata += [0.0,1.0]
+                        else: sigdata += [1.0,1.0]
+                    elif mutdata[locus]['WTFreq'][i] > wtdata[locus]['MajFreq'][i]:
+                        obs = int((mutdata[locus]['QN'][i] * mutdata[locus]['WTFreq'][i]) + 0.5)
+                        sigdata.append(rje.binomial(obs,mutdata[locus]['QN'][i],wtdata[locus]['MajFreq'][i],usepoisson=False,callobj=self))
+                        sigdata.append(1.0)
+                    elif mutdata[locus]['WTFreq'][i] < wtdata[locus]['MajFreq'][i]:
+                        obs = int((mutdata[locus]['QN'][i] * mutdata[locus]['WTFreq'][i]) + 0.5)
+                        sigdata.append(1.0)
+                        sigdata.append(1.0 - rje.binomial(obs+1,mutdata[locus]['QN'][i],wtdata[locus]['MajFreq'][i],usepoisson=False,callobj=self))
                     else: sigdata += [1.0,1.0]
-                elif mutdata['WTFreq'][i] > wtdata['MajFreq'][i]:
-                    obs = int((mutdata['QN'][i] * mutdata['WTFreq'][i]) + 0.5)
-                    sigdata.append(rje.binomial(obs,mutdata['QN'][i],wtdata['MajFreq'][i],usepoisson=False,callobj=self))
-                    sigdata.append(1.0)                                
-                elif mutdata['WTFreq'][i] < wtdata['MajFreq'][i]:
-                    obs = int((mutdata['QN'][i] * mutdata['WTFreq'][i]) + 0.5)
-                    sigdata.append(1.0)
-                    sigdata.append(1.0 - rje.binomial(obs+1,mutdata['QN'][i],wtdata['MajFreq'][i],usepoisson=False,callobj=self))
-                else: sigdata += [1.0,1.0]
-                sigdata.append(min(1.0,2*min(sigdata[-2:])))
-                rje.writeDelimit(SAMSIG,sigdata)
+                    sigdata.append(min(1.0,2*min(sigdata[-2:])))
+                    rje.writeDelimit(SAMSIG,sigdata)
             SAMSIG.close()
             ### ~ [2] FDR Correction ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             self.pileUpFDR()
@@ -442,7 +473,9 @@ class SAMtools(rje_obj.RJE_Object):
             fdrfile = '%s.fdr.tdt' % self.baseFile()
             if not self.force() and os.path.exists(fdrfile): return 
             sigpval = {}    # pval:[fpos]
-            npos = len(self.str['RefSeq']) - self.str['RefSeq'].count('?'); nx = 0
+            npos = 0; nx = 0
+            for locus in rje.sortKeys(self.dict['RefSeq']):
+                npos += len(self.dict['RefSeq'][locus]) - self.dict['RefSeq'][locus].count('?')
             ### ~ [1] Parse out stats ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             SAMSIG = open('%s.pdiff.tdt' % self.baseFile(),'r')
             headers = string.split(SAMSIG.readline()) + ['p.FDR']
@@ -476,43 +509,61 @@ class SAMtools(rje_obj.RJE_Object):
     def combineSNPs(self):  ### Calculates statistics of genetic differences from parsed PileUp Tables
         '''Calculates statistics of genetic differences from parsed PileUp Tables.'''
         try:### ~ [0] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            fdb = self.db().addTable(name='fdr',expect=True,mainkeys=['Pos'])
+            if not self.list['SNPTables']: self.printLog('\r#SNP','No SNP tables to add.'); return False
+            fdb = self.db().addTable(name='fdr',expect=True,mainkeys=['Locus','Pos'])
+            fdb.remakeKeys()   #!# Delete once tuple thing OK
+            fdbkeys = fdb.dataKeys()
+            self.debug(fdbkeys[:100])
             snps = []
             snppos = []
             for snptable in self.list['SNPTables']:
-                snps.append(self.db().addTable(snptable,name=rje.baseFile(snptable,True),expect=True,mainkeys=['Pos']))
+                snps.append(self.db().addTable(snptable,name=rje.baseFile(snptable,True),expect=True,mainkeys=['Locus','Pos']))
                 snps[-1].addField('SNP',evalue="YES")
-                for pos in snps[-1].dataKeys():
-                    if pos not in snppos + fdb.dataKeys(): snppos.append(pos)  
+                self.debug(snps[-1].dataKeys()[:100])
+                snps[-1].remakeKeys()   #!# Delete once tuple thing OK
+                self.debug(snps[-1].dataKeys()[:100])
+                px = 0; ptot = snps[-1].entryNum(); sx = 0
+                for pos in snps[-1].dataKeys(): # This should be a (Locus,Pos) tuple
+                    self.progLog('\r#SNP','Scanning %s for extra SNP positions: %.2f%%' % (snps[-1].name(),px/ptot)); px += 100.0
+                    if pos not in snppos + fdbkeys: snppos.append(pos); sx += 1
+                self.printLog('\r#SNP','Scanned %s for extra SNP positions: %s to add.' % (snps[-1].name(),rje.iStr(sx)))
             ## ~ [0a] Add missing data from other tables ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-            SAMSIG = open('%s.pdiff.tdt' % self.baseFile(),'r'); px = 0; ptot = len(snppos)
-            fline = SAMSIG.readline(); headers = rje.readDelimit(fline)
-            fline = SAMSIG.readline()
-            self.progLog('\r#SNP','%s/%s SNP positions added from PDiff file.' % (rje.iStr(px),rje.iStr(ptot)))
-            while fline:
-                data = rje.readDelimit(fline)
-                if data[0] in snppos:
-                    entry = {'p.FDR':'-'}
-                    for i in range(len(data)): entry[headers[i]] = data[i]
-                    fdb.addEntry(entry); px += 1
-                    snppos.remove(data[0])
-                    self.progLog('\r#SNP','%s/%s SNP positions added from PDiff file.' % (rje.iStr(px),rje.iStr(ptot)))
-                if not snppos: break
+            if snppos:
+                SAMSIG = open('%s.pdiff.tdt' % self.baseFile(),'r'); px = 0; ptot = len(snppos); ix = 0
+                fline = SAMSIG.readline(); headers = rje.readDelimit(fline)
                 fline = SAMSIG.readline()
-            SAMSIG.close()
-            self.printLog('\r#SNP','%s/%s SNP positions added from PDiff file.' % (rje.iStr(px),rje.iStr(ptot)))
+                self.progLog('\r#SNP','%s/%s SNP positions added from %s PDiff filelines.' % (rje.iStr(px),rje.iStr(ptot),rje.iStr(ix)))
+                while fline:
+                    data = rje.readDelimit(fline); ix += 1
+                    if (data[0],data[1]) in snppos:
+                        entry = {'p.FDR':'-'}
+                        for i in range(len(data)): entry[headers[i]] = data[i]
+                        fdb.addEntry(entry); px += 1
+                        snppos.remove((data[0],data[1]))
+                        self.progLog('\r#SNP','%s/%s SNP positions added from %s PDiff filelines.' % (rje.iStr(px),rje.iStr(ptot),rje.iStr(ix)))
+                    else: self.progLog('\r#SNP','%s/%s SNP positions added from %s PDiff filelines.' % (rje.iStr(px),rje.iStr(ptot),rje.iStr(ix)))
+                    if not snppos: break
+                    fline = SAMSIG.readline()
+                SAMSIG.close()
+                self.printLog('\r#SNP','%s/%s SNP positions added from PDiff file.' % (rje.iStr(px),rje.iStr(ptot)))
+            else: self.printLog('\r#SNP','No SNP positions to add.'); return False
 
             ### ~ [1] Join Tables ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             temp = fdb
+            temp.makeField('#Locus#|#Pos#')
             for snptable in snps:
-                newtemp = self.db().joinTables(name='newtemp',join=[(temp,'Pos'),(snptable,'Pos',['SNP'])],newkey=['Pos'],keeptable=True)
+                snptable.makeField('#Locus#|#Pos#')
+                newtemp = self.db().joinTables(name='newtemp',join=[(temp,'#Locus#|#Pos#'),(snptable,'#Locus#|#Pos#',['SNP'])],newkey=['Locus','Pos'],keeptable=True)
+                self.printLog('#SNP','Added SNPs from %s' % snptable.name())
                 self.db().deleteTable(temp)
                 temp = newtemp
                 temp.renameField('SNP',snptable.name())
                 temp.setStr({'Name':'temp'})
+            temp.dropField('#Locus#|#Pos#')
             self.db().list['Tables'].append(temp)
             temp.setStr({'Name':'SNPs'})
-            temp.saveToFile()                                           
+            temp.saveToFile()
+            return temp
         except: self.errorLog('%s.pileUpStats() error' % (self)); return None
 #########################################################################################################################
 ### End of SECTION II: SAMtools Class                                                                                   #

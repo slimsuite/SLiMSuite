@@ -7,8 +7,8 @@
 """
 Module:       rje_pam
 Description:  Contains Objects for PAM matrices
-Version:      1.2
-Last Edit:    16/11/10
+Version:      1.2.1
+Last Edit:    27/11/15
 Copyright (C) 2005  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -58,6 +58,7 @@ import rje
 # 1.0 - Better documentation to go with GASP V:1.2
 # 1.1 - Tidied module up and improved text logging slightly
 # 1.2 - Added WAG to PAM conversion
+# 1.2.1 - Fixed path to PAM file.
 #########################################################################################################################
 ### Major Functionality to Add
 # [ ] : Update Module in line with more recent structure. (Tidy up.)
@@ -68,8 +69,8 @@ def makeInfo():     ### Makes Info object
     try:
         start_time = time.time()
         program = 'RJE_PAM'
-        version = '1.2'
-        last_edit = 'November 2010'
+        version = '1.2.1'
+        last_edit = 'November 2015'
         description = 'PAM Matrix Module'
         author = 'Dr Richard J. Edwards.'
         info = rje.Info(program,version,last_edit,description,author,start_time)
@@ -229,7 +230,7 @@ class PamCtrl(rje.RJE_Object):
             
             self.verbose(0,3,"Reading PAM1 matrix from %s" % self.info['Name'],2)
             ### <a> ### Open file & Read Lines
-            pamfiles = [self.info['Name'],rje.makePath(self.info['Path']) + self.info['Name'],rje.makePath(self.info['Path']) + rje.makePath('../libraries/') + self.info['Name']]
+            pamfiles = [self.info['Name'],rje.makePath(self.info['Path']) + self.info['Name'],rje.makePath(self.info['Path']) + rje.makePath('../data/') + self.info['Name']]
             self.info['Name'] = None
             for pfile in pamfiles:
                 if rje.checkForFile(pfile):

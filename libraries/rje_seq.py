@@ -41,6 +41,7 @@ Sequence Input/Output Options:
     logrem=T/F      : Whether to log removed sequences [True] - suggest False with filtering of large files!
 
 Sequence Loading/Formatting Options:
+    gnspacc=T/F     : Convert sequence names into gene_SPECIES__AccNum format wherever possible. [False]
     alphabet=LIST   : Alphabet allowed in sequences [standard 1 letter AA codes]
     replacechar=T/F : Whether to remove numbers and replace characters not found in the given alphabet with 'X' [True]
     autofilter=T/F  : Whether to automatically apply sequence filters etc. upon loading sequence [True]
@@ -49,7 +50,6 @@ Sequence Loading/Formatting Options:
     degap=T/F       : Degaps each sequence [False]
     tidygap=T/F     : Removes any columns from alignments that are 100% gap [True]
     ntrim=X         : Trims of regions >= X proportion N bases (X residues for protein) [0.0]
-    gnspacc=T/F     : Convert sequences into gene_SPECIES__AccNum format wherever possible. [False] 
     seqtype=X       : Force program to read as DNA, RNA, Protein or Mixed (case insensitive; read=Will work it out) [None]
     dna=T/F         : Alternative identification of sequences as DNA [False]
     mixed=T/F       : Whether to allow auto-identification of mixed sequences types (else uses first seq only) [False]

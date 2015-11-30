@@ -7,8 +7,8 @@
 """
 Module:       rje_sequence
 Description:  DNA/Protein sequence object
-Version:      2.5.0
-Last Edit:    06/07/15
+Version:      2.5.2
+Last Edit:    15/09/15
 Copyright (C) 2006  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -59,6 +59,8 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 2.4 - Added recognition of modified IPI format. Added standalone low complexity masking.
     # 2.4.1 - Moved the gnspacc fragment recognition to reduce issues. Should perhaps remove completely?
     # 2.5.0 - Added yeast genome renaming.
+    # 2.5.1 - Modified reverse complement code.
+    # 2.5.2 - Tried to speed up dna2prot code.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -106,6 +108,9 @@ aa_code_3 = {'A':'Ala','C':'Cys','D':'Asp','E':'Glu','F':'Phe','G':'Gly','H':'Hi
 aa_3to1 = {'CYS': 'C', 'ASP': 'D', 'SER': 'S', 'GLN': 'Q', 'MET': 'M', 'THR': 'T', 'PRO': 'P', 'STOP': '*', 'HIS': 'H',
            'PHE': 'F', 'ALA': 'A', 'GLY': 'G', 'ILE': 'I', 'LEU': 'L', 'ARG': 'R', 'UNK': 'X', 'VAL': 'V', 'GLU': 'E',
            'TYR': 'Y'}
+transl_table = {'1':genetic_code,   # Standard
+                '2':rje.combineDict({'AGA':'*','AGG':'*','AUA':'M','UGA':'W'},genetic_code,overwrite=False),# Vert. mito.
+                '3':rje.combineDict({'AUA':'M','CUU':'T','CUC':'T','CUA':'T','CUG':'T','UGA':'W','CGA':'!','CGC':'!'},genetic_code,overwrite=False)} # Yeast mito.
 #########################################################################################################################
 ### END OF SECTION I                                                                                                    #
 #########################################################################################################################
@@ -1422,24 +1427,91 @@ def mapGaps(inseq,gapseq,callobj=None):  ### Returns inseq with gaps inserted as
         print gapseq
         return newseq
 #########################################################################################################################
-def dna2prot(dnaseq,case=False):   ### Returns a protein sequence for a given DNA sequence
+def geneticCode(transl='1'):   ### Returns a specific genetic code.
+    '''
+    Returns a specific genetic code.
+    >> transl:str ['1'] = NCBI translation table. Default (1) = "Universal" genetic code
+    '''
+    transl = str(transl)
+    if transl in transl_table: return transl_table[transl]
+    self.warnLog('Translation table %s not (yet) implemented. Contact the author. Standard code used.' % transl)
+    return genetic_code
+#########################################################################################################################
+def dna2prot(dnaseq,case=False,transl='1'):   ### Returns a protein sequence for a given DNA sequence
     '''Returns a protein sequence for a given DNA sequence.'''
-    prot = ''
-    while len(dnaseq)>2:
-        codon = dnaseq[:3]
-        dnaseq = dnaseq[3:]
+    gencode = geneticCode(transl)
+    prot = ['']
+    i = 0
+    while i < len(dnaseq):
+        codon = dnaseq[i:i+3]
+        i += 3
         lowc = case and codon == codon.lower()
         if lowc:
-            try: prot += genetic_code[string.replace(codon.upper(),'T','U')].lower()
-            except: prot += 'x'
+            try: prot.append(gencode[string.replace(codon.upper(),'T','U')].lower())
+            except: prot.append('x')
         else:
-            try: prot += genetic_code[string.replace(codon.upper(),'T','U')]
-            except: prot += 'X'
-    return prot
+            try: prot.append(gencode[string.replace(codon.upper(),'T','U')])
+            except: prot.append('X')
+    return string.join(prot,'')
+#########################################################################################################################
+def codonKs(codon): ### Returns the proportion of substitutions that would be synonymous
+    '''
+    Returns the proportion of substitutions that would be synonymous.
+    '''
+    codon = string.replace(codon.upper(),'T','U')
+    try: aa = genetic_code[codon]
+    except: raise ValueError('%s not an acceptable codon' % codon)
+    Ks = 0.0
+    for i in range(3):
+        for n in 'ACGU':
+            if codon[i] == n: continue
+            if genetic_code[codon[:i]+n+codon[i+1:]] == aa: Ks += 1
+    return Ks / 9.0
+#########################################################################################################################
+def sequenceKs(sequence,callobj=None,ksdict={}):    ### Returns the proportion of possible synonymous substitutions
+    '''Returns the proportion of possible synonymous substitutions.'''
+    if not ksdict and callobj and 'Ks' in callobj.dict: ksdict = callobj.dict['Ks']
+    if not ksdict: ksdict = kSDict(callobj)
+    ks = 0.0; ki = 0.0
+    sequence = string.replace(sequence.upper(),'T','U')
+    while sequence:
+        codon = sequence[:3]
+        sequence = sequence[3:]
+        if len(codon) < 3: break
+        elif codon not in genetic_code: continue
+        ks += ksdict[codon]
+        ki += 1
+    return ks/ki
+#########################################################################################################################
+def kSDict(callobj=None):   ### Returns the Ks frequency for each codon as a dictionary. Adds to callobj if given.
+    '''Returns the Ks frequency for each codon as a dictionary. Adds to callobj if given.'''
+    ksdict = {}
+    for codon in genetic_code: ksdict[codon] = codonKs(codon)
+    if callobj: callobj.dict['Ks'] = ksdict
+    return ksdict
 #########################################################################################################################
 def reverseComplement(dnaseq,rna=False):  ### Returns the reverse complement of the DNA sequence given (upper case)
     '''Returns the reverse complement of the DNA sequence given.'''
+    revcomp = rje.strReverse(dnaseq)
+    pairs = [('C','G'),('A','T')]
+    if rna: revcomp = string.replace(revcomp,'U','T')
+    if rna: revcomp = string.replace(revcomp,'u','t')
+    for (n1,n2) in pairs:
+        revcomp = string.replace(revcomp,n1,'!')
+        revcomp = string.replace(revcomp,n2,n1)
+        revcomp = string.replace(revcomp,'!',n2)
+        n1 = n1.lower(); n2 = n2.lower()
+        revcomp = string.replace(revcomp,n1,'!')
+        revcomp = string.replace(revcomp,n2,n1)
+        revcomp = string.replace(revcomp,'!',n2)
+    if rna: revcomp = string.replace(revcomp,'T','U')
+    if rna: revcomp = string.replace(revcomp,'t','u')
+    return revcomp
+#########################################################################################################################
+def OLDreverseComplement(dnaseq,rna=False):  ### Returns the reverse complement of the DNA sequence given (upper case)
+    '''Returns the reverse complement of the DNA sequence given.'''
     revcomp = ''
+    #!# Use rje.strReverse() followed by string.replace!
     repdict = {'G':'C','C':'G','T':'A','A':'T'}
     if rna: repdict['A'] = 'U'
     for aa in string.replace(dnaseq.upper(),'U','T'):   # Convert RNA to DNA

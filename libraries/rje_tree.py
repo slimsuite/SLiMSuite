@@ -19,8 +19,8 @@
 """
 Module:       rje_tree
 Description:  Phylogenetic Tree Module
-Version:      2.11.2
-Last Edit:    15/05/15
+Version:      2.13.0
+Last Edit:    26/08/15
 Copyright (C) 2007  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -148,6 +148,8 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 2.11.0 - Modified for standalone running as part of SeqSuite.
     # 2.11.1 - Tweaked QryVar interactivity.
     # 2.11.2 - Updated tree paths.
+    # 2.12.0 - Added treeLen() method.
+    # 2.13.0 - Updated PNG saving with R to use newer code.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -185,7 +187,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo():     ### Makes Info object
     '''Makes rje.Info object for program.'''
-    (program, version, last_edit, cyear) = ('RJE_TREE', '2.11.2', 'May 2015', '2007')
+    (program, version, last_edit, cyear) = ('RJE_TREE', '2.13.0', 'August 2015', '2007')
     description = 'RJE Phylogenetic Tree Module'
     author = 'Dr Richard J. Edwards.'
     comments = []
@@ -1665,12 +1667,14 @@ class Tree(rje.RJE_Object):     ### Class for handling phylogenetic trees.
             else: sumtxt = '\nUnrooted Tree '
             if self.opt['Bootstrapped']: sumtxt += '(%d bootstraps).' % self.stat['Bootstraps']
             else: sumtxt += '(No bootstraps).'
-            if self.opt['Branchlengths']: sumtxt += ' Branch Lengths given.'
+            if self.opt['Branchlengths']: sumtxt += ' Branch Lengths given (total=%s).' % (rje.sf(self.treeLen(),3))
             else: sumtxt += ' No Branch Lengths.'
             sumtxt += ' %d nodes.' % self.nodeNum()
             self.verbose(0,1,sumtxt,2)
         except:
             self.log.errorLog('Problem with sumTree(). Execution Continued.')
+#########################################################################################################################
+    def treeLen(self): return self.pathLen(self.branch)
 #########################################################################################################################
     def nodeList(self,nodelist,id=False,space=True):    ### Returns a text summary of listed nodes '(X,Y,Z)' etc.
         '''
@@ -2241,6 +2245,7 @@ class Tree(rje.RJE_Object):     ### Class for handling phylogenetic trees.
             for node in self.nodes():
                 if string.split(node.info['Name'],'_')[0] == qry: subfams[node] = qry
                 elif node.obj['Sequence'] and qseq and node.obj['Sequence'].sameSpec(qseq): subfams[node] = 'qry'
+            self.debug(subfams)
                     
             ### ~ [1] ~ Establish Base of Tree ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             ignore = []     # List of nodes to ignore when expanding tree (not in tree or already expanded)
@@ -2302,6 +2307,7 @@ class Tree(rje.RJE_Object):     ### Class for handling phylogenetic trees.
                     data['ancx'] = xpos[anc]
                     data['ancy'] = ynode.index(anc)
                 if node in subfams: data['family'] = subfams[node]
+                #self.debug(data)
                 data['boot'] = ''
                 if self.opt['Bootstrapped'] and node.stat['ID'] > self.stat['SeqNum']:
                     branch = node.ancBranch()
@@ -2316,7 +2322,7 @@ class Tree(rje.RJE_Object):     ### Class for handling phylogenetic trees.
                         #else: data['name'] = '*** %s *** ' % data['name'] 
                         data['family'] = 'EHUX'
                 else:                                           # Internal node
-                    data['family'] = ''
+                    #data['family'] = ''    # Why???
                     if nodename == 'none': txtname = ''
                     elif node.opt['Compress'] and compress: data['name'] = node.info['CladeName']
                     elif nodename == 'num': data['name'] = node.stat['ID']
@@ -2353,15 +2359,20 @@ class Tree(rje.RJE_Object):     ### Class for handling phylogenetic trees.
             self.printLog('#RPATH',self.info['RPath'],log=False,screen=self.v()>0)
             #self.info['RPath'] = 'c:\\"Program Files"\\R\\R-2.6.2\\bin\\R.exe'
             #print self.info['RPath']
-            rfile = {'png':'rje_tree','bud':'budapest','qspec':'budapest','cairo':'rje_tree.cairo'}[type]
+            rfile = {'png':'rje','bud':'budapest','qspec':'budapest','cairo':'rje_tree.cairo'}[type]
             self.info['PathR'] = rje.makePath(os.path.abspath(string.join(string.split(sys.argv[0],os.sep)[:-1]+[''],os.sep)))
             rtree = rje.makePath('%s%s.r' % (self.info['PathR'],rfile),wholepath=True)
             if not os.path.exists(rtree):
                 self.info['PathR'] = rje.makePath(os.path.abspath(string.join(string.split(sys.argv[0],os.sep)[:-2]+['libraries','r',''],os.sep)))
                 rtree = rje.makePath('%s%s.r' % (self.info['PathR'],rfile),wholepath=True)
             self.printLog('#%s' % type.upper(),rtree)
-            rcmd = '%s --no-restore --no-save --args "%s" "%s"' % (self.info['RPath'],rtreefile,filename)
-            if title: rcmd += ' "%s"' % title
+            if rfile == 'rje':
+                rcmd = '%s --no-restore --no-save --args "tree" "%s" "rdir=%s"' % (self.info['RPath'],rje.baseFile(filename),self.info['PathR'])
+                if title: rcmd += ' "treetitle=%s"' % title
+                else: rcmd += ' "treetitle=%s"' % rje.baseFile(filename,strip_path=True)
+            else:
+                rcmd = '%s --no-restore --no-save --args "%s" "%s"' % (self.info['RPath'],rtreefile,filename)
+                if title: rcmd += ' "%s"' % title
             #rcmd += ' < "%s" > "%s.r.tmp.txt" 2>&1' % (rtree,rje.baseFile(filename))
             rcmd += ' < "%s" > "%s.r.run"' % (rtree,rje.baseFile(filename))
             if not self.getBool('DeBug') and not self.getBool('Test') and os.path.exists('%s.r.run' % rje.baseFile(filename)): os.unlink('%s.r.run' % rje.baseFile(filename))
@@ -3420,6 +3431,42 @@ class Tree(rje.RJE_Object):     ### Class for handling phylogenetic trees.
                     node.opt['SpecDup'] = True; node.opt['Duplication'] = False
             self.log.printLog('\r#DUP','Finding Duplications %s: 100.0%%' % duptext)
         except: self.log.errorLog('Problem in findDuplications().',printerror=True,quitchoice=False)
+#########################################################################################################################
+    def findDuplicationsNoSeq(self,species=None,duptext=''):    ### Finds Duplication Nodes
+        '''
+        Finds Duplication nodes in tree.
+        >> species:str = mark duplication for this species only [None]
+        '''
+        try:
+            ### <a> ### Make sure sequences are present and have species
+            if self.opt['Rooted'] == False:
+                self.log.printLog('#DUP','Unrooted tree: clearing Duplications.')
+                for node in self.node: node.opt['Duplication'] = False
+                return
+            ### <b> ### Identify Duplications using species data
+            if duptext: duptext = ' (%s)' % duptext
+            for node in self.node:
+                self.log.printLog('\r#DUP','Finding Duplications %s: %.1f%%' % (duptext,100.0*self.node.index(node)/len(self.node)),newline=False,log=False)
+                node.opt['Duplication'] = False
+                if len(node.branch) > 1:    # Internal
+                    clade = self._descClades(node)
+                    cladespec = []
+                    for s in clade[0] + clade[1]:
+                        spcode = string.split(s.info['Name'],'_')[1]
+                        if spcode not in cladespec: cladespec.append(spcode)
+                    for s in clade[0]:
+                        spcode = string.split(s.info['Name'],'_')[1]
+                        if node.opt['Duplication']: break
+                        elif (species == None) or (species == spcode):
+                            myspec = spcode
+                            for t in clade[1]:
+                                tspec = string.split(t.info['Name'],'_')[1]
+                                if node.opt['Duplication']: break
+                                elif (tspec != 'UNK') and (tspec == myspec): node.opt['Duplication'] = True
+                if node.opt['Duplication'] and len(cladespec) < self.stat['SpecDup'] and 'UNK' not in cladespec:
+                    node.opt['SpecDup'] = True; node.opt['Duplication'] = False
+            self.log.printLog('\r#DUP','Finding Duplications %s: 100.0%%' % duptext)
+        except: self.log.errorLog('Problem in findDuplicationsNoSeq().',printerror=True,quitchoice=False)
 #########################################################################################################################
     ### <8> ### Tree Subfamilies and Groupings                                                                          #
     ### Note that the contents of these methods have been moved to rje_tree_group.py                                    #

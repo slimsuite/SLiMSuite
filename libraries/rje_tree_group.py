@@ -684,12 +684,13 @@ def _loadGroups(_tree,filename='rje_tree.grp'):   # Saves sequence names in Grou
     except:
         _tree.log.errorLog('Major problem with rje_tree_group._loadGroups(%s).' % filename)
 #########################################################################################################################
-def _dupGroup(_tree):     ### Duplication grouping
+def _dupGroup(_tree,useseq=True):     ### Duplication grouping
     '''Duplication grouping.'''
     try:
         ### <a> ## Find Duplications - maybe species specific
         if _tree.opt['QueryGroup'] and _tree.info['GroupSpecies'] != 'None':
-            _tree.findDuplications(species=_tree.info['GroupSpecies'])
+            if useseq: _tree.findDuplications(species=_tree.info['GroupSpecies'])
+            else: _tree.findDuplicationsNoSeq(species=_tree.info['GroupSpecies'])
         else:
             _tree.findDuplications()
         ### <b> ### Identify duplications
@@ -697,7 +698,7 @@ def _dupGroup(_tree):     ### Duplication grouping
         ## <i> ## Work down tree and assign
         for node in _tree.node[:-1]:
             #print node.info['Name']
-            if node.ancNode().opt['Duplication'] and node.ancBranch().stat['Bootstrap'] >= int(_tree.stat['Bootstraps'] * _tree.stat['BootCut']):
+            if node.ancNode().opt['Duplication'] and (not _tree.stat['Bootstraps'] or node.ancBranch().stat['Bootstrap'] >= int(_tree.stat['Bootstraps'] * _tree.stat['BootCut'])):
                 clades = _tree._descClades(node)
                 clades = clades[0] + clades[1]
                 if len(clades) < _tree.stat['MinFamSize']: continue

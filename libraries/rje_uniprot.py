@@ -599,7 +599,7 @@ class UniProt(rje.RJE_Object):
         << True if success, False if fail
         '''
         try:### ~ [0] ~ Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            if cleardata == None: cleardata = self.opt['ClearData']
+            if cleardata == None: cleardata = self.getBool('ClearData')
             ## ~ [0a] ~ Index and DAT Files ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             indexfile = ''
             if self.info['DBIndex'].lower() not in ['','none'] and use_index: indexfile = self.info['UniPath'] + self.info['DBIndex']
@@ -2816,10 +2816,10 @@ def processUniProt(callobj,makeindex=True,makespec=True,makefas=True,temp=False)
         tx = 0  # No. taxa lines
         sx = 0  # No. seqs
         dx = 0  # No. dat files
-        callobj.deBug('%d forks: %s' % (callobj.stat['Forks'],not callobj.opt['NoForks']))
+        callobj.deBug('%d forks: %s' % (callobj.getStat('Forks'),not callobj.getBool('NoForks')))
         temp = False
         try:
-            if callobj.getStat('Forks') > 1 and not callobj.opt['NoForks']: forkProcess(callobj,datfiles,makeindex,makespec,makefas)
+            if callobj.getStat('Forks') > 1 and not callobj.getBool('NoForks'): forkProcess(callobj,datfiles,makeindex,makespec,makefas)
             else:
                 callobj.warnLog('Uniprot Index generation currently does not support NoForks. Will use forks=1.')
                 callobj.setStat({'Forks': 1})
@@ -3071,12 +3071,12 @@ def forkProcess(callobj,alldatfiles,makeindex,makespec,makefas,forkbytes=1e8):  
     '''Forks out DAT download processing to speed up (hopefully!).'''
     try:### ~ [0] ~ Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         self = callobj
-        unipath = callobj.info['UniPath']
-        forkx = self.stat['Forks']          # Number of forks to have running at one time
+        unipath = callobj.getStr('UniPath')
+        forkx = self.getStat('Forks')          # Number of forks to have running at one time
         forks = {}; forktot = 0             # List of active forks {pids:id}
-        killforks = self.stat['KillForks']  # Time in seconds to wait after main thread has apparently finished
+        killforks = self.getStat('KillForks')  # Time in seconds to wait after main thread has apparently finished
         killtime = time.time()
-        try: indexfile = unipath + callobj.info['DBIndex']
+        try: indexfile = unipath + callobj.getStr('DBIndex')
         except: indexfile = unipath + 'uniprot.index'
         spectable = unipath + 'uniprot.spec.tdt'
         spectemp = unipath + 'uniprot.spec.txt'

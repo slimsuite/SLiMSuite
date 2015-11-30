@@ -324,7 +324,7 @@ class BLASTRun(rje_obj.RJE_Object):
             if os.popen({'BLAST':'formatdb','BLAST+':'makeblastdb'}[blast]).read():
                 self.printLog('#NCBI','Installation of %s detected. Path not required.' % blast)
             else:
-                self.printLog('#NCBI','Installation of %s not detected and no path given.' % blast,printerror=False)
+                self.printLog('#NCBI','Installation of %s not detected and no path given.' % blast)
                 pathfail = True
         elif not pathfound:
             self.errorLog('%s Path not found: "%s"' % (blast,self.getStr('%s Path' % blast)),printerror=False)
@@ -337,7 +337,8 @@ class BLASTRun(rje_obj.RJE_Object):
             if oldfound: self.errorLog('BLAST+ path seems to point to BLAST programs! Use oldblast=T for old BLAST.',printerror=False)
             else: self.errorLog('%s programs not found in %s directory!' % (blast,blast),printerror=False)
             pathfail = True
-        if pathfail: self.warnLog('Cannot execute %s functions without correct %s Path (%spath=PATH/). Bad things might happen if you proceed.' % (blast,blast,blast.lower()),'fatal',quitchoice=True)
+        if pathfail and not self.getStr('%s Path' % blast): self.warnLog('Installation of %s not detected and no path given. %s functions may fail. (Check %spath=PATH/).' % (blast,blast,blast.lower()),'blastpath',quitchoice=False)
+        elif pathfail: self.warnLog('Cannot execute %s functions without correct %s Path (%spath=PATH/). Bad things might happen if you proceed.' % (blast,blast,blast.lower()),'fatal',quitchoice=True)
         ### ~ [3] ~ Special ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         if not rje.exists(self.getStr('OptionFile')): self.setStr({'BLASTOpt':self.getStr('OptionFile')})
         if self.getBool('FormatDB'):
@@ -710,7 +711,7 @@ class BLASTRun(rje_obj.RJE_Object):
         Reads BLAST Results into objects.
         >> resfile:str = Results File (set as self.info['Name'])
         >> clear:Boolean = whether to clear current searches (True) or just append (False) [False]
-        >> gablam:Boolean = whether to calculate gablam statistics and clear alignments to save memory [False]
+        >> gablam:Boolean = whether to calculate gablam statistics and clear alignments to save memory [True]
         >> unlink:Boolean = whether to delete BLAST results file after reading [False]
         >> local:Boolean = whether to store Local alignment dictionary with basic alignment data [False]
         >> screen:Bool [False] = whether to output reading details to screen
@@ -1447,6 +1448,206 @@ class BLASTRun(rje_obj.RJE_Object):
             self.printLog('#ALN','%s alignments output from %s assemblies of %s queries.' % (rje.iStr(outx),rje.iStr(resx),rje.iLen(qseqdict)))
             if not returndict: return returndict
         except: self.errorLog('Problem during BLASTRun.assemblyToAlignments()'); raise
+#########################################################################################################################
+    def reduceLocal(self,locdb=None,queries=[],hits=[],sortfield='Identity',keepself=False,minloclen=0):    ### Reduces local BLAST alignments to cover each hit region only once
+        '''
+        Reduces local BLAST alignments to cover each hit region only once. Local alignments are sorted by identity
+        (unless sortfield=X changed) and processed in order. Other local alignments that overlap are truncated and
+        updated. Any alignments completely overlapped are removed. Processes and returns a COPY of the table.
+        @param locdb:Table [self.db('local')] = Local hits database Table to modify.
+        @param queries:list = Restrict analysis to search queries.
+        @param hits:list = Restrict analysis to search hits.
+        @param sortfield:str ['Identity'] = LocalDB field used to sort local alignments.
+        @param keepself:bool [False] = Whether to include self query-hit pairs in assessment.
+        @param minloclen:int [0] = Minimum local length to keep.
+        @return: copy of local table, filtered and reduced.
+        '''
+        try:### ~ [0] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            self.printLog('#~~#','## ~~~~~ BLAST Local Alignment Reduction ~~~~~ ##')
+            if not locdb: locdb = self.db('Local')
+            if sortfield not in locdb.fields():
+                raise ValueError('"%s" is not a valid Local hit table field (%s)' % (sortfield,string.join(locdb.fields(),'|')))
+            # Create a copy to protect initial data
+            bdb = self.db().copyTable(locdb,'%s.reduced' % locdb.name())
+            # ['Query','Hit','AlnID','BitScore','Expect','Length','Identity','Positives','QryStart','QryEnd','SbjStart','SbjEnd','QrySeq','SbjSeq','AlnSeq'],
+            # Filter if required
+            if queries: bdb.dropEntriesDirect('Query',queries,inverse=True)
+            if hits: bdb.dropEntriesDirect('Hit',hits,inverse=True)
+            if not keepself: bdb.dropEntries(['Query=Hit'])
+            bdb.dataFormat({'AlnID':'int','BitScore':'num','Expect':'num','Identity':'int','QryStart':'int','QryEnd':'int','SbjStart':'int','SbjEnd':'int','Length':'int'})
+            btot = bdb.entryNum()
+            bdb.dropEntries(['Length<%d' % minloclen],inverse=False,log=True,logtxt='Removing short local hits')
+            mx = btot - bdb.entryNum()
+            ### ~ [1] Cycle through local alignments, reducing as required ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            bentries = bdb.sortedEntries(sortfield,reverse=sortfield in ['Identity','Positives','Length','BitScore'])   # List of all entries (sorted) to process
+            alignpos = {}; ax = 0   # Dictionary of {Hit:[(start,stop) list of positions included in local aln]}
+            while bentries:
+                ## ~ [1a] Grab next best remaining hit from bentries ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+                entry = bentries.pop(0)     # This is best remaining hit
+                ax += 1
+                self.progLog('\r#LOCALN','Processing local alignments: %s -> %s' % (rje.iLen(bentries),rje.iStr(ax)))
+                hit = entry['Hit']
+                region = (min(entry['SbjStart'],entry['SbjEnd']),max(entry['SbjStart'],entry['SbjEnd']))
+                ## ~ [1b] Update alignpos dictionary ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+                if hit not in alignpos: alignpos[hit] = []
+                alignpos[hit].append(region)
+                alignpos[hit] = rje.collapseTupleList(alignpos[hit])
+                ## ~ [1c] Adjust/Filter remaining entries ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+                ex = 0
+                while ex < len(bentries):
+                    xentry = bentries[ex]
+                    yentry = None   # Will be created if splitting
+                    # Skip if different Hit
+                    if entry['Hit'] != xentry['Hit']: ex += 1; continue
+                    # Check for overlapping regions and remove
+                    xregion = (min(xentry['SbjStart'],xentry['SbjEnd']),max(xentry['SbjStart'],xentry['SbjEnd']))
+                    # No overlap
+                    if xregion[1] < region[0] or xregion[0] > region[1]: ex += 1; continue
+                    # Completely overlapped: remove
+                    elif xregion[0] >= region[0] and xregion[1] <= region[1]:
+                        bdb.dropEntry(xentry)
+                        bentries.pop(ex)
+                        continue
+                    # Middle covered: split
+                    elif region[0] > xregion[0] and region[1] < xregion[1]:
+                        self.bugPrint('\nEntry splitting: %s vs %s' % (xregion,region))
+                        xalnx = max(bdb.indexDataList('Hit',hit,'AlnID'))
+                        yentry = rje.combineDict({'AlnID':xalnx+1},xentry,overwrite=False)
+                        self.printLog('#ALNID','%s vs %s Aln %d -> %d & %d' % (xentry['Query'],xentry['Hit'],xentry['AlnID'],xentry['AlnID'],yentry['AlnID']))
+                        self.bugPrint(rje.combineDict({'QrySeq':'','SbjSeq':'','AlnSeq':''},xentry,overwrite=False,replaceblanks=False))
+                        self.trimLocal(xentry,trimend='End',trimto=region[0],sortends=True)   # Trim the end back to region[0]
+                        self.debug(rje.combineDict({'QrySeq':'','SbjSeq':'','AlnSeq':''},xentry,overwrite=False,replaceblanks=False))
+                        self.bugPrint(rje.combineDict({'QrySeq':'','SbjSeq':'','AlnSeq':''},yentry,overwrite=False,replaceblanks=False))
+                        self.trimLocal(yentry,trimend='Start',trimto=region[1],sortends=True)   # Trim the start back to region[1]
+                        self.debug(rje.combineDict({'QrySeq':'','SbjSeq':'','AlnSeq':''},yentry,overwrite=False,replaceblanks=False))
+                    # Overlap at one end
+                    elif region[0] <= xregion[1] <= region[1]:  # End overlaps with focal entry
+                        self.bugPrint('\nEnd overlap: %s vs %s' % (xregion,region))
+                        self.trimLocal(xentry,trimend='End',trimto=region[0],sortends=True)   # Trim the end back to region[0]
+                    elif region[0] <= xregion[0] <= region[1]:  # Start overlaps with focal entry
+                        self.bugPrint('\nStart overlap: %s vs %s' % (xregion,region))
+                        self.trimLocal(xentry,trimend='Start',trimto=region[1],sortends=True)   # Trim the start back to region[1]
+                    else: raise ValueError('Entry filtering has gone wrong: %s vs %s' % (xregion,region))
+                    ## Check lengths
+                    if xentry['Length'] >= minloclen: ex += 1
+                    else: bdb.dropEntry(xentry); bentries.pop(ex); mx += 1
+                    if yentry and yentry['Length'] >= minloclen:
+                        bdb.addEntry(yentry)
+                        bentries.insert(ex,yentry)
+                        ex += 1
+                    elif yentry: mx += 1
+            ### ~ [2] Check and finish ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            self.printLog('\r#LOCALN','Processing local alignments: %s -> %s (%s failed to meet minloclen=%d)' % (rje.iStr(btot),rje.iStr(ax),rje.iStr(mx),minloclen))
+            if ax != bdb.entryNum(): raise ValueError('EntryNum mismatch following reduceLocal(): %s best entries but %s local alignments' % (ax,bdb.entryNum()))
+            return bdb
+        except: self.errorLog('Problem during BLASTRun.reduceLocal()'); return None
+#########################################################################################################################
+    def trimLocal(self,lentry,trimend,trimto,sortends=True,debug=False):  # Trims local alignment entry data
+        '''
+        Trims local alignment entry data.
+        @param lentry: local alignment entry
+        @param trimend: which end to trim (Start/End)
+        @param trimto: position to trim up to (and including)
+        @param sortends: whether to switch Start/End if reversed match is
+        @return: modified lentry. (NOTE: Modified in place.)
+        '''
+        try:### ~ [0] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            # ['Query','Hit','AlnID','BitScore','Expect','Length','Identity','Positives','QryStart','QryEnd','SbjStart','SbjEnd','QrySeq','SbjSeq','AlnSeq'],
+            fwd = lentry['SbjStart'] <= lentry['SbjEnd']
+            if sortends and not fwd: trimend = {'Start':'End','End':'Start'}[trimend]
+            if debug: self.bugPrint('Fwd:%s => %s' % (fwd,trimend))
+            # Check need to trim
+            if fwd and not lentry['SbjStart'] <= trimto <= lentry['SbjEnd']:
+                self.warnLog('Fwd trimLocal() called but Start <= trimpos <= End not met.','trimlocal',suppress=True)
+                return lentry
+            if not fwd and not lentry['SbjStart'] >= trimto >= lentry['SbjEnd']:
+                self.warnLog('Bwd trimLocal() called but End <= trimpos <= Start not met.','trimlocal',suppress=True)
+                return lentry
+            # Sort out starting positions in Query/Subject
+            #qpos = lentry['QryStart'] #lentry['Qry%s' % trimend]
+            spos = lentry['SbjStart']   #lentry['Sbj%s' % trimend]
+            # Sort out starting position in alignment
+            ai = 0
+            if fwd: sdir = 1
+            else: sdir = -1
+            if trimend == 'Start': trimto += sdir  # For Start trim, want to go beyond trimto for alignment split
+            ### ~ [1] Trim ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            ## ~ [1a] Locate trimto ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            self.bugPrint(rje.combineDict({'QrySeq':'','SbjSeq':'','AlnSeq':''},lentry,overwrite=False,replaceblanks=False))
+            self.bugPrint('Fwd:%s Scan %d pos until %d reaches %s' % (fwd,len(lentry['SbjSeq']),spos,trimto))
+            while (fwd and spos < trimto) or (not fwd and spos > trimto):
+                ai += 1
+                if lentry['SbjSeq'][ai] != '-': spos += sdir
+            self.bugPrint('Reached AlnPos %d = SbjPos %d => Trim %s' % (ai,spos,trimend))
+            ## ~ [1b] Split sequence and update stats ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            if trimend == 'Start':  # Removing Start
+                lentry['QryStart'] += len(lentry['QrySeq'][:ai]) - lentry['QrySeq'][:ai].count('-')
+                lentry['QrySeq'] = lentry['QrySeq'][ai:]
+                lentry['SbjStart'] += sdir * (len(lentry['SbjSeq'][:ai]) - lentry['SbjSeq'][:ai].count('-'))
+                lentry['SbjSeq'] = lentry['SbjSeq'][ai:]
+                if lentry['Positives']:
+                    lentry['Positives'] -= lentry['AlnSeq'][:ai].count('+')
+                    lentry['Positives'] -= lentry['AlnSeq'][:ai].count('|')
+                lentry['Identity'] -= lentry['AlnSeq'][:ai].count('|')
+                lentry['Length'] -= len(lentry['AlnSeq'][:ai])
+                lentry['AlnSeq'] = lentry['AlnSeq'][ai:]
+            else:   # Removing end
+                lentry['QryEnd'] -= (len(lentry['QrySeq'][ai:]) - lentry['QrySeq'][ai:].count('-'))
+                lentry['QrySeq'] = lentry['QrySeq'][:ai]
+                lentry['SbjEnd'] -= sdir * (len(lentry['SbjSeq'][ai:]) - lentry['SbjSeq'][ai:].count('-'))
+                lentry['SbjSeq'] = lentry['SbjSeq'][:ai]
+                if lentry['Positives']:
+                    lentry['Positives'] -= lentry['AlnSeq'][ai:].count('+')
+                    lentry['Positives'] -= lentry['AlnSeq'][ai:].count('|')
+                lentry['Identity'] -= lentry['AlnSeq'][ai:].count('|')
+                lentry['Length'] -= len(lentry['AlnSeq'][ai:])
+                lentry['AlnSeq'] = lentry['AlnSeq'][:ai]
+            ### ~ [2] Return trimmed entry ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            self.bugPrint(rje.combineDict({'QrySeq':'','SbjSeq':'','AlnSeq':''},lentry,overwrite=False,replaceblanks=False))
+            return lentry
+        except:
+            self.debug(rje.combineDict({'QrySeq':'','SbjSeq':'','AlnSeq':''},lentry,overwrite=False,replaceblanks=False))
+            self.errorLog('BLASTRun.trimLocal error'); raise
+#########################################################################################################################
+    def snpTableFromLocal(self,locdb=None,queries=[],hits=[],save=True):    ### Outputs a SNP table (similar format to nucmer) from local alignments
+        '''
+        Outputs a SNP table (similar format to nucmer) from local alignments.
+        @param locdb:Table [self.db('local')] = Local hits database Table to modify.
+        @param queries:list = Restrict analysis to search queries.
+        @param hits:list = Restrict analysis to search hits.
+        @param save:bool = Whether to save SNP table once generated.
+        @return: SNP table
+        '''
+        try:### ~ [0] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            db = self.db()
+            snpdb = db.addEmptyTable('SNP',['Locus','Pos','REF','ALT','AltLocus','AltPos'],keys=['Locus','Pos','AltLocus','AltPos'])
+            if not locdb: locdb = self.db('Local')
+            if rje.listDifference(queries,locdb.index('Query')):
+                self.warnLog('Queries for snpTableFromLocal() not found in local table','missing_queries',suppress=True)
+            if rje.listDifference(hits,locdb.index('Hit')):
+                self.warnLog('Hits for snpTableFromLocal() not found in local table','missing_hits',suppress=True)
+            revcomp = {'A':'T','C':'G','G':'C','T':'A','-':'-'}
+            ### ~ [1] Generate SNP Table ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            for lentry in locdb.entries():
+                if queries and lentry['Query'] not in queries: continue
+                if hits and lentry['Hit'] not in hits: continue
+                fwd = True
+                sdir = 1
+                if lentry['SbjStart'] > lentry['SbjEnd']: sdir = -1; fwd = False
+                qpos = lentry['QryStart'] - 1
+                spos = lentry['SbjStart'] - sdir
+                for ai in range(len(lentry['AlnSeq'])):
+                    if lentry['QrySeq'][ai] != '-': qpos += 1
+                    if lentry['SbjSeq'][ai] != '-': spos += sdir
+                    if lentry['QrySeq'][ai].upper() == lentry['SbjSeq'][ai].upper(): continue   # Identity
+                    sentry = {'Locus':lentry['Query'],'Pos':qpos,'REF':lentry['QrySeq'][ai].upper(),
+                              'ALT':lentry['SbjSeq'][ai].upper(),'AltLocus':lentry['Hit'],'AltPos':spos}
+                    if not fwd: sentry['ALT'] = revcomp[sentry['ALT']]
+                    snpdb.addEntry(sentry)
+            ### ~ [2] Output SNP Table ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            if save: snpdb.saveToFile()
+            return snpdb
+        except: self.errorLog('BLASTRun.snpTableFromLocal() error'); return None
 #########################################################################################################################
 ### SECTION IIb: OLD BLASTRun Class                                                                                     #
 #########################################################################################################################

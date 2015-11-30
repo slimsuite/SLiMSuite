@@ -66,12 +66,15 @@ for (i in 1:ynum){
 	}
 }
 ### ~ Add scale ~ ###
-lines(c(0,0.1*x),c(0,0),col=soton$col[7])
+scalex = 0.1
+if(max(tree$xpos) > 4){ scalex = 1 }
+if(max(tree$xpos) > 40){ scalex = 10 }
+lines(c(0,scalex*x),c(0,0),col=soton$col[7])
 lines(c(0,0),c(0,-0.005),col=soton$col[7])
-lines(c(0.1*x,0.1*x),c(0,-0.005),col=soton$col[7])
+lines(c(scalex*x,scalex*x),c(0,-0.005),col=soton$col[7])
 #text(0,-0.01,"0",adj=c(0.5,1),cex=min(mex,yex/ynum),col=soton$col[7],xpd=NA)
 #text(0.1*x,-0.01,"0.1",adj=c(0.5,1),cex=min(mex,yex/ynum),col=soton$col[7],xpd=NA)
 text(0,-0.01,"0",adj=c(0.5,1),col=soton$col[7],xpd=NA)
-text(0.1*x,-0.01,"0.1",adj=c(0.5,1),col=soton$col[7],xpd=NA)
+text(scalex*x,-0.01,scalex,adj=c(0.5,1),col=soton$col[7],xpd=NA)
 
 dev.off()

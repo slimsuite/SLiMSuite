@@ -19,8 +19,8 @@
 """
 Module:       SeqSuite
 Description:  Miscellaneous biological sequence analysis toolkit
-Version:      1.8.0
-Last Edit:    23/05/15
+Version:      1.11.0
+Last Edit:    25/11/15
 Copyright (C) 2014  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -48,10 +48,14 @@ SeqSuite tools:
     - MITAB = rje_mitab.MITAB. MITAB PPI parser.
     - MultiHAQ = multihaq.MultiHAQ. Multi-Query HAQESAC controller.
     - PacBio = rje_pacbio.PacBio. PacBio sequencing coverage estimator. (Development only)
+    - PAGSAT = pagsat.PAGSAT. Pairwise Assembled Genome Sequence Analysis Tool. (Development only)
     - PINGU = pingu_V4.PINGU. Protein Interaction Network & GO Utility.
     - PyDocs = rje_pydocs.PyDoc. Python Module Documentation & Distribution.
     - RJE_Seq = rje_seq.SeqList. Fasta file sequence manipulation/reformatting.
+    - SAMTools = rje_samtools.SAMTools. SAMTools mpileup analysis tool. (Development only)
     - SeqList = rje_seqlist.SeqList. Fasta file sequence manipulation/reformatting.
+    - SMRTSCAPE = smrtscape.SMRTSCAPE. SMRT Subread Coverage & Assembly Parameter Estimator. (Development only)
+    - Snapper = snp_mapper.SNPMap. SNV to feature annotations mapping and rating tool. (Development only)
     - Taxonomy = rje_taxonomy.Taxonomy. Taxonomy download/conversion tool.
     - Tree = rje_tree.Tree. Phylogenetic Tree Module.
     - Uniprot = rje_uniprot.Uniprot. Uniprot download and parsing module.
@@ -62,6 +66,11 @@ Commandline:
     ### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     prog=X      # Identifies the tool to be used. Will load defaults from X.ini (before seqsuite.ini) [seqlist]
     help=T/F    # Show the help documentation for program X. [False]
+    ### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+    batchrun=FILELIST   # Batch run the program on selected files (wildcards allowed) []
+    batcharg=X          # Commandline argument to use for batchrun files ['seqin']
+    batchlog=X          # Generate separate basefile.X log files for each batch run file (None for single log) [log]
+    batchbase=T/F       # Whether to give each batch run a separate basefile=X command in place of log=X [True]
     ### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
 See also rje.py generic commandline options.
 """
@@ -85,7 +94,7 @@ import rje, rje_obj, rje_zen
 import rje_dbase, rje_ensembl, rje_genbank, rje_mitab, rje_pydocs, rje_seq, rje_seqlist, rje_taxonomy, rje_tree, rje_uniprot, rje_xref
 import fiesta, gablam, gopher, haqesac, multihaq
 import pingu_V4 as pingu
-import extatic, revert, rje_pacbio
+import extatic, revert, rje_pacbio, pagsat, smrtscape, snp_mapper, rje_samtools
 #########################################################################################################################
 def history():  ### Program History - only a method for PythonWin collapsing! ###
     '''
@@ -102,6 +111,10 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 1.6.1 - Added extra error messages.
     # 1.7.0 - Added pingu_V4.PINGU.
     # 1.8.0 - Added rje_pacbio.PacBio.
+    # 1.9.0 - Added PAGSAT and SMRTSCAPE.
+    # 1.9.1 - Fixed HAQESAC setobjects=True error.
+    # 1.10.0 - Added batchrun=FILELIST batcharg=X batch running mode.
+    # 1.11.0 - Added SAMTools and Snapper/SNP_Mapper.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -118,7 +131,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copy_right) = ('SeqSuite', '1.8.0', 'May 2015', '2014')
+    (program, version, last_edit, copy_right) = ('SeqSuite', '1.11.0', 'November 2015', '2014')
     description = 'Miscellaneous biological sequence analysis tools suite'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_obj.zen()]
@@ -168,7 +181,8 @@ mod = {'seqlist':rje_seqlist,'rje_seqlist':rje_seqlist,'rje_seq':rje_seq,'seq':r
        'rje_zen':rje_zen,'zen':rje_zen,'rje_mitab':rje_mitab,'mitab':rje_mitab,'pingu':pingu,
        'dbase':rje_dbase,'database':rje_dbase,'uniprot':rje_uniprot,'rje_uniprot':rje_uniprot,
        'rje_taxonomy':rje_taxonomy,'taxonomy':rje_taxonomy,'rje_tree':rje_tree,'tree':rje_tree,
-       'pydocs':rje_pydocs,'genbank':rje_genbank,'gopher':gopher,'gablam':gablam,
+       'pydocs':rje_pydocs,'genbank':rje_genbank,'gopher':gopher,'gablam':gablam,'pagsat':pagsat,'smrtscape':smrtscape,
+       'samtools':rje_samtools.SAMtools,'snapper':snp_mapper.SNPMap,'snp_mapper':snp_mapper.SNPMap,
        'ensembl':rje_ensembl,'rje_ensembl':rje_ensembl,'extatic':extatic,'pacbio':rje_pacbio,
        'fiesta':fiesta,'haqesac':haqesac,'multihaq':multihaq,'revert':revert}
 #########################################################################################################################
@@ -189,9 +203,12 @@ class SeqSuite(rje_obj.RJE_Object):
     SeqSuite Class. Author: Rich Edwards (2014).
 
     Str:str
+    - BatchArg=X          # Commandline argument to use for batchrun files ['seqin']
+    - BatchLog=X          # Generate separate basefile.X log files for each batch run file (None for single log) [log]
     - Name = Identifies the tool to be used. Will load defaults from X.ini (after seqsuite.ini) [seqlist]
 
     Bool:boolean
+    - BatchBase=T/F       # Whether to give each batch run a separate basefile=X command in place of log=X [True]
     - Help = Show the help documentation for program X. (Note that  [False]
 
     Int:integer
@@ -199,6 +216,7 @@ class SeqSuite(rje_obj.RJE_Object):
     Num:float
     
     List:list
+    - BatchRun=FILELIST   # Batch run the program on selected files (wildcards allowed) []
 
     Dict:dictionary    
 
@@ -216,16 +234,17 @@ class SeqSuite(rje_obj.RJE_Object):
     def _setAttributes(self):   ### Sets Attributes of Object
         '''Sets Attributes of Object.'''
         ### ~ Basics ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-        self.strlist = ['Name']
-        self.boollist = ['Help']
+        self.strlist = ['BatchArg','BatchLog','Name']
+        self.boollist = ['BatchBase','Help']
         self.intlist = []
         self.numlist = []
-        self.listlist = []
+        self.listlist = ['BatchRun']
         self.dictlist = []
         self.objlist = ['Prog','ProgInfo']
         ### ~ Defaults ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         self._setDefaults(str='None',bool=False,int=0,num=0.0,obj=None,setlist=True,setdict=True)
-        self.setStr({'Name':'seqlist'})
+        self.setStr({'BatchArg':'seqin','BatchLog':'log','Name':'seqlist'})
+        self.setBool({'BatchBase':True})
         if sys.argv[1:] and sys.argv[1] in mod: self.setStr({'Name':sys.argv[1]})
         self.setBool({})
         self.setInt({})
@@ -246,18 +265,18 @@ class SeqSuite(rje_obj.RJE_Object):
                 self._cmdRead(cmd,type='str',att='Name',arg='prog')  # No need for arg if arg = att.lower()
                 self._cmdRead(cmd,type='str',att='Name',arg='program')  # No need for arg if arg = att.lower()
                 self._cmdRead(cmd,type='str',att='Name',arg='tool')  # No need for arg if arg = att.lower()
-                #self._cmdReadList(cmd,'str',['Att'])   # Normal strings
+                self._cmdReadList(cmd,'str',['BatchArg','BatchLog'])   # Normal strings
                 #self._cmdReadList(cmd,'path',['Att'])  # String representing directory path 
                 #self._cmdReadList(cmd,'file',['Att'])  # String representing file path 
                 #self._cmdReadList(cmd,'date',['Att'])  # String representing date YYYY-MM-DD
-                self._cmdReadList(cmd,'bool',['Help'])  # True/False Booleans
+                self._cmdReadList(cmd,'bool',['BatchBase','Help'])  # True/False Booleans
                 #self._cmdReadList(cmd,'int',['Att'])   # Integers
                 #self._cmdReadList(cmd,'float',['Att']) # Floats
                 #self._cmdReadList(cmd,'min',['Att'])   # Integer value part of min,max command
                 #self._cmdReadList(cmd,'max',['Att'])   # Integer value part of min,max command
                 #self._cmdReadList(cmd,'list',['Att'])  # List of strings (split on commas or file lines)
                 #self._cmdReadList(cmd,'clist',['Att']) # Comma separated list as a *string* (self.str)
-                #self._cmdReadList(cmd,'glist',['Att']) # List of files using wildcards and glob
+                self._cmdReadList(cmd,'glist',['BatchRun']) # List of files using wildcards and glob
                 #self._cmdReadList(cmd,'cdict',['Att']) # Splits comma separated X:Y pairs into dictionary
                 #self._cmdReadList(cmd,'cdictlist',['Att']) # As cdict but also enters keys into list
             except: self.errorLog('Problem with cmd:%s' % cmd)
@@ -267,13 +286,15 @@ class SeqSuite(rje_obj.RJE_Object):
     def run(self):  ### Main run method
         '''Main run method.'''
         try:### ~ [1] ~ Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            if self.list['BatchRun']: return self.batchRun()
             if not self.setup(): return False
             slimobj = self.obj['Prog']
             self.obj['Info'] = self.log.obj['Info']
             slimobj.log.obj['Info'] = info = self.obj['ProgInfo']
             slimobj.log.info['Name'] = info.program
             ### ~ [2] ~ Add main run code here ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            slimobj.run()
+            if self.getStrLC('Name') == 'haqesac': slimobj.run(setobjects=True)
+            else: slimobj.run()
             self.printLog('#RUN','%s V%s run finished.' % (info.program,info.version))
             slimobj.log.obj['Info'] = self.obj['Info']
             slimobj.log.info['Name'] = self.obj['Info'].program
@@ -317,6 +338,10 @@ class SeqSuite(rje_obj.RJE_Object):
                 elif prog in ['multihaq']: self.obj['Prog'] = multihaq.MultiHAQ(self.log,progcmd)
                 elif prog in ['pingu']: self.obj['Prog'] = pingu.PINGU(self.log,progcmd)
                 elif prog in ['pacbio']: self.obj['Prog'] = rje_pacbio.PacBio(self.log,progcmd)
+                elif prog in ['pagsat']: self.obj['Prog'] = pagsat.PAGSAT(self.log,progcmd)
+                elif prog in ['smrtscape']: self.obj['Prog'] = smrtscape.SMRTSCAPE(self.log,progcmd)
+                elif prog in ['samtools']: self.obj['Prog'] = rje_samtools.SAMtools(self.log,progcmd)
+                elif prog in ['snapper','snp_mapper']: self.obj['Prog'] = snp_mapper.SNPMap(self.log,progcmd)
                 elif prog in ['rje_zen','zen']: self.obj['Prog'] = rje_zen.Zen(self.log,progcmd)
 
             ### ~ [2] ~ Failure to recognise program ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -337,7 +362,53 @@ class SeqSuite(rje_obj.RJE_Object):
         except SystemExit: raise
         except: self.errorLog('Problem during %s setup.' % self.prog()); return False  # Setup failed
 #########################################################################################################################
-    ### <3> ### Testing Methods                                                                                         #
+    ### <3> ### BatchRun Methods                                                                                        #
+#########################################################################################################################
+    def batchRun(self,returnobj=False):     ### Execute batch mode runs
+        '''Execute batch mode runs.'''
+        try:### ~ [0] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            barg = self.getStrLC('BatchArg')
+            if not barg: raise ValueError('Cannot use batchrun=FILELIST if batcharg=None.')
+            batchfiles = self.list['BatchRun'][0:]
+            self.list['BatchRun'] = []  # Avoid recursive running!
+            blog = self.getStr('BatchLog')
+            if not blog.startswith('.'): blog = '.%s' % blog
+            if not blog.endswith('.log'): blog = '%s.log' % blog
+            rawcmd = self.cmd_list[0:]
+            rawlog = self.log
+            batchobj = []
+            ### ~ [1] Batch Run ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            bx = 0
+            for bfile in batchfiles:
+                bx += 1
+                self.printLog('#BATCH','Batch running %s of %s: %s=%s' % (rje.iStr(bx),rje.iLen(batchfiles),barg,bfile))
+                ## Setup parameters
+                bbase = rje.baseFile(bfile,strip_path=True)
+                bcmd = ['%s=%s' % (barg,bfile)]
+                if self.getBool('BatchBase'): bcmd += ['basefile=%s%s' % (bbase,rje.baseFile(blog))]
+                else: bcmd += ['log=%s%s' % (bbase,blog)]
+                #self.debug(bcmd)
+                ## Setup Seqsuite object
+                self.cmd_list = rawcmd + bcmd
+                self.log = rje.setLog(self.log.obj['Info'],self,self.cmd_list)                 # Sets up Log object for controlling log file output
+                ## Run
+                batchobj.append(self.run())
+                ## Finish and Tidy
+                self.log = rawlog
+                runobj =  batchobj[-1]
+                if runobj:
+                    if not returnobj: batchobj[-1] = True
+                    info = runobj.log.obj['Info']
+                    self.printLog('#RUN','%s V%s run finished.' % (info.program,info.version))
+                else: self.warnLog('Batch run failed (%s=%s).' % (barg,bfile))
+            ### ~ [2] Finish and Return ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            failx = batchobj.count(False)
+            self.printLog('#BATCH','%s batch runs complete: %s failed.' % (rje.iLen(batchfiles),rje.iStr(failx)))
+            self.list['BatchRun'] = batchfiles
+            return batchobj
+        except: self.errorLog('%s.batchRun error' % self); return False
+#########################################################################################################################
+    ### <4> ### Testing Methods                                                                                         #
 #########################################################################################################################
     def test(self):      ### Generic method
         '''

@@ -78,7 +78,11 @@ dotplot = function(qry,hit,makepng=TRUE,pcol=rep(soton$col[1],100),minfrag=0){
 
 
 ############# ::: PERFORM PLOTS ::: #########
-pcol = c(rep("red",89),rep("blue",10),"black")
+# 100% = black
+# >= 99% = purple
+# >= 90% = blue
+# < 90% = red
+pcol = c(rep("red",89),rep("blue",9),"purple","black")
 (plotnum = length(gabdata$Qry))
 for(g in 1:plotnum){
 	qry = gabdata[g,]$Qry

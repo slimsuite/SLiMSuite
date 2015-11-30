@@ -320,12 +320,16 @@ class MultiHAQ(rje.RJE_Object):
                 inseqx = rje_seq.SeqCount(self,infile)
                 if inseqx < 2: self.printLog('#SKIP','Only one sequence found in %s: Skipped' % (infile)); continue
                 ## ~ [1c] Pause if running in Chaser Mode and no Pickle ~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-                pickled = os.path.exists(pkfile) or os.path.exists('%s.gz' % pkfile); tm = 1
+                pickled = os.path.exists(pkfile) or os.path.exists('%s.gz' % pkfile); tm = 0
                 while secondrun and self.opt['Chaser'] and not pickled:
                     self.progLog('#WAIT','No %s pickle. Sleeping for %d min.' % (acc,tm))
                     time.sleep(60*tm); tm += 1
-                    try: rje.choice('Press <ENTER> to try again, or <CTRL+C> to Quit')
-                    except: self.printLog('\r#MULTI','Exiting multiHAQ "Chaser" run.'); return
+                    pickled = os.path.exists(pkfile) or os.path.exists('%s.gz' % pkfile)
+                    if not pickled:
+                        try: rje.choice('Press <ENTER> to try again, or <CTRL+C> to Quit')
+                        except:
+                            self.printLog('#PICKLE','No %s pickle.' % (acc,tm))
+                            self.printLog('\r#MULTI','Exiting multiHAQ "Chaser" run.'); return
                 ## ~ [1d] Run HAQESAC ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
                 runhaqesac = True
                 pngfile = rje.makePath('%s%s.png' % (self.info['HaqDir'],acc),wholepath=True)
