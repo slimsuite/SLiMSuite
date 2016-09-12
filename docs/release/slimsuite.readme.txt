@@ -2,7 +2,7 @@
 
 > Copyright (C) 2015 Richard J. Edwards
 
-> Distribution compiled: Mon Nov 30 13:30:06 2015
+> Distribution compiled: Mon Sep 12 12:09:49 2016
 
 > Please visit http://www.slimsuite.unsw.edu.au for additional documentation
 
@@ -263,8 +263,8 @@ Commandline:
 
 Program:      CompariMotif
 Description:  Motif vs Motif Comparison Software
-Version:      3.11
-Last Edit:    12/09/13
+Version:      3.13.0
+Last Edit:    03/12/15
 Citation:     Edwards, Davey & Shields (2008), Bioinformatics 24(10):1307-9. [PMID: 18375965]
 Webserver:    http://bioware.ucd.ie/
 Copyright (C) 2007  Richard J. Edwards - See source code for GNU License Notice
@@ -490,8 +490,8 @@ Commandline:
 
 Program:      GABLAM
 Description:  Global Analysis of BLAST Local AlignMents
-Version:      2.20.0
-Last Edit:    18/11/15
+Version:      2.23.0
+Last Edit:    08/08/16
 Citation:     Davey, Shields & Edwards (2006), Nucleic Acids Res. 34(12):3546-54. [PMID: 16855291]
 Copyright (C) 2006  Richard J. Edwards - See source code for GNU License Notice
 
@@ -544,7 +544,9 @@ Function:
     following fields: `Locus`, `Pos`, `REF`, `ALT`, `AltLocus`, `AltPos`. The `localunique=T/F` controls whether hit
     regions can be covered multiple times (`False`) or (default:`True`) reduced to unique "best" hits. Local hits are
     sorted according to `localsort=X` (default:`Identity`). NOTE: Output is restricted to regions of overlap between
-    query and hit proteins. See `*.local.tdt` or `*.unique.tdt` output to identify regions covered.
+    query and hit sequences. Regions of each that are not covered will be output in `*.nocoverage.tdt`. See `*.local.tdt`
+    or `*.unique.tdt` output for the regions covered. Normally, the reference genome will be `seqin=FILE` and the genome
+    to compare against the reference will be `searchdb=FILE`.
 
 Commandline:
     ### ~ Input/Search Options ~ ###
@@ -565,9 +567,9 @@ Commandline:
     local=T/F       : Whether to output local alignment summary stats table [True]
     qassemble=T/F   : Whether to fully assemble query stats from all hits in HitSum [False]
     localmin=X      : Minimum length of local alignment to output to local stats table [0]
-    snptable=T/F    : Generate a SNP table (similar to MUMmer NUCmer output) for query/hit overlap (fullblast=T) [False]
-    localunique=T/F : Reduce local hits to unique non-overlapping regions for SNP table output [True]
+    localunique=T/F : Reduce local hits to unique non-overlapping regions (*.unique.tdt) [True]
     localsort=X     : Local hit field used to sort local alignments for localunique reduction [Identity]
+    snptable=T/F    : Generate a SNP table (similar to MUMmer NUCmer output) for query/hit overlap (fullblast=T) [False]
     selfhit=T/F     : Whether to include self hits in the fullres output [True] * See also selfsum=T/F *
     selfsum=T/F     : Whether to also include self hits in hitsum output [False] * selfhit must also be T *
     qryacc=T/F      : Whether to use the Accession Number rather than the short name for the Query [True]
@@ -596,7 +598,9 @@ Commandline:
     fasout=T/F      : Output a fasta file per input sequence "ACCNUM.DBASE.fas" [False]   (GABLAM from FASTA only)
     fasdir=PATH     : Directory in which to save fasta files [BLASTFAS/]
     fragfas=T/F     : Whether to output fragmented Hits based on local alignments [False]
+    fragrevcomp=T/F : Whether to reverse-complement DNA fragments that are on reverse strand to query [True]
     gablamfrag=X    : Length of gaps between mapped residues for fragmenting local hits [100]
+    fragmerge=X     : Max Length of gaps between fragmented local hits to merge [0]
     addflanks=X     : Add flanking regions of length X to fragmented hits [0]
     combinedfas=T/F : Whether to generate a combined fasta file [False]
 
@@ -622,8 +626,8 @@ Commandline:
     blastpath+=PATH : path for blast+ files [c:/bioware/blast+/] *Use fwd slashes
     blastpath=PATH  : path for blast files [c:/bioware/blast/] *Use fwd slashes
     blaste=X        : E-Value cut-off for BLAST searches (BLAST -e X) [1e-4]
-    blastv=X        : Number of one-line hits per query (BLAST -v X)
-    blastb=X        : Number of hit alignments per query (BLAST -b X)
+    blastv=X        : Number of one-line hits per query (BLAST -v X) [500]
+    blastb=X        : Number of hit alignments per query (BLAST -b X) [500]
     blastf=T/F      : Complexity Filter (BLAST -F X) [False]
     checktype=T/F   : Whether to check sequence types and BLAST program selection [True]
 
@@ -1170,8 +1174,8 @@ Other modules needed: None
 
 Module:       PAGSAT
 Description:  Pairwise Assembled Genome Sequence Analysis Tool
-Version:      1.6.1
-Last Edit:    30/10/15
+Version:      1.11.2
+Last Edit:    16/08/16
 Copyright (C) 2015  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -1182,7 +1186,7 @@ Function:
     to the reference.
 
     Main input for PAGSAT is an assembled genome in fasta format (`assembly=FILE`) and a reference genome in fasta format
-    with corresponding `*.gb` genbank download for feature extraction. The
+    with corresponding `*.gb` genbank download for feature extraction.
 
 Output:
     Main output is a number of delimited text files and PNG graphics made with R. Details to follow.
@@ -1208,10 +1212,21 @@ Commandline:
     rgraphics=T/F   : Whether to generate PNG graphics using R. (Needs R installed and setup) [True]
     dotplots=T/F    : Whether to use gablam.r to output dotplots for all ref vs assembly. [False]
     report=T/F      : Whether to generate HTML report [True]
+    genetar=T/F     : Whether to tar and zip the GeneHits/ and ProtHits/ folders (if generated & Mac/Linux) [True]
     ### ~ Comparison Options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     compare=FILES   : Compare assemblies selected using a list of *.Summary.tdt files (wildcards allowed). []
     fragcov=LIST    : List of coverage thresholds to count min. local BLAST hits (checks integrity) [50,90,95,99]
     chromcov=LIST   : Report no. of chromosomes covered by a single contig at different %globID (GABLAM table) [95,98,99]
+    ### ~ Assembly Tidy/Edit Options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+    tidy=T/F        : Execute semi-automated assembly tidy/edit mode to complete draft assembly [False]
+    newacc=X        : New base for edited contig accession numbers (None will keep old accnum) [None]
+    newchr=X        : Code to replace "chr" in new sequence names for additional PAGSAT compatibility [ctg]
+    orphans=T/F     : Whether to include and process orphan contigs [True]
+    chrmap=X        : Contig:Chromosome mapping mode for assembly tidy (unique/align) [unique]
+    joinsort=X      : Whether to sort potential chromosome joins by `Length` or `Identity` [Identity]
+    joinmerge=X     : Merging mode for joining chromosomes (consensus/end) [end]
+    joinmargin=X    : Number of extra bases allowed to still be considered an end local BLAST hit [10]
+    snapper=T/F     : Run Snapper on ctidX/haploid output following PAGSAT Tidy. (Re-Quiver recommended first.) [False]
     ### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
 
 ### ~~~ Module peptcluster ~ [/Users/redwards/ownCloud/projects/SLiMSuite-Jun14/code/slimsuite/tools/peptcluster.py] ~~~ ###
@@ -1413,8 +1428,8 @@ Other modules needed: None
 
 Module:       PINGU
 Description:  Protein Interaction Network & GO Utility
-Version:      4.5.3
-Last Edit:    08/06/15
+Version:      4.8.0
+Last Edit:    17/05/16
 Copyright (C) 2013  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -1449,11 +1464,20 @@ Function:
     using custom methods: `hprd=PATH` and `reactome=FILE` must be set; HINT data will be read from `sourcepath=PATH/`.
     Otherwise, entries will be treated as files (wildcard lists allowed) and either parsed as a pairwise PPI file (`Hub`
     and `Spoke` fields found) else a MITAB file (see rje_mitab for advanced field settings). The compiled PPI data
-    will be output to `BASEFILE.pingu.tdt` and used as `ppisource=X` for additional processing/output.
+    will be output to `BASEFILE.pairwise.tdt` and used as `ppisource=X` for additional processing/output.
 
     Default mapping fields for XRef mapping are: `Secondary,Ensembl,Aliases,Accessions,RefSeq,Previous Symbols,Synonyms`.
     `Secondary` will be added from Uniprot data if missing from the XRef table. `unifield=X` will also be added to the
     map fields if not included.
+
+    PINGU 4.6.x fixed/updated the PPI Fasta output methods (`ppifas=T`). These will output to a directory named after the
+    `ppisource` file and `ppispec`. Each hub gene will produce a fasta file, `gene.fasid.fas` where `fasid` is set by the
+    `ppisource` unless changed with `fasid=X`. If `combineppi=T`, a single `spec.fasid.fas` file will be created. The
+    `xhubppi=T` setting will generate a set of files containing spoke proteins that have x+ Hub interactors. Note that
+    `*.1hub.fas` is essentially the same as the `combineppi=T` `spec.fasid.fas` file.
+
+    PINGU 4.7 added `ppidbreport=T/F` output for PPI compilation, summarising the evidence codes and PPITypes read from
+    different sources.
 
 Commandline:
     ### ~ SOURCE DATA OPTIONS ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -1469,24 +1493,29 @@ Commandline:
 
     ### ~ OUTPUT OPTIONS ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     resdir=PATH         : Redirect output files/directories to specified directory [./]
-    basefile=X          : Results file prefix if no data file given with data=FILE [pingu]
+    basefile=X          : Results file prefix [pingu]
     acconly=T/F         : Whether to output lists of Accession numbers only, rather than full fasta files [False]
     fasid=X             : Text ID for fasta files (*.X.fas) [default named after ppisource(+'-dom')]
 
     ### ~ PPI OUTPUT OPTIONS ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-    ppifas=T/F          : Whether to output PPI files [False]
+    ppiout=FILE         : Save pairwise PPI file following processing (if rest=None) [None]
+    ppifas=T/F          : Whether to output PPI fasta files [False]
     domppi=T/F          : Whether to generate Pfam Domain-based PPI files instead of protein-based PPI files [False]
     minppi=X            : Minimum number of PPI for file output [0]
+    combineppi=T/F      : Whether to combine all spokes into a single fasta file [False]
+    xhubppi=T/F         : Whether to generate PPI files of spokes interacting with X+ hubs [False]
     queryppi=FILE       : Load a file of 'Query','Hub' PPI and generate expanded PPI Datasets in PPI.*/ [None]
     queryseq=FILE       : Fasta file containing the Query protein sequences corresponding to QuerySeq [*.fas]
-    allquery=T/F        : Whether to include all the new Queries from QueryPPI in all files [True]
+    allquery=T/F        : Whether to include all the new Queries from QueryPPI in all files for a given hub [True]
 
     ### ~ ADVANCED/DEV OPTIONS ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     sourceurl=CDICT     : Dictionary of Source URL mapping (see code)
 
     ### ~ PPI COMPILATION/FILTERING OPTIONS ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     hublist=LIST        : List of hub genes to restrict pairwise PPI to []
+    hubonly=T/F         : Whether to restrict pairwise PPI to those with both hub and spoke in hublist [False]
     ppicompile=CDICT    : List of db:file PPI Sources to compile and generate *.pairwise.tdt []
+    ppidbreport=T/F     : Summary output for PPI compilation of evidence/PPIType/DB overlaps [True]
     symmetry=T/F        : Whether to enforce Hub-Spoke symmetry during PPI compilation [True]
     hprd=PATH           : Path to HPRD flat files [None]
     taxid=LIST          : List of NCBI Taxa IDs to use [9606]
@@ -1711,8 +1740,8 @@ Other modules needed: rje_dismatrix,
 
 Program:      QSLiMFinder
 Description:  Query Short Linear Motif Finder
-Version:      2.1.0
-Last Edit:    31/03/15
+Version:      2.1.1
+Last Edit:    07/12/15
 Citation:     Palopoli N, Lythgow KT & Edwards RJ. Bioinformatics 2015; doi: 10.1093/bioinformatics/btv155 [PMID: 25792551]
 SLiMFinder:   Edwards, Davey & Shields (2007), PLoS ONE 2(10): e967. [PMID: 17912346]
 Copyright (C) 2008  Richard J. Edwards - See source code for GNU License Notice
@@ -1763,7 +1792,7 @@ Commandline: ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     masking=T/F     : Master control switch to turn off all masking if False [True]
     dismask=T/F     : Whether to mask ordered regions (see rje_disorder for options) [False]
     consmask=T/F    : Whether to use relative conservation masking [False]
-    ftmask=LIST     : UniProt features to mask out [EM]
+    ftmask=LIST     : UniProt features to mask out (True=EM,DOMAIN,TRANSMEM) []
     imask=LIST      : UniProt features to inversely ("inclusively") mask. (Seqs MUST have 1+ features) []
     compmask=X,Y    : Mask low complexity regions (same AA in X+ of Y consecutive aas) [5,8]
     casemask=X      : Mask Upper or Lower case [None]
@@ -1918,8 +1947,8 @@ Commandline:
 
 Module:       SeqSuite
 Description:  Miscellaneous biological sequence analysis toolkit
-Version:      1.11.0
-Last Edit:    25/11/15
+Version:      1.11.2
+Last Edit:    23/05/16
 Copyright (C) 2014  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -1946,14 +1975,13 @@ SeqSuite tools:
     - HAQESAC = haqesac.HAQESAC. Homologue Alignment Quality, Establishment of Subfamilies and Ancestor Construction.
     - MITAB = rje_mitab.MITAB. MITAB PPI parser.
     - MultiHAQ = multihaq.MultiHAQ. Multi-Query HAQESAC controller.
-    - PacBio = rje_pacbio.PacBio. PacBio sequencing coverage estimator. (Development only)
     - PAGSAT = pagsat.PAGSAT. Pairwise Assembled Genome Sequence Analysis Tool. (Development only)
     - PINGU = pingu_V4.PINGU. Protein Interaction Network & GO Utility.
     - PyDocs = rje_pydocs.PyDoc. Python Module Documentation & Distribution.
     - RJE_Seq = rje_seq.SeqList. Fasta file sequence manipulation/reformatting.
     - SAMTools = rje_samtools.SAMTools. SAMTools mpileup analysis tool. (Development only)
     - SeqList = rje_seqlist.SeqList. Fasta file sequence manipulation/reformatting.
-    - SMRTSCAPE = smrtscape.SMRTSCAPE. SMRT Subread Coverage & Assembly Parameter Estimator. (Development only)
+    - SMRTSCAPE (/PacBio) = smrtscape.SMRTSCAPE. SMRT Subread Coverage & Assembly Parameter Estimator. (Development only)
     - Snapper = snp_mapper.SNPMap. SNV to feature annotations mapping and rating tool. (Development only)
     - Taxonomy = rje_taxonomy.Taxonomy. Taxonomy download/conversion tool.
     - Tree = rje_tree.Tree. Phylogenetic Tree Module.
@@ -2068,8 +2096,8 @@ See also rje.py generic commandline options.
 
 Module:       SLiMFarmer
 Description:  SLiMSuite HPC job farming control program
-Version:      1.4.3
-Last Edit:    10/07/15
+Version:      1.4.5
+Last Edit:    05/10/16
 Copyright (C) 2014  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -2124,7 +2152,7 @@ Commandline:
     nodes=X         : Number of nodes to run on [1]
     ppn=X           : Processors per node [16]
     walltime=X      : Walltime for qsub job (hours) [12]
-    vmem=X          : Virtual Memory limit for run (GB) [127]
+    vmem=X          : Virtual Memory limit for run (GB) [126]
     job=X           : Name of job file (.job added) [slimfarmer]
 
     ### ~ Advanced QSub Options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -2136,7 +2164,7 @@ Commandline:
     depend=LIST     : List of job ids to wait for before starting job (dependhpc=X added) []
     dependhpc=X     : Name of HPC system for depend ['blue30.iridis.soton.ac.uk']
     report=T/F      : Pull out running job IDs and run showstart [False]
-    modules=LIST    : List of modules to add in job file [blast+/2.2.30,clustalw,clustalo,fsa,mafft,muscle,pagan,R/3.1.1]
+    modules=LIST    : List of modules to add in job file e.g. blast+/2.2.31,clustalw []
 
     ### ~ Main SLiMFarmer Options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     farm=X          : Execute a special SLiMFarm analysis on HPC [batch]
@@ -2178,11 +2206,13 @@ See also rje.py generic commandline options.
 
 Program:      SLiMFinder
 Description:  Short Linear Motif Finder
-Version:      5.2.1
-Last Edit:    11/06/15
-Citation:     Edwards, Davey & Shields (2007), PLoS ONE 2(10): e967. [PMID: 17912346]
+Version:      5.2.3
+Last Edit:    07/12/15
+Citation:     Edwards RJ, Davey NE & Shields DC (2007), PLoS ONE 2(10): e967. [PMID: 17912346]
 ConsMask Citation: Davey NE, Shields DC & Edwards RJ (2009), Bioinformatics 25(4): 443-50. [PMID: 19136552]
 SigV/SigPrime Citation: Davey NE, Edwards RJ & Shields DC (2010), BMC Bioinformatics 11: 14. [PMID: 20055997]
+SLiMScape/REST Citation: Olorin E, O'Brien KT, Palopoli N, Perez-Bercoff A & Shields DC, Edwards RJ (2015), F1000Research 4:477.
+SLiMMaker Citation: Palopoli N, Lythgow KT & Edwards RJ (2015), Bioinformatics 31(14): 2284-2293. [PMID: 25792551]
 Webserver:    http://bioware.ucd.ie/
 Copyright (C) 2007  Richard J. Edwards - See source code for GNU License Notice
 
@@ -2198,49 +2228,67 @@ Function:
     for evolutionary relationships [Davey NE, Shields DC & Edwards RJ (2006): Nucleic Acids Res. 34(12):3546-54].
     SLiMFinder is comprised of two algorithms:
 
-    SLiMBuild identifies convergently evolved, short motifs in a dataset. Motifs with fixed amino acid positions are
+    1. `SLiMBuild` identifies convergently evolved, short motifs in a dataset. Motifs with fixed amino acid positions are
     identified and then combined to incorporate amino acid ambiguity and variable-length wildcard spacers. Unlike
     programs such as TEIRESIAS, which return all shared patterns, SLiMBuild accelerates the process and reduces returned
     motifs by explicitly screening out motifs that do not occur in enough unrelated proteins. For this, SLiMBuild uses
     the "Unrelated Proteins" (UP) algorithm of SLiMDisc in which BLAST is used to identify pairwise relationships.
-    Proteins are then clustered according to these relationships into "Unrelated Protein Clusters" (UPCs), which are
+    Proteins are then clustered according to these relationships into "Unrelated Protein Clusters" (UPC), which are
     defined such that no protein in a UPC has a BLAST-detectable relationship with a protein in another UPC.  If desired,
-    SLiMBuild can be used as a replacement for TEIRESIAS in other software (teiresias=T slimchance=F).
+    `SLiMBuild` can be used as a replacement for TEIRESIAS in other software (teiresias=T slimchance=F).
 
-    SLiMChance estimates the probability of these motifs arising by chance, correcting for the size and composition of
-    the dataset, and assigns a significance value to each motif. Motif occurrence probabilites are calculated
-    independently for each UPC, adjusted the size of a UPC using the Minimum Spanning Tree algorithm from SLiMDisc. These
-    individual occurrence probabilities are then converted into the total probability of the seeing the observed motifs
-    the observed number of (unrelated) times. These probabilities assume that the motif is known before the search. In
-    reality, only over-represented motifs from the dataset are looked at, so these probabilities are adjusted for the
-    size of motif-space searched to give a significance value. This is an estimate of the probability of seeing that
-    motif, or another one like it. These values are calculated separately for each length of motif. Where pre-known
-    motifs are also of interest, these can be given with the slimcheck=MOTIFS option and will be added to the output.
+    2. `SLiMChance` estimates the probability of these motifs arising by chance, correcting for the size and composition
+    of the dataset, and assigns a significance value to each motif. Motif occurrence probabilities are calculated
+    independently for each UPC, adjusted for the size of a UPC using the Minimum Spanning Tree algorithm from SLiMDisc.
+    These individual occurrence probabilities are then converted into the total probability of the seeing the observed
+    motifs the observed number of (unrelated) times. These probabilities assume that the motif is known before the
+    search. In reality, only over-represented motifs from the dataset are looked at, so these probabilities are adjusted
+    for the size of motif-space searched to give a significance value. The returned corrected probability is an estimate
+    of the probability of seeing ANY motif with that significance (or greater) from the dataset (i.e. an estimate of the
+    probability of seeing that motif, *or another one like it*). These values are calculated separately for each length
+    of motif.
+
     SLiMFinder version 4.0 introduced a more precise (but more computationally intensive) statistical model, which can
     be switched on using sigprime=T. Likewise, the more precise (but more computationally intensive) correction to the
-    mean UPC probability heuristic can be switched on using sigv=T. (Note that the other SLiMChance options may not
+    mean UPC probability heuristic can be switched on using sigv=T. (Note that the other `SLiMChance` options may not
     work with either of these options.) The allsig=T option will output all four scores. In this case, SigPrimeV will be
     used for ranking etc. unless probscore=X is used.
 
+    ### Clouds and Statistics:
     Where significant motifs are returned, SLiMFinder will group them into Motif "Clouds", which consist of physically
     overlapping motifs (2+ non-wildcard positions are the same in the same sequence). This provides an easy indication
-    of which motifs may actually be variants of a larger SLiM and should therefore be considered together.
+    of which motifs may actually be variants of a larger SLiM and should therefore be considered together. From version
+    V4.7, `*.cloud.txt` output includes a `SLiMMaker` summary Regex for the whole cloud. NOTE: This may not necessarily
+    match all occurrences in the cloud.
 
-    Additional Motif Occurrence Statistics, such as motif conservation, are handled by the rje_slimlist module. Please
-    see the documentation for this module for a full list of commandline options. These options are currently under
-    development for SLiMFinder and are not fully supported. See the SLiMFinder Manual for further details. Note that the
-    OccFilter *does* affect the motifs returned by SLiMBuild and thus the TEIRESIAS output (as does min. IC and min.
-    Support) but the overall Motif StatFilter *only* affects SLiMFinder output following SLiMChance calculations.
+    Additional Motif Occurrence Statistics, such as motif conservation, are handled by the `rje_slimlist` module and
+    `rje_slimcalc` modules. Please see the documentation for these module for a full list of commandline options. These
+    options have not been fully tested in SLiMFinder, so please report issues and/or request desired functions. Note that
+    occfilter=LIST *does* affect the motifs returned by SLiMBuild and thus the TEIRESIAS output (as does min. IC and min.
+    Support) but the overall Motif slimfilter=LIST *only* affects SLiMFinder output following SLiMChance calculations.
 
-### Secondary Functions:
+    ### Secondary Functions:
     The "MotifSeq" option will output fasta files for a list of X:Y, where X is a motif pattern and Y is the output file.
 
     The "Randomise" function will take a set of input datasets (as in Batch Mode) and regenerate a set of new datasets
     by shuffling the UPC among datasets. Note that, at this stage, this is quite crude and may result in the final
     datasets having fewer UPC due to common sequences and/or relationships between UPC clusters in different datasets.
 
+    Where pre-known motifs are also of interest, these can be given with the slimcheck=MOTIFS option and will be added to
+    the output. In general, it is better to use `SLiMProb` to look for enrichment (or depletion) of pre-defined motifs.
+
+Input/Output:
+    ### SLiMFinder Input:
+    The main input for SLiMFinder is the `seqin=SEQFILE` file of protein sequences, which can be Uniprot plain text
+    (`DATFILE`) or fasta (`FASFILE`) format. A batch of files (incorporating wildcards) can be given using
+    batch=FILELIST. Alternative primary input is uniprotid=LIST. This requires an active internet connection to retrieve
+    the corresponding Uniprot entries.
+
+    ### SLiMFinder Output:
+    Please see Manual for details.
+
 Commandline: ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-    ### Basic Input/Output Options ###
+    ### Basic Input/Output Options: ###
     seqin=SEQFILE   : Sequence file to search. Over-rules batch=FILE and uniprotid=LIST [None]
     batch=FILELIST  : List of files to search, wildcards allowed. (Over-ruled by seqin=FILE.) [*.dat,*.fas]
     uniprotid=LIST  : Extract IDs/AccNums in list from Uniprot into BASEFILE.dat and use as seqin=FILE. []
@@ -2262,21 +2310,21 @@ Commandline: ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     ptmlist=LIST    : List of PTM letters to add to alphabet for analysis and restrict PTM data []
     ptmdata=DSVFILE : File containing PTM data, including AccNum, ModType, ModPos, ModAA, ModCode
 
-SLiMBuild Options: ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-    ### SLiMBuild Options I: Evolutionary Filtering  ###
+SLiMBuild: ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+    ### SLiMBuild Options I (Evolutionary Filtering): ###
     efilter=T/F     : Whether to use evolutionary filter [True]
     blastf=T/F      : Use BLAST Complexity filter when determining relationships [True]
     blaste=X        : BLAST e-value threshold for determining relationships [1e=4]
-    altdis=FILE     : Alternative all by all distance matrix for relationships [None]
+    altdis=DSVFILE  : Alternative all by all distance matrix for relationships [None]
     gablamdis=FILE  : Alternative GABLAM results file [None] (!!!Experimental feature!!!)
     homcut=X        : Max number of homologues to allow (to reduce large multi-domain families) [0]
     newupc=PATH     : Look for alternative UPC file and calculate Significance using new clusters [None]
 
-    ### SLiMBuild Options II: Input Masking ###
+    ### SLiMBuild Options II (Input Masking): ###
     masking=T/F     : Master control switch to turn off all masking if False [True]
     dismask=T/F     : Whether to mask ordered regions (see rje_disorder for options) [False]
     consmask=T/F    : Whether to use relative conservation masking [False]
-    ftmask=LIST     : UniProt features to mask out [EM]
+    ftmask=LIST     : UniProt features to mask out (True=EM,DOMAIN,TRANSMEM) []
     imask=LIST      : UniProt features to inversely ("inclusively") mask. (Seqs MUST have 1+ features) []
     compmask=X,Y    : Mask low complexity regions (same AA in X+ of Y consecutive aas) [5,8]
     casemask=X      : Mask Upper or Lower case [None]
@@ -2286,7 +2334,7 @@ SLiMBuild Options: ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     aamask=LIST     : Masks list of AAs from all sequences (reduces alphabet) []
     qregion=X,Y     : Mask all but the region of the query from (and including) residue X to residue Y [0,-1]
 
-    ### SLiMBuild Options III: Basic Motif Construction ###
+    ### SLiMBuild Options III (Basic Motif Construction): ###
     termini=T/F     : Whether to add termini characters (^ & $) to search sequences [True]
     minwild=X       : Minimum number of consecutive wildcard positions to allow [0]
     maxwild=X       : Maximum number of consecutive wildcard positions to allow [2]
@@ -2297,7 +2345,7 @@ SLiMBuild Options: ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     fixlen=T/F      : If true, will use maxwild and slimlen to define a fixed total motif length [False]
     palindrome=T/F  : Special DNA mode that will search for palindromic sequences only [False]
 
-    ### SLiMBuild Options IV: Ambiguity ###
+    ### SLiMBuild Options IV (Ambiguity): ###
     ambiguity=T/F   : (preamb=T/F) Whether to search for ambiguous motifs during motif discovery [True]
     ambocc=X        : Min. UP occurrence for subvariants of ambiguous motifs (minocc if 0 or > minocc) [0.05]
     absminamb=X     : Used if ambocc<1 to define absolute min. UP occ [2]
@@ -2305,7 +2353,7 @@ SLiMBuild Options: ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     wildvar=T/F     : Whether to allow variable length wildcards [True]
     combamb=T/F     : Whether to search for combined amino acid degeneracy and variable wildcards [False]
 
-    ### SLiMBuild Options V: Advanced Motif Filtering ###
+    ### SLiMBuild Options V (Advanced Motif Filtering): ###
     altupc=PATH     : Look for alternative UPC file and filter based on minocc [None]
     musthave=LIST   : Returned motifs must contain one or more of the AAs in LIST (reduces search space) []
     query=LIST      : Return only SLiMs that occur in 1+ Query sequences (Name/AccNum) []
@@ -2313,7 +2361,7 @@ SLiMBuild Options: ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     focusocc=X      : Motif must appear in X+ focus groups (0 = all) [0]
     * See also rje_slimcalc options for occurrence-based calculations and filtering *
     
-SLiMChance Options: ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+SLiMChance: ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
     cloudfix=T/F    : Restrict output to clouds with 1+ fixed motif (recommended) [False]
     slimchance=T/F  : Execute main SLiMFinder probability method and outputs [True]
     sigprime=T/F    : Calculate more precise (but more computationally intensive) statistical model [False]
@@ -2321,21 +2369,21 @@ SLiMChance Options: ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     dimfreq=T/F     : Whether to use dimer masking pattern to adjust number of possible sites for motif [True]
     probcut=X       : Probability cut-off for returned motifs (sigcut=X also recognised) [0.1]
     maskfreq=T/F    : Whether to use masked AA Frequencies (True), or (False) mask after frequency calculations [True]
-    aafreq=FILE     : Use FILE to replace individual sequence AAFreqs (FILE can be sequences or aafreq) [None]
+    aafreq=AAFILE   : Use FILE to replace individual sequence AAFreqs (FILE can be sequences or aafreq) [None]
     aadimerfreq=FILE: Use empirical dimer frequencies from FILE (fasta or *.aadimer.tdt) (!!!Experimental!!!) [None]
-    negatives=FILE  : Multiply raw probabilities by under-representation in FILE (!!!Experimental!!!) [None]
+    negatives=SEQFILE : Multiply raw probabilities by under-representation in FILE (!!!Experimental!!!) [None]
     smearfreq=T/F   : Whether to "smear" AA frequencies across UPC rather than keep separate AAFreqs [False]
     seqocc=T/F      : Whether to upweight for multiple occurrences in same sequence (heuristic) [False]
     probscore=X     : Score to be used for probability cut-off and ranking (Prob/Sig/S/R) [Sig]
 
-Advanced Output Options: ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-    ### Advanced Output Options I: Output data ###
+Advanced: ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+    ### Advanced Output Options I (Output data): ###
     clouds=X        : Identifies motif "clouds" which overlap at 2+ positions in X+ sequences (0=minocc / -1=off) [2]
     runid=X         : Run ID for resfile (allows multiple runs on same data) [DATE]
     logmask=T/F     : Whether to log the masking of individual sequences [True]
-    slimcheck=FILE  : Motif file/list to add to resfile output [] 
+    slimcheck=MOTIFS : Motif file/list to add to resfile output []
 
-    ### Advanced Output Options II: Output formats ###
+    ### Advanced Output Options II (Output formats): ###
     teiresias=T/F   : Replace TEIRESIAS, making *.out and *.mask.fasta files [False]
     slimdisc=T/F    : Emulate SLiMDisc output format (*.rank & *.dat.rank + TEIRESIAS *.out & *.fasta) [False]
     extras=X        : Whether to generate additional output files (alignments etc.) [1]
@@ -2351,19 +2399,18 @@ Advanced Output Options: ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
                         - 2 = Delete all bar *.upc (pickle added to tar)
                         - 3 = Delete all dataset-specific files including *.upc and *.pickle (not *.tar.gz)
 
-    ### Advanced Output Options III: Additional Motif Filtering ###
+    ### Advanced Output Options III (Additional Motif Filtering): ###
     topranks=X      : Will only output top X motifs meeting probcut [1000]
     oldscores=T/F   : Whether to also output old SLiMDisc score (S) and SLiMPickings score (R) [False]
     allsig=T/F      : Whether to also output all SLiMChance combinations (Sig/SigV/SigPrime/SigPrimeV) [False]
     minic=X         : Minimum information content for returned motifs [2.1]
     * See also rje_slimcalc options for occurrence-based calculations and filtering *
 
-Additional Functions: ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-    ### Additional Functions I: MotifSeq ###
+    ### Additional Functions I (MotifSeq): ###
     motifseq=LIST   : Outputs fasta files for a list of X:Y, where X is the pattern and Y is the output file []
     slimbuild=T/F   : Whether to build motifs with SLiMBuild. (For combination with motifseq only.) [True]
 
-    ### Additional Functions II: Randomised datasets ###
+    ### Additional Functions II (Randomised datasets): ###
     randomise=T/F   : Randomise UPC within batch files and output new datasets [False]
     randir=PATH     : Output path for creation of randomised datasets [Random/]
     randbase=X      : Base for random dataset name [rand]
@@ -2528,8 +2575,8 @@ See also rje.py generic commandline options.
 
 Module:       SLiMParser
 Description:  SLiMSuite REST output parsing tool.
-Version:      0.3.3
-Last Edit:    31/07/15
+Version:      0.4.0
+Last Edit:    12/09/16
 Copyright (C) 2014  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -2563,8 +2610,8 @@ See also rje.py generic commandline options.
 
 Program:      SLiMProb
 Description:  Short Linear Motif Probability tool
-Version:      2.2.4
-Last Edit:    11/06/15
+Version:      2.2.5
+Last Edit:    07/12/15
 Citation:     Davey, Haslam, Shields & Edwards (2010), Lecture Notes in Bioinformatics 6282: 50-61. 
 Copyright (C) 2007  Richard J. Edwards - See source code for GNU License Notice
 
@@ -2612,17 +2659,17 @@ Commandline: ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     masking=T/F     : Master control switch to turn off all masking if False [False]
     dismask=T/F     : Whether to mask ordered regions (see rje_disorder for options) [False]
     consmask=T/F    : Whether to use relative conservation masking [False]
-    ftmask=LIST     : UniProt features to mask out [EM,DOMAIN,TRANSMEM]
+    ftmask=LIST     : UniProt features to mask out (True=EM,DOMAIN,TRANSMEM) []
     imask=LIST      : UniProt features to inversely ("inclusively") mask. (Seqs MUST have 1+ features) []
-    compmask=X,Y    : Mask low complexity regions (same AA in X+ of Y consecutive aas) [5,8]
+    compmask=X,Y    : Mask low complexity regions (same AA in X+ of Y consecutive aas) [None]
     casemask=X      : Mask Upper or Lower case [None]
     motifmask=X     : List (or file) of motifs to mask from input sequences []
     metmask=T/F     : Masks the N-terminal M [False]
-    posmask=LIST    : Masks list of position-specific aas, where list = pos1:aas,pos2:aas  [2:A]
+    posmask=LIST    : Masks list of position-specific aas, where list = pos1:aas,pos2:aas  []
     aamask=LIST     : Masks list of AAs from all sequences (reduces alphabet) []
 
     ### SearchDB Options II: Evolutionary Filtering  ###
-    efilter=T/F     : Whether to use evolutionary filter [False]
+    efilter=T/F     : Whether to use evolutionary filter [True]
     blastf=T/F      : Use BLAST Complexity filter when determining relationships [True]
     blaste=X        : BLAST e-value threshold for determining relationships [1e=4]
     altdis=FILE     : Alternative all by all distance matrix for relationships [None]
@@ -2661,8 +2708,8 @@ Other modules needed: None
 
 Program:      SLiMSearch
 Description:  Short Linear Motif Search tool
-Version:      1.7
-Last Edit:    18/12/12
+Version:      1.7.1
+Last Edit:    03/12/15
 Citation:     Davey, Haslam, Shields & Edwards (2010), Lecture Notes in Bioinformatics 6282: 50-61. 
 Copyright (C) 2007  Richard J. Edwards - See source code for GNU License Notice
 
@@ -2676,7 +2723,7 @@ Function:
     * searching with mismatches rather than restricting hits to perfect matches.
     * optional equivalency files for searching with specific allowed mismatched (e.g. charge conservation)
     * generation or reading of alignment files from which to calculate conservation statistics for motif occurrences.
-    * additional statistics, inlcuding protein disorder, surface accessibility and hydrophobicity predictions
+    * additional statistics, including protein disorder, surface accessibility and hydrophobicity predictions
     * recognition of "n of m" motif elements in the form <X:n:m>, where X is one or more amino acids that must occur n+
     times across which m positions. E.g. <IL:3:5> must have 3+ Is and/or Ls in a 5aa stretch.
 
@@ -2684,7 +2731,7 @@ Function:
     allow output of alignments of motifs and their occurrences. The primary outputs are named *.csv for the occurrence
     data and *.summary.csv for the summary data for each motif/dataset pair. 
     
-    NOTE: SLiMSearch has now been replaced by SLiMProb.
+    NOTE: SLiMSearch has now been largely superseded by SLiMProb for motif statistics.
 
 Commandline: ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
     ### Basic Input/Output Options ###
@@ -2749,8 +2796,8 @@ Commandline: ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Module:       SLiMSuite
 Description:  Short Linear Motif analysis Suite
-Version:      1.5.1
-Last Edit:    17/06/15
+Version:      1.6.0
+Last Edit:    19/01/16
 Citation:     Edwards RJ & Palopoli N (2015): Methods Mol Biol. 1268:89-141. [PMID: 25555723]
 Copyright (C) 2014  Richard J. Edwards - See source code for GNU License Notice
 
@@ -2787,7 +2834,7 @@ Please also see the SeqSuite documentation for additional utilities, which can b
 
 Commandline:
     ### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-    prog=X      # Identifies the tool to be used. Will load defaults from X.ini (before slimsuite.ini) [slimcore]
+    prog=X      # Identifies the tool to be used. Will load defaults from X.ini (before slimsuite.ini) [help]
     help=T/F    # Return the help documentation for program X. [False]
     ### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
 See also rje.py generic commandline options.
@@ -2796,28 +2843,47 @@ See also rje.py generic commandline options.
 
 Module:       SMRTSCAPE
 Description:  SMRT Subread Coverage & Assembly Parameter Estimator
-Version:      1.8.0
-Last Edit:    19/08/15
+Version:      1.10.1
+Last Edit:    26/05/16
 Copyright (C) 2015  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
-    This is based on the old PacBio module. Documentation will be added soon.
+    SMRTSCAPE (SMRT Subread Coverage & Assembly Parameter Estimator) is tool in development as part of our PacBio
+    sequencing projects for predicting and/or assessing the quantity and quality of useable data required/produced for
+    HGAP3 de novo whole genome assembly. The current documentation is below. Some tutorials will be developed in the
+    future - in the meantime, please get in touch if you want to use it and anything isn't clear.
+
+    The main functions of `SMRTSCAPE` are:
+
+    1. Estimate Genome Coverage and required numbers of SMRT cells given predicted read outputs. NOTE: Default settings
+    for SMRT cell output are not reliable and you should speak to your sequencing provider for their up-to-date figures.
+
+    2. Summarise the amount of sequence data obtained from one or more SMRT cells, including unique coverage (one read
+    per ZMW).
+
+    3. Calculate predicted coverage from subread data for difference length and quality cutoffs.
+
+    4. Predict HGAP3 length and quality settings to achieve a given coverage and accuracy.
+
+	SMRTSCAPE `coverage=T` mode can be run from the EdwardsLab server at:
+	<http://www.slimsuite.unsw.edu.au/servers/pacbio.php>
 
 Commandline:
     ### ~ General Options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     genomesize=X    : Genome size (bp) [0]
     ### ~ Genome Coverage Options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-    coverage=T/F    : Whether to generate coverage report [True]
+    coverage=T/F    : Whether to generate coverage report [False]
     avread=X        : Average read length (bp) [20000]
     smrtreads=X     : Average assemble output of a SMRT cell [50000]
     smrtunits=X     : Units for smrtreads=X (reads/Gb/Mb) [reads]
     errperbase=X    : Error-rate per base [0.14]
-    maxcov=X        : Maximmum X coverage to calculate [100]
+    maxcov=X        : Maximum X coverage to calculate [100]
     bysmrt=T/F      : Whether to output estimated  coverage by SMRT cell rather than X coverage [False]
     xnlist=LIST     : Additional columns giving % sites with coverage >= Xn [1+`minanchorx`->`targetxcov`+`minanchorx`]
     ### ~ SubRead Summary Options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     summarise=T/F   : Generate subread summary statistics including ZMW summary data [False]
     seqin=FILE      : Subread sequence file for analysis [None]
+    batch=FILELIST  : Batch input of multiple subread fasta files (wildcards allowed) if seqin=None []
     targetcov=X     : Target percentage coverage for final genome [99.999]
     targeterr=X     : Target errors per base for preassembly [1/genome size]
     calculate=T/F   : Calculate X coverage and target X coverage for given seed, anchor + RQ combinations [False]
@@ -2836,6 +2902,77 @@ Commandline:
     parseparam=FILES: Parse parameter settings from 1+ assembly runs []
     paramlist=LIST  : List of parameters to retain for parseparam output (file or comma separated, blank=all) []
     predict=T/F     : Whether to add XCoverage prediction and efficiency estimation from parameters and subreads [False]
+    ### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+
+### ~~~~~~ Module snapper ~ [/Users/redwards/ownCloud/projects/SLiMSuite-Jun14/code/slimsuite/tools/snapper.py] ~~~~~~ ###
+
+Module:       Snapper
+Description:  Genome-wide SNP Mapper
+Version:      1.1.0
+Last Edit:    16/08/16
+Copyright (C) 2016  Richard J. Edwards - See source code for GNU License Notice
+
+Function:
+    Snapper is designed to generate a table of SNPs from a BLAST comparison of two genomes, map those SNPs onto genome
+    features, predict effects and generate a series of output tables to aid exploration of genomic differences.
+
+    A basic overview of the Snapper workflow is as follows:
+
+    1. Read/parse input sequences and reference features.
+
+    2. All-by-all BLAST of query "Alt" genome against reference using GABLAM.
+
+    3. Reduction of BLAST hits to Unique BLAST hits in which each region of a genome is mapped onto only a single region
+    of the other genome. This is not bidirectional at this stage, so multiple unique regions of one genome may map onto
+    the same region of the other.
+
+    4. Determine Copy Number Variation (CNV) for each region of the genome based on the unique BLAST hits. This is
+    determined at the nucleotide level as the number of times that nucleotide maps to unique regions in the other genome,
+    thus establishing the copy number of that nucleotide in the other genome.
+
+    5. Generate SNP Tables based on the unique local BLAST hits. Each mismatch or indel in a local BLAST alignment is
+    recorded as a SNP.
+
+    6. Mapping of SNPs onto reference features based on SNP reference locus and position.
+
+    7. SNP Type Classification based on the type of SNP (insertion/deletion/substitution) and the feature in which it
+    falls. CDS SNPs are further classified according to codon changes.
+
+    8. SNP Effect Classification for CDS features predicting their effects (in isolation) on the protein product.
+
+    9. SNP Summary Tables for the whole genome vs genome comparison. This includes a table of CDS Ratings based on the
+    numbers and types of SNPs. For the `*.summary.tdt` output is, each SNP is only mapped to a single feature according
+    to the FTBest hierarchy, removing SNPs mapping to one feature type from feature types lower in the list:
+    - CDS,mRNA,tRNA,rRNA,ncRNA,misc_RNA,gene,mobile_element,LTR,rep_origin,telomere,centromere,misc_feature,intergenic
+
+    More details are given in the Snapper manual.
+
+    Version 1.1.0 introduced additional fasta output of the genome regions with zero coverage in the other genome, i.e.
+    the regions in the *.cnv.tdt file with CNV=0. Regions smaller than `nocopylen=X` [default=100] are deleted and then
+    those within `nocopymerge=X` [default=20] of each other will be merged for output. This can be switched off with
+    `nocopyfas=F`.
+
+Commandline:
+    ### ~ Input/Output options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+    seqin=FASFILE   : Input genome to identify variants in []
+    reference=FILE  : Fasta (with accession numbers matching Locus IDs) or genbank file of reference genome. []
+    basefile=FILE   : Root of output file names (same as SNP input file by default) [<SNPFILE> or <SEQIN>.vs.<REFERENCE>]
+    nocopyfas=T/F   : Whether to output CNV=0 fragments to *.nocopy.fas fasta file [True]
+    nocopylen=X     : Minimum length for CNV=0 fragments to be output [100]
+    nocopymerge=X   : CNV=0 fragments within X nt of each other will be merged prior to output [20]
+    ### ~ Reference Feature Options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+    spcode=X        : Overwrite species read from file (if any!) with X if generating sequence file from genbank [None]
+    ftfile=FILE     : Input feature file (locus,feature,position,start,end) [*.Feature.tdt]
+    ftskip=LIST     : List of feature types to exclude from analysis [source]
+    ftbest=LIST     : List of features to exclude if earlier feature in list overlaps position [(see above)]
+    ### ~ SNP Mapping Options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+    snpmap=FILE     : Input table of SNPs for standalone mapping and output (should have locus and pos info) [None]
+    snphead=LIST    : List of SNP file headers []
+    snpdrop=LIST    : List of SNP fields to drop []
+    altpos=T/F      : Whether SNP file is a single mapping (with AltPos) (False=BCF) [True]
+    altft=T/F       : Use AltLocus and AltPos for feature mapping (if altpos=T) [False]
+    localsort=X     : Local hit field used to sort local alignments for localunique reduction [Identity]
+    localmin=X      : Minimum length of local alignment to output to local stats table [10]
     ### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
 
 ### ~~~~~~ Module unifake ~ [/Users/redwards/ownCloud/projects/SLiMSuite-Jun14/code/slimsuite/tools/unifake.py] ~~~~~~ ###
@@ -3478,8 +3615,8 @@ Other modules needed: None
 
 Module:       rje_pydocs
 Description:  Python Module Documentation & Distribution
-Version:      2.16.2
-Last Edit:    30/05/15
+Version:      2.16.3
+Last Edit:    03/12/15
 Copyright (C) 2011 Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -4044,8 +4181,8 @@ Uses RJE modules: rje_seq, rje_uniprot, rje, rje_blast, rje_slim
 
 Module:       rje
 Description:  Contains General Objects for all my (Rich's) scripts
-Version:      4.15.0
-Last Edit:    27/07/15
+Version:      4.17.0
+Last Edit:    06/08/16
 Copyright (C) 2005  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -4369,8 +4506,8 @@ Uses RJE modules: rje
 
 Module:       rje_blast
 Description:  BLAST+ Control Module
-Version:      2.9.1
-Last Edit:    15/05/15
+Version:      2.11.2
+Last Edit:    26/05/16
 Copyright (C) 2013  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -4449,8 +4586,8 @@ Uses RJE modules: rje
 
 Module:       rje_db
 Description:  R Edwards Relational Database module
-Version:      1.8.0
-Last Edit:    16/11/15
+Version:      1.8.1
+Last Edit:    19/04/16
 Copyright (C) 2007  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -4701,8 +4838,8 @@ See also rje.py generic commandline options.
 
 Module:       rje_genbank
 Description:  RJE GenBank Module
-Version:      1.3.2
-Last Edit:    21/11/15
+Version:      1.5.2
+Last Edit:    05/09/16
 Copyright (C) 2011  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -4713,6 +4850,7 @@ Input Options:
     fetchuid=LIST   : Genbank retrieval to of a list of nucleotide entries to generate seqin=FILE []
     spcode=X        : Overwrite species read from file (if any!) with X [None]
     taxdir=PATH     : Path to taxonomy files for species code extraction. (Will not use if blank or None) [./SourceData/]
+    addtags=T/F     : Add locus_tag identifiers if missing - needed for gene/cds/prot fasta output [False]
 
 Output Options:
     basefile=FILE   : Root of output file names (same as input file by default) []
@@ -5026,8 +5164,8 @@ See also rje.py generic commandline options.
 
 Module:       rje_hprd
 Description:  HPRD Database processing module
-Version:      1.2
-Last Edit:    26/06/08
+Version:      1.2.1
+Last Edit:    16/05/16
 Copyright (C) 2007  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -5222,8 +5360,8 @@ Other modules needed: None
 
 Module:       rje_menu
 Description:  Generic Menu Methods Module
-Version:      0.3
-Last Edit:    08/02/13
+Version:      0.4.0
+Last Edit:    18/01/16
 Copyright (C) 2006  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -5241,8 +5379,8 @@ Other modules needed: None
 
 Module:       rje_mitab
 Description:  RJE MITAB File Parser
-Version:      0.2.0
-Last Edit:    30/04/15
+Version:      0.2.1
+Last Edit:    17/05/16
 Copyright (C) 2015  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -5452,8 +5590,8 @@ Other modules needed: None
 
 Module:       rje_obj
 Description:  Contains revised General Object templates for Rich Edwards scripts and bioinformatics programs
-Version:      2.1.3
-Last Edit:    09/06/15
+Version:      2.2.1
+Last Edit:    13/04/16
 Copyright (C) 2011  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -5493,6 +5631,7 @@ System Commandline:
     webserver=T/F   : Trigger webserver run and output [False]
     soaplab=T/F     : Implement special options/defaults for SoapLab implementations [False]
     rest=X          : Variable that sets the output to be returned by REST services [None]
+    screenwrap=X    : Maximum width for some screen outputs [200]
 
 Forking Commandline:
     noforks=T/F     : Whether to avoid forks [False]
@@ -5656,8 +5795,133 @@ Other modules needed: None
 
 Module:       rje_samtools
 Description:  RJE SAMtools parser and processor
-Version:      0.1.0
-Last Edit:    17/11/15
+Version:      1.8.1
+Last Edit:    29/08/16
+Copyright (C) 2013  Richard J. Edwards - See source code for GNU License Notice
+
+Function:
+    The initial function of this program is for calling/assessing genetic changes following MPileup mapping of multiple
+    short read datasets against the same reference genome (provided as BAM files). The MPileup files should be generated
+    by piping the output of the following into a file (*.mpileup):
+
+    samtools mpileup -BQ0 -d10000000 -f <Ref Genome Fasta> <BAM file>
+
+    Initial parsing and filtering converts the MPileup format into a delimited text file with quality score and read
+    depth filtering, converting mapped read data into an allele list in the form: allele1:count|allele2:count|... These
+    will be sorted by frequency, so that allele1 is the "major allele". Output of the *.QX.tdt file will have the fields:
+    * Locus = Reference locus (contig/chromosome)
+    * Pos = Position in reference (1-L)
+    * Ref = Reference sequence
+    * N = Total read depth at that position
+    * QN = Read depth after quality filtering
+    * Seq = Mapped (filtered) allele list in the form: allele1:count|allele2:count|...
+
+SNP Frequency Calculations:
+    A second function of this tool is to compare the SNP frequencies of two populations/datasets and identify major
+    alleles in the "Treatment" that have significantly increased in frequency compared to the "Control". This mode takes
+    two pileup files as control=FILE and treatment=FILE. These file names (minus extension) will be output fields. For
+    something more user-friendly, use `labels=X,Y` to give them better labels (where X is control and Y is treatment).
+    These file names will also be used to set the output files `CONTROL.vs.TREATMENT` unless `basefile=X` is set.
+
+    Parsed pileup files (see above) are read in and combined. Only locus positions with entries in both files (i.e. both
+    meet the `qcut=X` and `minqn=X` criteria) are kept and base calls combined. Any alleles failing to meet the minimum
+    count criteria (mincut=X) are removed. If `mincut` < 1.0, it is treated as a proportion of all reads, with a minimum
+    value set by `absmincut=X`. The exception to this allele removal is the Reference allele, unless `ignoreref=T`. By
+    default, `N` alleles are removed and do not contribute to overall read counts for allele frequency calculations. This
+    can be changed by setting `ignoren=F`. Filtered SNPs are output to `*.snp.tdt`. Unless `ignoreref=T`, fixed
+    differences to the Reference (i.e. 100% frequency in both control and treatment) are also output.
+
+    The focus of analysis is the "major allele" for the treatment population, which is the allele with highest frequency.
+    (When tied, alleles will be arbitrarily selected in alphabetical order). The frequency of  the major allele in the
+    treatment (`MajFreq`) is output along with the difference in frequency of this allele relative to the control
+    (`MajDiff`). A positive value indicates that the allele is at higher frequency in the treatment, whereas a negative
+    value means higher frequency in the control. Finally, the probability of the treatment frequency is calculated using
+    a binomial distribution, where: p is probability of a read being the major allele based on the control frequency (if
+    zero, this is conservatively set to 1/(N+1), i.e. assuming that the next control read would be that allele); k is the
+    number of major allele treatment reads and n is the total number of treatment reads.
+
+    The next stage is to filter these SNPs and calculate FDR statistics. By default, only positions with non-reference
+    major treatment alleles are considered. This can be switched off with `majmut=F` or reversed with `majmut=F` and
+    `majref=T` in combination. Following this filtering, the total
+    number of SNPs is used for an FDR correction of the `MajProb` probabilities, using the Benjamini & Hochberg approach,
+    where FDR = pN/n. To speed this up and reduce output, a probability cutoff can be applied with `sigcut=X` (0.05 by
+    default). To only keep positions where the treatment major allele is different to the control major allele, use
+    `majdif=T`. `majcut=X` will add an additional min. frequency criterion. These are applied after FDR correction.
+    Output is then further reduced to those SNPs where `MajDiff` > 0 and filtered with a final FDR cutoff (`fdrcut=X`).
+    Remaining SNPs are output to the `*.fdr.tdt` table.
+
+    Optionally, a table of SNP annotation (snptable=FILE) can be merged with the `*.fdr.tdt` output. This table must have
+    `Locus` and `Pos` fields. If it has other fields that are required to identify unique entries, these should be set
+    with `snptabkeys=LIST`.
+
+Read Coverage Analysis:
+    Version 1.8.0 added read coverage analysis, which will calculate average depth of coverage for each Locus based on a
+    SAM or mpileup file, or a Read ID file (`*.rid.tdt`) previously generated by `rje_samtools`. This file is given by
+    `readcheck=FILE`. If the source sequence file is also given using `seqin=FASFILE` then the true sequence lengths are
+    used for the calculation. Otherwise, the last position covered by a read in the `readcheck` file is used. Read depths
+    are output to `*.coverage.tdt`.
+
+    A table of regions to be checked can be provided using `checkpos=FILE`. This should have `Locus`, `Start` and `End`
+    fields for the regions to be checked. Reads from `readcheck` will be scanned to (a) identify reads completely
+    spanning the region, and (b) calculate the mean depth of coverage for that region. Reads spanning the region must
+    also cover a number of nucleotides flanking the region, as set by `checkflanks=LIST`. Each flanking distance in the
+    list will have its own `SpanX` output field. For example, the default settings check 0 flanks (just the region), plus
+    flanks of 100, 500 and 1000 nt. This generates output fields `Span0`, `Span100`, `Span500` and `Span1000`.
+
+    Alternative `Locus`, `Start` and `End` fields for `checkpos=FILE` can be given with `checkfields=LIST`. NOTE: This is
+    case-sensitive and needs all three elements, even if only one or two fields are being changed.
+
+Commandline:
+    ### ~ MPileup Parsing Options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+    batch=FILELIST  : List of MPileup/SAM files to be parsed and filtered (e.g. *.pileup) []
+    qcut=X          : Min. quality score for a call to include [30]
+    minqn=X         : Min. number of reads meeting qcut (QN) for output [10]
+    rid=T/F         : Whether to include Read ID (number) lists for each allele [True]
+    snponly=T/F     : Whether to restrict parsing output to SNP positions (will use mincut settings below) [False]
+    indels=T/F      : Whether to include indels in "SNP" parsing [True]
+    ### ~ SNP Frequency Options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+    control=FILE    : MPileup or processed TDT file to be used for control SNP frequencies []
+    treatment=FILE  : MPileup or processed TDT file to be used for treatment SNP frequencies []
+    labels=X,Y      : Optional labels for Control and Treatment fields in output (other file basename used) []
+    mincut=X        : Minimum read count for minor allele (proportion if <1) [3]
+    absmincut=X     : Absolute minimum read count for minor allele (used if mincut<1) [2]
+    biallelic=T/F   : Whether to restrict SNPs to pure biallelic SNPs (two alleles meeting mincut) [False]
+    ignoren=T/F     : Whether to exclude "N" calls from alleles [True]
+    ignoreref=T/F   : If False will always keep Reference allele and call fixed change as SNP [False]
+    basefile=X      : Basename for frequency comparison output [<CONTROLBASE>.v.<TREATMENTBASE>]
+    majfocus=T/F    : Whether the focus is on Major Alleles (True) or Mutant/Reference Alleles (False) [True]
+    majdif=T/F      : Whether to restrict output and stats to positions with Major Allele differences in sample [False]
+    majmut=T/F      : Whether to restrict output and stats to positions with non-reference Major Allele [True]
+    majref=T/F      : Whether to restrict output and stats to positions with reference Major Allele (if majmut=F) [False]
+    majcut=X        : Frequency cutoff for Major allele [0.0]
+    sigcut=X        : Significance cutoff for enriched treatment SNPs [0.05]
+    fdrcut=X        : Additional FDR cutoff for enriched treatment SNPs [1.0]
+    snptable=FILE   : Table of SNPs of cross-reference with FDR SNP output []
+    snptabkeys=LIST : Fields that make unique key entries for snptable (with Locus, Pos) []
+    snptabmap=X,Y   : Optional SNPTable fields to replace for mapping onto FDR Locus,Pos fields (Locus,Pos) []
+    ### ~ Double Genome Analysis ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+    altcontrol=FILE     : MPileup or processed TDT file to be used for control SNP frequencies in Alt genome []
+    alttreatment=FILE   : MPileup or processed TDT file to be used for treatment SNP frequencies in Alt genome []
+    ### ~ Read Coverage Analysis ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+    readcheck=FILE      : SAM/Pileup/RID file with read mappings [None]
+    seqin=FASFILE       : Sequence file for loci in MPileup/SAM files (e.g. matching all relevant RID files) [None]
+    checkpos=TDTFILE    : File of Locus, Start, End positions for read coverage checking [None]
+    checkfields=LIST    : Fields in checkpos file to give Locus, Start and End for checking [Locus,Start,End]
+    checkflanks=LIST    : List of lengths flanking check regions that must also be spanned by reads [0,100,500,1000]
+    ### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+
+See also rje.py generic commandline options.
+
+Uses general modules: copy, glob, os, string, sys, time
+Uses RJE modules: rje, rje_db, rje_obj, rje_zen
+Other modules needed: None
+
+### ~~~ Module rje_samtools_V0 ~ [/Users/redwards/ownCloud/projects/SLiMSuite-Jun14/code/slimsuite/libraries/rje_samtools_V0.py] ~~~ ###
+
+Module:       rje_samtools_V0
+Description:  RJE SAMtools parser and processor
+Version:      0.2.0
+Last Edit:    21/12/15
 Copyright (C) 2013  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -5667,6 +5931,8 @@ Function:
 
     samtools mpileup -BQ0 -d10000000 -f <Ref Genome Fasta> <BAM file>
 
+    NOTE: This version has been "frozen" as V0. Development continuing with V1.0.0.
+
 Commandline:
     wtpileup=FILE   : MPileup results for wildtype genome resequencing [None]
     mutpileup=FILE  : MPileup results for mutant genome resequencing [None]
@@ -5674,6 +5940,7 @@ Commandline:
     ignoren=T/F     : Whether to exclude "N" calls for major/minor alleles [True]
     minfreq=X       : Minor allele(s) frequency correction for zero counts (e.g. Sequencing error) [0.001]
     majdif=T/F      : Whether to restrict output and stats to positions with Major Allele differences [True]
+    majmut=T/F      : Whether to restrict output and stats to positions with non-reference Major Allele [False]
     snptables=LIST  : Existing SNPs of interest to be cross-referenced with the WT and Mutant SNPs []
 
 See also rje.py generic commandline options.
@@ -5721,8 +5988,8 @@ Other modules needed: None
 
 Program:      RJE_SEQ
 Description:  DNA/Protein sequence list module
-Version:      3.23.0
-Last Edit:    12/04/15
+Version:      3.24.0
+Last Edit:    02/12/15
 Copyright (C) 2005  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -5838,8 +6105,8 @@ Classes:
 
 Module:       rje_seqlist
 Description:  RJE Nucleotide and Protein Sequence List Object (Revised)
-Version:      1.15.3
-Last Edit:    16/11/15
+Version:      1.20.1
+Last Edit:    16/08/16
 Copyright (C) 2011  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -5880,6 +6147,16 @@ SortSeq:
     - invsize = Sort by size big -> small re-output prior to loading/filtering (old sizesort - still sets sortseq)
     - invX / revX (Note adding `inv` or `rev` in front of any selection will reverse sort.)
 
+Edit:
+    Version 1.16 introduced an interactive edit mode (`edit=T`) that gives users the options to rearrange, copy, delete,
+    split, truncate, rename, join, merge (as consensus) etc. Please contact the author for more details.
+
+    From Version 1.20, a delimited text file can also be given
+    as `edit=FILE`, which should contain: Locus, Pos, Edit, Details. Edit is the type of change (INS/DEL/SUB) and Details
+    contains the nature of the change (ins/sub sequence or del length). Edits are made in reverse order per locus to
+    avoid position conflicts and overlapping edits should be avoided. WARNING: These will not be checked for! An optional
+    Notes field will be used if present for annotating changes in the log file.
+
 Commandline:
     ### ~ INPUT OPTIONS ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     seqin=FILE      : Sequence input file name. [None]
@@ -5894,15 +6171,16 @@ Commandline:
     autofilter=T/F  : Whether to automatically apply sequence filtering. [True]
 
     ### ~ SEQUENCE FORMATTING ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-    reformat=X      : Output format for sequence files (fasta/short/acc/acclist/speclist/index/dna2prot/peptides/(q)region) [fasta]
+    reformat=X      : Output format for sequence files (fasta/short/acc/acclist/speclist/index/dna2prot/peptides/(q)region/revcomp) [fasta]
     rename=T/F      : Whether to rename sequences [False]
     spcode=X        : Species code for non-gnspacc format sequences [None]
     newacc=X        : New base for sequence accession numbers - will rename sequences [None]
-    newgene=X       : New gene for renamed sequences (if blank will use newacc or 'seq') [None]
+    newgene=X       : New gene for renamed sequences (if blank will use newacc or 'seq' if none read) [None]
     concatenate=T   : Concenate sequences into single output sequence named after file [False]
     split=X         : String to be inserted between each concatenated sequence [''].
     seqshuffle=T/F  : Randomly shuffle each sequence without replacement (maintains monomer composition) [False]
-    region=X,Y      : Alignment/Query region to use for peptides/(q)region reformatting of fasta alignment (1-L) [1,-1]
+    region=X,Y      : Alignment/Query region to use for reformat=peptides/(q)region reformatting of fasta alignment (1-L) [1,-1]
+    edit=T/F/FILE   : Enter sequence edit mode upon loading (will switch seqmode=list) (see above) [False]
 
     ### ~ DNA TRANSLATIONS (reformat=dna2prot) ~~~~~~~~~~~~ ###
     minorf=X        # Min. ORF length for translated sequences output. -1 for single translation inc stop codons [-1]
@@ -5937,8 +6215,8 @@ Other modules needed: None
 
 Module:       rje_sequence
 Description:  DNA/Protein sequence object
-Version:      2.5.2
-Last Edit:    15/09/15
+Version:      2.5.3
+Last Edit:    11/04/16
 Copyright (C) 2006  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -6069,8 +6347,8 @@ Commandline:
 
 Module:       SLiMCore
 Description:  SLiMSuite core module
-Version:      2.7.5
-Last Edit:    11/06/15
+Version:      2.7.7
+Last Edit:    07/12/15
 Copyright (C) 2007  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -6127,7 +6405,7 @@ Commandline: ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     masking=T/F     : Master control switch to turn off all masking if False [True]
     dismask=T/F     : Whether to mask ordered regions (see rje_disorder for options) [False]
     consmask=T/F    : Whether to use relative conservation masking [False]
-    ftmask=LIST     : UniProt features to mask out [EM,DOMAIN,TRANSMEM]
+    ftmask=LIST     : UniProt features to mask out (True=EM,DOMAIN,TRANSMEM) []
     imask=LIST      : UniProt features to inversely ("inclusively") mask. (Seqs MUST have 1+ features) []
     fakemask=T/F    : Whether to invoke UniFake to generate additional features for masking [False]
     compmask=X,Y    : Mask low complexity regions (same AA in X+ of Y consecutive aas) [5,8]
@@ -6317,12 +6595,40 @@ Uses general modules: copy, glob, os, string, sys, time
 Uses RJE modules: rje, rje_zen
 Other modules needed: None
 
+### ~~~ Module rje_synteny ~ [/Users/redwards/ownCloud/projects/SLiMSuite-Jun14/code/slimsuite/libraries/rje_synteny.py] ~~~ ###
+
+Module:       rje_synteny
+Description:  Gene/Protein Annotation Transfer and Synteny Tool
+Version:      0.0.0
+Last Edit:    11/06/16
+Copyright (C) 2016  Richard J. Edwards - See source code for GNU License Notice
+
+Function:
+    This module is based on the TopHits analysis of PAGSAT. It takes as input:
+    - A Reference Genome sequence [refgenome=FILE]
+    - A Reference Genome feature table with Gene and CDS features [ftfile=FILE]
+    - GABLAM search results (e.g. from PAGSAT) of Genes/Proteins against assembly regions [ftgablam=FILE]
+
+
+
+
+Commandline:
+    ### ~ Input/Output options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+    refgenome=FILE  : Fasta/Genbank file of reference genome for assessment (also *.gb for full functionality) [None]
+    ftfile=FILE     : File of reference genome features [*.Feature.tdt]
+    ftgablam=FILE   : GABLAM search results (e.g. from PAGSAT) of Genes/Proteins against assembly regions [None]
+    basefile=FILE   : Basename for output files [ftgablam basefile]
+    ### ~ Processing options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+    proteins=T/F    : Whether input is protein sequences (True) or genes (False) [False]
+    tophitbuffer=X  : Percentage identity difference to keep best hits for reference genes/proteins. [1.0]
+    ### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+
 ### ~~~ Module rje_taxonomy ~ [/Users/redwards/ownCloud/projects/SLiMSuite-Jun14/code/slimsuite/libraries/rje_taxonomy.py] ~~~ ###
 
 Module:       rje_taxonomy
 Description:  Downloads, reads and converts Uniprot species codes and NCBI Taxa IDs
-Version:      1.1.0
-Last Edit:    11/09/15
+Version:      1.2.0
+Last Edit:    19/05/16
 Copyright (C) 2014  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -6355,7 +6661,7 @@ Function:
     list given. (Note that this list could itself be created by a previous file of rje_taxonomy and given as a file.)
     Taxa IDs are then mapped on the Uniprot species codes and species names using the SpecFile data. If missing from this
     file, scientific names will be pulled out of the NCBI NameMap file instead. NOTE: Uniprot is used first because NCBI
-    has more redundnant taxonomy assignments.
+    has more redundant taxonomy assignments.
 
     Output is determined by the taxout=LIST option, which is set by default to 'taxid'. Four possible output types are
     permitted:
@@ -6419,8 +6725,8 @@ Other modules required: rje_blast, rje_dismatrix, rje_pam, rje_sequence, rje_uni
 
 Module:       rje_tree
 Description:  Phylogenetic Tree Module
-Version:      2.13.0
-Last Edit:    26/08/15
+Version:      2.14.0
+Last Edit:    19/05/16
 Copyright (C) 2007  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -6533,8 +6839,8 @@ Other modules needed: rje_blast, rje_dismatrix, rje_pam, rje_sequence, rje_unipr
 
 Module:       rje_uniprot
 Description:  RJE Module to Handle Uniprot Files
-Version:      3.21.4
-Last Edit:    11/06/15
+Version:      3.22.0
+Last Edit:    30/11/15
 Copyright (C) 2007 Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -6693,8 +6999,8 @@ Other modules needed: None
 
 Module:       rje_xref
 Description:  Generic identifier cross-referencing 
-Version:      1.8.0
-Last Edit:    28/06/15
+Version:      1.8.2
+Last Edit:    08/01/16
 Copyright (C) 2014  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -6799,8 +7105,8 @@ Other modules needed: None
 
 Module:       SNP_Mapper
 Description:  SNP consensus sequence to CDS mapping 
-Version:      0.4.0
-Last Edit:    17/11/15
+Version:      1.0.0
+Last Edit:    16/06/16
 Copyright (C) 2013  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -6829,6 +7135,9 @@ Function:
     sequences.) If running on BCF output, alleles will be split on commas but there will be no compiled sequence output.
     (** Not yet implemented! **)
 
+    The default FTBest hierarchy for `*.ftypes.tdt` output is:
+        CDS,mRNA,tRNA,rRNA,ncRNA,misc_RNA,gene,mobile_element,LTR,rep_origin,telomere,centromere,misc_feature,intergenic
+
 To be added:
     Sequence output and recognition of BCF files to be added.
 
@@ -6841,12 +7150,13 @@ Commandline:
     seqin=FILE      : Sequence input file with accession numbers matching Locus IDs, or Genbank file.  []
     spcode=X        : Overwrite species read from file (if any!) with X if generating sequence file from genbank [None]
     ftfile=FILE     : Input feature file (locus,feature,position,start,end) [*.Feature.tdt]
-    ftskip=LIST     : List of feature types to exclude from analysis [source,telomere]
-    ftbest=LIST     : List of features to exclude if earlier feature in list overlaps position [CDS,mRNA,gene,mobile_element]
+    ftskip=LIST     : List of feature types to exclude from analysis [source]
+    ftbest=LIST     : List of features to exclude if earlier feature in list overlaps position [(see above)]
     snpfile=FILE    : Input table of SNPs to map and output (should have locus and pos info, see above) []
     snphead=LIST    : List of SNP file headers []
     snpdrop=LIST    : List of SNP fields to drop []
     altpos=T/F      : Whether SNP file is a single mapping (with AltPos) (False=BCF) [True]
+    altft=T/F       : Use AltLocus and AltPos for feature mapping (if altpos=T) [False]
     basefile=FILE   : Root of output file names (same as SNP input file by default) []
     
     ### ~ Old Options (need reviving) ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
