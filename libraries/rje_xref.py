@@ -19,8 +19,8 @@
 """
 Module:       rje_xref
 Description:  Generic identifier cross-referencing 
-Version:      1.8.0
-Last Edit:    28/06/15
+Version:      1.8.2
+Last Edit:    08/01/16
 Copyright (C) 2014  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -125,6 +125,8 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 1.7.0 - Added comments=LIST ist of comment line prefixes marking lines to ignore (throughout file) ['//','%']
     # 1.7.1 - Added xreformat=T/F : Whether to apply field reformatting to input xrefdata (True) or just xrefs to map (False) [False]
     # 1.8.0 - Added recognition and parsing of yeast.txt XRef file from Uniprot (http://www.uniprot.org/docs/yeast.txt)
+    # 1.8.1 - Added rest run mode to avoid XRef table output if no gene ID list is given. Added `genes` and `genelist` as `idlist=LIST` synonym.
+    # 1.8.2 - Catching self.dict['Mapping'] error for REST server.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -156,7 +158,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copyyear) = ('RJE_XRef', '1.8.0', 'June 2015', '2014')
+    (program, version, last_edit, copyyear) = ('RJE_XRef', '1.8.2', 'January 2016', '2014')
     description = 'Generic identifier cross-referencing'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_obj.zen()]
@@ -309,6 +311,8 @@ class XRef(rje_obj.RJE_Object):
                 #self._cmdReadList(cmd,'min',['Att'])   # Integer value part of min,max command
                 #self._cmdReadList(cmd,'max',['Att'])   # Integer value part of min,max command
                 self._cmdReadList(cmd,'list',['Aliases','AltKeys','BadID','Comments','Compress','DBPrefix','IDList','Join','KeepCase','MapFields','MapXRef','NewHeaders','SplitSkip','XRefs','XRefList'])  # List of strings (split on commas or file lines)
+                self._cmdRead(cmd,type='list',att='IDList',arg='genes')  # No need for arg if arg = att.lower()
+                self._cmdRead(cmd,type='list',att='IDList',arg='genelist')  # No need for arg if arg = att.lower()
                 #self._cmdReadList(cmd,'clist',['Att']) # Comma separated list as a *string* (self.str)
                 self._cmdReadList(cmd,'glist',['XRefData']) # List of files using wildcards and glob
                 self._cmdReadList(cmd,'cdict',['StripVar']) # Splits comma separated X:Y pairs into dictionary
@@ -317,7 +321,7 @@ class XRef(rje_obj.RJE_Object):
 #########################################################################################################################
     ### <2> ### Main Class Backbone                                                                                     #
 #########################################################################################################################
-    def run(self):  ### Main run method
+    def run(self,rest=False):  ### Main run method
         '''Main run method.'''
         try:### ~ [1] ~ Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if self.list['Join']: return self.join()
@@ -342,6 +346,7 @@ class XRef(rje_obj.RJE_Object):
                 self.list['IDList'] = rje.listUpper(self.list['IDList'])
                 self.printLog('#CASE','%s "%s" identifiers converted to uppercase.' % (rje.iLen(self.list['IDList']),keyid))
             if self.list['IDList']: xdb.dropEntriesDirect(keyid,self.list['IDList'],inverse=True,log=True)
+            elif rest and not self.list['MapXRef']: raise ValueError('No IDList or MapXRef given for REST XRef run')
             if not xdb.entryNum():
                 self.warnLog('No XRef entries retained.')
                 return False
@@ -357,17 +362,21 @@ class XRef(rje_obj.RJE_Object):
                 self.dict['Output']['failed'] = []
                 mdb = self.db().addEmptyTable('mapped',['MapID','XRef'],['MapID'],log=True)
                 xfield = self.getStr('KeyID')
-                for mkey in self.dict['Mapping'][xfield]:
-                    mxref = self.dict['Mapping'][xfield][mkey]
-                    if mxref: mdb.addEntry({'MapID':mkey,'XRef':mxref})
-                    else: self.dict['Output']['failed'].append(mkey)
-                self.dict['Output']['mapped'] = mdb.saveToFile()
+                if xfield in self.dict['Mapping']:
+                    for mkey in self.dict['Mapping'][xfield]:
+                        mxref = self.dict['Mapping'][xfield][mkey]
+                        if mxref: mdb.addEntry({'MapID':mkey,'XRef':mxref})
+                        else: self.dict['Output']['failed'].append(mkey)
+                    self.dict['Output']['mapped'] = mdb.saveToFile()
+                else:
+                    self.warnLog('Mapping dictionary key "%s" missing. May not be present if no mapping required (e.g. current gene symbols used).' % xfield)
+                    self.dict['Output']['mapped'] = 'No mapping output'
                 self.dict['Output']['failed'].sort()
                 if self.dict['Output']['failed']: self.dict['Output']['failed'] = string.join(self.dict['Output']['failed'],'\n')
                 else: self.dict['Output']['failed'] = 'None'
             return True
         except:
-            self.errorLog(rje_obj.zen())
+            self.errorLog('Problem during XRef.run()')
             raise   # Delete this if method error not terrible
 #########################################################################################################################
     def setup(self):    ### Main class setup method.
@@ -756,7 +765,7 @@ class XRef(rje_obj.RJE_Object):
                         if xid in xdb.index(tfield): xkeys += xdb.index(tfield)[xid]
                         #elif '%s:%s' % (xfield,id) in xdb.index(xfield): xkeys += xdb.index(xfield)['%s:%s' % (xfield,id)]
                         #elif '%s:%s' % (mupper,id) in xdb.index(xfield): xkeys += xdb.index(xfield)['%s:%s' % (mupper,id)]
-                    self.bugPrint('%s -> %s: %s? => %s' % (mfield,tfield,mids,xkeys))
+                    #self.bugPrint('%s -> %s: %s? => %s' % (mfield,tfield,mids,xkeys))
                     if xkeys and not fullmap: break
             ## ~ [1b] MapFields ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             #self.debug(mapfields)
@@ -775,8 +784,8 @@ class XRef(rje_obj.RJE_Object):
                 #self.bugPrint('%s -> %s: %s? => %s' % (mfield,mfield,mids,xkeys))
                 if xkeys and not fullmap: continue
             xlist = rje.sortUnique(xkeys)
-            if len(xlist) > 1: self.debug('Final %s => %s' % (xfield,xlist))
-            else: self.bugPrint('Final %s => %s' % (xfield,xlist))
+            #if len(xlist) > 1: self.debug('Final %s => %s' % (xfield,xlist))
+            #else: self.bugPrint('Final %s => %s' % (xfield,xlist))
             ### ~ [2] Map mapped KeyIDs onto idfield ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if xfield != self.getStr('KeyID'):
                 klist = xlist[0:]
@@ -914,6 +923,10 @@ class XRef(rje_obj.RJE_Object):
 #########################################################################################################################
     def restSetup(self):    ### Sets up self.dict['Output'] and associated output options if appropriate.
         '''
+        The `XRef` server is designed to take a set of input gene (or other) identifiers and extract a database
+        identifier cross-references for them. Genes are given using `&idlist=LIST`. (`&genes=LIST` or `&genelist=LIST`
+        should also work.)
+
         Run with &rest=help for general options. Run with &rest=full to get full server output as text or &rest=format
         for more user-friendly formatted output. Individual outputs can be identified/parsed using &rest=OUTFMT:
 

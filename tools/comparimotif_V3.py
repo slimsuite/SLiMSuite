@@ -19,8 +19,8 @@
 """
 Program:      CompariMotif
 Description:  Motif vs Motif Comparison Software
-Version:      3.11
-Last Edit:    12/09/13
+Version:      3.13.0
+Last Edit:    03/12/15
 Citation:     Edwards, Davey & Shields (2008), Bioinformatics 24(10):1307-9. [PMID: 18375965]
 Webserver:    http://bioware.ucd.ie/
 Copyright (C) 2007  Richard J. Edwards - See source code for GNU License Notice
@@ -176,6 +176,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 3.10- Added forking.
     # 3.11- Added additional overlap/matchfix checks during basic comparison to try and speed up.
     # 3.12- Replaced deprecated sets.Set() with set().
+    # 3.13.0 - Added REST server function.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -197,19 +198,19 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo():     ### Makes Info object
     '''Makes rje.Info object for program.'''
-    (program, version, last_edit, copyright) = ('CompariMotif', '3.11', 'September 2013', '2007')
+    (program, version, last_edit, cyear) = ('CompariMotif', '3.13.0', 'December 2015', '2007')
     description = 'Motif vs Motif Comparison'
     author = 'Dr Richard J. Edwards.'
     comments = ['Cite: Edwards RJ, Davey NE & Shields DC (2008). Bioinformatics 24(10):1307-9.']
-    return rje.Info(program,version,last_edit,description,author,time.time(),copyright,comments)
+    return rje.Info(program,version,last_edit,description,author,time.time(),cyear,comments)
 #########################################################################################################################
 def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for more sys.argv commands
     '''Prints *.__doc__ and asks for more sys.argv commands.'''
     try:
         if not info: info = makeInfo()
         if not out: out = rje.Out()
-        help = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
-        if help > 0:
+        helpx = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
+        if helpx > 0:
             print '\n\nHelp for %s %s: %s\n' % (info.program, info.version, time.asctime(time.localtime(info.start_time)))
             out.verbose(-1,4,text=__doc__)
             if rje.yesNo('Show rje_slimlist options?'): out.verbose(-1,4,text=rje_slimlist.__doc__)
@@ -448,11 +449,33 @@ class CompariMotif(rje.RJE_Object):
                 if string.count(motifs.info['Basefile'],',') > 0: # Lists of motifs!
                     if motifs.info['SearchDB'] == motifs.info['Motifs']: motifs.info['Basefile'] = 'compari-self'
                     else: motifs.info['Basefile'] = 'comparimotif'
-            if 'Resfile' in motifs.info and motifs.info['Resfile'].lower() not in ['','none']: return
-            motifs.info['Resfile'] = '%s.compare.%s' % (motifs.info['Basefile'],rje.delimitExt(rje.getDelimit(self.cmd_list,'\t')))
+            if not ('Resfile' in motifs.info and motifs.getStrLC('Resfile')):
+                motifs.info['Resfile'] = '%s.compare.%s' % (motifs.info['Basefile'],rje.delimitExt(rje.getDelimit(self.cmd_list,'\t')))
+
+            ### ~ [4] ~ Setup REST ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            if self.getStr('Rest'): self.restSetup()
         except:
             self.log.errorLog('Error in setupRun()')
             raise
+#########################################################################################################################
+    def restSetup(self):    ### Sets up self.dict['Output'] and associated output options if appropriate.
+        '''
+        Run with &rest=help for general options. Run with &rest=full to get full server output as text or &rest=format
+        for more user-friendly formatted output. Individual outputs can be identified/parsed using &rest=OUTFMT.
+        '''
+        try:### ~ [0] ~ Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            motifs = self.obj['SlimList']
+            for outfmt in ['motinfo']: self.dict['Output'][outfmt] = 'No output generated.'
+            self.dict['Output']['motifs'] = motifs.getStr('Motifs')
+            if motifs.getStr('SearchDB') != motifs.getStr('Motifs'): self.dict['Output']['searchdb'] = motifs.getStr('SearchDB')
+            else: self.dict['Output']['searchdb'] = 'Self-search. See &rest=motifs.'
+            self.dict['Output']['compare'] = motifs.getStr('Resfile')
+            if motifs.getStrLC('MotInfo'): self.dict['Output']['motinfo'] = motifs.getStr('MotInfo')
+            #!# Add specific program output here. Point self.dict['Output'][&rest=X] to self.str key.
+            return
+        except: self.errorLog('RestSetup error')
+#########################################################################################################################
+    def restOutputOrder(self): return ['motifs','searchdb','compare','motinfo']
 #########################################################################################################################
     ### <3> ### Motif-Motif Comparisons                                                                                 #
 #########################################################################################################################

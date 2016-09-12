@@ -19,8 +19,8 @@
 """
 Module:       SLiMFarmer
 Description:  SLiMSuite HPC job farming control program
-Version:      1.4.3
-Last Edit:    10/07/15
+Version:      1.4.5
+Last Edit:    05/10/16
 Copyright (C) 2014  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -75,7 +75,7 @@ Commandline:
     nodes=X         : Number of nodes to run on [1]
     ppn=X           : Processors per node [16]
     walltime=X      : Walltime for qsub job (hours) [12]
-    vmem=X          : Virtual Memory limit for run (GB) [127]
+    vmem=X          : Virtual Memory limit for run (GB) [126]
     job=X           : Name of job file (.job added) [slimfarmer]
 
     ### ~ Advanced QSub Options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -87,7 +87,7 @@ Commandline:
     depend=LIST     : List of job ids to wait for before starting job (dependhpc=X added) []
     dependhpc=X     : Name of HPC system for depend ['blue30.iridis.soton.ac.uk']
     report=T/F      : Pull out running job IDs and run showstart [False]
-    modules=LIST    : List of modules to add in job file [blast+/2.2.30,clustalw,clustalo,fsa,mafft,muscle,pagan,R/3.1.1]
+    modules=LIST    : List of modules to add in job file e.g. blast+/2.2.31,clustalw []
 
     ### ~ Main SLiMFarmer Options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     farm=X          : Execute a special SLiMFarm analysis on HPC [batch]
@@ -146,6 +146,8 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 1.4.1 - Fixed farm=batch mode for qsub=T.
     # 1.4.2 - Fixed log transfer issues due to new #VIO line. Better handling of crashed runs.
     # 1.4.3 - Added recognition of missing slimsuite programs and switching to slimsuite=F.
+    # 1.4.4 - Modified default vmem request to 126GB from 127GB.
+    # 1.4.5 - Updated BLAST loading default to 2.2.31
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -163,11 +165,12 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
     # [ ] : Add farm=['gopher','slimsearch','unifake']
     # [ ] : Check/sort out job naming oddity.
     # [Y] : Add recognition of missing slimsuite programs and switching to slimsuite=F.
+    # [ ] : Add running of several commands in serial.
     '''
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copy_right) = ('SLiMFarmer', '1.4.3', 'July 2015', '2014')
+    (program, version, last_edit, copy_right) = ('SLiMFarmer', '1.4.5', 'October 2016', '2014')
     description = 'SLiMSuite HPC job farming control program'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_obj.zen()]
@@ -245,7 +248,7 @@ class SLiMFarmer(rje_hpc.JobFarmer):
 
     Int:integer
     - KeepFree = Number of processors to keep free on head node [1]
-    - Modules = List of modules to add in job file [clustalo,mafft]
+    - Modules = List of modules to add in job file []
 
     Num:float
     
@@ -276,7 +279,7 @@ class SLiMFarmer(rje_hpc.JobFarmer):
                       'RjePy':True})
         self.setInt({'IOLimit':50,'KeepFree':1,'SubSleep':1})
         self.setNum({})
-        self.list['Modules'] = ['clustalo','mafft','R/3.1.1']
+        self.list['Modules'] = []
         ### ~ Other Attributes ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         self._setForkAttributes()   # Delete if no forking
         self.setInt({'Forks':1})
@@ -361,7 +364,7 @@ class SLiMFarmer(rje_hpc.JobFarmer):
         '''
         try:### ~ [1] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             self.printLog('#JOB',self.getStr('Job'))
-            qcmd = ['nodes=1','ppn=16','walltime=12','vmem=127','job=slimfarmer'] + self.cmd_list + ['rjepy=F','job=%s' % self.getStr('Job')]
+            qcmd = ['nodes=1','ppn=16','walltime=12','vmem=126','job=slimfarmer'] + self.cmd_list + ['rjepy=F','job=%s' % self.getStr('Job')]
             qsub = rje_qsub.QSub(self.log,qcmd)
             farm = string.split(self.getStr('Farm'))[0]
             if self.getBool('SLiMSuite') or farm == 'batch':

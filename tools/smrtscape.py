@@ -19,28 +19,47 @@
 """
 Module:       SMRTSCAPE
 Description:  SMRT Subread Coverage & Assembly Parameter Estimator
-Version:      1.8.0
-Last Edit:    19/08/15
+Version:      1.10.1
+Last Edit:    26/05/16
 Copyright (C) 2015  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
-    This is based on the old PacBio module. Documentation will be added soon.
+    SMRTSCAPE (SMRT Subread Coverage & Assembly Parameter Estimator) is tool in development as part of our PacBio
+    sequencing projects for predicting and/or assessing the quantity and quality of useable data required/produced for
+    HGAP3 de novo whole genome assembly. The current documentation is below. Some tutorials will be developed in the
+    future - in the meantime, please get in touch if you want to use it and anything isn't clear.
+
+    The main functions of `SMRTSCAPE` are:
+
+    1. Estimate Genome Coverage and required numbers of SMRT cells given predicted read outputs. NOTE: Default settings
+    for SMRT cell output are not reliable and you should speak to your sequencing provider for their up-to-date figures.
+
+    2. Summarise the amount of sequence data obtained from one or more SMRT cells, including unique coverage (one read
+    per ZMW).
+
+    3. Calculate predicted coverage from subread data for difference length and quality cutoffs.
+
+    4. Predict HGAP3 length and quality settings to achieve a given coverage and accuracy.
+
+	SMRTSCAPE `coverage=T` mode can be run from the EdwardsLab server at:
+	<http://www.slimsuite.unsw.edu.au/servers/pacbio.php>
 
 Commandline:
     ### ~ General Options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     genomesize=X    : Genome size (bp) [0]
     ### ~ Genome Coverage Options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-    coverage=T/F    : Whether to generate coverage report [True]
+    coverage=T/F    : Whether to generate coverage report [False]
     avread=X        : Average read length (bp) [20000]
     smrtreads=X     : Average assemble output of a SMRT cell [50000]
     smrtunits=X     : Units for smrtreads=X (reads/Gb/Mb) [reads]
     errperbase=X    : Error-rate per base [0.14]
-    maxcov=X        : Maximmum X coverage to calculate [100]
+    maxcov=X        : Maximum X coverage to calculate [100]
     bysmrt=T/F      : Whether to output estimated  coverage by SMRT cell rather than X coverage [False]
     xnlist=LIST     : Additional columns giving % sites with coverage >= Xn [1+`minanchorx`->`targetxcov`+`minanchorx`]
     ### ~ SubRead Summary Options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     summarise=T/F   : Generate subread summary statistics including ZMW summary data [False]
     seqin=FILE      : Subread sequence file for analysis [None]
+    batch=FILELIST  : Batch input of multiple subread fasta files (wildcards allowed) if seqin=None []
     targetcov=X     : Target percentage coverage for final genome [99.999]
     targeterr=X     : Target errors per base for preassembly [1/genome size]
     calculate=T/F   : Calculate X coverage and target X coverage for given seed, anchor + RQ combinations [False]
@@ -86,6 +105,9 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 1.6.1 - Updated parameters=T to incorporate that the seed read counts as X=1.
     # 1.7.0 - Added *.summary.tdt output from subread summary analysis. Added minreadlen.
     # 1.8.0 - preassembly=FILE: Preassembly fasta file to assess/correct over-fragmentation (use seqin=FILE for subreads)
+    # 1.9.0 - Updated empirical preassembly mapefficiency calculation.
+    # 1.10.0 - Added batch processing of subread files.
+    # 1.10.1 - Fixed bug in batch processing.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -115,7 +137,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copy_right) = ('SMRTSCAPE', '1.8.0', 'August 2015', '2015')
+    (program, version, last_edit, copy_right) = ('SMRTSCAPE', '1.10.1', 'May 2016', '2015')
     description = 'SMRT Subread Coverage & Assembly Parameter Estimator'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_obj.zen()]
@@ -212,6 +234,7 @@ class SMRTSCAPE(rje_obj.RJE_Object):
     
     List:list
     - Accuracy : list of %accuracy for each xcoverage level
+    - Batch=FILELIST  : Batch input of multiple subread fasta files (wildcards allowed) []
     - ParamList=LIST  : List of parameters to retain for parseparam output (file or comma separated, blank=all) []
     - ParseParam=FILES: Parse parameter settings from 1+ assembly runs []
     - TargetXDepth= []    # List of target x (index) and required depth (value)
@@ -234,7 +257,7 @@ class SMRTSCAPE(rje_obj.RJE_Object):
         self.intlist = ['MaxCov','MinAnchorX','MinReadLen','TargetXCov','XMargin']
         self.numlist = ['AvRead','ErrPerBase','GenomeSize','MapEfficiency','MaxRQ','MinRQ','RQStep','SMRTReads','TargetCov','TargetErr','XStepLen']
         self.filelist = []
-        self.listlist = ['Accuracy','ParamList','ParseParam','TargetXDepth','XCovLimits','XnList']
+        self.listlist = ['Accuracy','Batch','ParamList','ParseParam','TargetXDepth','XCovLimits','XnList']
         self.dictlist = ['PercXDepth']
         self.objlist = []
         ### ~ Defaults ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -268,11 +291,11 @@ class SMRTSCAPE(rje_obj.RJE_Object):
                 self._cmdReadList(cmd,'int',['MaxCov','MinAnchorX','MinReadLen','TargetXCov','XMargin'])   # Integers
                 self._cmdReadList(cmd,'float',['AvRead','ErrPerBase','GenomeSize','MapEfficiency','RQStep','SMRTReads','TargetErr','XStepLen']) # Floats
                 self._cmdReadList(cmd,'perc',['TargetCov'])
-                self._cmdRead(cmd,'max','MaxRQ','rq')   # Integer value part of min,max command
-                self._cmdRead(cmd,'min','MinRQ','rq')   # Integer value part of min,max command
+                self._cmdRead(cmd,'fmax','MaxRQ','rq')   # Integer value part of min,max command
+                self._cmdRead(cmd,'fmin','MinRQ','rq')   # Integer value part of min,max command
                 self._cmdReadList(cmd,'list',['ParamList','XnList'])  # List of strings (split on commas or file lines)
                 #self._cmdReadList(cmd,'clist',['Att']) # Comma separated list as a *string* (self.str)
-                self._cmdReadList(cmd,'glist',['ParseParam']) # List of files using wildcards and glob
+                self._cmdReadList(cmd,'glist',['Batch','ParseParam']) # List of files using wildcards and glob
                 #self._cmdReadList(cmd,'cdict',['Att']) # Splits comma separated X:Y pairs into dictionary
                 #self._cmdReadList(cmd,'cdictlist',['Att']) # As cdict but also enters keys into list
             except: self.errorLog('Problem with cmd:%s' % cmd)
@@ -307,9 +330,10 @@ class SMRTSCAPE(rje_obj.RJE_Object):
                 basename = rje.baseFile(self.getStr('Preassembly'),strip_path=True)
                 if basename.endswith('.preassembly'): basename = os.path.splitext(basename)[0]
                 self.baseFile(basename)
+            elif not self.baseFile(return_none=None): self.baseFile('smrtscape')
             if not self.list['ParseParam'] and not self.getBool('Predict'):
                 while not self.getInt('GenomeSize'):
-                    if self.i() >= 0: self.setNum({'GenomeSize':int(rje.choice('Enter Genome Size (bp)',confirm=True))})
+                    if self.i() >= 0: self.setNum({'GenomeSize':int(float(rje.choice('Enter Genome Size (bp)',confirm=True)))})
                     else: raise ValueError('Need to set genomesize=X')
                 self.printLog('#GSIZE','Genome Size: %s bp' % rje.iStr(self.getInt('GenomeSize')))
                 if self.getNum('TargetErr') < 0: self.setNum({'TargetErr':1.0/self.getInt('GenomeSize')})
@@ -340,9 +364,198 @@ class SMRTSCAPE(rje_obj.RJE_Object):
 #########################################################################################################################
     ### <3> ### Summarise Subreads Methods                                                                              #
 #########################################################################################################################
+    def batchSummarise(self):    ### Generate subread summary.
+        '''Generate subread summary.'''
+        try:### ~ [0] Setup SeqList and basic stats ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            db = self.db()  # Database object
+            seqbatch = []   # List of SeqList objects
+            self.printLog('#BATCH','%s sequence files to process.' % rje.iLen(self.list['Batch']))
+            for seqfile in self.list['Batch']:
+                seqcmd = self.cmd_list + ['seqmode=file','autoload=T','summarise=F','seqin=%s' % seqfile,'autofilter=F']
+                seqbatch.append(rje_seqlist.SeqList(self.log,seqcmd))
+            self.printLog('#BATCH','%s sequence files to summarise.' % rje.iLen(seqbatch))
+            if not seqbatch: return IOError('No batch input fasta files found!')
+            cells = []  # List of SMRT Cell identifiers. Add dictionary converter for names. Or ask?
+            zdb = self.db().addEmptyTable('zmw',['SMRT','ZMW','RN','Len','Pos','RQ','Seq'],['SMRT','ZMW','RN'])
+            ### ~ [1] Calculate ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            sdb = self.db().addEmptyTable('summary',['SMRT','SeqNum','TotLength','MinLength','MaxLength','MeanLength','MedLength','N50Length','XCoverage'],['SMRT'])
+            for seqlist in seqbatch:
+                seqdata = seqlist.summarise()   # This will summarise read lengths etc.
+                basename = rje.baseFile(seqlist.getStr('SeqIn'),strip_path=True)
+                if basename.endswith('.subreads'): basename = os.path.splitext(basename)[0]
+                seqdata['SMRT'] = basename
+                seqdata['XCoverage'] = seqdata['TotLength'] / self.getNum('GenomeSize')
+                sdb.addEntry(seqdata)
+                # SMRT = SMRT cell identifier
+                # ZMW = ZMW identifier
+                # RN = subread number for that ZMW
+                # Len = length of actual sequence read in
+                # Pos = Position information from header
+                # RQ = RQ Value
+                # Partition out ZMWs and make histograms of lengths and numbers
+                #>m150625_001530_42272_c100792502550000001823157609091582_s1_p0/9/0_3967 RQ=0.784
+                #>m150625_001530_42272_c100792502550000001823157609091582_s1_p0/11/0_20195 RQ=0.868
+                #>m150625_001530_42272_c100792502550000001823157609091582_s1_p0/12/0_18976 RQ=0.823
+                #>m150625_001530_42272_c100792502550000001823157609091582_s1_p0/14/5776_27852 RQ=0.807
+                #...
+                #>m150625_043200_42272_c100792502550000001823157609091583_s1_p0/163464/0_1712 RQ=0.854
+                prevzmw = None; rn = 0; sx = 0.0; stot = seqlist.seqNum()
+                for seq in seqlist.seqs():
+                    self.progLog('\r#SUB','Processing subreads: %.2f%%' % (sx/stot)); sx += 100.0
+                    (name,sequence) = seqlist.getSeq(seq)
+                    [smrt,zmw,pos,rq] = string.split(string.replace(name,'/',' '))
+                    if smrt not in cells: cells.append(smrt)
+                    smrt = cells.index(smrt)
+                    if zmw != prevzmw: prevzmw = zmw; rn = 0
+                    rn += 1
+                    rq = rje.matchExp('RQ=(\S+)',rq)[0]
+                    zdb.addEntry({'SMRT':smrt,'ZMW':zmw,'RN':rn,'Len':len(sequence),'Pos':pos,'RQ':rq,'Seq':seq})
+                self.printLog('\r#SUB','Processed %s subreads (-> %d SMRT cells)' % (rje.iStr(stot),len(cells)))
+            zdb.dataFormat({'RN':'int','Len':'int','RQ':'float'})
+            zdb.saveToFile()
+            zdb.index('RN')
+            for smrt in cells:
+                self.printLog('#~~#','# ~~~~~~~~~~~ SEQUENCE SUMMARY FOR %s ~~~~~~~~~~~ #' % smrt)
+                self.printLog('#SMRT','SMRT %d = %s' % (cells.index(smrt),smrt))
+                seqdata = self.summariseSeqLen(zdb.indexDataList('SMRT',cells.index(smrt),'Len',sortunique=False))
+                seqdata['SMRT'] = smrt
+                sdb.addEntry(seqdata)
+
+            basename = self.baseFile()
+            self.printLog('#~~#','# ~~~~~~~~~~~~~~~~~~~~~~~ COMBINED PACBIO SUBREAD SUMMARY FOR %s ~~~~~~~~~~~~~~~~~~~~~~~~~~~ #' % basename)
+            seqlen = zdb.dataList(zdb.entries(),'Len',sortunique=False)
+            seqdata = self.summariseSeqLen(seqlen)
+            sdb.addEntry(seqdata)
+            ### >>> Rest as summarise() >>>
+
+            # Make a ZMW unique table by collapsing on ZMW and keeping max length or quality where tied
+            self.printLog('#~~#','# ~~~~~~~~~~~ PACBIO Unique ZMW subreads (%s) ~~~~~~~~~~~ #' % basename)
+            udb = db.copyTable(zdb,'unique')
+            #udb.dropField('Pos')
+            udb.compress(['SMRT','ZMW'],default='max',best=['Len','RQ','RN'])
+            udb.saveToFile()
+            #udb.indexReport('RN','Best ZMW reads from pass (RN)')
+            udb.index('RN')
+            zrn = rje.sortKeys(zdb.index('RN')); rmax = max(zrn)
+            for rn in zrn:
+                zn = rje.iLen(zdb.index('RN')[rn])
+                ptxt = 'Read %d longest in ' % rn
+                if rn in udb.index('RN'):
+                    un = rje.iLen(udb.index('RN')[rn])
+                    if rn < rmax: px = len(zdb.index('RN')[rn+1])
+                    else: px = 0
+                    ptxt += '%s of %s ZMW; %s ZMW with %d+ passes.' % (un,zn,rje.iStr(px),rn+1)
+                else: ptxt += '0 ZMW.'; continue
+                self.printLog('#RN',ptxt)
+                #if rn in udb.index('RN'): self.printLog('#RN','Read %d longest in %s of %s ZMW with %d+ passes.' % (rn,rje.iLen(udb.index('RN')[rn]),rje.iLen(zdb.index('RN')[rn]),rn))
+                #else: self.printLog('#RN','Read %d longest in 0 of %s ZMW with %d+ passes.' % (rn,rje.iLen(zdb.index('RN')[rn]),rn))
+            bestseq = udb.dataList(udb.entries(),'Seq',sortunique=False,empties=False)
+            self.printLog('#~~#','# ~~~~~~~~~~~ SEQUENCE SUMMARY FOR %s UNIQUE ~~~~~~~~~~~ #' % basename)
+            seqlen = udb.dataList(udb.entries(),'Len',sortunique=False)
+            seqdata = self.summariseSeqLen(seqlen)
+            seqdata['SMRT'] = '%s.unique' % basename
+            sdb.addEntry(seqdata)
+            for smrt in cells:
+                self.printLog('#~~#','# ~~~~~~~~~~~ SEQUENCE SUMMARY FOR %s.unique ~~~~~~~~~~~ #' % smrt)
+                seqdata = self.summariseSeqLen(udb.indexDataList('SMRT',cells.index(smrt),'Len',sortunique=False))
+                seqdata['SMRT'] = '%s.unique' % smrt
+                sdb.addEntry(seqdata)
+            sdb.saveToFile()
+
+            # Output number and percentage of subreads and longest reads at each rq. Fields: rq, subreads, bestreads
+            self.printLog('#~~#','# ~~~~~~~~~~~ PACBIO ZMW subread RQ (%s) ~~~~~~~~~~~ #' % basename)
+            if self.getNum('TargetErr') <= 0:
+                self.setNum({'TargetErr':1.0/self.getNum('GenomeSize')})
+                self.printLog('#RQERR','Set target RQ error per base to 1/genome size = %s' % rje.expectString(self.getNum('TargetErr')))
+            # Report on read quality and optionally filter?
+            rqz = {}; rqzlen = {}
+            sumrq = 0   # Sum of RQ * subreads
+            for rq in zdb.index('RQ'):
+                rqz[rq] = len(zdb.index('RQ')[rq])
+                rqzlen[rq] = sum(zdb.indexDataList('RQ',rq,'Len',sortunique=False))
+                sumrq += (rq * rqzlen[rq])
+            rqzlentot = sum(rqzlen.values())
+            self.printLog('#TOTAL','Total length = %.2fMb' % (rqzlentot/1e6))
+            maxx = float(rqzlentot) / self.getNum('GenomeSize')
+            self.printLog('#MAXX','Max. XCoverage = %.1f' % maxx)
+            rqzfreq = rje.dictFreq(rqz,total=False,newdict=True)
+
+            rqu = {}; rqulen = {}
+            for rq in udb.index('RQ'):
+                rqu[rq] = len(udb.index('RQ')[rq])
+                rqulen[rq] = sum(udb.indexDataList('RQ',rq,'Len',sortunique=False))
+            rqulentot = sum(rqulen.values())
+            rqufreq = rje.dictFreq(rqu,total=False,newdict=True)
+
+            qdb = db.addEmptyTable('rq',['RQ','xerr','subreads','unique','f.subreads','f.unique','cum.subreads','cum.unique','x.subreads','x.unique','MeanRQ','Mean.XErr'],['RQ'])
+            for rq in rje.sortKeys(rqz):
+                meanrq = sumrq / rqzlentot
+                self.progLog('\r#RQ','Processing RQ=%s (Mean=%.3f) ' % (rq,meanrq))
+                if rq > 1: raise ValueError('RQ = %s' % rq)
+                x = 1
+                while ((1-rq) ** x) > self.getNum('TargetErr'): x += 1
+                meanx = 1
+                while ((1-meanrq) ** meanx) > self.getNum('TargetErr'): meanx += 1
+                rentry = {'RQ':rq,'xerr':x,'subreads':rqz[rq],'unique':0,'f.subreads':rqzfreq[rq],'f.unique':0,
+                          'cum.subreads':rqzlentot,'x.subreads':rqzlentot/self.getNum('GenomeSize'),
+                          'MeanRQ':meanrq,'Mean.XErr':meanx}
+                rqzlentot -= rqzlen[rq]
+                sumrq -= (rq * rqzlen[rq])
+                if rq in rqu:
+                    rentry['unique'] = rqu[rq]; rentry['f.unique'] = rqufreq[rq]
+                    rentry['cum.unique'] = rqulentot; rentry['x.unique'] = rqulentot/self.getNum('GenomeSize')
+                    rqulentot -= rqulen[rq]
+                #self.printLog('#RQ','RQ=%s: %s (%.2f%%) subreads; %s (%.2f%%) unique.' % (rq,rqz[rq],100.0*rqzfreq[rq],rentry['unique'],100.0*rentry['f.unique']))
+                qdb.addEntry(rentry)
+            self.printLog('\r#RQ','Processing of RQ<=%s complete.' % rq)
+            qdb.saveToFile()
+
+            #i# Old notes and contour data now in self.contours(). Replaced by calculate()?
+        except: self.errorLog('%s.batchSummarise error' % self.prog())
+#########################################################################################################################
+    def summariseSeqLen(self,seqlen):   ### Generate summary data from list of sequence lengths
+        '''
+        Generate summary data from list of sequence lengths.
+        @param seqlen: list of sequence lists
+        @return: dictionary of summary data
+        '''
+        try:### ~ [0] Setup SeqList and basic stats ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            seqlen.sort()
+            seqnum = len(seqlen)
+            sumlen = sum(seqlen)
+            seqdata = {'SMRT':'Total','SeqNum':seqnum,'TotLength':sumlen,
+                     'MinLength':min(seqlen),'MaxLength':max(seqlen)}
+            seqdata['MeanLength'] = seqdata['TotLength']/float(seqdata['SeqNum'])
+            self.printLog('#SUM','Total number of sequences: %s' % rje.iLen(seqlen))
+            self.printLog('#SUM','Total length of sequences: %s' % rje.iStr(sumlen))
+            self.printLog('#SUM','Min. length of sequences: %s' % rje.iStr(seqlen[0]))
+            self.printLog('#SUM','Max. length of sequences: %s' % rje.iStr(seqlen[-1]))
+            # Mean & Median sequence lengths
+            meanlen = float(sumlen)/len(seqlen)
+            meansplit = string.split('%.2f' % meanlen,'.')
+            self.printLog('#SUM','Mean length of sequences: %s.%s' % (rje.iStr(meansplit[0]),meansplit[1]))
+            if rje.isOdd(len(seqlen)): median = seqlen[len(seqlen)/2]
+            else: median = sum(seqlen[len(seqlen)/2:][:2]) / 2.0
+            self.printLog('#SUM','Median length of sequences: %s' % (rje.iStr(median)))
+            seqdata['MedLength'] = median
+            ## N50 calculation
+            n50len = seqdata['TotLength'] / 2.0
+            n50 = seqlen[0:]
+            while n50len > 0 and n50: n50len -= n50.pop(-1)
+            if n50:
+                self.printLog('#SUM','N50 length of sequences: %s' % rje.iStr(n50[-1]))
+                seqdata['N50Length'] = n50[-1]
+            else:
+                self.printLog('#SUM','N50 length of sequences: %s' % rje.iStr(seqlen[-1]))
+                seqdata['N50Length'] = seqlen[-1]
+            seqdata['XCoverage'] = seqdata['TotLength'] / self.getNum('GenomeSize')
+            return seqdata
+        except: self.errorLog('%s.summarise error' % self.prog())
+#########################################################################################################################
     def summarise(self):    ### Generate subread summary.
         '''Generate subread summary.'''
         try:### ~ [0] Setup SeqList and basic stats ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            if self.list['Batch'] and not self.getStrLC('SeqIn'): return self.batchSummarise()
             db = self.db()
             seqlist = rje_seqlist.SeqList(self.log,self.cmd_list+['seqmode=file','autoload=T','summarise=F'])   # This will summarise read lengths etc.
             basename = rje.baseFile(seqlist.getStr('SeqIn'),strip_path=True)
@@ -391,7 +604,7 @@ class SMRTSCAPE(rje_obj.RJE_Object):
             self.printLog('\r#SUB','Processed %s subreads (%d SMRT cells)' % (rje.iStr(stot),len(cells)))
             for smrt in cells:
                 self.printLog('#SMRT','SMRT %d = %s' % (cells.index(smrt),smrt))
-                seqdata = seqlist.summarise(zdb.indexDataList('SMRT',cells.index(smrt),'Seq'),smrt)
+                seqdata = seqlist.summarise(zdb.indexDataList('SMRT',cells.index(smrt),'Seq',sortunique=False),smrt)
                 seqdata['SMRT'] = smrt
                 seqdata['XCoverage'] = seqdata['TotLength'] / self.getNum('GenomeSize')
                 sdb.addEntry(seqdata)
@@ -426,7 +639,7 @@ class SMRTSCAPE(rje_obj.RJE_Object):
             seqdata['XCoverage'] = seqdata['TotLength'] / self.getNum('GenomeSize')
             sdb.addEntry(seqdata)
             for smrt in cells:
-                seqdata = seqlist.summarise(udb.indexDataList('SMRT',cells.index(smrt),'Seq'),'%s.unique' % smrt)
+                seqdata = seqlist.summarise(udb.indexDataList('SMRT',cells.index(smrt),'Seq',sortunique=False),'%s.unique' % smrt)
                 seqdata['SMRT'] = '%s.unique' % smrt
                 seqdata['XCoverage'] = seqdata['TotLength'] / self.getNum('GenomeSize')
                 sdb.addEntry(seqdata)
@@ -1106,7 +1319,7 @@ class SMRTSCAPE(rje_obj.RJE_Object):
             # SeedX','AnchorX','SeedMinX','AnchorMinX'
             # PreCov = predicted coverage of pre-assembly
             # CorPreCov = corrected predicted coverage of pre-assembly given mapefficiency
-            xfields += ['PreN','PreX','PreMinX','PreMapEfficiency']
+            xfields += ['PreN','PreX','PreMinX','PreMapEfficiency','AncMapEfficiency']
             if not xdb: xdb = db.addEmptyTable('predict',xfields,['Assembly'])
             else: xdb.list['Fields'] = xfields[0:]
             ## ~ [0b] Generate XCov limits ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
@@ -1176,7 +1389,10 @@ class SMRTSCAPE(rje_obj.RJE_Object):
                     pxcov = 0
                     while seqdata['TotLength'] > xlimits[pxcov]: pxcov += 1
                     xentry['PreMinX'] = pxcov
-                    xentry['PreMapEfficiency'] = xentry['PreX'] / xentry['SeedX']
+                    #xentry['PreMapEfficiency'] = xentry['PreX'] / xentry['SeedX']
+                    xentry['PreMapEfficiency'] = math.pow(xentry['PreX'] / xentry['SeedX'],1.0/xdepth)
+                    # Adding AncMapEfficiency = empirical map efficiency based mean anchor depth of coverage
+                    xentry['AncMapEfficiency'] = math.pow(xentry['PreX'] / xentry['SeedX'],1.0/ax)
                 ## ~ [1c] Add entry to predict table ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
                 xdb.addEntry(xentry)
             ### ~ [2] Calculate X stats from parameter settings and genome size ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###

@@ -19,8 +19,8 @@
 """
 Module:       rje_mitab
 Description:  RJE MITAB File Parser
-Version:      0.2.0
-Last Edit:    30/04/15
+Version:      0.2.1
+Last Edit:    17/05/16
 Copyright (C) 2015  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -67,6 +67,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 0.1.0 - Added complex=LIST : Complex identifier prefixes to expand from mapped PPI [complex]
     # 0.1.1 - Fixed Evidence/IType parsing bug for BioGrid/Intact.
     # 0.2.0 - Added splicevar=T/F option.
+    # 0.2.1 - Fixed redundant evidence/itype bug (primarily dip)
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -79,11 +80,12 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
     # [Y] : Add to SLiMSuite or SeqSuite.
     # [Y] : unionly=T/F : Whether to restrict PPI to pairwise with UniProt IDs [False] ?
     # [ ] : Properly sort out the setup and use of MapFields, incorporating XRef KeyID etc.
+    # [ ] : Add hostpathogen=LIST PPI mode to extract one taxon match and one pathogen taxon match in the PPI pairs.
     '''
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copy_right) = ('RJE_MITAB', '0.2.0', 'April 2015', '2015')
+    (program, version, last_edit, copy_right) = ('RJE_MITAB', '0.2.1', 'May 2016', '2015')
     description = 'RJE MITAB File Parser'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_obj.zen()]
@@ -389,8 +391,8 @@ class MITAB(rje_obj.RJE_Object):
                 if 'irigid' in self.list['Headers'] and 'numParticipants' in self.list['Headers']:
                     if int(mline[headers['numParticipants']]) > 2:
                         complexid['A'] = complexid['B'] = 'rigid:%s' % mline[headers['irigid']]
-                        self.bugPrint(mline)
-                        self.debug(complexid)
+                        #self.bugPrint(mline)
+                        #self.debug(complexid)
                 ## ~ [2b] Parse and check taxa ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
                 taxa = {'A':'','B':''}
                 for tfield in self.list['TaxaField']:
@@ -437,9 +439,9 @@ class MITAB(rje_obj.RJE_Object):
                 ## ~ [2d] Map parsed IDs ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
                 amb = {'A':False,'B':False}
                 if not ids['A'] or not ids['B']:
-                    self.bugPrint('%s\n=> ID Failure' % mline)
-                    self.bugPrint(ids['A']); self.bugPrint(ids['B'])
-                    self.bugPrint(entry)
+                    #self.bugPrint('%s\n=> ID Failure' % mline)
+                    #self.bugPrint(ids['A']); self.bugPrint(ids['B'])
+                    #self.bugPrint(entry)
                     fx += 1; continue
                 for ida in ids['A']:
                     #self.debug('%s => %s (or %s)' % (ida,xref.xref(ida,unique=True),xref.xref(ida,unique=False)))
@@ -491,30 +493,34 @@ class MITAB(rje_obj.RJE_Object):
                 entry['SpokeTaxID'] = taxa['B']
                 if complexid['A'] and complexid['A'] not in complexidlist: complexidlist.append(complexid['A'])
                 if complexid['B'] and complexid['B'] not in complexidlist: complexidlist.append(complexid['B'])
-                if complexid['A'] or complexid['B']: self.debug(entry)
+                #if complexid['A'] or complexid['B']: self.debug(entry)
                 ## ~ [2c] Parse evidence ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-                self.bugPrint(mline)
+                #self.bugPrint(mline)
                 evidence = []
                 for tfield in self.list['MethodField']:
-                    self.bugPrint(string.split(mline[headers[tfield]],'|'))
+                    #self.bugPrint(string.split(mline[headers[tfield]],'|'))
                     for etype in string.split(mline[headers[tfield]],'|'):
                         ematch = rje.matchExp('MI:\d+"?\((.+)\)',etype)
                         if ematch: evidence.append('%s:%s' % (dbsource,ematch[0]))
                 if not evidence: evidence.append('%s:unknown' % (self.getStr('DBSource')))
+                evidence = rje.sortUnique(evidence)
                 #self.debug(evidence)
                 entry['Evidence'] = string.join(evidence,'|')
                 ## ~ [2d] Parse interaction types ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
                 itypes = []
                 for tfield in self.list['TypeField']:
-                    self.bugPrint(string.split(mline[headers[tfield]],'|'))
+                    #self.bugPrint(string.split(mline[headers[tfield]],'|'))
                     for etype in string.split(mline[headers[tfield]],'|'):
                         ematch = rje.matchExp('MI:\d+"?\((.+)\)',etype)
                         if ematch: itypes.append(ematch[0])
                 if not itypes: itypes.append('unknown')
+                itypes = rje.sortUnique(itypes)
                 #self.debug(itypes)
                 entry['IType'] = string.join(itypes,'|')
                 pdb.addEntry(entry); ex += 1
-                if self.dev(): self.bugPrint(uni); self.debug(entry)
+                if self.dev() and entry['Hub'] in ['KLF3']:#,'WDR5']:
+                    self.printLog('#DEV',string.join(mline,'\t'))
+                    #self.bugPrint(uni); self.debug(entry)
                 if self.getBool('Symmetry') and not complexid['A'] and not complexid['B']:
                     pdb.addEntry({'#':pdb.entryNum(),'Hub':entry['Spoke'],'Spoke':entry['Hub'],
                                   'HubUni':entry['SpokeUni'],'SpokeUni':entry['HubUni'],
@@ -557,12 +563,13 @@ class MITAB(rje_obj.RJE_Object):
                     citypes[cid].append(entry['IType'])
                     csentries.append(entry)
             self.printLog('\r#CPLEX','Assembled %s of %s complexes.' % (rje.iLen(complexes),rje.iLen(complexidlist)))
-            self.debug(complexes)
+            #self.debug(complexes)
             ## ~ [3b] Update complexes dictionary ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             cppi = {}
             ex = 0.0; etot = len(complexes); rx = 0; px = 0; cmax = 0
             for cid in rje.sortKeys(complexes):
                 self.progLog('\r#CPLEX','Reducing complexes: %.1f%%' % (ex/etot)); ex += 100.0
+                if self.dev(): self.printLog('#DEV','Complex %s: %s' % (cid,complexes[cid]))
                 if len(complexes[cid]) < 2:
                     complexes.pop(cid)
                     cevidence.pop(cid)
@@ -576,6 +583,7 @@ class MITAB(rje_obj.RJE_Object):
                 members = complexes[cid][0:]
                 while members:
                     hub = members.pop(0)
+                    if self.dev() and hub == 'KLF3': self.debug(cid)
                     if hub not in cppi: cppi[hub] = {}
                     for spoke in members:
                         if spoke not in cppi[hub]:
@@ -608,6 +616,7 @@ class MITAB(rje_obj.RJE_Object):
                     newentry['Evidence'] = evidence
                     newentry['IType'] = itypes
                     entry = pdb.addEntry(rje.combineDict(newentry,hentry,overwrite=False)); cix += 1
+                    if self.dev() and entry['Hub'] in ['KLF3','WDR5']: self.debug('Complex: %s' % entry)
                     if self.getBool('Symmetry'):
                         pdb.addEntry({'#':cix,'Hub':entry['Spoke'],'Spoke':entry['Hub'],
                                       'HubUni':entry['SpokeUni'],'SpokeUni':entry['HubUni'],
@@ -622,7 +631,8 @@ class MITAB(rje_obj.RJE_Object):
         '''Returns first Uniprot ID for given sequence ID and mapfields.'''
         xref = self.obj['XRef']
         unixref = xref.xref(seqid,self.getStr('UniField'),mapfields=mapfields,unique=False,usedict=True)
-        if self.dev(): self.debug('%s -> %s' % (seqid,unixref))
+        #if self.dev():
+        #    if seqid not in unixref: self.bugPrint('%s -> %s' % (seqid,unixref))
         if unixref: return unixref[0]
         else: return ''
 #########################################################################################################################

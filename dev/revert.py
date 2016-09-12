@@ -19,8 +19,8 @@
 """
 Module:       REVERT
 Description:  Retrovirus and Endogenous Viral Element Reconstruction Tool
-Version:      0.7.1
-Last Edit:    14/05/15
+Version:      0.9.1
+Last Edit:    08/09/16
 Copyright (C) 2014  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -105,8 +105,8 @@ Commandline:
     ### ~ Advanced Output Options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     aliases=T/F         # Whether to use aliases in additional outputs [True]
     aliasfile=FILE      # Delimited file of 'Name','Alias' to use in place of batch summary files [*.alias.tdt]
-    vspcode=T/F         # Whether to use viral species codes (even if invented) for aliases [True]
-    gspcode=T/F         # Whether to use genome species codes for aliases if able to parse name [False]
+    vspcode=T/F         # Whether to use viral species codes (even if invented) for VirusID aliases [True]
+    gspcode=T/F         # Whether to use genome species codes for Genome field if able to parse name [False]
     vgablam=T/F         # Whether to compile viral genomes/proteomes and conduct all-by-all GABLAM for graphs [True]
     graphformats=LIST   # Formats for virus-genome graph outputs (svg/xgmml/png/html) (dev=T only) [xgmml,png]
     treeformats=LIST    # List of output formats for generated trees (see rje_tree.py) (dev=T only) [nwk,png]
@@ -148,6 +148,11 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 0.6.0 - Addition of revertnr=T/F method to remove redundancy across searches. Made default.
     # 0.7.0 - Reworking and tidying to make use of virus directory the default.
     # 0.7.1 - Minor bug fixing for REVERT REST Server.
+    # 0.7.2 - Minor bug fix for updated RJE_DB module.
+    # 0.8.0 - Added Local Table output to REST server and fixed virus parse bug.
+    # 0.8.1 - Fixed virus genbank from ID file bug. (Need to re-check REST server.)
+    # 0.9.0 - Major reworking of Alias generation/use. Deletion of some OLD methods.
+    # 0.9.1 - Fixed up a few bugs and outputs. Ready for REST testing.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -165,7 +170,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
     # [ ] : Fix odd bug when possible incomplete BLAST causes a GABLAM forking runtime error when forks=1.
     # [Y] : Add additional visualisation output.
     # [ ] : Document additional visualisation output.
-    # [ ] : Add EdgeTypes for XGMML output.
+    # [Y] : Add EdgeTypes for XGMML output.
     # [ ] : Add optional pre-screening of vector sequence database.
     # [ ] : Add viral all-by-all protein and genome GABLAM searches and incorpotate in XGMML output.
     # [ ] : Add option to remove certain text from genomes (".dna.toplevel")
@@ -174,11 +179,20 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
     # [ ] : Add compilation=T/F method.
     # [ ] : Add actual consensus sequence to consensus.tdt - put method in rje_seqlist.
     # [ ] : Improved handling (warning not error) for viruses without protein sequence data.
+    # [ ] : Add ORF prediction for unannotated sequences (and SeqIn override)? May have overlaps issue. (May already?!)
+    # [ ] : Look for genome file and abort earlier if missing.
+    # [ ] : Add combined local hit tables to REST/main output.
+    # [Y] : Why does the *.alias.tdt file constantly want backing up? After "MAKING ALIASES".
+    # [ ] : Add warning if mutliple genomes get the same alias.
+    # [ ] : Add genome fragment fasta file to main/REST output.
+    # [ ] : Should we consider making a DNA-based mode, rather than protein-based? (Will people criticise the protein aspect)
+    # [ ] : Reorganise and tidy.
+    # [ ] : Update Docs.
     '''
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copy_right) = ('REVERT', '0.7.1', 'May 2015', '2014')
+    (program, version, last_edit, copy_right) = ('REVERT', '0.9.1', 'September 2016', '2014')
     description = 'Retrovirus and Endogenous Viral Element Reconstruction Tool'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_obj.zen()]
@@ -249,6 +263,7 @@ class REVERT(rje_obj.RJE_Object):
 
     Bool:boolean
     - Aliases=T/F         # Whether to use aliases in additional outputs [True]
+    - AliasBackup=T/F     # Whether to ask about backing up alias file [True]
     - GSpCode=T/F         # Whether to use genome species codes for aliases if able to parse name [True]
     - RevertNR=T/F        # Compile batch run results with non-redundancy and quality filtering [True]
     - VGABLAM=T/F         # Whether to compile viral genomes/proteomes and conduct all-by-all GABLAM for graphs [True]
@@ -287,9 +302,9 @@ class REVERT(rje_obj.RJE_Object):
         '''Sets Attributes of Object.'''
         ### ~ Basics ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         self.strlist = ['AliasFile','FasDir','Genome','GBatch','VBatch','RevertBlastDir','RevertDir','SearchDB','SeqIn','VirusDir','VirusGB']
-        self.boollist = ['Aliases','GSpCode','RevertNR','VSpCode','VGABLAM']
+        self.boollist = ['Aliases','AliasBackup','GSpCode','RevertNR','VSpCode','VGABLAM']
         self.intlist = ['FarmGABLAM','GablamFrag']
-        self.numlist = ['MinCov','MinLocID']
+        self.numlist = ['MinPCov','MinPLocID','MinVCov','MinVLocID']
         self.listlist = ['GBatch','VBatch','VHost','GraphFormats','TreeFormats']
         self.dictlist = []
         self.objlist = []
@@ -297,13 +312,14 @@ class REVERT(rje_obj.RJE_Object):
         self._setDefaults(str='None',bool=False,int=0,num=0.0,obj=None,setlist=True,setdict=True)
         self.setStr({'FasDir':'','RevertDir':rje.makePath('REVERT/'),'VirusGB':'virus.gb','Genome':'genome.fas',
                      'RevertBlastDir':rje.makePath('REVERT/BLAST/'),'VirusDir':rje.makePath('VirusGB/')})
-        self.setBool({'Aliases':True,'GSpCode':False,'RevertNR':True,'VSpCode':True,'VGbParse':False,'VGABLAM':True})
+        self.setBool({'Aliases':True,'AliasBackup':True,'GSpCode':False,'RevertNR':True,'VSpCode':True,'VGbParse':False,'VGABLAM':True})
         self.setInt({'GablamFrag':100})
         self.setNum({'MinPCov':40.0,'MinPLocID':30.0,'MinVCov':40.0,'MinVLocID':30.0})
         self.list['GraphFormats'] = ['xgmml','png']
         self.list['TreeFormats'] = ['nwk','png']
         ### ~ Other Attributes ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         self._setForkAttributes()   # Delete if no forking
+        self.cmd_list = ['fullblast=T','tuplekeys=T'] + self.cmd_list
         self.obj['DB'] = rje_db.Database(self.log,self.cmd_list)
         self.obj['Taxonomy'] = rje_taxonomy.Taxonomy(self.log,self.cmd_list)
 #########################################################################################################################
@@ -322,7 +338,7 @@ class REVERT(rje_obj.RJE_Object):
                 self._cmdReadList(cmd,'path',['FasDir','RevertBlastDir','RevertDir','VirusDir'])  # String representing directory path
                 self._cmdReadList(cmd,'file',['AliasFile','Genome','SearchDB','VirusGB'])  # String representing file path
                 #self._cmdReadList(cmd,'date',['Att'])  # String representing date YYYY-MM-DD
-                self._cmdReadList(cmd,'bool',['Aliases','GSpCode','RevertNR','VGbParse','VSpCode','VGABLAM'])
+                self._cmdReadList(cmd,'bool',['Aliases','AliasBackup','GSpCode','RevertNR','VGbParse','VSpCode','VGABLAM'])
                 self._cmdReadList(cmd,'int',['FarmGABLAM','GablamFrag'])   # Integers
                 self._cmdReadList(cmd,'perc',['MinPCov','MinPLocID','MinVCov','MinVLocID']) # Percentages
                 #self._cmdReadList(cmd,'float',['Att']) # Floats
@@ -343,8 +359,30 @@ class REVERT(rje_obj.RJE_Object):
 #########################################################################################################################
     def restSetup(self):    ### Sets up self.dict['Output'] and associated output options if appropriate.
         '''
+        `REVERT` is a high throughput pipeline for finding evidence of Endogenous viral elements (EVEs) within a genome.
+        Input is one or more genbank IDs corresponding to annotated viral genomes (e.g. NC_001542), and a host genome.
+        Available genomes can be accessed at http://rest.slimsuite.unsw.edu.au/alias&genome. Please contact us to add
+        more genomes. (Alternatively, the standalone version of REVERT can be run on multiple bespoke genomes.)
+
         Run with &rest=help for general options. Run with &rest=full to get full server output as text or &rest=format
-        for more user-friendly formatted output. Individual outputs can be identified/parsed using &rest=OUTFMT.
+        for more user-friendly formatted output. Individual outputs can be identified/parsed using &rest=OUTFMT:
+
+        nr = Main REVERT summary table of non-redundant (NR) hits between viruses and the search genome. [tdt]
+        nr.details = Breakdown by protein of main REVERT results. [tdt]
+        consensus = reconstructed consensus sequences from genome fragments for each NR protein [fas]
+        revert = Full REVERT summary table before NR/QC filtering [tdt]
+        details = Breakdown of full summary table by protein [tdt]
+        local = Details of local alignments positions in genome and gfrag sequences [tdt]
+        gfrag = Extracted genomic regions with putative EVEs [fas]
+        virusgb = Genbank format download of input viruses [gbk]
+        virus.locus = Summary table of viruses extracted from genbank [tdt]
+        virus.feature = Table of annotated viral features. (Protein/CDS needed for REVERT analysis) [tdt]
+        virus.prot = Fasta file of viral proteins used in analysis [fas]
+        virus.full = Full genome sequences of viruses used in analysis [fas]
+        genome = Genome sequence used for analysis. (May be too big to download) [fas]
+
+        More details of outputs can be found in the [REVERT Help](http://rest.slimsuite.unsw.edu.au/revert) and/or
+        [SLiMSuite blog](http://slimsuite.blogspot.com.au/). Please get in touch if anything is not clear.
         '''
         try:### ~ [0] ~ Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             #for outfmt in self.restOutputOrder(): self.dict['Output'][outfmt] = 'No output generated.'
@@ -355,7 +393,7 @@ class REVERT(rje_obj.RJE_Object):
         except: self.errorLog('RestSetup error')
 #########################################################################################################################
     def restOutputOrder(self):
-        return ['nr','nr.details','consensus','revert','details','virusgb',
+        return ['nr','nr.details','consensus','revert','details','local','gfrag','virusgb',
                 'virus.locus','virus.feature','virus.prot','virus.full','genome']
 #########################################################################################################################
     ### <2> ### Main Class Backbone                                                                                     #
@@ -401,18 +439,18 @@ class REVERT(rje_obj.RJE_Object):
             #!# Might be better to just deal with this mapping entirely separately.
             #!# The real question is how it impacts the NR reduction of hits.
             # revert.details table, which contains the individual protein vs genome data
-            rhead = ['VirusAcc','Virus','Genome','Protein','ProtAcc','Product','HitNum','MaxScore','EVal','Length','FragNum','Coverage','Identity','Local']
-            rkeys = ['VirusAcc','Genome','Protein']
+            rhead = ['VirusAcc','Virus','Genome','GFile','Protein','ProtAcc','Product','HitNum','MaxScore','EVal','Length','FragNum','Coverage','Identity','Local']
+            rkeys = ['VirusAcc','GFile','Protein']
             rdb = db.addTable(name='revert.details',mainkeys=rkeys,expect=False)    # Load if present
             if not rdb: rdb = db.addEmptyTable('revert.details',rhead,rkeys)        # Create new table if absent
             # revert table, which contains the compiled virus vs genome data
-            vhead = ['VirusAcc','Virus','Genome','HitNum','Length','ProtNum','ProtHits','ProtAcc','FragNum','Coverage','Identity','Local']
-            vkeys = ['VirusAcc','Genome']
+            vhead = ['VirusAcc','Virus','Genome','GFile','HitNum','Length','ProtNum','ProtHits','ProtAcc','FragNum','Coverage','Identity','Local']
+            vkeys = ['VirusAcc','GFile']
             vdb = db.addTable(name='revert',mainkeys=vkeys,expect=False)            # Load if present
             if not vdb: vdb = db.addEmptyTable('revert',vhead,vkeys)                # Create new table if absent
             ## ~ [1b] ~ Setup viral genomes/proteomes for searching ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             self.setupViruses()
-            self.list['VBatch'] = self.db('VirusLoc').indexKeys('locus')
+            self.list['VBatch'] = self.db('data.virus').indexKeys('locus')  #!# Should just be able to use keys?
             #i# The virus batch list is now individual viruses.
             ## ~ [1c] ~ Setup viral/genome aliases? ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             #i# This is currently performed AFTER the batch run. (Not required for main processing.)
@@ -436,11 +474,11 @@ class REVERT(rje_obj.RJE_Object):
                         rx += 1; sx += 1
                         continue
                     if rcmd[-1].startswith('basefile='): rcmd = rcmd[:-1]
-                    self.printLog('#~~#','## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##'); rx += 1
-                    self.printLog('#BATCH','Batch run %d of %d: virusgb="%s"; genome="%s".' % (rx,rtot,virus,gfile))
+                    self.printLog('#~~#','### ==================================================================== ###',timeout=False); rx += 1
+                    self.printLog('#BATCH','Batch running %d of %d: virusgb="%s"; genome="%s".' % (rx,rtot,virus,gfile))
                     rcmd.append('basefile=%s.%s' % (virus,rje.baseFile(gfile,strip_path=True)))
                     revert = REVERT(self.log,rcmd)
-                    revert.db().list['Tables'] = [self.db('VirusLoc'),self.db('VirusFT')]
+                    revert.db().list['Tables'] = [self.db('data.virus'),self.db('VirusFT')]
                     revert.setStr({'VirusGB':virus,'Genome':gfile,'BatchBase':self.basefile()})
                     revert.list['VBatch'] = []
                     revert.list['GBatch'] = []
@@ -449,36 +487,47 @@ class REVERT(rje_obj.RJE_Object):
                         db.mergeTables(rdb,revert.db('revert.details'))
                     else: fx += 1
                     self.printLog('#BATCH','Batch run %d of %d complete; %s skipped; %d failed.' % (rx,rtot,sx,fx))
-            self.printLog('#~~#','## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##',timeout=False)
+            self.printLog('#~~#','### ==================================================================== ###',timeout=False)
             self.printLog('#BATCH','%s batch runs complete; %s skipped; %d failed.' % (rx,sx,fx))
             if rx == fx: self.errorLog('No successful runs!', printerror=False); return False
             ## ~ [2c] Main REVERT output tables ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-            rdb.saveToFile()    # Detailed table of protein vs genome hits (*.revert.details.tdt)
-            vdb.saveToFile()    # Pairwise virus vs genome table (*.revert.tdt)
+            rdb.saveToFile(sfdict={'Coverage':3,'Identity':3,'Local':3})    # Detailed table of protein vs genome hits (*.revert.details.tdt)
+            vdb.saveToFile(sfdict={'Coverage':3,'Identity':3,'Local':3})    # Pairwise virus vs genome table (*.revert.tdt)
+            self.bugPrint('NC_006577: %s' % vdb.indexEntries('VirusAcc','NC_006577'))
 
             ### ~ [3] ~ RevertNR QC and NR filtering ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if not self.getBool('RevertNR'): return True
-            ## ~ [3a] - Coverage/Identity QC Filtering ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             fformat = {'HitNum':'int','MaxScore':'num','EVal':'num','Length':'int','FragNum':'int',
                        'Coverage':'num','Identity':'num','Local':'num','ProtNum':'int','ProtHits':'int'}
             rdb.dataFormat(fformat)
             vdb.dataFormat(fformat)
+            self.bugPrint('NC_006577: %s' % vdb.indexEntries('VirusAcc','NC_006577'))
+            ## ~ [3a] - Sort out aliases prior to NR etc. ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            #!# Add better processing of aliases here prior to NR etc. Then only need to deal with it once! #!#
+            #!# Need to document when/where the aliases are actually used and what stays as unique keys
+            #i# VirusAcc for viruses and GFile for genomes are unique
+            #i# Virus and Genome are user-friendly aliases.
+            if not self.makeAliases(): return False
+
             ## ~ [3b] - Split results tables by genome for processing ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-            grdict = db.splitTable(rdb,'Genome',asdict=True,keepfield=True)
+            grdict = db.splitTable(rdb,'GFile',asdict=True,keepfield=True)
             db.deleteTable(rdb)
-            gvdict = db.splitTable(vdb,'Genome',asdict=True,keepfield=True)
-            db.deleteTable(vdb)
+            gvdict = db.splitTable(vdb,'GFile',asdict=True,keepfield=True)
+            #db.deleteTable(vdb) - used for XGMML output
             ## ~ [3c] - Coverage/Identity QC Filtering ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             append = False
             for genome in rje.sortKeys(grdict):
                 grdb = grdict[genome]
                 gvdb = gvdict[genome]
+                self.bugPrint('NC_006577: %s' % gvdb.indexEntries('VirusAcc','NC_006577'))
                 #!# Should move this QC to a method! #!#
                 # QC Filtering of viruses and proteins based on coverage and local identity. This is now done early to
                 # make subsequent steps more efficient. Filtering is done based on genome-specifc viral hits - by genome
                 # First, Viral hits failing QC and their proteins are removed.
+                self.bugPrint('NC_006577: %s' % self.num)
                 badvirus = []   # List of viruses failing QC
                 for ventry in gvdb.entries():
+                    #if ventry['VirusAcc'] == 'NC_006577': self.debug(ventry)
                     if ventry['Coverage'] < self.getNum('MinVCov') or ventry['Local'] < self.getNum('MinVLocID'):
                         badvirus.append(ventry['VirusAcc'])
                 gvdb.dropEntriesDirect('VirusAcc',badvirus)
@@ -489,17 +538,23 @@ class REVERT(rje_obj.RJE_Object):
                 # viruses now failing the viral QC are removed.
                 badvirus = []   # List of viruses with proteins failing QC - will need full stats to be recalculated
                 for pentry in grdb.entries():
+                    #if pentry['HitNum']: self.debug(pentry)
                     if pentry['Coverage'] < self.getNum('MinPCov') or pentry['Local'] < self.getNum('MinPLocID'):
                         pentry['Coverage'] = pentry['Identity'] = pentry['Local'] = 0.0
                         pentry['FragNum'] = pentry['HitNum'] = 0
-                        badvirus.append(pentry['VirusAcc'])
+                        if pentry['VirusAcc'] not in badvirus: badvirus.append(pentry['VirusAcc'])
+                self.printLog('#QC','%s %s viruses had low coverage and/or identity proteins removed' % (rje.iLen(badvirus),genome))
+                badvirus.sort()
                 for virus in badvirus[0:]:
+                    #self.debug(virus)
                     vlen = vcov = vloc = vid = 0
                     for pentry in grdb.indexEntries('VirusAcc',virus):
                         vlen += pentry['Length']
                         if min(pentry['Length'],pentry['Coverage']) <= 0: continue
-                        vcov += pentry['Coverage'] * pentry['Length'] / 100.0
-                        vloc += pentry['Local'] * pentry['Coverage'] / 100.0
+                        vcov += (pentry['Coverage'] * pentry['Length'] / 100.0)
+                        #vloc += (pentry['Local'] * vcov / 100.0)
+                        vid += (pentry['Identity'] * pentry['Length'] / 100.0)
+                    #self.debug('%s: Len=%s; Cov=%s; Loc=%s; ID=%s.' % (virus,vlen,vcov,vloc,vid))
                     if not vcov or not vlen: continue
                     if 100.0 * vcov / vlen >= self.getNum('MinVCov') or 100.0 * vid / vcov >= self.getNum('MinVLocID'):
                         badvirus.remove(virus)
@@ -507,18 +562,64 @@ class REVERT(rje_obj.RJE_Object):
                 grdb.dropEntriesDirect('VirusAcc',badvirus)
                 self.printLog('#QC','%s %s viruses removed (low coverage and/or identity proteins): %s remain' % (rje.iLen(badvirus),genome,rje.iStr(gvdb.entryNum())))
                 if not grdb.entryNum(): continue
-                #!# Then revertNR need only deal with redundancy removal?
-                #!# It should use the remaining viruses and proteins (with coverage) in rdb to filter local database
-                #?# Should the NR removal be done first? Only count decent hits towards coverage?
-
-                # Replace Genome with Alias for compatibility with later BLAST
-                grdb.makeField(formula='#Genome#',fieldname='GFile',after='Genome')
-                if not self.makeAliases(grdb): return False
-                for entry in grdb.entries(): entry['Genome'] = self.alias(entry['Genome'])
-                grdb.remakeKeys()
-
+                #i# revertNR need only deal with redundancy removal
+                #i# It should use the remaining viruses and proteins (with coverage) in rdb to filter local database
+                #i# Only count decent hits towards coverage.
                 if not self.revertNR(genome,grdb,append): return False
                 append = True
+
+            ## ~ [3d] ~ Compile local and gfrag files ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            locfile = '%s.revert.local.tdt' % self.baseFile()
+            self.dict['Output']['local'] = locfile
+            rje.backup(self,locfile,appendable=False)
+            locdb = None
+            gfragfile = '%s.revertnr.genomefrag.fas' % self.baseFile()
+            rje.backup(self,gfragfile,appendable=False)
+            lx = fx = 0
+            for gfile in rje.sortKeys(grdict):
+                gbase = gfile
+                basefile = os.path.basename(self.baseFile())
+                nrdir = rje.makePath('%sNR/%s/' % (self.getStr('RevertDir'),basefile))
+                nrbase = '%s%s' % (nrdir,gbase) #os.path.basename(self.baseFile()))
+                nrloc = '%s.local.tdt' % nrbase
+                if rje.exists(nrloc):
+                    nrlocdb = db.addTable(nrloc,name='nrlocdb',mainkeys=['Qry','Hit','AlnNum'],expect=True)
+                    if locdb: db.mergeTables(locdb,nrlocdb)
+                    else: locdb = nrlocdb
+                    #if rje.exists(locfile): open(locfile,'a').writelines(open(nrloc,'r').readlines()[1:])
+                    #else: open(locfile,'w').write(open(nrloc,'r').read())
+                    lx += 1
+                nrfrag = '%s.gfrag.fas' % nrbase
+                if rje.exists(nrfrag):
+                    open(gfragfile,'w').write(open(nrfrag,'r').read())
+                    fx += 1
+            # Process
+            if locdb:
+                locdb.makeField(formula='#Qry#',fieldname='GFrag',after='Qry')
+                locdb.renameField('Qry','GenSeq')
+                locdb.renameField('Hit','VirProt')
+                locdb.renameField('QryStart','FragStart')
+                locdb.renameField('QryEnd','FragEnd')
+                locdb.renameField('SbjStart','ProtStart')
+                locdb.renameField('SbjEnd','ProtEnd')
+                locdb.addFields(['GenStart','GenEnd'])
+                for entry in locdb.entries():
+                    ldata = string.split(entry['GenSeq'],'.')
+                    entry['GenSeq'] = string.join(ldata,'.')[:-1]
+                    ldata = string.split(ldata[-1],'-')
+                    entry['FragStart'] = int(entry['FragStart'])
+                    entry['FragEnd'] = int(entry['FragEnd'])
+                    if entry['FragStart'] > entry['FragEnd']:
+                        entry['GenStart'] = int(ldata[0]) + entry['FragEnd'] - 1
+                        entry['GenEnd'] = int(ldata[0]) + entry['FragStart'] - 1
+                    else:
+                        entry['GenStart'] = int(ldata[0]) + entry['FragStart'] - 1
+                        entry['GenEnd'] = int(ldata[0]) + entry['FragEnd'] - 1
+                locdb.saveToFile(locfile)
+            # Report
+            self.printLog('#LOCAL','Local NR BLAST hits for %s of %s genomes output to %s' % (lx,len(grdict),locfile))
+            self.printLog('#GFRAG','Putative EVE Genome Fragments for %s of %s genomes output to %s' % (fx,len(grdict),gfragfile))
+            if fx: self.dict['Output']['gfrag'] = gfragfile
 
             for table in ['nr','nr.details','consensus','revert','details']:
                 if os.path.exists('%s.%s.tdt' % (self.basefile(),table)): self.dict['Output'][table] = '%s.%s.tdt' % (self.basefile(),table)
@@ -527,166 +628,75 @@ class REVERT(rje_obj.RJE_Object):
                 elif table in self.dict['Output']: self.dict['Output'].pop(table)
 
             ### ~ [4] ~ Additional Batch Summaries ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            ### >>> DEV ONLY AT PRESENT >>> ###
-
-            if not self.dev(): return True
+            #?# Can this be made into a method? #?#
+            #i# Review of all aliases to control compression is handled above in makeAliases()
 
             #if len(self.list['GBatch']) > 1:
             #    self.printLog('#NR','RevertNR currently unavailable for multiple genomes.')
             #    return False
             #if not self.revertNR(): return False
-            rdb = self.db('revertnr.details',add=False)
-            vdb = self.db('revertnr',add=False)
-            ## ~ [3a] ~ Load/Create Alias Table ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-            if not self.getStrLC('AliasFile'): self.setStr({'AliasFile':'%s.alias.tdt' % self.basefile()})
-            if self.getBool('Aliases'): adb = db.addTable(self.getStr('AliasFile'),['Name'],name='alias',expect=False)
-            else: adb = None
-            if not adb:
-                afile = '%s.alias.tdt' % self.basefile()    # Look for basefile.alias.tdt if given file not found
-                if self.getBool('Aliases') and rje.exists(afile) and self.i() >= 0 and rje.yesNo('Use %s for aliases?' % afile,default='Y'):
-                    adb = db.addTable(afile,['Name'],name='alias',expect=True)
-                else: adb = db.addEmptyTable('alias',['Name','Alias'],['Name'])
-            ## ~ [3b] ~ Check/Load taxonomy data ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-            needtax = False
-            for entry in vdb.entries():
-                if needtax: break
-                needtax = entry['Virus'] not in adb.data() and entry['VirusAcc'] not in adb.data()
-                needtax = needtax or entry['Genome'] not in adb.data()
-            if needtax:
-                tax = self.obj['Taxonomy']
-                if not tax.getBool('Setup'): tax.setup()
-            self.printLog('#~~#','## ~~~~~~~~~~~~~~~~~~~~ ADDITIONAL BATCH OUTPUT ~~~~~~~~~~~~~~~~~~~~ ##',timeout=False)
+
+            #?# Add VBatch files (VirusGB) to summary files from self.db('data.virus')
+            vlocdb = self.db('data.virus')
+            rdb = self.db('revertnr.details',add=True,mainkeys=['VirusAcc','GFile','Protein'])
+            vdb = self.db('revertnr',add=True,mainkeys=['VirusAcc','GFile'])
+            self.debug(vdb.data())
+            for table in [rdb,vdb]:
+                table.addField('VirusGB','VirusID')
+                for entry in table.entries():
+                    vacc = entry['VirusAcc']
+                    entry['VirusGB'] = vlocdb.data(vacc)['vfiles']
+            self.printLog('#~~#','## ~~~~~~~~~~~~~~~~~~~~ ADDITIONAL BATCH SUMMARIES ~~~~~~~~~~~~~~~~~~~~ ##',timeout=False)
             ## ~ [3b] ~ Virus Summary Table ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             vdb.dataFormat({'HitNum':'int','Length':'int','FragNum':'int','Coverage':'num','Identity':'num','ProtNum':'int','ProtHits':'int'})
-            vsumdb = db.copyTable(vdb,'virus')     # ['VirusGB','VirusAcc','Virus','Genome','HitNum','Length','ProtNum','ProtHits','Protein','FragNum','Coverage','Identity','Local']
+            vsumdb = db.copyTable(vdb,'summary.virus')     # ['VirusGB','VirusAcc','Virus','Genome','HitNum','Length','ProtNum','ProtHits','Protein','FragNum','Coverage','Identity','Local']
             try: vsumdb.renameField('ProtAcc','Protein')
             except: pass
-            for entry in vsumdb.entries(): entry['Genome'] = {True:1,False:0}[entry['FragNum']>0]
-            vsumdb.compress(['Virus'],rules={'Length':'max','VirusGB':'list','VirusAcc':'list','Protein':'list','Identity':'max','Coverage':'max','Local':'max'},default='sum',joinchar='|')
-            vsumdb.addField('Alias','Virus')
+            for entry in vsumdb.entries(): entry['GFile'] = {True:1,False:0}[entry['FragNum']>0]
+            vsumdb.compress(['VirusID'],rules={'Length':'max','Genome':'list','VirusGB':'list','VirusAcc':'list','Protein':'list','Identity':'max','Coverage':'max','Local':'max'},default='sum',joinchar='|')
             for ekey in vsumdb.dataKeys():
                 entry = vsumdb.data(ekey)
                 entry['Protein'] = rje.sortUnique(string.split(entry['Protein'],'|'))
                 if '' in entry['Protein']: entry['Protein'].remove('')
                 entry['ProtHits'] = len(entry['Protein'])
                 entry['Protein'] = string.join(entry['Protein'],'|')
-                #self.debug(entry['Protein'])
-                #if entry['Genome']:
-                #    entry['Identity'] = '%.2f' % (entry['Identity']/entry['Genome'])    # Mean of those hit
-                #    entry['Coverage'] = '%.2f' % (entry['Coverage']/entry['Genome'])
-                if adb:
-                    if entry['Virus'] in adb.data(): entry['Alias'] = adb.data(entry['Virus'])['Alias']
-                    elif entry['VirusAcc'] in adb.data(): entry['Alias'] = adb.data(entry['VirusAcc'])['Alias']
-                    elif self.getBool('VSpCode'):
-                        entry['Alias'] = tax.getSpCode(entry['Virus'])
-                        adb.addEntry({'Name':entry['Virus'],'Alias':entry['Alias']})
-                    elif self.i() >= 0:
-                        spcode = tax.getSpCode(entry['Virus'])
-                        menulist = [('S','Species Code: %s' % spcode,'return',spcode),
-                                    ('A','Accession Number: %s' % entry['VirusAcc'],'return',entry['VirusAcc']),
-                                    ('V','Virus Name: %s' % entry['Virus'],'return',entry['Virus']),
-                                    ('E','Enter Alias','return','ENTER'),
-                                    ('X','No Alias','return','')]
-                        entry['Alias'] = rje_menu.menu(self,'Alias options for %s (%s):' % (entry['Virus'],entry['VirusAcc']),menulist,choicetext='Please select:',changecase=True,default='S')
-                        if entry['Alias'] == 'ENTER': entry['Alias'] = rje.choice('Enter new Alias:',confirm=True)
-                        if entry['Alias']: adb.addEntry({'Name':entry['Virus'],'Alias':entry['Alias']})
             vsumdb.dropField('Protein')
             ## ~ [3c] ~ Genome Summary Table ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-            gsumdb = db.copyTable(vdb,'genome')     # ['VirusGB','VirusAcc','Virus','Genome','HitNum','Length','ProtNum','ProtHits','Protein','FragNum','Coverage','Identity','Local']
+            gsumdb = db.copyTable(vdb,'summary.genome')     # ['VirusAcc','Virus','Genome','HitNum','Length','ProtNum','ProtHits','Protein','FragNum','Coverage','Identity','Local']
+            self.debug(gsumdb.fields())
             try: gsumdb.renameField('ProtAcc','Protein')
             except: pass
+            gsumdb.index('VirusGB',splitchar='|')
+            vgbfields = gsumdb.indexKeys('VirusGB')
+            for vfile in vgbfields: gsumdb.addField(vfile,evalue=0)
             for entry in gsumdb.entries(): entry['Virus'] = {True:1,False:0}[entry['FragNum']>0]
-            gsumdb.compress(['Genome'],rules={'Length':'max','Protein':'list'},default='sum')
-            gsumdb.dropFields(['VirusGB','VirusAcc','Length','ProtNum','Coverage','Identity','Local'])
-            gsumdb.addField('Alias','Genome')
-            gsumdb.list['Fields'] = gsumdb.list['Fields'][1:3] + gsumdb.list['Fields'][:1] + gsumdb.list['Fields'][3:]
+            for vfile in gsumdb.indexKeys('VirusGB'):
+                for entry in gsumdb.indexEntries('VirusGB',vfile): entry[vfile] = entry['VirusAcc']
+            gsumdb.compress(['Genome','VirusAcc'],rules={'Length':'max','Protein':'list','VirusID':'list','Virus':'max'},default='sum')
+            gsumdb.compress(['Genome'],rules={'Length':'max','Protein':'list','VirusID':'list','Virus':'sum'},default='max')
+            gsumdb.setFields(['Genome','GFile','Virus','VirusID','HitNum','MaxScore','EVal','Protein','ProtHits','FragNum','BestProt','Best']+vgbfields)
             for ekey in gsumdb.dataKeys():
                 entry = gsumdb.data(ekey)
                 entry['Protein'] = rje.sortUnique(string.split(entry['Protein'],'|'))
                 if '' in entry['Protein']: entry['Protein'].remove('')
                 entry['ProtHits'] = len(entry['Protein'])
                 entry['Protein'] = string.join(entry['Protein'],'|')
-                #self.debug(entry['Protein'])
-                #if entry['Virus']:
-                #    entry['Identity'] = '%.2f' % (entry['Identity']/entry['Virus'])    # Mean of those hit
-                #    entry['Coverage'] = '%.2f' % (entry['Coverage']/entry['Virus'])
-                if adb:
-                    spabbrev = ''
-                    if entry['Genome'] not in adb.data():
-                        taxon = string.split(entry['Genome'],'.')[0]
-                        if taxon.count('_') == 1:
-                            spcode = tax.getSpCode(taxon,invent=False)
-                            spabbrev = string.split(taxon,'_')
-                            try: spabbrev = '%s.%s' % (spabbrev[0].upper()[:1],spabbrev[1].lower())
-                            except: spabbrev = spabbrev[0]
-                        else:
-                            spcode = tax.getSpCode(string.replace(string.split(taxon,'_')[0],'-',' '),invent=False)
-                            spabbrev = string.split(string.split(taxon,'_')[0],'-')[:2]
-                            try: spabbrev = '%s.%s' % (spabbrev[0].upper()[:1],spabbrev[1].lower())
-                            except: spabbrev = spabbrev[0]
-                    if entry['Genome'] in adb.data(): entry['Alias'] = adb.data(entry['Genome'])['Alias']
-                    elif self.getBool('GSpCode') and spcode: entry['Alias'] = spcode; adb.addEntry({'Name':entry['Genome'],'Alias':entry['Alias']})
-                    elif self.i() >= 0:
-                        menulist = [('G','Genome Name: %s' % entry['Genome'],'return',entry['Genome']),
-                                    ('E','Enter Alias','return','ENTER'),
-                                    ('X','No Alias','return','')]
-                        if spcode: menulist.insert(1,('S','Species code: %s' % spcode,'return',spcode))
-                        else: menulist.insert(1,('S','Generate species code','return','SPCODE'))
-                        if spabbrev: menulist.insert(1,('A','Auto-extract species abbreviation: %s' % spabbrev,'return',spabbrev))
-                        if self.getBool('GSpCode'): entry['Alias'] = rje_menu.menu(self,'Alias options for %s:' % (entry['Genome']),menulist,choicetext='Please select:',changecase=True,default='S')
-                        elif spabbrev: entry['Alias'] = rje_menu.menu(self,'Alias options for %s:' % (entry['Genome']),menulist,choicetext='Please select:',changecase=True,default='A')
-                        else: entry['Alias'] = rje_menu.menu(self,'Alias options for %s:' % (entry['Genome']),menulist,choicetext='Please select:',changecase=True,default='E')
-                        if entry['Alias'] == 'ENTER': entry['Alias'] = rje.choice('Enter new Alias:',confirm=True)
-                        elif entry['Alias'] == 'SPCODE':
-                            entry['Alias'] = tax.getSpCode(rje.choice('Enter species for Species Code:',confirm=True))
-                        if entry['Alias']: adb.addEntry({'Name':entry['Genome'],'Alias':entry['Alias']})
-                    elif spabbrev: entry['Alias'] = spabbrev
             gsumdb.dropField('Protein')
             ## ~ [3d] ~ Protein Summary Table ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-            psumdb = db.copyTable(rdb,'protein')     # ['VirusGB','VirusAcc','Virus','Genome','Protein','ProtAcc','Product','HitNum','MaxScore','EVal','Length','FragNum','Coverage','Identity','Local']
-            # Output fields: ['VirusGB','VirusAcc','Virus','Genome','ProtAcc','Product','HitNum','Length','FragNum','Coverage','Identity','Local']
-            for entry in psumdb.entries(): entry['Genome'] = {True:1,False:0}[entry['FragNum']>0]
-            psumdb.compress(['Virus','ProtAcc'],rules={'Length':'max','VirusGB':'list','VirusAcc':'list','Identity':'max','Coverage':'max','Local':'max'},default='sum',joinchar='|')
-            psumdb.keepFields(['VirusGB','VirusAcc','Virus','Genome','ProtAcc','Product','HitNum','Length','FragNum','Coverage','Identity','Local'])
-            psumdb.list['Fields'] = ['VirusGB','VirusAcc','Virus','ProtAcc','Product','Genome','HitNum','Length','FragNum','Coverage','Identity','Local']
-            psumdb.addField('Alias','Virus')
-            for ekey in psumdb.dataKeys():
-                entry = psumdb.data(ekey)
-                #if entry['Genome']:
-                #    entry['Identity'] = '%.2f' % (entry['Identity']/entry['Genome'])    # Mean of those hit
-                #    entry['Coverage'] = '%.2f' % (entry['Coverage']/entry['Genome'])
-                if adb:
-                    if entry['Virus'] in adb.data(): entry['Alias'] = adb.data(entry['Virus'])['Alias']
-                    elif entry['VirusAcc'] in adb.data(): entry['Alias'] = adb.data(entry['VirusAcc'])['Alias']
-                    elif self.getBool('VSpCode'):
-                        entry['Alias'] = tax.getSpCode(entry['Virus'])
-                        adb.addEntry({'Name':entry['Virus'],'Alias':entry['Alias']})
-                    elif self.i() >= 0:
-                        spcode = tax.getSpCode(entry['Virus'])
-                        menulist = [('S','Species Code: %s' % spcode,'return',spcode),
-                                    ('A','Accession Number: %s' % entry['VirusAcc'],'return',entry['VirusAcc']),
-                                    ('V','Virus Name: %s' % entry['Virus'],'return',entry['Virus']),
-                                    ('E','Enter Alias','return','ENTER'),
-                                    ('X','No Alias','return','')]
-                        entry['Alias'] = rje_menu.menu(self,'Alias options for %s (%s):' % (entry['Virus'],entry['VirusAcc']),menulist,choicetext='Please select:',changecase=True,default='S')
-                        if entry['Alias'] == 'ENTER': entry['Alias'] = rje.choice('Enter new Alias:',confirm=True)
-                        if entry['Alias']: adb.addEntry({'Name':entry['Virus'],'Alias':entry['Alias']})
+            psumdb = db.copyTable(rdb,'summary.protein')     # ['VirusAcc','Virus','Genome','Protein','ProtAcc','Product','HitNum','MaxScore','EVal','Length','FragNum','Coverage','Identity','Local']
+            # Output fields: ['VirusAcc','Virus','Genome','ProtAcc','Product','HitNum','Length','FragNum','Coverage','Identity','Local']
+            for entry in psumdb.entries(): entry['GFile'] = {True:1,False:0}[entry['FragNum']>0]
+            psumdb.compress(['VirusAcc','ProtAcc'],rules={'Length':'max','VirusAcc':'list','VirusID':'list','Genome':'list','Identity':'max','Coverage':'max','Local':'max'},default='sum',joinchar='|')
+            psumdb.setFields(['VirusAcc','Virus','VirusID','ProtAcc','Product','GFile','Genome','HitNum','Length','FragNum','Coverage','Identity','Local'])
 
             ## ~ [3e] ~ Save tables ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             vsumdb.saveToFile()
             gsumdb.saveToFile()
             psumdb.saveToFile()
-            if adb: adb.saveToFile()
-            for entry in vsumdb.entries():
-                if not entry['Alias']:
-                    entry['Alias'] = entry['Virus']
-                    adb.addEntry({'Name':entry['Virus'],'Alias':entry['Alias']})
-            for entry in gsumdb.entries():
-                if not entry['Alias']:
-                    entry['Alias'] = entry['Genome']
-                    adb.addEntry({'Name':entry['Genome'],'Alias':entry['Alias']})
 
             ### ~ [4] ~ Additional Batch Output ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            ### >>> DEV ONLY AT PRESENT >>> ###
+            #x#if not self.dev(): return True
             self.batchOutput()
             return True
         except SystemExit: raise
@@ -704,10 +714,13 @@ class REVERT(rje_obj.RJE_Object):
             if not self.setupAlias(): return False
             ### ~ [1] Check Input ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             self.printLog('#~~#','## ~~~~~~~~~~~~~~~~~~~~~~~ VIRUS GENBANK SETUP ~~~~~~~~~~~~~~~~~~~~~ ##',timeout=False)
+            savelocus = True    # Whether to save a combined table of viral loci
             for vfile in self.list['VBatch'][0:]:   # Each file might be a file or IUD list.
                 ## ~ [1a] Deal with accnum list if required ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
                 virusgb = None
+                vfetch = vfile
                 if not os.path.exists(vfile):  # Interpret as IUD list
+                    savelocus = len(self.list['VBatch']) > 1    # Cancel save locus for a single UID list
                     if ',' in vfile:   # List given: need a new name
                         virusgb = vfile
                         vfile = '%svirus.input' % self.getStr('RunPath')   # This is only really for the REST server
@@ -719,11 +732,31 @@ class REVERT(rje_obj.RJE_Object):
                 #gbcmd = self.cmd_list + ['fasout=full,gene,prot','tabout=T','basefile=%s%s' % (virusdir,virusgb)]
                 gbcmd = self.cmd_list + ['fasout=full,gene,prot','tabout=T','basefile=%s' % rje.baseFile(vfile)]
                 if vfile.lower().endswith('.gb') or vfile.lower().endswith('.gbk'): gbcmd += ['seqin=%s' % vfile]
-                else: gbcmd += ['fetchuid=%s' % virusgb]
-                gbcmd += ['locusout=T','locusdir=%s' % self.getStr('VirusDir')]
+                else: gbcmd += ['fetchuid=%s' % vfetch]
+                gbcmd += ['locusout=T','locusdir=%s' % self.getStr('VirusDir'),'addtags=T']
+                #self.debug(gbcmd)
                 gb = rje_genbank.GenBank(self.log,gbcmd)
                 gb.obj['Taxonomy'] = self.obj['Taxonomy']
-                gb.run()
+                #!# Should check for need to run #!#
+                rungb = self.force() or self.getStrLC('Rest')
+                if not rungb:
+                    # Look for gb.db('Locus')
+                    locdb = gb.db('Locus',add=True,mainkeys=['locus'])
+                    # Look to compile gb.db('Feature') using Locus db and VirusDir
+                    if locdb:
+                        ftdb = None
+                        for locus in locdb.dataKeys():
+                            ftfile = '%s%s.Feature.tdt' % (self.getStr('VirusDir'),locus)
+                            if not rje.exists(ftfile): rungb = True; break
+                            if ftdb:
+                                ftdb.obj['File'] = open(ftfile,'r')
+                                ftdb.obj['File'].readline()
+                                ftdb.readSet(['locus'],clear=False)
+                                if ftdb.obj['File']: ftdb.obj['File'].close()
+                            else:
+                                ftdb = gb.db().addTable(ftfile,mainkeys=['locus','feature','position'],name='Feature',expect=True)
+                    else: rungb = True
+                if rungb: gb.run()
                 if vfile.lower().endswith('.gb') or vfile.lower().endswith('.gbk'): self.dict['Output']['virusgb'] = vfile
                 else: self.dict['Output']['virusgb'] = '%s.gb' % rje.baseFile(vfile)
                 #i# This should now have generated virus-specific output in virusdir
@@ -736,21 +769,37 @@ class REVERT(rje_obj.RJE_Object):
                     gb.db('Feature').saveToFile()
                     gb.saveFasta(logskip=self.v()>0,bylocus=False)
                 ## ~ [1d] Grab parsed genbank feature data ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-                if ldb: db.mergeTables(ldb,gb.db('Locus'),overwrite=False)
-                else: ldb = gb.db('Locus'); db.list['Tables'].append(ldb); ldb.basefile(db.basefile())
-                if fdb: db.mergeTables(fdb,gb.db('Feature'),overwrite=False)
+                if ldb:
+                    #X#db.mergeTables(ldb,gb.db('Locus'),overwrite=False)
+                    vbase = rje.baseFile(vfile,strip_path=True)
+                    for entry in gb.db('Locus').entries():
+                        ekey = ldb.makeKey(entry)
+                        if ekey in ldb.data(): ldb.data(ekey)['vfiles'] += '|%s' % vbase
+                        else: entry['vfiles'] = vbase; ldb.addEntry(entry)
+                else:
+                    ldb = gb.db('Locus'); db.list['Tables'].append(ldb); ldb.basefile(db.basefile())
+                    ldb.addField('vfiles',evalue=rje.baseFile(vfile,strip_path=True))
+                if fdb:
+                    if not db.mergeTables(fdb,gb.db('Feature'),overwrite=False): raise ValueError
+                    self.printLog('#MERGE','%s features merged -> %s ViralFT' % (rje.iStr(gb.db('Feature').entryNum()),rje.iStr(fdb.entryNum())))
+                    db.debug(fdb.data())
                 else: fdb = gb.db('Feature'); db.list['Tables'].append(fdb); fdb.basefile(db.basefile())
 
             #!# NB. Might now need to compile prot.fas data for REST server.
 
             ### ~ [2] Summarise ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            #locus   length  type    definition      accession       version gi      organism        spcode
+            #virus table:
+            #locus   length  type    definition      accession       version gi      organism        spcode vfiles
             #NC_001434       7176    ss-RNA  Hepatitis E virus, complete genome.     NC_001434       NC_001434.1     9626440 Hepatitis E virus       HEV
-            ldb.setStr({'Name':'VirusLoc'}); ldb.index('locus')
+            for entry in ldb.entries():
+                if entry['vfiles'].startswith('|'): entry['vfiles'] = entry['vfiles'][1:]
+            ldb.setStr({'Name':'data.virus'}); ldb.index('locus')
+            if savelocus: ldb.saveToFile()
             #locus	feature	position	start	end	locus_tag	protein_id	details
             #NC_001434	CDS	4..5085	4	5085	HEVgp01	NP_056779.1	/note="ORF 1" /codon_start="1" /product="polyprotein" /db_xref="GI:9626448" /db_xref="GeneID:1494415"
             fdb.setStr({'Name':'VirusFT'})
-            fdb.dropEntriesDirect('feature',['CDS','Protein'],inverse=True,log=True)    ### Drops certain entries from Table
+            fdb.dropEntriesDirect('feature',['CDS','Protein'],inverse=True,log=True,force=True)    ### Drops certain entries from Table
+            #self.debug(fdb.index('feature'))
             fdb.newKey(['locus','protein_id'])
             fdb.index('protein_id'); fdb.index('locus')
 
@@ -760,8 +809,10 @@ class REVERT(rje_obj.RJE_Object):
                 seqfile = '%s%s.prot.acc.fas' % (virusdir,virus)
                 if self.force() or not rje.exists(seqfile):
                     vprotfile = '%s%s.prot.fas' % (virusdir,virus)
-                    seqlist = rje_seqlist.SeqList(log=self.log,cmd_list=self.cmd_list+['seqin=%s' % vprotfile,'autoload=T'])
-                    seqlist.saveSeq(reformat='accfas',seqfile=seqfile)
+                    if rje.exists(vprotfile):
+                        seqlist = rje_seqlist.SeqList(log=self.log,cmd_list=self.cmd_list+['seqin=%s' % vprotfile,'autoload=T'])
+                        seqlist.saveSeq(reformat='accfas',seqfile=seqfile)
+                    else: self.warnLog('Protein file %s not found. (No CDS features?)' % vprotfile)
                 if rje.exists(seqfile): vx += 1
                 else:
                     self.warnLog('Failed to create %s: removing virus "%s" from analysis' % (seqfile,virus))
@@ -789,387 +840,11 @@ class REVERT(rje_obj.RJE_Object):
             rsfile = '%s.revert.tdt' % self.basefile()
             if rje.exists(rpfile) and rje.exists(rsfile) and not self.force():
                 self.printLog('#REVERT','%s REVERT summary tables found.' % self.basefile())
-                rkeys = ['VirusAcc','Genome','Protein']
+                rkeys = ['VirusAcc','GFile','Protein']
                 db.addTable(name='revert.details',mainkeys=rkeys,expect=True)
                 db.addTable(name='revert',mainkeys=rkeys[:2],expect=True)
                 self.printLog('#SKIP','Skipping %s (force=F).' % self.basefile())
                 return False    # Should be no need to rerun anything as should also be in summary files
-            return True     # Setup successful
-        except: self.errorLog('REVERT setup failed.'); return False  # Setup failed
-#########################################################################################################################
-    def OLDbatchRun(self): ### Performs a batch run against multiple input files.
-        '''Performs a batch run against multiple input files.'''
-        try:### ~ [1] ~ Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            if not self.list['VBatch']:
-                if self.getStrLC('VBatch'): raise IOError('Cannot find vbatch files!')
-                if not self.getStrLC('VirusGB'): raise IOError('Cannot find virusgb file!')
-                self.list['VBatch'] = [self.getStr('VirusGB')]
-            if not self.list['GBatch']:
-                if self.getStrLC('GBatch'): raise IOError('Cannot find gbatch files!')
-                if not self.getStrLC('Genome'): raise IOError('Cannot find genome file!')
-                self.list['GBatch'] = [self.getStr('Genome')]
-            self.restSetup()
-            self.dict['Output']['genome'] = 'Genome file: %s' % self.getStr('Genome')
-            ## ~ [1a] ~ Setup DB object ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-            self.log.no_suppression += ['entry_overwrite','Invented SpCode']
-            self.log.warnings += ['SpCode Missing TaxID']
-            db = self.obj['DB'] = rje_db.Database(self.log,self.cmd_list)
-            if not self.getStrLC('Basefile'): self.setBaseFile('revert')
-            self.setBaseFile(self.basefile(runpath=True))
-            rhead = ['VirusGB','VirusAcc','Virus','Genome','Protein','ProtAcc','Product','HitNum','MaxScore','EVal','Length','FragNum','Coverage','Identity','Local']
-            rkeys = ['VirusGB','VirusAcc','Genome','Protein']
-            rdb = db.addTable(name='revert.details',mainkeys=rkeys,expect=False)    # Load if present
-            if not rdb: rdb = db.addEmptyTable('revert.details',rhead,rkeys)        # Create new table if absent
-            vhead = ['VirusGB','VirusAcc','Virus','Genome','HitNum','Length','ProtNum','ProtHits','Protein','FragNum','Coverage','Identity','Local']
-            vkeys = ['VirusGB','VirusAcc','Genome']
-            vdb = db.addTable(name='revert',mainkeys=vkeys,expect=False)            # Load if present
-            if not vdb: vdb = db.addEmptyTable('revert',vhead,vkeys)                # Create new table if absent
-            ### ~ [2] ~ Run REVERT ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            ## ~ [2a] FarmGABLAM pre-BLAST mode ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-            if self.getInt('FarmGABLAM') > 0: self.farmGABLAM(self.list['VBatch'],self.list['GBatch'])
-            ## ~ [2b] Main REVERT processing ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-            rcmd = self.cmd_list + ['vbatch=','gbatch=']
-            rx = 0; rtot = len(self.list['VBatch']) * len(self.list['GBatch']); fx = 0; sx = 0
-            self.printLog('#VBATCH','%d VBatch files of viral genomes.' % len(self.list['VBatch']))
-            self.printLog('#GBATCH','%d GBatch files of host genomes.' % len(self.list['GBatch']))
-            self.printLog('#BATCH','Total batch runs: %s (%d x %d).' % (rje.iStr(rtot),len(self.list['VBatch']),len(self.list['GBatch'])))
-            for vfile in self.list['VBatch'][0:]:
-                vgb = rje.baseFile(vfile,strip_path=True) #+ '.gb'
-                run_genomes = vdb.indexDataList('VirusGB',vgb,'Genome')
-                for gfile in self.list['GBatch']:
-                    gfa = rje.baseFile(gfile,strip_path=True) #+ '.fa'
-                    if gfa in run_genomes and not self.force():
-                        self.printLog('#SKIP','Skipping batch run %d of %d: virusgb="%s"; genome="%s".' % (rx,rtot,vfile,gfile))
-                        rx += 1; sx += 1
-                        continue
-                    #!# Use vdb to skip if already run and force=F ? #!#
-                    if rcmd[-1].startswith('basefile='): rcmd = rcmd[:-1]
-                    self.printLog('#~~#','## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##'); rx += 1
-                    self.printLog('#BATCH','Batch run %d of %d: virusgb="%s"; genome="%s".' % (rx,rtot,vfile,gfile))
-                    rcmd.append('basefile=%s.%s' % (rje.baseFile(vfile,strip_path=True),rje.baseFile(gfile,strip_path=True)))
-                    revert = REVERT(self.log,rcmd)
-                    revert.setStr({'VirusGB':vfile,'Genome':gfile,'BatchBase':self.basefile()})
-                    revert.list['VBatch'] = []
-                    revert.list['GBatch'] = []
-                    if revert.run(batch=False) and revert.db('revert'):
-                        vfile = revert.getStr('VirusGB')
-                        #!# Add virus.gb
-                        for outfmt in ['virus.locus','virus.feature','virus.prot','virus.full']:
-                            self.dict['Output'][outfmt] = revert.dict['Output'][outfmt]
-                        if len(self.list['VBatch']) == 1: self.list['VBatch'] = [vfile]
-                        vgb = rje.baseFile(vfile,strip_path=True)
-                        for entry in revert.db('revert').entries():
-                            entry['VirusGB'] = vgb
-                            vdb.addEntry(entry)
-                        for entry in revert.db('revert.details').entries():
-                            entry['VirusGB'] = os.path.basename(vfile)
-                            rdb.addEntry(entry)
-                    else: fx += 1
-                    self.printLog('#BATCH','Batch run %d of %d complete; %s skipped; %d failed.' % (rx,rtot,sx,fx))
-            self.printLog('#~~#','## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##')
-            self.printLog('#BATCH','%s batch runs complete; %s skipped; %d failed.' % (rx,sx,fx))
-            if rx == fx: self.errorLog('No successful runs!', printerror=False); return False
-            ## ~ [2c] Main REVERT output tables ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-            rdb.saveToFile()    # Detailed table of protein vs genome hits (*.revert.details.tdt)
-            vdb.saveToFile()    # Pairwise virus vs genome table (*.revert.tdt)
-            ### ~ [3] ~ RevertNR QC and NR filtering ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            if not self.getBool('RevertNR'): return True
-            ## ~ [3a] - Coverage/Identity QC Filtering ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-            fformat = {'HitNum':'int','MaxScore':'num','EVal':'num','Length':'int','FragNum':'int',
-                       'Coverage':'num','Identity':'num','Local':'num','ProtNum':'int','ProtHits':'int'}
-            rdb.dataFormat(fformat)
-            vdb.dataFormat(fformat)
-            ## ~ [3b] - Split results tables by genome for processing ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-            grdict = db.splitTable(rdb,'Genome',asdict=True,keepfield=True)
-            db.deleteTable(rdb)
-            gvdict = db.splitTable(vdb,'Genome',asdict=True,keepfield=True)
-            db.deleteTable(vdb)
-            ## ~ [3c] - Coverage/Identity QC Filtering ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-            append = False
-            for genome in rje.sortKeys(grdict):
-                grdb = grdict[genome]
-                gvdb = gvdict[genome]
-                # QC Filtering of viruses and proteins based on coverage and local identity. This is now done early to
-                # make subsequent steps more efficient. Filtering is done based on genome-specifc viral hits - by genome
-                # First, Viral hits failing QC and their proteins are removed.
-                badvirus = []   # List of viruses failing QC
-                for ventry in gvdb.entries():
-                    if ventry['Coverage'] < self.getNum('MinVCov') or ventry['Local'] < self.getNum('MinVLocID'):
-                        badvirus.append(ventry['VirusAcc'])
-                gvdb.dropEntriesDirect('VirusAcc',badvirus)
-                grdb.dropEntriesDirect('VirusAcc',badvirus)
-                self.printLog('#QC','%s %s viruses removed (low coverage and/or identity): %s remain' % (rje.iLen(badvirus),genome,rje.iStr(gvdb.entryNum())))
-                # Next, proteins failing the protein QC threshold are removed. Their coverage is reduced to 0.0 and any
-                # viruses now failing the viral QC are removed.
-                badvirus = []   # List of viruses with proteins failing QC - will need full stats to be recalculated
-                for pentry in grdb.entries():
-                    if pentry['Coverage'] < self.getNum('MinPCov') or pentry['Local'] < self.getNum('MinPLocID'):
-                        pentry['Coverage'] = pentry['Identity'] = pentry['Local'] = 0.0
-                        pentry['FragNum'] = pentry['HitNum'] = 0
-                        badvirus.append(pentry['VirusAcc'])
-                for virus in badvirus[0:]:
-                    vlen = vcov = vloc = vid = 0
-                    for pentry in grdb.indexEntries('VirusAcc',virus):
-                        vlen += pentry['Length']
-                        if min(pentry['Length'],pentry['Coverage']) <= 0: continue
-                        vcov += pentry['Coverage'] * pentry['Length'] / 100.0
-                        vloc += pentry['Local'] * pentry['Coverage'] / 100.0
-                    if not vcov or not vlen: continue
-                    if 100.0 * vcov / vlen >= self.getNum('MinVCov') or 100.0 * vid / vcov >= self.getNum('MinVLocID'):
-                        badvirus.remove(virus)
-                gvdb.dropEntriesDirect('VirusAcc',badvirus)
-                grdb.dropEntriesDirect('VirusAcc',badvirus)
-                self.printLog('#QC','%s %s viruses removed (low coverage and/or identity proteins): %s remain' % (rje.iLen(badvirus),genome,rje.iStr(gvdb.entryNum())))
-                #!# Then revertNR need only deal with redundancy removal?
-                #!# It should use the remaining viruses and proteins (with coverage) in rdb to filter local database
-                #?# Should the NR removal be done first? Only count decent hits towards coverage?
-
-                # Replace Genome with Alias for compatibility with later BLAST
-                grdb.makeField(formula='#Genome#',fieldname='GFile',after='Genome')
-                if not self.makeAliases(grdb): return False
-                for entry in grdb.entries(): entry['Genome'] = self.alias(entry['Genome'])
-                grdb.remakeKeys()
-
-                if not self.revertNR(genome,grdb,append): return False
-                append = True
-
-            for table in ['nr','nr.details','consensus','revert','details']:
-                if os.path.exists('%s.%s.tdt' % (self.basefile(),table)): self.dict['Output'][table] = '%s.%s.tdt' % (self.basefile(),table)
-                elif os.path.exists('%s.revert%s.tdt' % (self.basefile(),table)): self.dict['Output'][table] = '%s.revert%s.tdt' % (self.basefile(),table)
-                elif os.path.exists('%s.revert.%s.tdt' % (self.basefile(),table)): self.dict['Output'][table] = '%s.revert.%s.tdt' % (self.basefile(),table)
-                elif table in self.dict['Output']: self.dict['Output'].pop(table)
-
-            ### ~ [4] ~ Additional Batch Summaries ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            ### >>> DEV ONLY AT PRESENT >>> ###
-
-            if not self.dev(): return True
-
-            #if len(self.list['GBatch']) > 1:
-            #    self.printLog('#NR','RevertNR currently unavailable for multiple genomes.')
-            #    return False
-            #if not self.revertNR(): return False
-            rdb = self.db('revertnr.details')
-            vdb = self.db('revertnr')
-            ## ~ [3a] ~ Load/Create Alias Table ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-            if not self.getStrLC('AliasFile'): self.setStr({'AliasFile':'%s.alias.tdt' % self.basefile()})
-            if self.getBool('Aliases'): adb = db.addTable(self.getStr('AliasFile'),['Name'],name='alias',expect=False)
-            else: adb = None
-            if not adb:
-                afile = '%s.alias.tdt' % self.basefile()    # Look for basefile.alias.tdt if given file not found
-                if self.getBool('Aliases') and rje.exists(afile) and self.i() >= 0 and rje.yesNo('Use %s for aliases?' % afile,default='Y'):
-                    adb = db.addTable(afile,['Name'],name='alias',expect=True)
-                else: adb = db.addEmptyTable('alias',['Name','Alias'],['Name'])
-            ## ~ [3b] ~ Check/Load taxonomy data ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-            needtax = False
-            for entry in vdb.entries():
-                if needtax: break
-                needtax = entry['Virus'] not in adb.data() and entry['VirusAcc'] not in adb.data()
-                needtax = needtax or entry['Genome'] not in adb.data()
-            if needtax:
-                tax = self.obj['Taxonomy']
-                if not tax.getBool('Setup'): tax.setup()
-            self.printLog('#~~#','## ~~~~~~~~~~~~~~~~~~ ADDITIONAL BATCH OUTPUT ~~~~~~~~~~~~~~~~~~~ ##',timeout=False)
-            ## ~ [3b] ~ Virus Summary Table ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-            vdb.dataFormat({'HitNum':'int','Length':'int','FragNum':'int','Coverage':'num','Identity':'num','ProtNum':'int','ProtHits':'int'})
-            vsumdb = db.copyTable(vdb,'virus')     # ['VirusGB','VirusAcc','Virus','Genome','HitNum','Length','ProtNum','ProtHits','Protein','FragNum','Coverage','Identity','Local']
-            try: vsumdb.renameField('ProtAcc','Protein')
-            except: pass
-            for entry in vsumdb.entries(): entry['Genome'] = {True:1,False:0}[entry['FragNum']>0]
-            vsumdb.compress(['Virus'],rules={'Length':'max','VirusGB':'list','VirusAcc':'list','Protein':'list','Identity':'max','Coverage':'max','Local':'max'},default='sum',joinchar='|')
-            vsumdb.addField('Alias','Virus')
-            for ekey in vsumdb.dataKeys():
-                entry = vsumdb.data(ekey)
-                entry['Protein'] = rje.sortUnique(string.split(entry['Protein'],'|'))
-                if '' in entry['Protein']: entry['Protein'].remove('')
-                entry['ProtHits'] = len(entry['Protein'])
-                entry['Protein'] = string.join(entry['Protein'],'|')
-                #self.debug(entry['Protein'])
-                #if entry['Genome']:
-                #    entry['Identity'] = '%.2f' % (entry['Identity']/entry['Genome'])    # Mean of those hit
-                #    entry['Coverage'] = '%.2f' % (entry['Coverage']/entry['Genome'])
-                if adb:
-                    if entry['Virus'] in adb.data(): entry['Alias'] = adb.data(entry['Virus'])['Alias']
-                    elif entry['VirusAcc'] in adb.data(): entry['Alias'] = adb.data(entry['VirusAcc'])['Alias']
-                    elif self.getBool('VSpCode'):
-                        entry['Alias'] = tax.getSpCode(entry['Virus'])
-                        adb.addEntry({'Name':entry['Virus'],'Alias':entry['Alias']})
-                    elif self.i() >= 0:
-                        spcode = tax.getSpCode(entry['Virus'])
-                        menulist = [('S','Species Code: %s' % spcode,'return',spcode),
-                                    ('A','Accession Number: %s' % entry['VirusAcc'],'return',entry['VirusAcc']),
-                                    ('V','Virus Name: %s' % entry['Virus'],'return',entry['Virus']),
-                                    ('E','Enter Alias','return','ENTER'),
-                                    ('X','No Alias','return','')]
-                        entry['Alias'] = rje_menu.menu(self,'Alias options for %s (%s):' % (entry['Virus'],entry['VirusAcc']),menulist,choicetext='Please select:',changecase=True,default='S')
-                        if entry['Alias'] == 'ENTER': entry['Alias'] = rje.choice('Enter new Alias:',confirm=True)
-                        if entry['Alias']: adb.addEntry({'Name':entry['Virus'],'Alias':entry['Alias']})
-            vsumdb.dropField('Protein')
-            ## ~ [3c] ~ Genome Summary Table ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-            gsumdb = db.copyTable(vdb,'genome')     # ['VirusGB','VirusAcc','Virus','Genome','HitNum','Length','ProtNum','ProtHits','Protein','FragNum','Coverage','Identity','Local']
-            try: gsumdb.renameField('ProtAcc','Protein')
-            except: pass
-            for entry in gsumdb.entries(): entry['Virus'] = {True:1,False:0}[entry['FragNum']>0]
-            gsumdb.compress(['Genome'],rules={'Length':'max','Protein':'list'},default='sum')
-            gsumdb.dropFields(['VirusGB','VirusAcc','Length','ProtNum','Coverage','Identity','Local'])
-            gsumdb.addField('Alias','Genome')
-            gsumdb.list['Fields'] = gsumdb.list['Fields'][1:3] + gsumdb.list['Fields'][:1] + gsumdb.list['Fields'][3:]
-            for ekey in gsumdb.dataKeys():
-                entry = gsumdb.data(ekey)
-                entry['Protein'] = rje.sortUnique(string.split(entry['Protein'],'|'))
-                if '' in entry['Protein']: entry['Protein'].remove('')
-                entry['ProtHits'] = len(entry['Protein'])
-                entry['Protein'] = string.join(entry['Protein'],'|')
-                #self.debug(entry['Protein'])
-                #if entry['Virus']:
-                #    entry['Identity'] = '%.2f' % (entry['Identity']/entry['Virus'])    # Mean of those hit
-                #    entry['Coverage'] = '%.2f' % (entry['Coverage']/entry['Virus'])
-                if adb:
-                    spabbrev = ''
-                    if entry['Genome'] not in adb.data():
-                        taxon = string.split(entry['Genome'],'.')[0]
-                        if taxon.count('_') == 1:
-                            spcode = tax.getSpCode(taxon,invent=False)
-                            spabbrev = string.split(taxon,'_')
-                            try: spabbrev = '%s.%s' % (spabbrev[0].upper()[:1],spabbrev[1].lower())
-                            except: spabbrev = spabbrev[0]
-                        else:
-                            spcode = tax.getSpCode(string.replace(string.split(taxon,'_')[0],'-',' '),invent=False)
-                            spabbrev = string.split(string.split(taxon,'_')[0],'-')[:2]
-                            try: spabbrev = '%s.%s' % (spabbrev[0].upper()[:1],spabbrev[1].lower())
-                            except: spabbrev = spabbrev[0]
-                    if entry['Genome'] in adb.data(): entry['Alias'] = adb.data(entry['Genome'])['Alias']
-                    elif self.getBool('GSpCode') and spcode: entry['Alias'] = spcode; adb.addEntry({'Name':entry['Genome'],'Alias':entry['Alias']})
-                    elif self.i() >= 0:
-                        menulist = [('G','Genome Name: %s' % entry['Genome'],'return',entry['Genome']),
-                                    ('E','Enter Alias','return','ENTER'),
-                                    ('X','No Alias','return','')]
-                        if spcode: menulist.insert(1,('S','Species code: %s' % spcode,'return',spcode))
-                        else: menulist.insert(1,('S','Generate species code','return','SPCODE'))
-                        if spabbrev: menulist.insert(1,('A','Auto-extract species abbreviation: %s' % spabbrev,'return',spabbrev))
-                        if self.getBool('GSpCode'): entry['Alias'] = rje_menu.menu(self,'Alias options for %s:' % (entry['Genome']),menulist,choicetext='Please select:',changecase=True,default='S')
-                        elif spabbrev: entry['Alias'] = rje_menu.menu(self,'Alias options for %s:' % (entry['Genome']),menulist,choicetext='Please select:',changecase=True,default='A')
-                        else: entry['Alias'] = rje_menu.menu(self,'Alias options for %s:' % (entry['Genome']),menulist,choicetext='Please select:',changecase=True,default='E')
-                        if entry['Alias'] == 'ENTER': entry['Alias'] = rje.choice('Enter new Alias:',confirm=True)
-                        elif entry['Alias'] == 'SPCODE':
-                            entry['Alias'] = tax.getSpCode(rje.choice('Enter species for Species Code:',confirm=True))
-                        if entry['Alias']: adb.addEntry({'Name':entry['Genome'],'Alias':entry['Alias']})
-                    elif spabbrev: entry['Alias'] = spabbrev
-            gsumdb.dropField('Protein')
-            ## ~ [3d] ~ Protein Summary Table ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-            psumdb = db.copyTable(rdb,'protein')     # ['VirusGB','VirusAcc','Virus','Genome','Protein','ProtAcc','Product','HitNum','MaxScore','EVal','Length','FragNum','Coverage','Identity','Local']
-            # Output fields: ['VirusGB','VirusAcc','Virus','Genome','ProtAcc','Product','HitNum','Length','FragNum','Coverage','Identity','Local']
-            for entry in psumdb.entries(): entry['Genome'] = {True:1,False:0}[entry['FragNum']>0]
-            psumdb.compress(['Virus','ProtAcc'],rules={'Length':'max','VirusGB':'list','VirusAcc':'list','Identity':'max','Coverage':'max','Local':'max'},default='sum',joinchar='|')
-            psumdb.keepFields(['VirusGB','VirusAcc','Virus','Genome','ProtAcc','Product','HitNum','Length','FragNum','Coverage','Identity','Local'])
-            psumdb.list['Fields'] = ['VirusGB','VirusAcc','Virus','ProtAcc','Product','Genome','HitNum','Length','FragNum','Coverage','Identity','Local']
-            psumdb.addField('Alias','Virus')
-            for ekey in psumdb.dataKeys():
-                entry = psumdb.data(ekey)
-                #if entry['Genome']:
-                #    entry['Identity'] = '%.2f' % (entry['Identity']/entry['Genome'])    # Mean of those hit
-                #    entry['Coverage'] = '%.2f' % (entry['Coverage']/entry['Genome'])
-                if adb:
-                    if entry['Virus'] in adb.data(): entry['Alias'] = adb.data(entry['Virus'])['Alias']
-                    elif entry['VirusAcc'] in adb.data(): entry['Alias'] = adb.data(entry['VirusAcc'])['Alias']
-                    elif self.getBool('VSpCode'):
-                        entry['Alias'] = tax.getSpCode(entry['Virus'])
-                        adb.addEntry({'Name':entry['Virus'],'Alias':entry['Alias']})
-                    elif self.i() >= 0:
-                        spcode = tax.getSpCode(entry['Virus'])
-                        menulist = [('S','Species Code: %s' % spcode,'return',spcode),
-                                    ('A','Accession Number: %s' % entry['VirusAcc'],'return',entry['VirusAcc']),
-                                    ('V','Virus Name: %s' % entry['Virus'],'return',entry['Virus']),
-                                    ('E','Enter Alias','return','ENTER'),
-                                    ('X','No Alias','return','')]
-                        entry['Alias'] = rje_menu.menu(self,'Alias options for %s (%s):' % (entry['Virus'],entry['VirusAcc']),menulist,choicetext='Please select:',changecase=True,default='S')
-                        if entry['Alias'] == 'ENTER': entry['Alias'] = rje.choice('Enter new Alias:',confirm=True)
-                        if entry['Alias']: adb.addEntry({'Name':entry['Virus'],'Alias':entry['Alias']})
-
-            ## ~ [3e] ~ Save tables ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-            vsumdb.saveToFile()
-            gsumdb.saveToFile()
-            psumdb.saveToFile()
-            if adb: adb.saveToFile()
-            for entry in vsumdb.entries():
-                if not entry['Alias']:
-                    entry['Alias'] = entry['Virus']
-                    adb.addEntry({'Name':entry['Virus'],'Alias':entry['Alias']})
-            for entry in gsumdb.entries():
-                if not entry['Alias']:
-                    entry['Alias'] = entry['Genome']
-                    adb.addEntry({'Name':entry['Genome'],'Alias':entry['Alias']})
-
-            ### ~ [4] ~ Additional Batch Output ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            self.batchOutput()
-            return True
-        except SystemExit: raise
-        except: self.errorLog(self.zen()); return False
-#########################################################################################################################
-    def OLDsetup(self):    ### Main class setup method.
-        '''Main class setup method.'''
-        try:### ~ [1] Check Input ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            #self.checkInputFiles(['Genome'])    # Not VirusGB - might be UID list!
-            genome = rje.baseFile(self.getStr('Genome'),strip_path=True)
-            virusinput = ''
-            virusdir = self.getStr('RunPath')
-            if not os.path.exists(self.getStr('VirusGB')):  # Interpret as IUD list
-                virusinput = self.getStr('VirusGB')
-                if ',' in virusinput:   # List given: need a new name
-                    self.debug('%s -> %s' % (virusinput,self.basefile()))
-                    self.setStr({'VirusGB':'%svirus.input' % virusdir})  # This is only really for the REST server
-                else:
-                    virusdir = rje.makePath('%s/' % os.path.abspath(self.getStr('VirusDir')))
-                    self.setStr({'VirusGB':'%s%s' % (virusdir,self.getStr('VirusGB'))})  # This is only really for the REST server
-                #!# Add virus directory for single viruses?
-                #!# Add alias for virusgb that points to same virusdir/$ALIAS.gb
-            elif self.getStr('VirusGB').startswith(self.getStr('VirusDir')): virusdir = self.getStr('VirusDir')
-
-            seqin = self.str['SeqIn'] = rje.baseFile(self.getStr('VirusGB')) + '.prot.fas'
-            self.printLog('#SEQIN',seqin)
-            #self.dict['Output']['virus.prot'] = 'SeqIn'
-            for virext in ['Locus.tdt','Feature.tdt','full.fas','prot.fas']:
-                self.dict['Output']['virus.%s' % string.split(virext,'.')[0].lower()] = '%s.%s' % (rje.baseFile(self.getStr('VirusGB')),virext)
-
-            virusgb = rje.baseFile(self.getStr('VirusGB'),strip_path=True)
-            self.basefile('%s.%s' % (virusgb,genome))
-            rje.mkDir(self,self.getStr('RevertDir'))     # Make RevertDir - has runPath included
-            if not os.path.exists(self.getStr('RevertDir')): raise IOError('Failed to find/make RevertDir: %s' % self.getStr('RevertDir'))
-            self.basefile('%s%s' % (self.getStr('RevertDir'),self.basefile()))  # Add RevertDir path
-            self.cmd_list += ['basefile=%s' % self.basefile()]  # Ensure that subsequent objects have same basefile
-            db = self.obj['DB'] = rje_db.Database(self.log,self.cmd_list)
-            if not self.getStrLC('SearchDB'): self.setStr({'SearchDB':seqin})
-            if not self.getStrLC('FasDir'): self.setStr({'FasDir':rje.makePath('%sGABLAMFAS/%s/' % (self.getStr('RevertDir'),genome))})
-            #if not self.getStrLC('FasDir'): self.setStr({'FasDir':rje.makePath('%s.GABLAMFAS/' % self.baseFile())})
-            ## ~ [1a] Check for previous run ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-            rpfile = '%s.revert.details.tdt' % self.basefile()
-            rsfile = '%s.revert.tdt' % self.basefile()
-            if rje.exists(rpfile) and rje.exists(rsfile) and not self.force():
-                self.printLog('#REVERT','%s REVERT summary tables found.' % self.basefile())
-                rkeys = ['VirusAcc','Genome','Protein']
-                db.addTable(name='revert.details',mainkeys=rkeys,expect=True)
-                db.addTable(name='revert',mainkeys=rkeys[:2],expect=True)
-                self.printLog('#SKIP','Skipping %s (force=F).' % self.basefile())
-                return False    # Should be no need to rerun anything as should also be in summary files
-            ### ~ [2] Perform Viral Genbank check/processing etc. ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            if not self.setupAlias(): return False
-            gbcmd = self.cmd_list + ['fasout=full,gene,prot','tabout=T','basefile=%s%s' % (virusdir,rje.baseFile(self.getStr('VirusGB'),strip_path=True))]
-            if self.getStrLC('VirusGB').endswith('.gb') or self.getStrLC('VirusGB').endswith('.gbk'):
-                gbcmd += ['seqin=%s' % self.getStr('VirusGB')]
-            else: gbcmd += ['fetchuid=%s' % virusinput] #self.getStr('VirusGB')]
-            #!# Consider keeping GenBank object long enough to transfer DB tables?
-            gbparse = False
-            for virext in ['Locus.tdt','Feature.tdt','prot.fas','full.fas']:
-                if not rje.exists('%s.%s' % (rje.baseFile(self.getStr('VirusGB')),virext)): gbparse = True
-            if gbparse:
-                gb = rje_genbank.GenBank(self.log,gbcmd)
-                gb.obj['Taxonomy'] = self.obj['Taxonomy']
-                gb.run()
-            if not rje.exists(seqin): raise IOError("Viral protein sequence file %s not found!" % seqin)
-
-            ### ~ [3] Setup Objects ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            #?# Should this be done in relevant run methods? #?#
-            fcmd = [] + self.cmd_list + ['searchdb=%s' % self.getStr('SearchDB')]
-            self.obj['FIESTA'] = fiesta.FIESTA(self.log,fcmd)
             return True     # Setup successful
         except: self.errorLog('REVERT setup failed.'); return False  # Setup failed
 #########################################################################################################################
@@ -1216,7 +891,7 @@ class REVERT(rje_obj.RJE_Object):
             rungablam = self.force()
             for gabfile in ['gablam','hitsum','local']: rungablam = rungablam or not rje.exists('%s.%s.tdt' % (gbase,gabfile))
             if not rungablam:
-                self.printLog('#SKIP','GABLAM run files found (force=F).')
+                self.printLog('#SKIP','%s GABLAM run files found (force=F).' % gbase)
                 return not runcmd
             ## ~ [1b] Setup GABLAM run ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             # GablamCut is not being used. Should be taken care of by the QC filter later
@@ -1306,7 +981,7 @@ class REVERT(rje_obj.RJE_Object):
             rsfile = rje.makePath('%sPAIRWISE/' % self.getStr('RevertDir')) + '%s.revert.tdt' % self.basefile(strip_path=True)
             if rje.exists(rpfile) and rje.exists(rsfile) and not self.force():
                 self.printLog('#REVERT','%s REVERT summary tables found.' % self.basefile())
-                rkeys = ['VirusAcc','Genome','Protein']
+                rkeys = ['VirusAcc','GFile','Protein']
                 db.addTable(rpfile,name='revert.details',mainkeys=rkeys,expect=True)
                 db.addTable(rsfile,name='revert',mainkeys=rkeys[:2],expect=True)
                 return True
@@ -1318,7 +993,7 @@ class REVERT(rje_obj.RJE_Object):
             vftdb = self.db('VirusFT')
             #locus   length  type    definition      accession       version gi      organism        spcode
             #NC_001434       7176    ss-RNA  Hepatitis E virus, complete genome.     NC_001434       NC_001434.1     9626440 Hepatitis E virus       HEV
-            vlocdb = self.db('VirusLoc')
+            vlocdb = self.db('data.virus')
             ## ~ [0b] ~ GABLAM HitSum table ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             #Qry     HitNum  MaxScore        EVal
             #NP_056779.1     4       3455.0  0.0
@@ -1334,16 +1009,19 @@ class REVERT(rje_obj.RJE_Object):
             vseqlist = rje_seqlist.SeqList(self.log,self.cmd_list+['seqin=%s' % vprotfile,'seqmode=tuple','autoload=T','autofilter=F'])
             vseqdict = vseqlist.makeSeqNameDic(keytype='accnum',clear=True,warnings=True)
             ## ~ [0d] ~ Output table ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-            rhead = ['VirusAcc','Virus','Genome','Protein','ProtAcc','Product','HitNum','MaxScore','EVal','Length','FragNum','Coverage','Identity','Local']
-            rkeys = ['VirusAcc','Genome','Protein']
+            rhead = ['VirusAcc','Virus','Genome','GFile','Protein','ProtAcc','Product','HitNum','MaxScore','EVal','Length','FragNum','Coverage','Identity','Local']
+            rkeys = ['VirusAcc','GFile','Protein']
             rdb = db.addEmptyTable('revert.details',rhead,rkeys)    #!# Load and return if present and not self.force()
             #adb = db.addEmptyTable('revert.consensus',['Protein','Product','Genome','Consensus'],['Protein','Product','Genome'])    #!# Load and return if present and not self.force()
             ### ~ [1] ~ Generate REVERT Protein table ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             ventry = vlocdb.data(virus)
+            if not vftdb.indexDataList('locus',virus,'protein_id'):
+                self.warnLog('No proteins found in Feature Table for %s' % virus)
             for prot in vftdb.indexDataList('locus',virus,'protein_id'):
                 if not prot: self.warnLog('Locus "%s" is returning a blank protein_id' % virus,'blank_protein_id'); continue
                 if prot not in vseqdict: self.warnLog('Locus "%s" is missing from Viral sequence dictionary' % virus,'vseq_missing'); continue
-                fentry = vftdb.data('%s\t%s' % (virus,prot))
+                #fentry = vftdb.data('%s\t%s' % (virus,prot))
+                fentry = vftdb.data(vftdb.makeKey({'locus':virus,'protein_id':prot}))
                 fdata = string.split(' %s' % fentry['details'],' /')
                 while fdata and not fdata[0].startswith('product'): fdata.pop(0)
                 if fdata:
@@ -1359,8 +1037,11 @@ class REVERT(rje_obj.RJE_Object):
                 identity = 0.0
                 gentry = ghdb.data(prot)
                 if gentry:
-                    coverage = 100.0 * float(gentry['Coverage'])
-                    identity = 100.0 * float(gentry['Identity'])
+                    #coverage = 100.0 * float(gentry['Coverage']) / float(gentry['Length'])
+                    #identity = 100.0 * float(gentry['Identity']) / float(gentry['Length'])
+                    # Now convert to % later so that genome summing is weighted for length
+                    coverage = float(gentry['Coverage'])
+                    identity = float(gentry['Identity'])
                 else:
                     self.warnLog('Protein %s missing from %s!' % (prot,ghfile),quitchoice=True)
                     gentry = {'HitNum':-1,'MaxScore':-1,'EVal':-1}
@@ -1385,161 +1066,40 @@ class REVERT(rje_obj.RJE_Object):
                     self.verbose(0,1,'%s %s\n%s' % (pname,product,consensus))
                     #adb.addEntry({'Genome':rje.baseFile(self.getStr('Genome'),strip_path=True),'Protein':pname,'Product':product,'Consensus':consensus})
                 rentry = {'VirusAcc':virus,'Virus':ventry['organism'],'Genome':rje.baseFile(self.getStr('Genome'),strip_path=True),
-                          'Protein':pname,'ProtAcc':prot,'Product':product,
+                          'Protein':pname,'ProtAcc':prot,'Product':product,'GFile':rje.baseFile(self.getStr('Genome'),strip_path=True),
                           'HitNum':int(gentry['HitNum']),'MaxScore':gentry['MaxScore'],'EVal':gentry['EVal'],
-                          'FragNum':fragnum,'Length':plen,'Coverage':coverage,'Identity':identity,'Local':0}
-                #self.debug(rentry)
+                          'FragNum':fragnum,'Length':plen,'Coverage':coverage,'Identity':identity,'Local':0.0}
+                #if coverage > 0: rentry['Local'] = 100.0 * identity / coverage
+                #if rentry['HitNum'] > 0: self.debug(rentry)
                 rdb.addEntry(rentry)
-            rdb.saveToFile(rpfile)
+            # Copy this table for compressing into the summary table with coverage and identity as raw values (not %)
+            vsumdb = db.copyTable(rdb,'revert')
+            #for rentry in rdb.entries():
+            #        rentry['Coverage'] = 100.0 * rentry['Coverage'] / rentry['Length']
+            #        rentry['Identity'] = 100.0 * rentry['Identity'] / rentry['Length']
 
             ### ~ [2] ~ Genome Summary Table ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            vsumdb = db.copyTable(rdb,'revert')
             vsumdb.addField('ProtHits',evalue=0)
             vsumdb.addField('ProtNum',evalue=1)
             for entry in vsumdb.entries():
                 if entry['HitNum'] > 0: entry['ProtHits'] = 1
                 else: entry['Protein'] = ''
-            vsumdb.compress(['VirusAcc','Genome'],rules={'ProtAcc':'list','Protein':'list'},joinchar='|',default='sum')    #
+            vsumdb.compress(['VirusAcc','GFile'],rules={'ProtAcc':'list','Protein':'list','GFile':'str'},joinchar='|',default='sum')    #
             for entry in vsumdb.entries():
                 if len(string.split(entry['ProtAcc'],'|')) != entry['ProtNum']: self.debug('ProtAcc/number mismatch! %s vs %s' % (entry['ProtNum'],entry['ProtAcc']))
                 if (entry['Protein'] or entry['ProtHits']) and len(string.split(entry['Protein'],'|')) != entry['ProtHits']: self.debug('Protein/hits mismatch! %s vs %s' % (entry['ProtHits'],entry['Protein']))
-            vsumdb.keepFields(['VirusAcc','Virus','Genome','HitNum','Length','ProtNum','ProtHits','ProtAcc','FragNum','Coverage','Identity','Local'])
-            vsumdb.list['Fields'] = ['VirusAcc','Virus','Genome','HitNum','Length','ProtNum','ProtHits','ProtAcc','FragNum','Coverage','Identity','Local']
+            vsumdb.keepFields(['VirusAcc','Virus','Genome','GFile','HitNum','Length','ProtNum','ProtHits','ProtAcc','FragNum','Coverage','Identity','Local'])
+            vsumdb.list['Fields'] = ['VirusAcc','Virus','Genome','GFile','HitNum','Length','ProtNum','ProtHits','ProtAcc','FragNum','Coverage','Identity','Local']
+
+            ### ~ [3] Save tables to file ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            # Convert to percentage values
             for entry in vsumdb.entries() + rdb.entries():
-                if entry['Coverage']: entry['Local'] = '%.2f' % (100.0 * entry['Identity']/entry['Coverage'])
+                if entry['Coverage']: entry['Local'] = 100.0 * entry['Identity']/entry['Coverage']
                 if entry['Length']:
-                    entry['Identity'] = '%.2f' % (entry['Identity']/entry['Length'])
-                    entry['Coverage'] = '%.2f' % (entry['Coverage']/entry['Length'])
+                    entry['Identity'] = 100.0 * entry['Identity']/entry['Length']
+                    entry['Coverage'] = 100.0 * entry['Coverage']/entry['Length']
+            rdb.saveToFile(rpfile)
             vsumdb.saveToFile(rsfile)
-            #if adb.entries(): adb.saveToFile()
-            return True
-        except: self.errorLog('Problem with REVERT.revertSummary()'); return False
-#########################################################################################################################
-    def OLDrevertSummary(self):    ### Combine the different results into a summary of REVERT success.
-        '''Combine the different results into a summary of REVERT success.'''
-        try:### ~ [0] ~ Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            #self.debug('>>> SUMMARY?')
-            self.printLog('#~~#','## ~~~~~~~~~~~~~~~~~~~~~ REVERT SUMMARY ~~~~~~~~~~~~~~~~~~~~~~~~~ ##',timeout=False)
-            db = self.db()
-            rpfile = '%s.revert.details.tdt' % self.basefile()
-            rsfile = '%s.revert.tdt' % self.basefile()
-            if rje.exists(rpfile) and rje.exists(rsfile) and not self.force():
-                self.printLog('#REVERT','%s REVERT summary tables found.' % self.basefile())
-                rkeys = ['VirusAcc','Genome','Protein']
-                db.addTable(name='revert.details',mainkeys=rkeys,expect=True)
-                db.addTable(name='revert',mainkeys=rkeys[:2],expect=True)
-                return True
-            ## ~ [0a] ~ Virus tables ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-            #locus	feature	position	start	end	locus_tag	protein_id	details
-            #NC_001434	CDS	4..5085	4	5085	HEVgp01	NP_056779.1	/note="ORF 1" /codon_start="1" /product="polyprotein" /db_xref="GI:9626448" /db_xref="GeneID:1494415"
-            vftfile = '%s.Feature.tdt' % rje.baseFile(self.getStr('VirusGB'))
-            self.printLog('#FT',vftfile)
-            #self.dict['Output']['virus.features'] = vftfile
-            vftdb = db.addTable(vftfile,['locus','feature','position'],name='VirusFT',expect=True)
-            vftdb.dropEntriesDirect('feature',['CDS','Protein'],inverse=True,log=True)    ### Drops certain entries from Table
-            vftdb.newKey(['locus','protein_id'])
-            vftdb.index('protein_id'); vftdb.index('locus')
-            #locus   length  type    definition      accession       version gi      organism        spcode
-            #NC_001434       7176    ss-RNA  Hepatitis E virus, complete genome.     NC_001434       NC_001434.1     9626440 Hepatitis E virus       HEV
-            vlocfile = '%s.Locus.tdt' % rje.baseFile(self.getStr('VirusGB'))
-            vlocdb = db.addTable(vlocfile,['locus'],name='VirusLoc',expect=True)
-            ## ~ [0b] ~ GABLAM HitSum table ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-            #Qry     HitNum  MaxScore        EVal
-            #NP_056779.1     4       3455.0  0.0
-            self.printLog('#BASE', self.baseFile())
-            ghfile = '%s.hitsum.tdt' % self.baseFile()
-            ghdb = db.addTable(ghfile,['Qry'],name='HitSum',expect=True)
-            glfile = '%s.local.tdt' % self.baseFile()
-            gldb = db.addTable(glfile,['Qry','Hit','AlnNum'],name='local',expect=True)
-            ## ~ [0c] ~ Protein Sequences ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-            vprotfile = '%s.prot.fas' % rje.baseFile(self.getStr('VirusGB'))
-            vseqlist = rje_seqlist.SeqList(self.log,self.cmd_list+['seqin=%s' % vprotfile,'seqmode=tuple','autoload=T','autofilter=F'])
-            vseqdict = vseqlist.makeSeqNameDic(keytype='accnum',clear=True,warnings=True)
-            ## ~ [0d] ~ Output table ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-            rhead = ['VirusAcc','Virus','Genome','Protein','ProtAcc','Product','HitNum','MaxScore','EVal','Length','FragNum','Coverage','Identity','Local']
-            rkeys = ['VirusAcc','Genome','Protein']
-            rdb = db.addEmptyTable('revert.details',rhead,rkeys)    #!# Load and return if present and not self.force()
-            #adb = db.addEmptyTable('revert.consensus',['Protein','Product','Genome','Consensus'],['Protein','Product','Genome'])    #!# Load and return if present and not self.force()
-            ### ~ [1] ~ Generate REVERT Protein table ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            for locus in vlocdb.dataKeys():
-                ventry = vlocdb.data(locus)
-                for prot in vftdb.indexDataList('locus',locus,'protein_id'):
-                    if not prot: self.warnLog('Locus "%s" is returning a blank protein_id' % locus,'blank_protein_id'); continue
-                    if prot not in vseqdict: self.warnLog('Locus "%s" is missing from Viral sequence dictionary' % locus,'vseq_missing'); continue
-                    fentry = vftdb.data('%s\t%s' % (locus,prot))
-                    fdata = string.split(' %s' % fentry['details'],' /')
-                    while fdata and not fdata[0].startswith('product'): fdata.pop(0)
-                    if fdata:
-                        try: product = rje.matchExp('product="(.+)"',fdata[0])[0]
-                        except: self.debug(fdata)
-                    else: product = 'unknown'
-                    (pname,pseq) = vseqlist.getSeq(vseqdict[prot])
-                    pname = string.split(pname)[0]
-                    ## ~ [1a] Global Statistics ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-                    plen = len(pseq)
-                    fragnum = len(gldb.indexEntries('Qry',prot))
-                    coverage = 0.0
-                    identity = 0.0
-                    gentry = ghdb.data(prot)
-                    if gentry:
-                        coverage = 100.0 * float(gentry['Coverage'])
-                        identity = 100.0 * float(gentry['Identity'])
-                    else:
-                        self.warnLog('Protein %s missing from %s!' % (prot,ghfile),quitchoice=True)
-                        gentry = {'HitNum':-1,'MaxScore':-1,'EVal':-1}
-                    #paln = rje.makePath('%s.ASSEMBLY/%s.%s.%s.fas' % (self.basefile(),rje.baseFile(self.getStr('VirusGB'),strip_path=True),rje.baseFile(self.getStr('Genome'),strip_path=True),pname),wholepath=True)
-                    paln = rje.makePath('%sASSEMBLYFAS/%s.%s.%s.fas' % (self.getStr('RevertDir'),rje.baseFile(self.getStr('VirusGB'),strip_path=True),rje.baseFile(self.getStr('Genome'),strip_path=True),pname),wholepath=True)
-                    #self.debug(paln)
-                    #self.debug(os.path.exists(paln))
-                    if os.path.exists(paln):
-                        aseqlist = rje_seqlist.SeqList(self.log,self.cmd_list+['seqin=%s' % paln,'seqmode=tuple','autoload=T','autofilter=F'])
-                        #self.debug(aseqlist.seqs())
-                        #fragnum = aseqlist.seqNum() - 1
-                        qseq = aseqlist.seqs()[0][1]
-                        consensus = []  #'.'] * len(qseq)
-                        for i in range(len(qseq)):
-                            consensus.append('.')
-                            if qseq[i] == '-': consensus[-1] = '-'; continue
-                            for hit in aseqlist.seqs()[1:]:
-                                hseq = hit[1]
-                                if hseq[i] == '-': continue
-                                if hseq[i] == qseq[i]:
-                                    consensus[-1] = qseq[i]
-                                    #identity += 100.0
-                                    break
-                                consensus[-1] = 'x'     #?# Should an actual consensus be produced too? Harder!
-                            #if consensus[-1] not in '.-': coverage += 100.0
-                        consensus = string.join(consensus,'')
-                        self.verbose(0,1,'%s %s\n%s' % (pname,product,consensus))
-                        #adb.addEntry({'Genome':rje.baseFile(self.getStr('Genome'),strip_path=True),'Protein':pname,'Product':product,'Consensus':consensus})
-                    rentry = {'VirusAcc':locus,'Virus':ventry['organism'],'Genome':rje.baseFile(self.getStr('Genome'),strip_path=True),
-                              'Protein':pname,'ProtAcc':prot,'Product':product,
-                              'HitNum':int(gentry['HitNum']),'MaxScore':gentry['MaxScore'],'EVal':gentry['EVal'],
-                              'FragNum':fragnum,'Length':plen,'Coverage':coverage,'Identity':identity,'Local':0}
-                    #self.debug(rentry)
-                    rdb.addEntry(rentry)
-
-            ### ~ [2] ~ Genome Summary Table ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            vsumdb = db.copyTable(rdb,'revert')
-            vsumdb.addField('ProtHits',evalue=0)
-            vsumdb.addField('ProtNum',evalue=1)
-            for entry in vsumdb.entries():
-                if entry['HitNum'] > 0: entry['ProtHits'] = 1
-                else: entry['Protein'] = ''
-            vsumdb.compress(['VirusAcc','Genome'],rules={'ProtAcc':'list'},joinchar='|',default='sum')    #
-            for entry in vsumdb.entries():
-                if len(string.split(entry['ProtAcc'],'|')) != entry['ProtHits']: self.debug('Protein ID/number mismatch! %s vs %s' % (entry['ProtHits'],entry['ProtAcc']))
-            vsumdb.keepFields(['VirusAcc','Virus','Genome','HitNum','Length','ProtNum','ProtHits','ProtAcc','FragNum','Coverage','Identity','Local'])
-            vsumdb.list['Fields'] = ['VirusAcc','Virus','Genome','HitNum','Length','ProtNum','ProtHits','ProtAcc','FragNum','Coverage','Identity','Local']
-            for entry in vsumdb.entries() + rdb.entries():
-                if entry['Coverage']: entry['Local'] = '%.2f' % (100.0 * entry['Identity']/entry['Coverage'])
-                if entry['Length']:
-                    entry['Identity'] = '%.2f' % (entry['Identity']/entry['Length'])
-                    entry['Coverage'] = '%.2f' % (entry['Coverage']/entry['Length'])
-
-            ### ~ [3] ~ Save Tables ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            rdb.saveToFile()
-            vsumdb.saveToFile()
             #if adb.entries(): adb.saveToFile()
             return True
         except: self.errorLog('Problem with REVERT.revertSummary()'); return False
@@ -1547,72 +1107,95 @@ class REVERT(rje_obj.RJE_Object):
     def batchOutput(self):  ### Additional all-by-all comparisons and graphics
         '''Additional all-by-all comparisons and graphics.'''
         try:### ~ [0] ~ Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            self.printLog('#~~#','## ~~~~~~~~~~~~~~~~~~~~ ALL-BY-ALL BATCH OUTPUT ~~~~~~~~~~~~~~~~~~~~ ##',timeout=False)
             db = self.db()
-            vdb = self.db('revertnr',add=False)     # Table of virus-genome summary data
-            vsumdb = self.db('virus',add=False)   # Table of viruses
-            gsumdb = self.db('genome',add=False)  # Table of genomes
+            vdb = self.db('revertnr',add=False)   # Table of virus-genome summary data
+            rdb = self.db('revert',add=False)
+            vlocdb = self.db('data.virus',add=False)   # Table of viruses
+            #psumdb = self.db('summary.protein',add=False)
+            vsumdb = self.db('summary.virus',add=False)   # Table of viruses
+            gsumdb = self.db('summary.genome',add=False)  # Table of genomes
             vgabdb = None               # Table of viral genome all-by-all gablam (if run).
-            ## Protein details ##
-            rdb = self.db('revertnr.details',add=False)
-            psumdb = self.db('protein',add=False)
 
             ## ~ [1] ~ All-by-all GABLAMs ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             if self.getBool('VGABLAM'):
                 ## Viral Genomes ##
-                vfullfile = '%s.vgenome.fas' % self.basefile()
+                vgabdir = rje.makePath('%sVGABLAM/' % self.getStr('RevertDir'))
+                rje.mkDir(self,vgabdir)
+                vbase = '%s%s.vgenome' % (vgabdir,self.basefile(strip_path=True))
+                vfullfile = '%s.fas' % vbase
                 if self.force() or not rje.exists(vfullfile):
-                    vfullseq = rje_seqlist.SeqList(self.log,self.cmd_list+['autoload=F'])
-                    for vfile in self.list['VBatch']:
-                        vfull = '%s.full.fas' % rje.baseFile(vfile,strip_path=False)
+                    vfullseq = rje_seqlist.SeqList(self.log,self.cmd_list+['autoload=F','seqmode=list'])
+                    for vfile in self.list['VBatch']:   # Was replaced with virus locus
+                        vfull = '%s%s.full.fas' % (self.getStr('VirusDir'),vfile)
                         vfullseq.loadSeq(vfull,nodup=True,clearseq=False,mode='tuple')
                     vfullseq.saveSeq(seqfile=vfullfile,reformat=None,append=False,log=True,screen=None,backup=True)
-                vbase = rje.baseFile(vfullfile)
                 rungablam = self.force()
                 for gabfile in ['gablam','hitsum','local']: rungablam = rungablam or not rje.exists('%s.%s.tdt' % (vbase,gabfile))
                 if rungablam:
-                    bcmd = ['blaste=1e-10','keepblast=T']
+                    bcmd = ['blaste=1e-10','keepblast=T','fullblast=T']
                     gcmd = ['local=F','seqin=%s' % vfullfile,'searchdb=%s' % vfullfile,'blastp=blastn','saveupc=T',
                             'qryacc=F','basefile=%s' % vbase,'blastdir=%sVBLAST/' % self.getStr('RevertDir')]
                     gablam.GABLAM(self.log,bcmd+self.cmd_list + gcmd).run()
                 vgabdb = self.db().addTable('%s.gablam.tdt' % vbase,mainkeys=['Qry','Hit'])
                 ## Viral Proteomes ##
-                vprotfile = '%s.vproteome.fas' % self.basefile()
+                vbase = '%s%s.vproteome' % (vgabdir,self.basefile(strip_path=True))
+                vprotfile = '%s.fas' % vbase
                 if self.force() or not rje.exists(vprotfile):
-                    vfullseq = rje_seqlist.SeqList(self.log,self.cmd_list+['autoload=F'])
+                    vfullseq = rje_seqlist.SeqList(self.log,self.cmd_list+['autoload=F','seqmode=list'])
                     for vfile in self.list['VBatch']:
-                        vfull = '%s.prot.fas' % rje.baseFile(vfile,strip_path=False)
+                        vfull = '%s%s.prot.fas' % (self.getStr('VirusDir'),vfile)
                         vfullseq.loadSeq(vfull,nodup=True,clearseq=False,mode='tuple')
                     vfullseq.saveSeq(seqfile=vprotfile,reformat=None,append=False,log=True,screen=None,backup=True)
-                vbase = rje.baseFile(vprotfile)
                 rungablam = self.force()
                 for gabfile in ['gablam','hitsum']: rungablam = rungablam or not rje.exists('%s.%s.tdt' % (vbase,gabfile))
                 if rungablam:
-                    bcmd = ['blaste=1e-10','keepblast=T']
+                    bcmd = ['blaste=1e-10','keepblast=T','fullblast=T']
                     gcmd = ['local=F','seqin=%s' % vprotfile,'searchdb=%s' % vprotfile,'blastp=blastp','saveupc=T',
                             'qryacc=F','basefile=%s' % vbase,'blastdir=%sVBLAST/' % self.getStr('RevertDir')]
                     gablam.GABLAM(self.log,bcmd+self.cmd_list + gcmd).run()
 
             ### ~ [2] ~ XGMML network ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             #!# Need to be wary of multiple viruses with same alias. Currently these will map to same nodes. #!#
+            #!# Also true of genomes with the same alias! This is a "feature" that allows one to combine results! :op
+            #!# Maybe add a warning and option to rejig aliases? Want to do this at the initial compression, which is
+            #!# currently in the batchRun() method (following dev call) but needs to be moved
             ppi = self.obj['PPI'] = rje_ppi.PPI(self.log,self.cmd_list)
             ppi.setNum({'Walltime':min(ppi.getNum('Walltime'),0.2)})
             ppi.basefile(self.basefile())
             ppi.obj['DB'] = self.obj['DB']
             ndb = db.addEmptyTable('Node',['Node','Name','Type','Size'],['Node'])
+            #Add VirusGB from VBatch (virus Table)
             #for vgb in vsumdb.indexKeys('VirusGB'): ndb.addEntry({'Node':vgb,'Name':vgb,'Type':'VirusGB','Size':len(vsumdb.index('VirusGB')[vgb])})
-            for entry in vsumdb.entries(): ndb.addEntry({'Node':self.alias(entry['Virus']),'Name':entry['Virus'],'Type':'Virus','Size':'Genome'})
-            for entry in gsumdb.entries(): ndb.addEntry({'Node':self.alias(entry['Genome']),'Name':entry['Genome'],'Type':'Genome','Size':'Virus'})
+
+            #i# VirusID and Genome are already aliases
+            #!# Need to add VirusGB info back in for network generation
+
+            for entry in vsumdb.entries(): ndb.addEntry({'Node':entry['VirusID'],'Name':entry['VirusID'],'Type':'Virus','Size':entry['GFile']})
+            for vacc in rdb.index('VirusAcc'):
+                virus = self.alias(vacc)
+                if virus not in ndb.data(): ndb.addEntry({'Node':virus,'Name':virus,'Type':'Virus','Size':0})
+            for entry in gsumdb.entries(): ndb.addEntry({'Node':entry['Genome'],'Name':entry['Genome'],'Type':'Genome','Size':entry['Virus']})
+            for gfile in rdb.index('GFile'):
+                genome = self.alias(gfile)
+                if genome not in ndb.data(): ndb.addEntry({'Node':genome,'Name':genome,'Type':'Genome','Size':0})
             edb = db.copyTable(vdb,'Edge')
-            edb.renameField('Virus','Hub'); edb.renameField('Genome','Spoke')
-            edb.compress(['Hub','Spoke'],rules={'VirusAcc':'list'},default='max')
-            #edb.dropFields(['VirusGB']);
+            edb.renameField('VirusID','Hub'); edb.renameField('Genome','Spoke')
+            edb.compress(['Hub','Spoke'],rules={'VirusAcc':'list','Virus':'list','VirusGB':'list'},default='max')
             edb.addField('Type',evalue='REVERT'); edb.addField('Evidence',evalue='REVERT');
             edb.dropEntriesDirect('FragNum',[0])
+            for vfile in vlocdb.index('vfiles',splitchar='|'):
+                self.deBug(vfile)
+                ndb.addEntry({'Node':vfile,'Name':vfile,'Type':'VirusGB','Size':len(vlocdb.index('vfiles')[vfile])})
+                for vacc in vlocdb.index('vfiles')[vfile]:
+                    self.debug('%s = %s' % (vacc,self.alias(vacc)))
+                    edb.addEntry({'Hub':vfile,'Spoke':self.alias(vacc),'Evidence':'GenBank','Type':'VirusGB'})
+            self.debug(self.db('Node').dataKeys())
             for edge in edb.entries():
-                #self.debug(edge)
-                edge['Hub'] = self.alias(edge['Hub'])
+                self.debug(edge)
+                #edge['Hub'] = self.alias(edge['Hub'])
                 if edge['Hub'] not in ndb.data(): raise ValueError('Hub %s missing from Nodes!' % edge['Hub'])
-                edge['Spoke'] = self.alias(edge['Spoke'])
+                #edge['Spoke'] = self.alias(edge['Spoke'])
                 if edge['Spoke'] not in ndb.data(): raise ValueError('Spoke %s missing from Nodes!' % edge['Spoke'])
             edb.remakeKeys()
 
@@ -1620,6 +1203,8 @@ class REVERT(rje_obj.RJE_Object):
             if self.getBool('VGABLAM'):
                 vgabdb.renameField('Qry','Hub'); vgabdb.renameField('Hit','Spoke')
                 for entry in vgabdb.entries():
+                    entry['Hub'] = self.alias(string.split(entry['Hub'],'__')[-1])
+                    entry['Spoke'] = self.alias(string.split(entry['Spoke'],'__')[-1])
                     entry['Type'] = 'GABLAM'; entry['Evidence'] = 'GABLAM'
                     entry['Identity'] = (float(entry['Qry_AlnID'])+float(entry['Hit_AlnID']))/2.0
                     edb.addEntry(entry)
@@ -1629,7 +1214,9 @@ class REVERT(rje_obj.RJE_Object):
             #    for virus in vsumdb.indexDataList('VirusGB',vgb,'Alias'):
             #        edb.addEntry({'Hub':vgb,'Spoke':virus,'Type':'VirusGB','Identity':100.0,'Evidence':'Genbank'})
             #        #if not self.dev(): ppi.addPPI(vgb,virus,evidence=1,asdict=None,sym=True)
-            edb.saveToFile()
+            if self.dev(): ndb.saveToFile()
+            if self.dev(): edb.saveToFile()
+            self.debug(self.db('Node').dataKeys())
             ## Virus-Genome links ##
             ppi.ppiFromEdges(sym=False,clear=True)
             vglist = rje.sortUnique(edb.indexKeys('Hub')+edb.indexKeys('Spoke'))
@@ -1641,23 +1228,25 @@ class REVERT(rje_obj.RJE_Object):
             #    if spoke not in vglist: vglist.append(spoke)
             #    #if not self.dev(): ppi.addPPI(hub,spoke,evidence=entry['Identity'],asdict=None,sym=True)
             fullG = ppi.dict['PPI'] # Main PPI dictionary: {hub:{spoke:evidence}}
-            xgmml = ppi.ppiToXGMML(fullG,'full.%s' % self.basefile())
-            xgmml.saveXGMML('%s.xgmml' % self.basefile())
+            if self.dev():
+                #!# Not really sure what the use of this is!
+                xgmml = ppi.ppiToXGMML(fullG,'full.%s' % self.basefile())
+                xgmml.saveXGMML('%s.dev.full.xgmml' % self.basefile())
             G = rje_ppi.subGraph(ppi.dict['PPI'],vglist)
             G = ppi.symmetry(G,inplace=False)
             G = rje_ppi.subGraph(G,rje_ppi.kCore(G,k=1))     # ppi.purgeOrphans() on subgraph
             if not G and self.dev(): self.printLog('#GRAPH','No virus-genome hits for graph/tree output.')
-            if self.list['GraphFormats'] and G and self.dev():
+            if self.list['GraphFormats'] and G:
                 npos = ppi.rjeSpringLayout(G)
                 ppi.addCol(coldict={'VirusGB':6,'Virus':5,'Genome':3},ckey='Type')
                 if 'svg' in self.list['GraphFormats'] or 'html' in self.list['GraphFormats']:
-                    svghtm = ppi.saveSVG(npos,basefile=self.basefile(),G=G,font=0,width=1600,ntype='ellipse',backups=True)
+                    svghtm = ppi.saveSVG(npos,basefile='%s.revertnr' % self.basefile(),G=G,font=0,width=1600,ntype='ellipse',backups=True)
                 if 'png' in self.list['GraphFormats'] or 'html' in self.list['GraphTypes']:
-                    ppi.saveR(npos,basefile=self.basefile(),G=G,cleantdt=False,backups=True)
+                    ppi.saveR(npos,basefile='%s.revertnr' % self.basefile(),G=G,cleantdt=not self.dev(),backups=True)
                 #!# Add EdgeTypes for XGMLL output.
                 if 'xgmml' in self.list['GraphFormats']:
                     xgmml = ppi.ppiToXGMML(G,self.basefile())
-                    xgmml.saveXGMML('%s.revert.xgmml' % self.basefile())
+                    xgmml.saveXGMML('%s.revertnr.xgmml' % self.basefile())
                 if 'html' in self.list['GraphFormats']:
                     import rje_html
                     html = rje_html.htmlHead(self.info['Name'],stylesheets=[],tabber=False) + svghtm
@@ -1671,9 +1260,9 @@ class REVERT(rje_obj.RJE_Object):
                 vdm = rje_dismatrix.DisMatrix(self.log,self.cmd_list)
                 vdis = {}
                 for entry in vdb.entries():
-                    if entry['Virus'] not in vdis: vdis[entry['Virus']] = {}
+                    if entry['VirusID'] not in vdis: vdis[entry['VirusID']] = {}
                     if not entry['FragNum']: continue
-                    dis1 = vdis[entry['Virus']]
+                    dis1 = vdis[entry['VirusID']]
                     if entry['Genome'] in dis1: dis1[entry['Genome']] = max(dis1[entry['Genome']],entry['Identity'])    # Might have several versions of same virus
                     else: dis1[entry['Genome']] = entry['Identity']
                 for virus1 in vsumdb.dataKeys():
@@ -1702,8 +1291,8 @@ class REVERT(rje_obj.RJE_Object):
                     if entry['Genome'] not in gdis: gdis[entry['Genome']] = {}
                     if not entry['FragNum']: continue
                     dis1 = gdis[entry['Genome']]
-                    if entry['Virus'] in dis1: dis1[entry['Virus']] = max(dis1[entry['Virus']],entry['Identity'])    # Might have several versions of same virus
-                    else: dis1[entry['Virus']] = entry['Identity']
+                    if entry['VirusID'] in dis1: dis1[entry['VirusID']] = max(dis1[entry['VirusID']],entry['Identity'])    # Might have several versions of same virus
+                    else: dis1[entry['VirusID']] = entry['Identity']
                 for genome1 in gsumdb.dataKeys():
                     id1 = genome1   #adb.data(genome1)['Alias']
                     dis1 = gdis[genome1]
@@ -1724,7 +1313,7 @@ class REVERT(rje_obj.RJE_Object):
             #self.debug(G)
             if G:
                 rnull = {}  # Dictionary of {type:null list}
-                for rkey in ['VirusGB','Virus','Genome']:
+                for rkey in ['VirusID','Genome']:
                     rnull[rkey] = []
                     for rname in rje.sortKeys(vdb.index(rkey)):
                         if rname in G or self.alias(rname) in G: continue
@@ -1804,41 +1393,86 @@ class REVERT(rje_obj.RJE_Object):
             return adb
         except: self.errorLog(self.zen()); return False
 #########################################################################################################################
-    def makeAliases(self,rdb=None):  ### Sets up alias file and, if required, taxonomy data
+    def makeAliases(self):  ### Generates/Checks Alias data for all viruses and genomes. Sets up alias file if required.
+        '''
+        Generates/Checks Alias data for all viruses and genomes. Sets up alias file if required. This is now run once for
+        all results.
+        @return: True/False depending on success/failure.
+        '''
         try:### ~ [0] ~ Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             self.printLog('#~~#','## ~~~~~~~~~~~~~~~~~~~~~~ MAKING ALIASES ~~~~~~~~~~~~~~~~~~~~~~~~ ##',timeout=False)
-            if not rdb: rdb = self.db('revert',add=False)
-            if not rdb: return False
+            ## ~ [0a] ~ Setup tables ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            rdb = self.db('revert.details',add=False)
+            vdb = self.db('revert',add=False)
+            if not rdb and vdb: return False
             adb = self.db('alias')
             if not adb: adb = self.setupAlias()
-            ## ~ [0a] ~ Check/Load taxonomy data ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-            needtax = False
-            for xref in rdb.indexKeys('Virus') + rdb.indexKeys('Genome'):
-                if needtax: break
-                needtax = xref not in adb.data()
-            if needtax:
+            ## ~ [0b] ~ Check/Use existing alias data ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            #i# VirusAcc for viruses and GFile for genomes are unique & used for NR compression
+            #i# Virus, VirusID and Genome are user-friendly aliases.
+            #i# VirusID and Genome are used for all-by-all output
+            #i# The "Alias" field for viral data is no longer used: use VirusID instead.
+            needtax = False     # Whether taxonomy data will be required as new aliases are needed.
+            for table in [rdb,vdb]:
+                table.makeField(formula='#Virus#',fieldname='VirusID',after='Virus')
+                for entry in table.entries():
+                    vacc = entry['VirusAcc']
+                    if vacc in adb.data(): entry['VirusID'] = self.alias(vacc)
+                    else: needtax = True
+                    genome = entry['GFile']
+                    if genome in adb.data(): entry['Genome'] = self.alias(genome)
+                    else: needtax = True
+                table.remakeKeys()
+            review = self.i() >= 0 and rje.yesNo('Review Virus/Genome aliases used for batch summary and all-by-all output?',default='N')
+            ## ~ [0c] ~ Check/Load taxonomy data ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            if needtax or review:
                 tax = self.obj['Taxonomy']  #? Why is this not working?
                 if not tax.getBool('Setup'): tax.setup()
             else: return True
 
-            for virus in rdb.indexKeys('Virus'):
-                if virus not in adb.data(): adb.addEntry({'Name':virus,'Alias':tax.getSpCode(virus)})
+            #!# Add checks for duplicating existing aliases when adding new ones!
 
-                #elif self.getBool('VSpCode'):
-                #    elif self.i() >= 0:
-                #        spcode = tax.getSpCode(entry['Virus'])
-                #        menulist = [('S','Species Code: %s' % spcode,'return',spcode),
-                #                    ('A','Accession Number: %s' % entry['VirusAcc'],'return',entry['VirusAcc']),
-                #                    ('V','Virus Name: %s' % entry['Virus'],'return',entry['Virus']),
-                ##                    ('E','Enter Alias','return','ENTER'),
-                #                    ('X','No Alias','return','')]
-                #        entry['Alias'] = rje_menu.menu(self,'Alias options for %s (%s):' % (entry['Virus'],entry['VirusAcc']),menulist,choicetext='Please select:',changecase=True,default='S')
-                #        if entry['Alias'] == 'ENTER': entry['Alias'] = rje.choice('Enter new Alias:',confirm=True)
-                #        if entry['Alias']: adb.addEntry({'Name':entry['Virus'],'Alias':entry['Alias']})
+            ### ~ [1] ~ Process Virus Aliases ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            #i# Now making sure that each VirusAcc has an alias as VirusID field.
+            for virus in vdb.indexKeys('Virus'):
+                ventries = vdb.indexDataList('Virus',virus,'VirusAcc')
+                if len(ventries) > 1: self.warnLog('Virus "%s" mapped to multiple VirusAcc' % virus)
+                for vacc in ventries:
+                    if not review and vacc in adb.data(): continue
+                    if not review and virus in adb.data():
+                        adb.addEntry({'Name':vacc,'Alias':self.alias(virus)})
+                        continue
+                    spcode = tax.getSpCode(virus)
+                    usespcode = self.i() < 0 or (self.getBool('VSpCode') and self.i() < 1 and not review)
+                    if usespcode: alias = spcode
+                    else:
+                        menulist = [('S','Species Code: %s' % spcode,'return',spcode),
+                                    ('A','Accession Number: %s' % vacc,'return',vacc),
+                                    ('N','Virus Name: %s' % virus,'return',virus),
+                                    ('E','Enter Alias','return','ENTER'),
+                                    ('X','No Alias','return','')]
+                        mdefault = 'S'
+                        if virus in adb.data():
+                            menulist.append(('V','Use virus alias: %s' % adb.data(virus),'return',adb.data(virus)))
+                            mdefault = 'V'
+                        if review and vacc in adb.data():
+                            menulist.append(('K','Keep existing alias: %s' % adb.data(vacc),'return',adb.data(vacc)))
+                            mdefault = 'K'
 
-            for genome in rdb.indexKeys('Genome'):
-                spabbrev = ''
+                        alias = rje_menu.menu(self,'Alias options for %s (%s):' % (virus,vacc),menulist,choicetext='Please select:',changecase=True,default=mdefault)
+                        #x#alias = rje_menu.menu(self,'Alias options for %s:' % (virus),menulist,choicetext='Please select:',changecase=True,default='S')
+                        if alias == 'ENTER': alias = rje.choice('Enter new Alias:',confirm=True)
+                    if alias and alias != adb.data(vacc):
+                        #?# Consider not warning about overwrites and adding bespoke message.
+                        self.printLog('#ALIAS','%s (%s) alias updated from "%s" to "%s"' % (vacc,virus,adb.data(vacc),alias))
+                        adb.addEntry({'Name':vacc,'Alias':alias},warn=False)
+
+            ### ~ [2] ~ Process Genome Aliases ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            #i# Now making sure that each GFile has an alias as Genome field.
+            for genome in vdb.indexKeys('GFile'):
                 if genome not in adb.data():
+                    if not review and genome in adb.data(): continue
+                    # Setup possible Genome aliases
                     taxon = string.split(genome,'.')[0]
                     if taxon.count('_') == 1:
                         spcode = tax.getSpCode(taxon,invent=False)
@@ -1850,60 +1484,41 @@ class REVERT(rje_obj.RJE_Object):
                         spabbrev = string.split(string.split(taxon,'_')[0],'-')[:2]
                         try: spabbrev = '%s.%s' % (spabbrev[0].upper()[:1],spabbrev[1].lower())
                         except: spabbrev = spabbrev[0]
-                    if self.getBool('GSpCode') and spcode: adb.addEntry({'Name':genome,'Alias':spcode})
-                    else: adb.addEntry({'Name':genome,'Alias':spabbrev})
-            adb.saveToFile()
-            return True
-
-            if False:
-                if False:
-                    if entry['Genome'] in adb.data(): entry['Alias'] = adb.data(entry['Genome'])['Alias']
-                    elif self.getBool('GSpCode') and spcode: entry['Alias'] = spcode; adb.addEntry({'Name':entry['Genome'],'Alias':entry['Alias']})
-                    elif self.i() >= 0:
-                        menulist = [('G','Genome Name: %s' % entry['Genome'],'return',entry['Genome']),
-                                    ('E','Enter Alias','return','ENTER'),
-                                    ('X','No Alias','return','')]
-                        if spcode: menulist.insert(1,('S','Species code: %s' % spcode,'return',spcode))
-                        else: menulist.insert(1,('S','Generate species code','return','SPCODE'))
-                        if spabbrev: menulist.insert(1,('A','Auto-extract species abbreviation: %s' % spabbrev,'return',spabbrev))
-                        if self.getBool('GSpCode'): entry['Alias'] = rje_menu.menu(self,'Alias options for %s:' % (entry['Genome']),menulist,choicetext='Please select:',changecase=True,default='S')
-                        elif spabbrev: entry['Alias'] = rje_menu.menu(self,'Alias options for %s:' % (entry['Genome']),menulist,choicetext='Please select:',changecase=True,default='A')
-                        else: entry['Alias'] = rje_menu.menu(self,'Alias options for %s:' % (entry['Genome']),menulist,choicetext='Please select:',changecase=True,default='E')
-                        if entry['Alias'] == 'ENTER': entry['Alias'] = rje.choice('Enter new Alias:',confirm=True)
-                        elif entry['Alias'] == 'SPCODE':
-                            entry['Alias'] = tax.getSpCode(rje.choice('Enter species for Species Code:',confirm=True))
-                        if entry['Alias']: adb.addEntry({'Name':entry['Genome'],'Alias':entry['Alias']})
-                    elif spabbrev: entry['Alias'] = spabbrev
-            gsumdb.dropField('Protein')
-            ## ~ [3d] ~ Protein Summary Table ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-            psumdb = db.copyTable(rdb,'protein')     # ['VirusGB','VirusAcc','Virus','Genome','Protein','ProtAcc','Product','HitNum','MaxScore','EVal','Length','FragNum','Coverage','Identity','Local']
-            # Output fields: ['VirusGB','VirusAcc','Virus','Genome','ProtAcc','Product','HitNum','Length','FragNum','Coverage','Identity','Local']
-            for entry in psumdb.entries(): entry['Genome'] = {True:1,False:0}[entry['FragNum']>0]
-            psumdb.compress(['Virus','ProtAcc'],rules={'Length':'max','VirusGB':'list','VirusAcc':'list','Identity':'max','Coverage':'max','Local':'max'},default='sum',joinchar='|')
-            psumdb.keepFields(['VirusGB','VirusAcc','Virus','Genome','ProtAcc','Product','HitNum','Length','FragNum','Coverage','Identity','Local'])
-            psumdb.list['Fields'] = ['VirusGB','VirusAcc','Virus','ProtAcc','Product','Genome','HitNum','Length','FragNum','Coverage','Identity','Local']
-            psumdb.addField('Alias','Virus')
-            for ekey in psumdb.dataKeys():
-                entry = psumdb.data(ekey)
-                #if entry['Genome']:
-                #    entry['Identity'] = '%.2f' % (entry['Identity']/entry['Genome'])    # Mean of those hit
-                #    entry['Coverage'] = '%.2f' % (entry['Coverage']/entry['Genome'])
-                if adb:
-                    if entry['Virus'] in adb.data(): entry['Alias'] = adb.data(entry['Virus'])['Alias']
-                    elif entry['VirusAcc'] in adb.data(): entry['Alias'] = adb.data(entry['VirusAcc'])['Alias']
-                    elif self.getBool('VSpCode'):
-                        entry['Alias'] = tax.getSpCode(entry['Virus'])
-                        adb.addEntry({'Name':entry['Virus'],'Alias':entry['Alias']})
-                    elif self.i() >= 0:
-                        spcode = tax.getSpCode(entry['Virus'])
+                    usespcode = self.getBool('GSpCode') and (self.i() < 0 or (self.i() < 1 and not review))
+                    usespcode = usespcode and spcode
+                    if usespcode: alias = spcode
+                    elif self.i() < 0 or (self.i() < 1 and not review): alias = spabbrev
+                    else:
                         menulist = [('S','Species Code: %s' % spcode,'return',spcode),
-                                    ('A','Accession Number: %s' % entry['VirusAcc'],'return',entry['VirusAcc']),
-                                    ('V','Virus Name: %s' % entry['Virus'],'return',entry['Virus']),
+                                    ('G','Genome file: %s' % genome,'return',genome),
+                                    ('N','Parsed Organism Name: %s' % spabbrev,'return',spabbrev),
                                     ('E','Enter Alias','return','ENTER'),
                                     ('X','No Alias','return','')]
-                        entry['Alias'] = rje_menu.menu(self,'Alias options for %s (%s):' % (entry['Virus'],entry['VirusAcc']),menulist,choicetext='Please select:',changecase=True,default='S')
-                        if entry['Alias'] == 'ENTER': entry['Alias'] = rje.choice('Enter new Alias:',confirm=True)
-                        if entry['Alias']: adb.addEntry({'Name':entry['Virus'],'Alias':entry['Alias']})
+                        mdefault = 'N'
+                        if spcode:
+                            if self.getBool('GSpCode'): mdefault = 'S'
+                        else: menulist.pop(0)
+                        if review and genome in adb.data():
+                            menulist.append(('K','Keep existing alias: %s' % adb.data(genome)))
+                            mdefault = 'K'
+
+                        alias = rje_menu.menu(self,'Alias options for %s:' % (genome),menulist,choicetext='Please select:',changecase=True,default=mdefault)
+                        if alias == 'ENTER': alias = rje.choice('Enter new Alias:',confirm=True)
+                    if alias and alias != adb.data(genome):
+                        self.printLog('#ALIAS','%s alias updated from "%s" to "%s"' % (genome,adb.data(genome),alias))
+                        adb.addEntry({'Name':genome,'Alias':alias},warn=False)
+
+            ### ~ [3] ~ Update Aliases and Save updated table ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            adb.saveToFile(backup=self.getBool('AliasBackup'))
+            self.setBool({'AliasBackup':False})
+            #!# Make sure that VirusID replaces Alias in code #!#
+            for table in [rdb,vdb]:
+                for entry in table.entries():
+                    vacc = entry['VirusAcc']
+                    entry['VirusID'] = self.alias(vacc)
+                    genome = entry['GFile']
+                    entry['Genome'] = self.alias(genome)
+                table.remakeKeys()
             return True
         except: self.errorLog(self.zen()); return False
 #########################################################################################################################
@@ -1946,7 +1561,8 @@ class REVERT(rje_obj.RJE_Object):
                 blocal = '%sGABLAM/%s.%s.local.tdt' % (self.getStr('RevertDir'),virus,gbase)
                 if not ldb: mdb = db.addTable(blocal,mainkeys=['Qry','Hit','QryStart','SbjStart','SbjEnd'],name='local')
                 else: mdb = db.addTable(blocal,mainkeys=['Qry','Hit','QryStart','SbjStart','SbjEnd'],name='merge')
-                mdb.keepFields(['Qry','Hit','QryStart','SbjStart','SbjEnd'])
+                #x#if not self.getStrLC('Rest'): mdb.keepFields(['Qry','Hit','QryStart','SbjStart','SbjEnd'])
+                mdb.dataFormat({'QryStart':'int','SbjStart':'int','SbjEnd':'int'})
                 mdb.addField('GenHit')
                 for mentry in mdb.entries(): mentry['GenHit'] = '%s|%s' % (gfile,mentry['Hit'])
 
@@ -1988,7 +1604,7 @@ class REVERT(rje_obj.RJE_Object):
                 #if gdb: db.mergeTables(gdb,mdb,overwrite=False,matchfields=True)
                 #else: gdb = mdb
 
-            self.printLog('#QC','%s Local hits removed (low protein/virus coverage and/or identity): %s remain' % (rje.iStr(qcx),rje.iStr(ldb.entryNum())))
+            #self.printLog('#QC','%s Local hits removed (low protein/virus coverage and/or identity): %s remain' % (rje.iStr(qcx),rje.iStr(ldb.entryNum())))
             if not ldb.entryNum(): return False
             #prex = ldb.entryNum()
 
@@ -2000,7 +1616,6 @@ class REVERT(rje_obj.RJE_Object):
             #self.printLog('#QC','%s local hits -> %s' % (rje.iStr(prex),rje.iStr(ldb.entryNum())))
             #if not ldb.entryNum(): return False
             # Compress to non-overlapping genome fragments & viral proteins
-            ldb.dataFormat({'SbjStart':'int','SbjEnd':'int'})
             redx = 0; nrx = 0
             gfrags = []                      # List of (contig,start,stop)
             for ghit in ldb.indexKeys('GenHit'):
@@ -2020,6 +1635,11 @@ class REVERT(rje_obj.RJE_Object):
                 #self.debug(frags)
                 for frag in frags: gfrags.append((contig,frag[0],frag[1])); nrx += 1
             self.printLog('#FRAG','%s fragments of %s reduced to %s NR fragments.' % (rje.iStr(redx),gbase,rje.iStr(nrx)))
+            ldb.dropField('GenHit')
+            ldb.dataFormat({'QryEnd':'int','AlnNum':'int'})
+            ldb.newKey(['Qry','Hit','AlnNum'])
+            locfile = '%s.local.tdt' % nrbase
+            ldb.saveToFile(locfile)
             db.deleteTable(ldb)
             # Extract sequences into fasta files
             vprotfas = '%s.prot.fas' % nrbase
@@ -2027,7 +1647,8 @@ class REVERT(rje_obj.RJE_Object):
                 rungablam = True
                 vprotseq.saveSeq(seqfile=vprotfas)
 
-            gfragfas = '%s.gfraq.fas' % nrbase
+            gfragfas = '%s.gfrag.fas' % nrbase
+            #!# Need to merge these gfrag.fas files
             gseq = None
             if os.path.exists(gfragfas) and not self.force() and open(gfragfas,'r').readline()[:1] == '>':
                 gseq = rje_seqlist.SeqList(self.log,self.cmd_list+['autoload=T','seqin=%s' % gfragfas,'seqmode=file'])
@@ -2045,7 +1666,7 @@ class REVERT(rje_obj.RJE_Object):
                 for (contig,startx,stopx) in gfrags:
                      if contig != prev: (name,sequence) = gseq.getSeq(gdict[contig])
                      prev = string.split(name)[0]; desc = string.join(string.split(name)[1:])
-                     GFRAG.write('>%s-%s.%s %s|(Pos: %s..%s)\n' % (prev,rje.preZero(startx,len(sequence)),rje.preZero(stopx,len(sequence)),desc,rje.iStr(startx),rje.iStr(stopx)))
+                     GFRAG.write('>%s.%s-%s %s|(Pos: %s..%s)\n' % (prev,rje.preZero(startx,len(sequence)),rje.preZero(stopx,len(sequence)),desc,rje.iStr(startx),rje.iStr(stopx)))
                      GFRAG.write('%s\n' % sequence[startx-1:stopx]); sx += 1
                 GFRAG.close()
                 self.printLog('\r#FAS','%s fragment sequences output to %s.' % (rje.iStr(sx),gfragfas))
@@ -2129,6 +1750,10 @@ class REVERT(rje_obj.RJE_Object):
             gdb.keepFields(['Genome','ProtAcc','Qry','Best'],log=False)
             gdb.compress(['Genome','ProtAcc'],rules={'Best':'max'})
             gdb.dropField('Qry')
+            #?# Is gdb output anywhere? Not here?
+            # This actually marks the best score per protein per genome - previous is per genome region?
+
+
             #6. Regenerate the revert output with the reduced protein hits.
             rdb.addField('BestProt',evalue=0)   # Sum up number of best proteins
             rdb.addField('Best',evalue=-1)      # Max Best score for whole virus
@@ -2140,6 +1765,8 @@ class REVERT(rje_obj.RJE_Object):
                 gentry = gdb.data(gkey)
                 if gentry: entry['BestProt'] = entry['Best'] = gentry['Best']; bestx += 1
             self.printLog('#BEST','Best Protein data added for %s of %s revert.details entries.' % (rje.iStr(bestx),rje.iStr(rdb.entryNum())))
+            db.deleteTable(gdb)
+            db.deleteTable(vgab)
             #self.printLog('#QC','%s protein hits rejected due to low coverage/identity' % rje.iStr(poorx))
             rdb.setStr({'Name':'revertnr.details'})
             badvirus = []   # List of viruses to filter
@@ -2148,8 +1775,9 @@ class REVERT(rje_obj.RJE_Object):
             self.printLog('#REVNR','%s of %s viruses rejected: no quality proteins hits' % (rje.iLen(badvirus),rje.iLen(rdb.indexKeys('VirusAcc'))))
             rdb.dropEntriesDirect('VirusAcc',badvirus)
             if not rdb.entryNum(): return False
-            ddb = rdb
+
             #7. Filter according to viral coverage (40%) and local identity (30%)
+            ddb = rdb
             rdb = db.copyTable(rdb,'revertnr')
             rdb.addField('ProtNum',evalue=1,after='Length')
             rdb.addField('ProtHits',evalue=1,after='ProtNum')
@@ -2175,18 +1803,21 @@ class REVERT(rje_obj.RJE_Object):
             rdb.dropEntriesDirect('Best',[-1])
             ddb.dropEntriesDirect('VirusAcc',rdb.indexKeys('VirusAcc'),inverse=True)
             if not rdb.entryNum(): return False
-            rdb.saveToFile(append=append)
-            ddb.saveToFile(append=append)
+            for table in [rdb,ddb]:
+                table.saveToFile(append=append)
+                db.deleteTable(table)
+
 
             ### [2] Generate Viral Assemblies and Consensus Sequences ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             scmd = ['autoload=T','autofilter=T','seqin=%s' % gfragfas,'goodseq=%s' % (string.join(goodfrag,','))]
             fragseq = rje_seqlist.SeqList(self.log,self.cmd_list+scmd)
             fragseq.saveSeq(seqfile='%s.fas' % nrbase)
             ## ~ [2a] Assembly BLASTs ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-            self.virusAssembly('protein',basefile=nrbase,vbase=nrbase)
-            self.virusAssembly('host',basefile=nrbase,vbase=nrbase)
+            assbase = '%s.%s' % (rje.baseFile(self.baseFile(),strip_path=True),gfile)
+            self.virusAssembly('protein',basefile=assbase,vbase=nrbase)
+            self.virusAssembly('host',basefile=assbase,vbase=nrbase)
             for virus in self.list['VBatch']:
-                self.virusAssembly('genome',basefile=nrbase,vbase=virus)
+                self.virusAssembly('genome',basefile=assbase,vbase=virus)
             ## ~ [2b] Protein consensus output ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             #?# Why were we looking for this file and then overwriting the entries #?#
             cdb = self.db('revert.consensus',add=False,mainkeys=['Genome','Protein'])
@@ -2215,287 +1846,6 @@ class REVERT(rje_obj.RJE_Object):
                     self.verbose(0,1,'%s %s\n%s' % (pname,pdesc,consensus))
                     cdb.addEntry({'Genome':gbase,'Protein':pname,'Desc':pdesc,'Consensus':consensus})
             if cdb.entryNum(): cdb.saveToFile(append=append)
-
-            return True
-        except: self.errorLog('REVERT.revertNR() error.'); return False
-#########################################################################################################################
-    def OLDrevertNR(self):     ### Performs non-redundancy and quality filtering for combined data
-        '''Performs non-redundancy and quality filtering for combined batch data.'''
-        try:### ~ [0] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            if not self.setupAlias(): return False
-            self.printLog('#~~#','## ~~~~~~~~~~~~~~~~~~ REVERT NR/QC FILTERING ~~~~~~~~~~~~~~~~~~~~ ##',timeout=False)
-            rungablam = self.force()
-            db = self.db()
-            #rhead = ['VirusGB','VirusAcc','Virus','Genome','Protein','ProtAcc','Product','HitNum','MaxScore','EVal','Length','FragNum','Coverage','Identity','Local']
-            #rkeys = ['VirusGB','VirusAcc','Genome','Protein']
-            rdb = self.db('revert.details',add=False)
-            rdb.makeField(formula='#Genome#',fieldname='GFile',after='Genome')
-            # Replace Genome with Alias for compatibility with later BLAST
-            if not self.makeAliases(rdb): return False
-            for entry in rdb.entries(): entry['Genome'] = self.alias(entry['Genome'])
-            rdb.remakeKeys()
-            #rdb.compress(['VirusAcc','Genome','Protein'],default='str',rules={'VirusGB':'list'},joinchar='|')
-            #vhead = ['VirusGB','VirusAcc','Virus','Genome','HitNum','Length','ProtNum','ProtHits','Protein','FragNum','Coverage','Identity','Local']
-            #vkeys = ['VirusGB','VirusAcc','Genome']
-            vdb = self.db('revert')
-            #vdb.compress(['VirusAcc','Genome'],default='str',rules={'VirusGB':'list'},joinchar='|')
-            #?# Check integrity of compression at some point? Add warning to compress if values not equal? (type='equal')
-            nrdir = rje.makePath('%sNR/' % self.getStr('RevertDir'))
-            rje.mkDir(self,nrdir)
-            nrbase = '%s%s' % (nrdir,os.path.basename(self.baseFile()))
-
-            ### ~ [1] Process ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            #1. Use the *.local.tdt files to assemble fasta files of (a) combined non-overlapping genome fragments and (b) combined viral proteins.
-            vprotseq = rje_seqlist.SeqList(self.log,self.cmd_list+['autoload=F','seqmode=list'])
-            # Load local tables into database & gablam tables for initial protein culling based on mincov and minlocid
-            ldb = None; gdb = None; qcx = 0
-            for vfile in self.list['VBatch']:
-                vfas = '%s.prot.fas' % rje.baseFile(vfile)
-                vfasseq = rje_seqlist.SeqList(self.log,self.cmd_list+['autoload=T','seqin=%s' % vfas,'seqmode=file'])
-                vseqdict = vfasseq.makeSeqNameDic('accnum')
-                for gfile in self.list['GBatch']:
-                    blocal = '%s%s.%s.local.tdt' % (self.getStr('RevertDir'),rje.baseFile(vfile,strip_path=True),rje.baseFile(gfile,strip_path=True))
-                    if not ldb: mdb = db.addTable(blocal,mainkeys=['Qry','Hit','QryStart','SbjStart','SbjEnd'],name='local')
-                    else: mdb = db.addTable(blocal,mainkeys=['Qry','Hit','QryStart','SbjStart','SbjEnd'],name='merge')
-                    mdb.keepFields(['Qry','Hit','QryStart','SbjStart','SbjEnd'])
-                    mdb.addField('GenHit')
-                    for mentry in mdb.entries(): mentry['GenHit'] = '%s|%s' % (gfile,mentry['Hit'])
-                    if ldb: db.mergeTables(ldb,mdb,overwrite=False,matchfields=True)
-                    else: ldb = mdb
-
-                    bgablam = '%s%s.%s.gablam.tdt' % (self.getStr('RevertDir'),rje.baseFile(vfile,strip_path=True),rje.baseFile(gfile,strip_path=True))
-                    if not gdb: mdb = db.addTable(bgablam,mainkeys=['Qry','Hit'],name='gablam')
-                    else: mdb = db.addTable(bgablam,mainkeys=['Qry','Hit'],name='merge')
-                    mdb.dataFormat({'Qry_OrderedAlnID':'num','Qry_OrderedAlnLen':'num'})
-                    for gkey in mdb.dataKeys():
-                        entry = mdb.data(gkey)
-                        if entry['Qry_OrderedAlnLen'] < self.getNum('MinCov'): mdb.dict['Data'].pop(gkey); qcx += 1
-                        elif 100.0 * entry['Qry_OrderedAlnID'] / entry['Qry_OrderedAlnLen'] < self.getNum('MinLocID'): mdb.dict['Data'].pop(gkey); qcx += 1
-
-                    for vprot in mdb.indexKeys('Qry'):
-                        (name,sequence) = vfasseq.getSeq(vseqdict[vprot])
-                        vprotseq._addSeq(name,sequence,nodup=True)
-                    if gdb: db.mergeTables(gdb,mdb,overwrite=False,matchfields=True)
-                    else: gdb = mdb
-            self.printLog('#QC','%s GABLAM hits removed (low coverage and/or identity): %s remain' % (rje.iStr(qcx),rje.iStr(gdb.entryNum())))
-            if not gdb.entryNum(): return False
-            prex = ldb.entryNum()
-            for lkey in ldb.dataKeys():
-                entry = ldb.data(lkey)
-                gkey = gdb.makeKey(entry)
-                if not gdb.data(gkey): ldb.dict['Data'].pop(lkey)
-            self.printLog('#QC','%s local hits -> %s' % (rje.iStr(prex),rje.iStr(ldb.entryNum())))
-            if not ldb.entryNum(): return False
-            # Compress to non-overlapping genome fragments & viral proteins
-            ldb.dataFormat({'SbjStart':'int','SbjEnd':'int'})
-            redx = 0; nrx = 0
-            gfrags = {}                      # Dict of {genome:[(contig,start,stop)]}
-            for ghit in ldb.indexKeys('GenHit'):
-                #self.debug(ghit)
-                (genome,contig) = string.split(ghit,'|',1)
-                frags = []
-                for lentry in ldb.indexEntries('GenHit',ghit):
-                    frags.append((min(lentry['SbjStart'],lentry['SbjEnd']),max(lentry['SbjStart'],lentry['SbjEnd'])))
-                    redx += 1
-                frags.sort()
-                #self.debug(frags)
-                i = 1
-                while (i < len(frags)):
-                    #self.bugPrint('%d : %s' % (i,frags[i-1:i+1]))
-                    if frags[i][0] <= frags[i-1][1] + max(1,self.getInt('GablamFrag')+1): frags[i-1] = (frags[i-1][0],max(frags[i-1][1],frags.pop(i)[1]))    # Merge
-                    else: i += 1
-                #self.debug(frags)
-                if frags and genome not in gfrags: gfrags[genome] = []
-                for frag in frags: gfrags[genome].append((contig,frag[0],frag[1])); nrx += 1
-            self.printLog('#FRAG','%s fragments of %d genomes reduced to %s NR fragments.' % (rje.iStr(redx),len(gfrags),rje.iStr(nrx)))
-            db.deleteTable(ldb)
-            # Extract sequences into fasta files
-            vprotfas = '%s.vprot.fas' % nrbase
-            if self.force() or not rje.exists(vprotfas) or rje_seqlist.SeqList(self.log,self.cmd_list+['autoload=T','seqin=%s' % vprotfas,'seqmode=file','seqindex=T']).seqNum() != vprotseq.seqNum():
-                rungablam = True
-                vprotseq.saveSeq(seqfile=vprotfas)
-
-            gfragfas = '%s.gfraq.fas' % nrbase
-            gseq = None
-            if os.path.exists(gfragfas) and not self.force():
-                gseq = rje_seqlist.SeqList(self.log,self.cmd_list+['autoload=T','seqin=%s' % gfragfas,'seqmode=file'])
-                self.printLog('\r#FAS','%s fragment sequences read from %s.' % (rje.iStr(gseq.seqNum()),gfragfas))
-                if gseq.seqNum() != nrx:
-                    self.printLog('#FAS','%s exists but contains wrong number of sequences. Will remake.' % gfragfas); gseq = None
-                else: self.printLog('#FAS','%s exists and contains right number of sequences (force=F).' % gfragfas)
-            if not gseq:
-                self.progLog('#FAS','Fragment sequences output to %s...' % (gfragfas))
-                GFRAG = open(gfragfas,'w'); sx = 0
-                for gfile in rje.sortKeys(gfrags):
-                    genome = rje.baseFile(gfile,strip_path=True)
-                    gseq = rje_seqlist.SeqList(self.log,self.cmd_list+['autoload=T','seqin=%s' % gfile,'seqmode=file'])
-                    gdict = gseq.makeSeqNameDic('short')
-                    (prev,name,sequence) = (None,None,None)
-                    for (contig,startx,stopx) in gfrags[gfile]:
-                         if contig != prev: (name,sequence) = gseq.getSeq(gdict[contig])
-                         prev = string.split(name)[0]; desc = string.join(string.split(name)[1:])
-                         GFRAG.write('>%s#!#%s-%s.%s %s|(Pos: %s..%s)\n' % (self.alias(genome),prev,rje.preZero(startx,len(sequence)),rje.preZero(stopx,len(sequence)),desc,rje.iStr(startx),rje.iStr(stopx)))
-                         GFRAG.write('%s\n' % sequence[startx-1:stopx]); sx += 1
-                GFRAG.close()
-                self.printLog('\r#FAS','%s fragment sequences output to %s.' % (rje.iStr(sx),gfragfas))
-                gseq = None
-
-            # All-by-all vprot GABLAM -> assess which multiple hits to judge against each other
-            vbase = rje.baseFile(vprotfas)
-            if rungablam and rje.exists('%s.blast' % vbase): os.unlink('%s.blast' % vbase) # Remade sequences
-            if rungablam: gseq = None
-            for gabfile in ['gablam','hitsum']: rungablam = rungablam or not rje.exists('%s.%s.tdt' % (vbase,gabfile))
-            if rungablam:
-                bcmd = ['blaste=1e-10','keepblast=T']
-                gcmd = ['local=F','seqin=%s' % vprotfas,'searchdb=%s' % vprotfas,'blastp=blastp','fullblast=T',
-                        'qryacc=F','basefile=%s' % vbase,'blastdir=%s' % nrdir,'selfhit=T',
-                        'dismat=F','distrees=F','disgraph=F','clusters=F','saveupc=F']
-                gablam.GABLAM(self.log,bcmd+self.cmd_list + gcmd).run()
-            vgab = db.addTable('%s.gablam.tdt' % (vbase),mainkeys=['Qry','Hit'],datakeys=['Qry','Hit'],name='vgablam')
-            vgab.index('Qry')
-
-            #2. Perform a genomefrag vs vprot blastx GABLAM search
-            if not gseq and rje.exists('%s.blast' % nrbase): os.unlink('%s.blast' % nrbase) # Remade sequences
-            bcmd = ['blaste=1e-10','fullblast=T','keepblast=T']
-            gcmd = ['local=T','seqin=%s' % gfragfas,'searchdb=%s' % vprotfas,'blastp=blastx','saveupc=F','dismat=F',
-                    'qryacc=F','basefile=%s' % nrbase,'blastdir=%s' % nrdir,'outstats=GABLAMO','percres=F']
-            gablam.GABLAM(self.log,bcmd+self.cmd_list + gcmd).run()
-
-            #3. Filter according to protein coverage (50%) and local identity (40%)
-            gdb = db.addTable('%s.gablam.tdt' % nrbase,mainkeys=['Qry','Hit'],name='revertnr.best')
-            gdb.dataFormat({'Qry_OrderedAlnID':'int','Hit_OrderedAlnID':'int','HitLen':'int','Hit_OrderedAlnLen':'int'})
-            gdb.addField('Best',evalue=0)
-            #poorx = 0;         # Cannot do QC filtering here as proteins might be split over several fragments!
-            #for entry in gdb.entries():
-            #    if (100.0 * entry['Hit_OrderedAlnID']) / entry['HitLen'] < self.getNum('MinLocID'): entry['Best'] = -1; poorx += 1
-            #    elif (100.0 * entry['Hit_OrderedAlnLen']) / entry['HitLen'] < self.getNum('MinCov'): entry['Best'] = -1; poorx += 1
-            #    self.debug(entry)
-            #self.printLog('#QC','%s hits rejected due to low coverage/identity' % rje.iStr(poorx))
-            #gdb.dropEntriesDirect('Best',[-1])
-            if not gdb.entryNum(): return False
-
-            #4. Filter poorer hits using logPoisson(obs+1,best) >= 0.95? (i.e. < 5% chance of that few identities if actually the same)
-            redx = 0#; redprot = []
-            for gfrag in gdb.indexKeys('Qry'):
-                # This is complicated by possibility of having unrelated proteins hitting same fragment side-by-side
-                idhit = {}      # Dictionary of {IDPos:[Hits]}
-                hitid = {}      # Dictionary of {Hit:ID}
-                for entry in gdb.indexEntries('Qry',gfrag):
-                    if entry['Qry_OrderedAlnID'] not in idhit: idhit[entry['Qry_OrderedAlnID']] = []
-                    idhit[entry['Qry_OrderedAlnID']].append(entry['Hit'])
-                    hitid[entry['Hit']] = entry['Qry_OrderedAlnID']
-                # Process and reduce idhit and hitid dictionaries until all hits processed
-                while idhit:
-                    maxid = rje.sortKeys(idhit,revsort=True)[0]
-                    goodid = maxid  # Min number of identities reached that are good
-                    badid = 0       # Max number of identities reached that are bad
-                    best = idhit[maxid].pop(0)
-                    if not idhit[maxid]: idhit.pop(maxid)
-                    if best not in hitid: continue  # Already processed
-                    hom = vgab.indexDataList('Qry',best,'Hit')
-                    for entry in gdb.indexEntries('Qry',gfrag):
-                        if entry['Hit'] not in hitid: continue
-                        if entry['Hit'] not in hom: continue
-                        hitid.pop(entry['Hit'])
-                        eid = entry['Qry_OrderedAlnID']
-                        if eid == maxid: entry['Best'] = 1
-                        elif eid <= badid: entry['Best'] = -1; redx += 1#; redprot.append(entry['Hit'])
-                        elif eid >= goodid: entry['Best'] = 0
-                        else:
-                            if rje.poisson(eid+1,maxid,callobj=self) >= 0.95:   # Bad. Too few IDs to be chance missing out
-                                badid = max(badid,eid)
-                                entry['Best'] = -1#; redprot.append(entry['Hit'])
-                                redx += 1
-                            else: goodid = min(goodid,eid)
-            self.printLog('#RED','%s hits rejected as redundant (better protein hit)' % rje.iStr(redx))
-            gdb.index('Best',force=True)
-            gdb.indexReport('Best')
-            gdb.saveToFile()
-            gdb.dropEntriesDirect('Best',[-1])
-            if not gdb.entryNum(): return False
-
-            #5. Count the number of best genome hits per protein too - include in output
-            gdb.renameField('Hit','ProtAcc')
-            gdb.addField('Genome')
-            for entry in gdb.entries():
-                entry['ProtAcc'] = string.split(entry['ProtAcc'],'__')[-1]
-                entry['Genome'] = string.split(entry['Qry'],'#!#',1)[0]
-            gdb.remakeKeys()
-            gdb.keepFields(['Genome','ProtAcc','Qry','Best'],log=False)
-            gdb.compress(['Genome','ProtAcc'],rules={'Best':'max'})
-            gdb.dropField('Qry')
-            #6. Regenerate the revert output with the reduced protein hits.
-            rdb.addField('BestProt',evalue=0)   # Sum up number of best proteins
-            rdb.addField('Best',evalue=-1)      # Max Best score for whole virus
-            bestx = 0
-            poorx = 0
-            for entry in rdb.entries():
-                if float(entry['Local']) < self.getNum('MinLocID'): poorx += 1; continue
-                elif float(entry['Coverage']) < self.getNum('MinCov'): poorx += 1; continue
-                gkey = gdb.makeKey(entry)
-                gentry = gdb.data(gkey)
-                if gentry: entry['BestProt'] = entry['Best'] = gentry['Best']; bestx += 1
-            self.printLog('#BEST','Best Protein data added for %s of %s revert.details entries.' % (rje.iStr(bestx),rje.iStr(rdb.entryNum())))
-            self.printLog('#QC','%s protein hits rejected due to low coverage/identity' % rje.iStr(poorx))
-            rdb.setStr({'Name':'revertnr.details'})
-            badvirus = []   # List of viruses to filter
-            for virus in rdb.indexKeys('VirusAcc'):     # Should this be virus?!
-                if max(rdb.indexDataList('VirusAcc',virus,'Best',sortunique=False)) < 0: badvirus.append(virus)
-            self.printLog('#REVNR','%s of %s viruses rejected: no quality proteins hits' % (rje.iLen(badvirus),rje.iLen(rdb.indexKeys('VirusAcc'))))
-            rdb.dropEntriesDirect('VirusAcc',badvirus)
-            if not rdb.entryNum(): return False
-            ddb = rdb
-            #7. Filter according to viral coverage (40%) and local identity (30%) (or use the same cutoffs for both?)
-            rdb = db.copyTable(rdb,'revertnr')
-            rdb.addField('ProtNum',evalue=1,after='Length')
-            rdb.addField('ProtHits',evalue=1,after='ProtNum')
-            for entry in rdb.entries():
-                entry['Length'] = int(entry['Length'])
-                entry['Coverage'] = entry['Length'] * float(entry['Coverage']) / 100.0
-                entry['Identity'] = entry['Length'] * float(entry['Identity']) / 100.0
-                #try: entry['ProtNum'] = vdb.indexDataList('VirusAcc',entry['VirusAcc'],'ProtNum')[0]
-                #except: entry['ProtNum'] = 0
-                if entry['Best'] < 0: entry['ProtAcc'] = ''; entry['ProtHits'] = 0
-            rdb.compress(['VirusGB','VirusAcc','Genome'],rules={'ProtAcc':'list','Best':'max'},joinchar='|',default='sum')    #
-            rdb.dropFields(['Protein','Product'],log=False)
-            badvirx = 0   # Count of viruses to filter
-            for entry in rdb.entries():
-                if len(string.split(entry['ProtAcc'],'|')) != entry['ProtHits']: self.debug('Protein ID/number mismatch! %s vs %s' % (entry['ProtHits'],entry['ProtAcc']))
-                entry['Local'] = 100.0 * entry['Identity'] / entry['Coverage']
-                if entry['Local'] < self.getNum('MinLocID'): entry['Best'] = -1; badvirx += 1; continue
-                entry['Coverage'] = 100.0 * entry['Coverage'] / entry['Length']
-                if entry['Coverage'] < self.getNum('MinCov'): entry['Best'] = -1; badvirx += 1; continue
-                entry['Identity'] = 100.0 * entry['Identity'] / entry['Length']
-                for field in ['Identity','Coverage','Local']: entry[field] = '%.2f' % entry[field]
-            self.printLog('#QC','%s viruses rejected due to low coverage/identity' % rje.iStr(badvirx))
-            rdb.dropEntriesDirect('Best',[-1])
-            ddb.dropEntriesDirect('VirusAcc',rdb.indexKeys('VirusAcc'),inverse=True)
-            if not rdb.entryNum(): return False
-            rdb.saveToFile()
-            ddb.saveToFile()
-
-            ### [2] Tidy up excessive earlier output ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            cdb = None
-            for vfile in self.list['VBatch']:
-                for gfile in self.list['GBatch']:
-                    bconsensus = '%s%s.%s.revert.consensus.tdt' % (self.getStr('RevertDir'),rje.baseFile(vfile,strip_path=True),rje.baseFile(gfile,strip_path=True))
-                    if not rje.exists(bconsensus): continue
-                    if not cdb: mdb = db.addTable(bconsensus,mainkeys=['Protein','Genome','Consensus'],name='consensus')
-                    else: mdb = db.addTable(bconsensus,mainkeys=['Protein','Genome','Consensus'],name='merge')
-                    mdb.dropEntriesDirect('Protein',ddb.indexDataList('GFile',rje.baseFile(gfile,strip_path=True),'Protein'),inverse=True)
-                    if not mdb.entryNum(): db.deleteTable(mdb); continue
-                    if cdb: db.mergeTables(cdb,mdb,overwrite=False,matchfields=True)
-                    else: cdb = mdb
-            cdb.saveToFile()
-
-            nrassdir = rje.makePath('%sNRASSEMBLY/' % self.getStr('RevertDir'))
-            assdir = rje.makePath('%sASSEMBLY/' % self.getStr('RevertDir'))
-            rje.mkDir(self,nrassdir); ax = 0
-            for entry in ddb.entries():
-                assfile = '%s%s' % (assdir,string.join([entry['VirusGB'],entry['GFile'],entry['Protein'],'fas'],'.'))
-                nrassfile = '%s%s' % (nrassdir,string.join([entry['VirusGB'],entry['GFile'],entry['Protein'],'fas'],'.'))
-                if rje.exists(assfile): rje.fileTransfer(fromfile=assfile,tofile=nrassfile,deletefrom=False,append=False); ax += 1
-            self.printLog('#ASS','%s assembly fasta files copied to NRASSEMBLY/*.fas' % rje.iStr(ax))
 
             return True
         except: self.errorLog('REVERT.revertNR() error.'); return False

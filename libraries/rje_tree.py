@@ -19,8 +19,8 @@
 """
 Module:       rje_tree
 Description:  Phylogenetic Tree Module
-Version:      2.13.0
-Last Edit:    26/08/15
+Version:      2.14.0
+Last Edit:    19/05/16
 Copyright (C) 2007  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -150,6 +150,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 2.11.2 - Updated tree paths.
     # 2.12.0 - Added treeLen() method.
     # 2.13.0 - Updated PNG saving with R to use newer code.
+    # 2.14.0 - Added cladeSpec().
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -187,7 +188,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo():     ### Makes Info object
     '''Makes rje.Info object for program.'''
-    (program, version, last_edit, cyear) = ('RJE_TREE', '2.13.0', 'August 2015', '2007')
+    (program, version, last_edit, cyear) = ('RJE_TREE', '2.14.0', 'May 2016', '2007')
     description = 'RJE Phylogenetic Tree Module'
     author = 'Dr Richard J. Edwards.'
     comments = []
@@ -1813,6 +1814,7 @@ class Tree(rje.RJE_Object):     ### Class for handling phylogenetic trees.
         - 'none' = nothing; 'boot' = bootstraps if given (else none); 'node' = node numbers
         '''
         try:### ~ [1] ~ Try each tree format in turn ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            #!# Replace type!
             for type in self.list['TreeFormats']:
                 treefile = '%s.%s' % (self.info['Basefile'],formatext[type])
                 if type == 'text':
@@ -2379,7 +2381,9 @@ class Tree(rje.RJE_Object):     ### Class for handling phylogenetic trees.
             #x#rcmd = string.replace(rcmd,'\\','\\\\')
             self.printLog('#RTREE',rcmd)
             problems = os.popen(rcmd).read()
-            if problems: self.errorLog(problems,printerror=False)
+            if problems:
+                self.errorLog(problems,printerror=False)
+                for ptxt in problems: self.warnLog(ptxt)
             elif rje.exists(filename) and rje.exists(rtreefile) and not (self.getBool('DeBug') or self.getBool('Test')): os.unlink(rtreefile)
             return rcmd
         except: self.log.errorLog('Major Problem with Tree.pngTree()')
@@ -3364,6 +3368,16 @@ class Tree(rje.RJE_Object):     ### Class for handling phylogenetic trees.
             self.log.errorLog('Problem with outGroupNode(). Not returning a single node. (%s)' % out,printerror=False)
             return None
         return out[0]
+#########################################################################################################################
+    def cladeSpec(self,node):   ### Returns dictionary of {species code:count} for descendant clade (assumes gn_sp__acc)
+        '''Returns list of species codes for descendant clade (assumes gn_sp__acc).'''
+        specdict = {}
+        for node in self._nodeClade(node,internal=False):
+            try: spec = string.split(node.shortName(),'_')[1]
+            except: spec = 'Unknown'
+            if spec not in specdict: specdict[spec] = 0
+            specdict[spec] += 1
+        return specdict
 #########################################################################################################################
     ### <7> ### Duplications                                                                                            #
 #########################################################################################################################

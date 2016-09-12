@@ -19,8 +19,8 @@
 """
 Module:       SLiMSuite
 Description:  Short Linear Motif analysis Suite
-Version:      1.5.1
-Last Edit:    17/06/15
+Version:      1.6.0
+Last Edit:    19/01/16
 Citation:     Edwards RJ & Palopoli N (2015): Methods Mol Biol. 1268:89-141. [PMID: 25555723]
 Copyright (C) 2014  Richard J. Edwards - See source code for GNU License Notice
 
@@ -57,7 +57,7 @@ Please also see the SeqSuite documentation for additional utilities, which can b
 
 Commandline:
     ### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-    prog=X      # Identifies the tool to be used. Will load defaults from X.ini (before slimsuite.ini) [slimcore]
+    prog=X      # Identifies the tool to be used. Will load defaults from X.ini (before slimsuite.ini) [help]
     help=T/F    # Return the help documentation for program X. [False]
     ### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
 See also rje.py generic commandline options.
@@ -96,6 +96,8 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 1.4.0 - Added RLC and Disorder progs to call SLiMCore. Added CompariMotif.
     # 1.5.0 - Added peptcluster and peptalign calls.
     # 1.5.1 - Changed disorder to iuscore to avoid module conflict.
+    # 1.5.2 - Updated XRef REST call.
+    # 1.6.0 - Removed SLiMCore as default. Default will now show help.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -110,7 +112,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copy_right) = ('SLiMSuite', '1.5.1', 'June 2015', '2014')
+    (program, version, last_edit, copy_right) = ('SLiMSuite', '1.6.0', 'January 2016', '2014')
     description = 'Short Linear Motif analysis Suite'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',
@@ -158,7 +160,7 @@ def setupProgram(argcmd,fullcmd=True): ### Basic Setup of Program when called fr
     except KeyboardInterrupt: sys.exit()
     except: print 'Problem during initial setup.'; raise
 #########################################################################################################################
-mod = {'slimcore':rje_slimcore,'rje_slimcore':rje_slimcore,'slimlist':rje_slimlist,'rje_slimlist':rje_slimlist,
+mod = {'slimcore':rje_slimcore,'core':rje_slimcore,'rje_slimcore':rje_slimcore,'slimlist':rje_slimlist,'rje_slimlist':rje_slimlist,
        'slimfinder':slimfinder,'qslimfinder':qslimfinder,'slimprob':slimprob,'slimmaker':slimmaker,
        'slimfarmer':slimfarmer,'farm':slimfarmer,'slimbench':slimbench,'rlc':rje_slimcore,'iuscore':rje_slimcore,
        'comparimotif':comparimotif,'peptcluster':peptcluster,'peptalign':peptcluster}
@@ -249,10 +251,10 @@ class SLiMSuite(rje_obj.RJE_Object):
                 #self._cmdReadList(cmd,'cdictlist',['Att']) # As cdict but also enters keys into list
             except: self.errorLog('Problem with cmd:%s' % cmd)
         if not self.getStrLC('Name'):
-            if sys.argv[1:] and sys.argv[1] not in mod.keys() + seqsuite.mod.keys():
-                self.printLog('#CORE','Argument "%s" not recognised as SLiMSuite program: default to SLiMCore.' % sys.argv[1])
-            else: self.printLog('#CORE','No SLiMSuite program given: default to SLiMCore.')
-            self.setStr({'Name':'slimcore'})
+            if sys.argv[1:] and sys.argv[1] not in mod.keys() + seqsuite.mod.keys() + ['help','-h']:
+                self.printLog('#CORE','Argument "%s" not recognised as SLiMSuite program.' % sys.argv[1])
+            #else: self.printLog('#CORE','No SLiMSuite program given: default to SLiMCore.')
+            self.setStr({'Name':'help'})
 #########################################################################################################################
     ### <2> ### Main Class Backbone                                                                                     #
 #########################################################################################################################
@@ -272,14 +274,18 @@ class SLiMSuite(rje_obj.RJE_Object):
                 if objpickle: slimobj = objpickle
                 ## ~ [2b] Run program unless rest call is return simple information ~~~~~~~~~~~~~~~ ##
                 if slimobj.getStrLC('Rest') not in ['help','version','check','outfmt']:
-                    try: slimobj.run()       #!# Note that SLiMFinder raises SystemExit upon premature ending #!#
+                    try:
+                        if self.getStrLC('Name') == 'haqesac': slimobj.run(setobjects=True)
+                        elif self.getStrLC('Name') == 'xref': slimobj.run(rest=True)
+                        else: slimobj.run()       #!# Note that SLiMFinder raises SystemExit upon premature ending #!#
                     except: self.errorLog('Problem with %s run' % info.program)
                     slimobj.log.endLog(info)
                     #slimobj.printLog('#LOG', '%s V:%s End: %s\n' % (info.program,info.version,time.asctime(time.localtime(time.time()))))
                 #slimobj.log.obj['Info'] = info
                 return slimobj     # Calling program should call restOutput()
             ### ~ [3] ~ Regular run code ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            slimobj.run()
+            if self.getStrLC('Name') == 'haqesac': slimobj.run(setobjects=True)
+            else: slimobj.run()
             self.printLog('#RUN','%s V%s run finished.' % (info.program,info.version))
             slimobj.log.obj['Info'] = self.obj['Info']
             slimobj.log.info['Name'] = self.obj['Info'].program
@@ -305,7 +311,7 @@ class SLiMSuite(rje_obj.RJE_Object):
                 self.printLog('#CMD','Full %s CmdList: %s' % (i.program,rje.argString(rje.tidyArgs(progcmd,nopath=self.getStrLC('Rest') and not self.dev(),purgelist=purgelist))),screen=False)
                 #self.debug(prog)
             ## ~ [1a] ~ Make self.obj['Prog'] ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-                if prog in ['slimcore','rje_slimcore']: self.obj['Prog'] = rje_slimcore.SLiMCore(self.log,progcmd)
+                if prog in ['slimcore','rje_slimcore','core']: self.obj['Prog'] = rje_slimcore.SLiMCore(self.log,progcmd)
                 elif prog in ['rlc','iuscore']: self.obj['Prog'] = rje_slimcore.SLiMCore(self.log,progcmd+['prog=%s' % prog])
                 elif prog in ['slimlist','rje_slimlist']: self.obj['Prog'] = rje_slimlist.SLiMList(self.log,progcmd)
                 elif prog in ['slimfinder']: self.obj['Prog'] = slimfinder.SLiMFinder(self.log,progcmd)
@@ -316,7 +322,7 @@ class SLiMSuite(rje_obj.RJE_Object):
                 elif prog in ['slimbench']: self.obj['Prog'] = slimbench.SLiMBench(self.log,progcmd)
                 elif prog in ['comparimotif']: self.obj['Prog'] = comparimotif.CompariMotif(self.log,progcmd)
                 elif prog in ['peptcluster']: self.obj['Prog'] = peptcluster.PeptCluster(self.log,progcmd)
-                elif prog in ['peptalign']: self.obj['Prog'] = peptcluster.PeptCluster(self.log,['peptalign=T']+progcmd)
+                elif prog in ['peptalign']: self.obj['Prog'] = peptcluster.PeptCluster(self.log,['peptalign=T']+progcmd+['peptdis=None'])
                 self.obj['Prog'].dict['Output']['help'] = mod[prog].__doc__
             elif prog in seqsuite.mod:
                 seqsuiteobj = seqsuite.SeqSuite(self.log,self.cmd_list)
@@ -326,10 +332,11 @@ class SLiMSuite(rje_obj.RJE_Object):
 
             ### ~ [2] ~ Failure to recognise program ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if not self.obj['Prog']:
-                if not rest: self.printLog('#ERR','Program "%s" not recognised.' % self.getStr('Name'))
-                if self.i() < 0 or rest: return False
+                if self.getStrLC('Name') != 'help':
+                    if not rest: self.printLog('#ERR','Program "%s" not recognised.' % self.getStr('Name'))
+                    if self.i() < 0 or rest: return False
                 #!# Try SeqSuite? #!#
-                if rje.yesNo('Show SLiMSuite help with program options?'):
+                if self.getStrLC('Name') == 'help' or rje.yesNo('Show SLiMSuite help with program options?'):
                     extracmd = cmdHelp(cmd_list=['help'])[1:]
                     if extracmd:
                         self.cmd_list += extracmd

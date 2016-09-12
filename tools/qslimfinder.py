@@ -19,8 +19,8 @@
 """
 Program:      QSLiMFinder
 Description:  Query Short Linear Motif Finder
-Version:      2.1.0
-Last Edit:    31/03/15
+Version:      2.1.1
+Last Edit:    07/12/15
 Citation:     Palopoli N, Lythgow KT & Edwards RJ. Bioinformatics 2015; doi: 10.1093/bioinformatics/btv155 [PMID: 25792551]
 SLiMFinder:   Edwards, Davey & Shields (2007), PLoS ONE 2(10): e967. [PMID: 17912346]
 Copyright (C) 2008  Richard J. Edwards - See source code for GNU License Notice
@@ -71,7 +71,7 @@ Commandline: ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     masking=T/F     : Master control switch to turn off all masking if False [True]
     dismask=T/F     : Whether to mask ordered regions (see rje_disorder for options) [False]
     consmask=T/F    : Whether to use relative conservation masking [False]
-    ftmask=LIST     : UniProt features to mask out [EM]
+    ftmask=LIST     : UniProt features to mask out (True=EM,DOMAIN,TRANSMEM) []
     imask=LIST      : UniProt features to inversely ("inclusively") mask. (Seqs MUST have 1+ features) []
     compmask=X,Y    : Mask low complexity regions (same AA in X+ of Y consecutive aas) [5,8]
     casemask=X      : Mask Upper or Lower case [None]
@@ -179,6 +179,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 1.9 - Preparation for QSLiMFinder V2.0 & SLiMCore V2.0 using newer RJE_Object.
     # 2.0 - Converted to use rje_obj.RJE_Object as base. Version 1.9 moved to legacy/.
     # 2.1.0 - Added PTMData and PTMList options.
+    # 2.1.1 - Switched feature masking OFF by default to give consistent Uniprot versus FASTA behaviour.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -191,7 +192,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo():     ### Makes Info object
     '''Makes rje.Info object for program.'''
-    (program, version, last_edit, copyyear) = ('QSLiMFinder', '2.1.0', 'March 2015', '2008')
+    (program, version, last_edit, copyyear) = ('QSLiMFinder', '2.1.1', 'December 2015', '2008')
     description = 'Query Short Linear Motif Finder'
     author = 'Richard J. Edwards, Norman E. Davey & Denis C. Shields'
     comments = ['Cite: Palopoli N, Lythgow KT & Edwards RJ. Bioinformatics 2015; doi: 10.1093/bioinformatics/btv155 [PMID: 25792551]',

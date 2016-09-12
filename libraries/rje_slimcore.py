@@ -19,8 +19,8 @@
 """
 Module:       SLiMCore
 Description:  SLiMSuite core module
-Version:      2.7.5
-Last Edit:    11/06/15
+Version:      2.7.7
+Last Edit:    07/12/15
 Copyright (C) 2007  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -77,7 +77,7 @@ Commandline: ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     masking=T/F     : Master control switch to turn off all masking if False [True]
     dismask=T/F     : Whether to mask ordered regions (see rje_disorder for options) [False]
     consmask=T/F    : Whether to use relative conservation masking [False]
-    ftmask=LIST     : UniProt features to mask out [EM,DOMAIN,TRANSMEM]
+    ftmask=LIST     : UniProt features to mask out (True=EM,DOMAIN,TRANSMEM) []
     imask=LIST      : UniProt features to inversely ("inclusively") mask. (Seqs MUST have 1+ features) []
     fakemask=T/F    : Whether to invoke UniFake to generate additional features for masking [False]
     compmask=X,Y    : Mask low complexity regions (same AA in X+ of Y consecutive aas) [5,8]
@@ -176,6 +176,8 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 2.7.3 - Fixed serverend message error.
     # 2.7.4 - Fixed walltime server bug.
     # 2.7.5 - Fixed feature masking.
+    # 2.7.6 - Added feature masking log info or warning.
+    # 2.7.7 - Switched feature masking OFF by default to give consistent Uniprot versus FASTA behaviour.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -199,7 +201,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo():     ### Makes Info object
     '''Makes rje.Info object for program.'''
-    (program, version, last_edit, copyyear) = ('SLiMCore', '2.7.3', 'May 2015', '2007')
+    (program, version, last_edit, copyyear) = ('SLiMCore', '2.7.7', 'December 2015', '2007')
     description = 'SLiMSuite Core Module'
     author = 'Richard J. Edwards'
     comments = ['Please report bugs to Richard.Edwards@UNSW.edu.au']
@@ -404,7 +406,7 @@ class SLiMCore(rje_obj.RJE_Object):
                      'Webserver':False,'FUPC':False,'MegaGABLAM':False,'MegaSLiMFix':False,'SLiMMutant':False,
                      'ProtScores':False,'PTMod':False})
         for lkey in ['AAMask','Alphabet','Batch','FTMask','IMask','SigSlim','UP','Headers','Warning','QRegion']: self.list[lkey] = []
-        self.list['FTMask'] = ['EM','Domain','TRANSMEM']
+        self.list['FTMask'] = []
         self.list['Batch'] = ['*.dat','*.fas']
         self.list['PTMList'] = []
         self.list['UniprotID'] = []
@@ -464,6 +466,7 @@ class SLiMCore(rje_obj.RJE_Object):
         elif self.list['FTMask'] == ['T'] or self.list['FTMask'] == ['TRUE']:
             self.list['FTMask'] = ['EM','DOMAIN','TRANSMEM']
             self.warnLog('Command ftmask=T converted to default ftmask=EM,DOMAIN,TRANSMEM.')
+        #else: self.printLog('#FTCMD',string.join(self.list['FTMask']))
 #########################################################################################################################
     def prog(self):
         if self.getStrLC('Prog'): return self.getStrLC('Prog')
@@ -708,6 +711,7 @@ class SLiMCore(rje_obj.RJE_Object):
             rje_uniprot.UniProt(self.log,unicmd).run()
             self.setStr({'SeqIn':datfile})
             seqcmd += ['seqin=%s' % datfile]
+        #!# Add proteome=X input (into buildpath: warn about this output location #!#
         seqlist = self.obj['SeqList'] = rje_seq.SeqList(self.log,seqcmd)
         if rje.exists(seqlist.name()): self.dict['Output']['seqin'] = seqlist.name()
         else: self.dict['Output']['seqin'] = seqlist.fasta()
@@ -912,7 +916,11 @@ class SLiMCore(rje_obj.RJE_Object):
                             #self.debug(seq.info[stype])
                 for (sname,pos) in rje.sortKeys(moddict): self.printLog('#PTMOD','%s %s' % (sname,moddict[(sname,pos)]))
             ### ~ [5] ~ UniProt Filtering ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            if self.list['FTMask']: ftmasktxt = 'FTMask: %s' % string.join(self.list['FTMask'],',')
+            else: ftmasktxt = 'FTMask: None'
+            if self.list['IMask']: ftmasktxt += '; Inclusive Masking: %s' % string.join(self.list['IMask'],',')
             if self.obj['SeqList'].obj['UniProt']:
+                self.printLog('#FTMASK',ftmasktxt)
                 for entry in self.obj['SeqList'].obj['UniProt'].list['Entry']:
                     if self.list['IMask']:
                         entry.maskFT(types=self.list['IMask'],inverse=True,mask='X',log=self.getBool('LogMask'))
@@ -921,6 +929,7 @@ class SLiMCore(rje_obj.RJE_Object):
                         entry.maskFT(types=self.list['FTMask'],inverse=False,mask='X',log=self.getBool('LogMask'))
                         masked = True
                     self.wallTime()
+            elif self.list['FTMask'] or self.list['IMask']: self.warnLog('No feature based masking for non-Uniprot input (%s)' % ftmasktxt)
             ### ~ [6] ~ Low Complexity Masking ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if rje.matchExp('(\d+),(\d+)',self.getStr('CompMask')):
                 (x,y) = rje.matchExp('(\d+),(\d+)',self.getStr('CompMask'))

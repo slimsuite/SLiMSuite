@@ -19,8 +19,8 @@
 """
 Module:       SNP_Mapper
 Description:  SNP consensus sequence to CDS mapping 
-Version:      0.4.0
-Last Edit:    17/11/15
+Version:      1.0.0
+Last Edit:    16/06/16
 Copyright (C) 2013  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -49,6 +49,9 @@ Function:
     sequences.) If running on BCF output, alleles will be split on commas but there will be no compiled sequence output.
     (** Not yet implemented! **)
 
+    The default FTBest hierarchy for `*.ftypes.tdt` output is:
+        CDS,mRNA,tRNA,rRNA,ncRNA,misc_RNA,gene,mobile_element,LTR,rep_origin,telomere,centromere,misc_feature,intergenic
+
 To be added:
     Sequence output and recognition of BCF files to be added.
 
@@ -61,12 +64,13 @@ Commandline:
     seqin=FILE      : Sequence input file with accession numbers matching Locus IDs, or Genbank file.  []
     spcode=X        : Overwrite species read from file (if any!) with X if generating sequence file from genbank [None]
     ftfile=FILE     : Input feature file (locus,feature,position,start,end) [*.Feature.tdt]
-    ftskip=LIST     : List of feature types to exclude from analysis [source,telomere]
-    ftbest=LIST     : List of features to exclude if earlier feature in list overlaps position [CDS,mRNA,gene,mobile_element]
+    ftskip=LIST     : List of feature types to exclude from analysis [source]
+    ftbest=LIST     : List of features to exclude if earlier feature in list overlaps position [(see above)]
     snpfile=FILE    : Input table of SNPs to map and output (should have locus and pos info, see above) []
     snphead=LIST    : List of SNP file headers []
     snpdrop=LIST    : List of SNP fields to drop []
     altpos=T/F      : Whether SNP file is a single mapping (with AltPos) (False=BCF) [True]
+    altft=T/F       : Use AltLocus and AltPos for feature mapping (if altpos=T) [False]
     basefile=FILE   : Root of output file names (same as SNP input file by default) []
     
     ### ~ Old Options (need reviving) ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -100,6 +104,12 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 0.2 - Fixed complement strand bug.
     # 0.3.0 - Updated to work with RATT(/Mummer?) snp output file. Improved docs.
     # 0.4.0 - Major reworking for easier updates and added functionality. (Convert to 1.0.0 when complete.)
+    # 0.5.0 - Added CDS rating.
+    # 0.6.0 - Added AltFT mapping mode (map features to AltLocus and AltPos)
+    # 0.7.0 - Added additional fields for processing Snapper output. (Hopefully will still work for SAMTools etc.)
+    # 0.8.0 - Added parsing of GFF file from Prokka.
+    # 0.8.1 - Corrected "intron" classification for first position of features. Updated FTBest defaults.
+    # 1.0.0 - Version that works with Snapper V1.0.0. Not really designed for standalone running any more.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -111,7 +121,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
     # [ ] : Standard SNP table and add converters to this standard format. (Base on mpileup?)
     # [ ] : Fix indel handling.
     # [ ] : Break down into more general/reusable methods that can be applied to other mapping. (e.g. PAGSAT)
-    # [ ] : Deal with introns!
+    # [Y] : Deal with introns!
     # [ ] : Add syn/NS/nonsense rating to aa changes (extra field)
     # [ ] : Update input to be able to handle a sequence file and features file.
     # [ ] : Add a summary of the SNP types for each Locus[/SNPKeys].
@@ -121,11 +131,12 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
     # [ ] : Add sequence output for different features.
     # [ ] : Add ratings for CDS based on Ka/Ks and no. deletions etc.
     # [ ] : Add output of possible duplications (and total deletions?) - May need to compare to self-analysis to be sure.
+    # [ ] : Add blank entries for CDS without any SNPs. (Autofill the altlocus if flanks found?)
     '''
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, cyear) = ('SNP_MAPPER', '0.4.0', 'November 2015', '2013')
+    (program, version, last_edit, cyear) = ('SNP_MAPPER', '1.0.0', 'June 2016', '2015')
     description = 'SNP consensus sequence to CDS mapping'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_zen.Zen().wisdom()]
@@ -185,10 +196,12 @@ class SNPMap(rje_obj.RJE_Object):
 
     Str:str
     - FTFile=FILE     : Input feature file (locus,feature,position,start,end) [*.Feature.tdt]
+    - GenBank = Genbank file from which Features/Sequences generated [None]
     - SeqIn = Sequence input file with accession numbers matching Locus IDs, or Genbank file.  []
     - SNPFile = Input table of SNPs to map and output (should have locus and pos info, see above) []
   
     Bool:boolean
+    - AltFT=T/F       : Use AltLocus and AltPos for feature mapping (if altpos=T) [False]
     - AltPos=T/F      : Whether SNP file is a single mapping (with AltPos) (False=BCF) [True]
 
     Int:integer
@@ -215,8 +228,8 @@ class SNPMap(rje_obj.RJE_Object):
     def _setAttributes(self):   ### Sets Attributes of Object
         '''Sets Attributes of Object.'''
         ### ~ Basics ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-        self.strlist = ['FTFile','SeqIn','SNPFile']
-        self.boollist = ['AltPos']
+        self.strlist = ['FTFile','GenBank','SeqIn','SNPFile']
+        self.boollist = ['AltFT','AltPos']
         self.intlist = []
         self.numlist = []
         self.listlist = ['FTBest','FTSkip','SNPDrop','SNPHead']
@@ -225,11 +238,11 @@ class SNPMap(rje_obj.RJE_Object):
         ### ~ Defaults ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         self._setDefaults(str='None',bool=False,int=0,num=0.0,obj=None,setlist=True,setdict=True)
         self.setStr({})
-        self.setBool({'AltPos':True})
+        self.setBool({'AltPos':True,'AltFT':False})
         self.setInt({})
         self.setNum({})
-        self.list['FTSkip'] = ['source','telomere']
-        self.list['FTBest'] = ['CDS','mRNA','gene','mobile_element']
+        self.list['FTSkip'] = ['source']
+        self.list['FTBest'] = string.split('CDS,mRNA,tRNA,rRNA,ncRNA,misc_RNA,gene,mobile_element,LTR,rep_origin,telomere,centromere,misc_feature,intergenic',',')
         ### ~ Other Attributes ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         self._setForkAttributes()   # Delete if no forking
         self.obj['DB'] = rje_db.Database(self.log,self.cmd_list+['TupleKeys=T'])
@@ -250,8 +263,8 @@ class SNPMap(rje_obj.RJE_Object):
                 #self._cmdRead(cmd,type='str',att='Att',arg='Cmd')  # No need for arg if arg = att.lower()
                 #self._cmdReadList(cmd,'str',['Att'])   # Normal strings
                 #self._cmdReadList(cmd,'path',['Att'])  # String representing directory path 
-                self._cmdReadList(cmd,'file',['GenBase','SeqIn','SNPFile'])  # String representing file path 
-                self._cmdReadList(cmd,'bool',['AltPos'])  # True/False Booleans
+                self._cmdReadList(cmd,'file',['FTFile','GenBase','SeqIn','SNPFile'])  # String representing file path
+                self._cmdReadList(cmd,'bool',['AltFT','AltPos'])  # True/False Booleans
                 #self._cmdReadList(cmd,'int',['Att'])   # Integers
                 #self._cmdReadList(cmd,'float',['Att']) # Floats
                 #self._cmdReadList(cmd,'min',['Att'])   # Integer value part of min,max command
@@ -262,6 +275,9 @@ class SNPMap(rje_obj.RJE_Object):
                 #self._cmdReadList(cmd,'cdict',['Att']) # Splits comma separated X:Y pairs into dictionary
                 #self._cmdReadList(cmd,'cdictlist',['Att']) # As cdict but also enters keys into list
             except: self.errorLog('Problem with cmd:%s' % cmd)
+        if self.getBool('AltFT') and not self.getBool('AltPos'):
+            self.printLog('#CMD','Cannot have altft=True if altpos=False. AltFT=False.')
+            self.setBool({'AltFT':False})
 #########################################################################################################################
     ### <2> ### Main Class Backbone                                                                                     #
 #########################################################################################################################
@@ -280,7 +296,7 @@ class SNPMap(rje_obj.RJE_Object):
         '''Main class setup method.'''
         try:### ~ [1] Load Sequences and Features ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if not self.setupReference(): raise ValueError('Reference setup failed.')
-            if not self.setupSNPTable(): raise ValueError('SNP Table setup failed.')
+            if not self.setupSNPTable(): return False
             self.db().baseFile(self.baseFile())
             return True
         except:
@@ -296,43 +312,78 @@ class SNPMap(rje_obj.RJE_Object):
             gbftfile = None
             ### ~ [1] Load Sequences ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if not rje.exists(seqin): raise IOError('Cannot find seqin=%s!' % seqin)
-            if open(seqin,'r').readline()[:1] != '>':   # Not fasta file: assume Genbank. Should have features file.
-                gbase = rje.baseFile(seqin)
-                if gbase.endswith('.full'): gbase = rje.baseFile(gbase)
+            #!# Replace with rje_genbank code? #!#
+            if open(seqin,'r').readline()[:1] != '>': gbfile = seqin
+            elif rje.exists('%s.gb' % seqin): gbfile = '%s.gb' % seqin
+            else: gbfile = '%s.gb' %  rje.baseFile(seqin)
+            #x#if open(seqin,'r').readline()[:1] != '>':   # Not fasta file: assume Genbank. Should have features file.
+            if rje.exists(gbfile):   # Not fasta file: assume Genbank. Should have features file.
+                self.setStr({'GenBank':gbfile})
+                gb.setStr({'SeqIn':gbfile})
+                gbase = rje.baseFile(gbfile)
+                #if gbase.endswith('.full'): gbase = rje.baseFile(gbase)
                 gb.baseFile(gbase)
                 if 'full' not in gb.list['FasOut']: gb.list['FasOut'].append('full')
-                if not gb.loadFeatures() or not os.path.exists('%s.full.fas' % gb.baseFile()): gb.run()
-                seqin = '%s.full.fas' % gb.baseFile()
+                #x#if not gb.loadFeatures() or not os.path.exists('%s.full.fas' % gb.baseFile()): gb.run()
+                if not gb.loadFeatures() or not os.path.exists(seqin): gb.run()
+                if not rje.exists(seqin): seqin = '%s.full.fas' % gb.baseFile()
                 gbftfile = '%s.Feature.tdt' % gbase
                 gb.db().deleteTable('Feature')   # Want to reload from table
                 self.db().addTable(gbftfile,name='Feature',expect=True,mainkeys=['locus','feature','position'])
+            else: self.printLog('#GB','%s not found: will process with seqin=FILE and ftfile=FILE' % gbfile)
+            self.setStr({'SeqIn':seqin})
             seqlist.loadSeq(seqin)
-            seqdict = seqlist.makeSeqNameDic('accnum')
+            seqdict = seqlist.makeSeqNameDic('max')
             ### ~ [2] Load Features ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if self.db('Feature') and (self.getStr('FTFile') == gbftfile or not self.getStrLC('FTFile')):
                 self.printLog('#FT','Genbank FTFile "%s" already loaded.' % gbftfile)
-            elif not rje.exists(self.getStr('FTFile')): raise IOError('Cannot find ftfile=%s!' % self.getStr('FTFile'))
+            elif not rje.exists(self.getStr('FTFile')):
+                self.warnLog('Cannot find ftfile=%s!' % self.getStr('FTFile'))
             elif self.db('Feature'):    # Add features
                 ftdb = self.db().addTable(self.getStr('FTFile'),name='FTFile',expect=True,mainkeys=['locus','feature','position'])
                 self.db().mergeTables(self.db('Feature'),ftdb)
+            elif open(self.getStr('FTFile'),'r').readline().startswith('##gff-'):
+                ftdb = self.db().addEmptyTable('Feature',['locus','feature','position','start','end','product','gene_synonym','note','db_xref','locus_tag','details'],['locus','feature','position'])
+                for gline in open(self.getStr('FTFile'),'r').readlines():
+                    if gline.startswith('##FASTA'): break
+                    elif not gline or gline.startswith('#'): continue
+                    gdata = rje.readDelimit(gline)
+                    gentry = {'locus':gdata[0],'feature':gdata[2],'start':gdata[3],'end':gdata[4],
+                              'product':'','gene_synonym':'','note':'','db_xref':'','locus_tag':'','details':''}
+                    if gdata[6] == '+': gentry['position'] = '%s..%s' % (gdata[3],gdata[4])
+                    else: gentry['position'] = 'complement(%s..%s)' % (gdata[3],gdata[4])
+                    ginfo = string.split(gdata[8],';')
+                    for detail in ginfo[0:]:
+                        [dkey,dvalue] = string.split(detail,'=',maxsplit=1)
+                        if dkey in gentry: gentry[dkey] = dvalue; ginfo.remove(detail)
+                    gentry['details'] = string.join(ginfo,'; ')
+                    ftdb.addEntry(gentry)
+                self.printLog('#FTFILE','%s features parsed from GFF %s' % (rje.iStr(ftdb.entryNum()),self.getStr('FTFile')))
+                newftfile = '%s.Feature.tdt' % rje.baseFile(seqin,strip_path=True)
+                ftdb.saveToFile(newftfile)
             else: self.db().addTable(self.getStr('FTFile'),name='Feature',expect=True,mainkeys=['locus','feature','position'])
             ftdb = self.db('Feature')
-            ftdb.dropEntriesDirect('feature',self.list['FTSkip'])
-            ftdb.dataFormat({'start':'int','end':'int'})
-            ftdb.newKey(['locus','start','feature','position'])    # Reorder for sorting
+            if ftdb:
+                ftdb.dropEntriesDirect('feature',self.list['FTSkip'])
+                ftdb.dataFormat({'start':'int','end':'int'})
+                ftdb.newKey(['locus','start','feature','position'])    # Reorder for sorting
             #self.debug(ftdb.dataKeys()[:10])
             #self.debug(ftdb.entries()[:10])
             ### ~ [3] Check sequences and loci ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            seqloci = rje.sortKeys(seqdict)
-            ftloci = ftdb.indexKeys('locus')
-            okloci = rje.listIntersect(seqloci,ftloci)
-            self.printLog('#LOCUS','%s sequence loci; %s feature loci; %s in common.' % (rje.iLen(seqloci),rje.iLen(ftloci),rje.iLen(okloci)))
+                seqloci = rje.sortKeys(seqdict)
+                ftloci = ftdb.indexKeys('locus')
+                okloci = rje.listIntersect(seqloci,ftloci)
+                self.printLog('#LOCUS','%s sequence keys; %s feature loci; %s in common.' % (rje.iLen(seqloci),rje.iLen(ftloci),rje.iLen(okloci)))
+            else: self.printLog('#LOCUS','No feature file: no Locus features to map.')
             self.printLog('#SETUP','Reference setup complete!')
             return True
         except: self.errorLog('Problem during %s setupReference.' % self); return False  # Setup failed
 #########################################################################################################################
-    def setupSNPTable(self):    ### Loads, reformats and checks SNP Table
-        '''Loads, reformats and checks SNP Table.'''
+    def setupSNPTable(self,keepmatches=False):    ### Loads, reformats and checks SNP Table
+        '''
+        Loads, reformats and checks SNP Table.
+        >> keepmatches:bool [False] = Whether to keep REF/ALT matches. (Want to do this if FT ends added by Snapper.)
+        '''
         try:### ~ [0] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if not rje.exists(self.getStr('SNPFile')): raise IOError('Cannot find snpfile=%s!' % self.getStr('SNPFile'))
             if not self.getStrLC('Basefile'):
@@ -361,35 +412,44 @@ class SNPMap(rje_obj.RJE_Object):
                 # (a) like RATT output with Pos, AltLocus, AltPos, REF and ALT
                 # (b) Like BCF with Pos, REF and ALT
                 ## ~ [2a] First define type ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-                if sentry['REF'] == sentry['ALT']: stype = 'REF'   # No mismatch!
+                if sentry['REF'] == sentry['ALT']: stype = 'ID'   # No mismatch!
                 elif sentry['REF'] in ['.','-'] or len(sentry['REF']) < len(sentry['ALT']): stype = 'INS'
                 elif sentry['ALT'] in ['.','-'] or len(sentry['REF']) > len(sentry['ALT']): stype = 'DEL'
                 else: stype = 'SNP'
                 sentry['SNPType'] = stype
-            snpdb.dropEntriesDirect('SNPType',['REF'])
+            if not keepmatches: snpdb.dropEntriesDirect('SNPType',['ID'])
+            if not snpdb.entries(): self.printLog('#SNP','No SNPs for analysis!'); return False
             ### ~ [4] Check and rename loci ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             ftdb = self.db('Feature')
             seqloci = self.obj['SeqList'].seqNameDic().keys()
-            snploci = snpdb.indexKeys('Locus')
+            if self.getBool('AltFT'): locfield = 'AltLocus'
+            else: locfield = 'Locus'
+            snploci = snpdb.indexKeys(locfield)
             okloci = rje.listIntersect(seqloci,snploci)
             self.printLog('#LOCUS','%s sequence loci; %s SNP loci; %s in common.' % (rje.iLen(seqloci),rje.iLen(snploci),rje.iLen(okloci)))
             if not okloci:   # Check for reformatting
+                # Add extra field with [Alt]LocusName if Locus changed?
+                snpdb.addField('%sName' % locfield)
                 locupdate = False
                 for locus in snploci:
                     newlocus = string.join(string.split(locus,'.')[:-1])
                     if newlocus and newlocus in seqloci:
                         locupdate = True
-                        for entry in snpdb.indexEntries('Locus',locus): entry['Locus'] = newlocus
+                        for entry in snpdb.indexEntries(locfield,locus):
+                            entry['%sName' % locfield] = locus
+                            entry[locfield] = newlocus
                 if locupdate:
                     snpdb.remakeKeys()
                     snploci = snpdb.indexKeys('Locus')
                     okloci = rje.listIntersect(seqloci,snploci)
                     self.printLog('#LOCUS','%s sequence loci; %s SNP loci; %s in common.' % (rje.iLen(seqloci),rje.iLen(snploci),rje.iLen(okloci)))
-            ftloci = ftdb.indexKeys('locus')
-            okloci = rje.listIntersect(snploci,ftloci)
-            self.printLog('#LOCUS','%s feature loci; %s SNP loci; %s in common.' % (rje.iLen(ftloci),rje.iLen(snploci),rje.iLen(okloci)))
+            if ftdb:
+                ftloci = ftdb.indexKeys('locus')
+                okloci = rje.listIntersect(snploci,ftloci)
+                self.printLog('#LOCUS','%s feature loci; %s SNP loci; %s in common.' % (rje.iLen(ftloci),rje.iLen(snploci),rje.iLen(okloci)))
+            else: self.printLog('#LOCUS','No Feature table: no Locus features to map.')
             return True
-        except: self.errorLog('Problem during %s setupSNPTable.' % self); return False  # Setup failed
+        except: self.errorLog('Problem during %s setupSNPTable.' % self); raise  # Setup failed
 #########################################################################################################################
     ### <3> ### Additional Class Methods                                                                                #
 #########################################################################################################################
@@ -397,18 +457,29 @@ class SNPMap(rje_obj.RJE_Object):
         '''Map loaded SNP and Feature tables'''
         try:### ~ [1] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             snpdb = self.db('SNP'); snpdb.index('Locus')
-            ftdb = self.db('Feature'); ftdb.index('locus')
+            ftdb = self.db('Feature')
+            if not ftdb:
+                self.printLog('#LOCUS','No Feature table: no featuresSNP output.')
+                return False
+            ftdb.index('locus')
             seqlist = self.obj['SeqList']
             seqdict = seqlist.seqNameDic()
             #self.debug(seqdict.keys())
-            mapdb = self.db().addEmptyTable('snpmap',snpdb.fields()+['Strand','GB']+ftdb.fields()+['SNPType','SNPEffect'],snpdb.keys()+['feature','start','end']) #['feature','start','end','protein_id','details',]
+            snpfields = snpdb.fields()
+            if 'SNPType' in snpfields: snpfields.remove('SNPType')
+            mapdb = self.db().addEmptyTable('snpmap',snpfields+['Strand','GB']+ftdb.fields()+['SNPType','SNPEffect'],snpdb.keys()+['feature','start','end']) #['feature','start','end','protein_id','details',]
             snpdb.addField('Mapped',evalue=False)
             gb = self.obj['GenBank']
             ### ~ [2] Process one locus at a time ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            for locus in snpdb.indexKeys('Locus'):
+            if self.getBool('AltFT'): snploci = snpdb.indexKeys('AltLocus')
+            else: snploci = snpdb.indexKeys('Locus')
+            #self.debug(snploci)
+            for locus in snploci:
+                if locus not in ftdb.index('locus'): ftlocus = string.split(locus,'_')[-1]
+                else: ftlocus = locus
                 try: fullseq = seqlist.getSeq(seqdict[locus],format='tuple')[1]
                 except: self.warnLog('Failed to get sequence for locus "%s": no SNP mapping.' % locus); continue
-                if locus not in gb.dict['Sequence']: gb.dict['Sequence'][locus] = fullseq
+                if ftlocus not in gb.dict['Sequence']: gb.dict['Sequence'][ftlocus] = fullseq
                 self.mapLocusSNPs(fullseq,locus)
             ### ~ [3] Summary files ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if self.getBool('AltPos'):
@@ -417,49 +488,117 @@ class SNPMap(rje_obj.RJE_Object):
             else:
                 lockeys = ['Locus']
                 poskeys = ['Pos']
+            ## ~ [3a] *.summary.tdt ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            # NB. This is set up here but finished and saved later
             sumdb = self.db().copyTable(mapdb,'summary')
-            sumfields = lockeys + ['feature','position','locus_tag','product']
-            snptypes = ['NON','NS','SYN','SNP','INS','DEL']
+            sumfields = lockeys + ['feature','position','locus_tag','product','details','RefSNP','AltQV','AltCN','RefCN']
+            snptypes = ['ID','NON','EXT','NS','SYN','SNP','INS','DEL']
             for snptype in snptypes:
                 sumdb.addField(snptype,evalue=0)
                 sumfields.append(snptype)
             for sentry in sumdb.entries(): sentry[sentry['SNPType']] = 1
-            sumdb = self.db().copyTable(sumdb,'loci')
-            sumdb.compress(sumfields[:4],default='sum')
+            ## ~ [3b] *.loci.tdt ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            # Summary per locus
+            # NB. This is set up here but finished and saved later
+            sumdb = self.db().copyTable(sumdb,'features')
+            compfields = sumfields[:4]
+            if 'RefSNP' in sumdb.fields(): compfields.append('RefSNP')
+            sumdb.compress(compfields,default='sum',rules={'RefSNP':'mean','AltCN':'mean','RefCN':'mean','MeanCNV':'mean','MaxCNV':'max','AltQV':'mean'})
             sumdb.keepFields(sumfields)
+            ## ~ [3c] *.cds.tdt ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            # Summary per CDS features
             cdsdb = self.db().copyTable(sumdb,'cds')
             cdsdb.remakeKeys()
             cdsdb.dropEntriesDirect('feature',['CDS'],inverse=True)
-            cdsdb.compress(lockeys+['position'])
+            compfields = lockeys+['position']
+            if 'RefSNP' in cdsdb.fields(): compfields.append('RefSNP')
+            cdsdb.compress(compfields)
+            #!# Make sure that SNPs in the same position are not covered twice?!
+            #i# Will now be once for the "Reference" match and one mean for all others
+            #!# Actually using the mean for a CDS, not the sum!
             cdsdb.dropFields(['feature','SNP'])
+            cdsdb.addField('length',evalue=0)
             cdsdb.addField('Ka',evalue=0)
             cdsdb.addField('Ks',evalue=0)
+            cdsdb.addField('Ka/Ks',evalue=0.0)
+            cdsdb.addField('pSYN',evalue=1.0)
+            matchesallowed = False
             for centry  in cdsdb.entries():
                 centry['locus'] = centry['Locus']   # Needed for gb.featureSequence()
+                matchesallowed = matchesallowed or centry['ID'] > 0
                 # Frequency of synonymous subs
-                fsyn = rje_sequence.sequenceKs(gb.featureSequence(centry),self)
-                Ns = fsyn * len(gb.featureSequence(centry))
-                Na = len(gb.featureSequence(centry)) - Ns
+                ftseq = gb.featureSequence(centry)
+                centry['length'] = len(ftseq)
+                fsyn = rje_sequence.sequenceKs(ftseq,self)
+                Ns = fsyn * len(ftseq)
+                Na = len(ftseq) - Ns
                 centry['Ka'] = centry['NS'] / Na
                 centry['Ks'] = centry['SYN'] / Ns
-            cdsdb.makeField('Ka/Ks')
+                if centry['Ks']: centry['Ka/Ks'] = centry['Ka'] / centry['Ks']
+                else: centry['Ka/Ks'] = centry['Ka'] / (0.5 / Ns)
+                if (centry['NS'] + centry['SYN'] + centry['NON']) > 0:
+                    try: centry['pSYN'] = rje.logBinomial(centry['SYN'],centry['NS'] + centry['SYN'] + centry['NON'],fsyn,callobj=self)
+                    except:
+                        if self.dev(): self.warnLog('%s' % centry)
+                        self.errorLog('pSYN Error! %s => pSYN = -1.' % str(cdsdb.makeKey(centry))); centry['pSYN'] = -1
+            # Add CDS Rating
+            cdsdb.addField('Rating')
+            cdsdb.addField('Integrity')
+            for centry  in cdsdb.entries(): # ['NON','NS','SYN','SNP','INS','DEL']
+                if centry['NON']: centry['Rating'] = 'Truncation'
+                elif centry['EXT']: centry['Rating'] = 'Extension'
+                elif not centry['SYN'] and not centry['NS']: centry['Rating'] = 'Perfect'
+                elif centry['NS'] > centry['SYN']: centry['Rating'] = 'Positive'
+                elif not centry['NS']: centry['Rating'] = 'Conserved'
+                elif centry['pSYN'] < 0.05: centry['Rating'] = 'Constrained'
+                else: centry['Rating'] = 'Neutral'
+                if not (centry['INS'] + centry['DEL']):
+                    if centry['ID'] == 2 or not matchesallowed: centry['Integrity'] = 'Complete'
+                    else: centry['Integrity'] = 'Partial'
+                elif (centry['INS'] - centry['DEL']) % 3: centry['Integrity'] = 'Indels'
+                else: centry['Integrity'] = 'Indelx3'
             cdsdb.saveToFile()
-            sumdb.dropFields(['product'])
+            # Make CDS Summary of counts for each rating (in log)
+            cdsdb.makeField('#Rating#|#Integrity#','Summary')
+            cdsdb.indexReport('Summary')
+            ## ~ [3d] *.features.tdt ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            # Overall summary per feature
+            sumdb.dropFields(['product','details'])
             sumdb.saveToFile()
-            sumdb.setStr({'Name':'features'})
-            sumdb.compress(sumfields[:3],default='sum')
+            ## ~ [3e] *.ftypes.tdt ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            # Overall summary per feature type per contig pair?
+            sumdb.setStr({'Name':'ftypes'})
+            sumdb.compress(sumfields[:3],default='sum',rules={'RefSNP':'mean','AltCN':'mean','RefCN':'mean','MeanCNV':'mean','MaxCNV':'max','AltQV':'mean'})
             sumdb.dropFields(['position','locus_tag','product'])
             sumdb.saveToFile()
+            ## ~ [3f] *.summary.tdt ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            # Overall summary per contig pair
             sumdb = self.db('summary')
-            sumdb.compress(lockeys+poskeys,default='max')
-            for sentry in sumdb.entries():
-                for i in range(len(snptypes)):
-                    if sentry[snptypes[i]]:
-                        for stype in snptypes[i+1:]: sentry[stype] = 0
-                        break
-            sumdb.compress(lockeys,default='sum')
+            sumdb.compress(lockeys+poskeys,default='max',rules={'RefSNP':'mean','AltCN':'mean','RefCN':'mean','MeanCNV':'mean','MaxCNV':'max','AltQV':'mean'})
+            #?# What was this doing?! #?#
+            #for sentry in sumdb.entries():
+            #    for i in range(len(snptypes)):
+            #        if sentry[snptypes[i]]:
+            #            for stype in snptypes[i+1:]: sentry[stype] = 0
+            #            break
+            sumdb.compress(lockeys,default='sum',rules={'RefSNP':'mean','AltCN':'mean','RefCN':'mean','AltQV':'mean'})
             sumdb.keepFields(lockeys+snptypes)
+            sumdb.addField('SUBTOT',evalue=0)
+            sumdb.addField('SNPTOT',evalue=0)
+            for sentry in sumdb.entries():
+                for stype in snptypes[1:]:  # Not ID
+                    sentry['SNPTOT'] += sentry[stype]
+                    if stype in ['INS','DEL']: continue
+                    sentry['SUBTOT'] += sentry[stype]
             sumdb.saveToFile()
+            totdb = self.db().copyTable(sumdb,'total')
+            totdb.addField('TEMP',evalue='TOTAL')
+            totdb.compress(['TEMP'],default='sum',rules={'RefSNP':'mean','AltCN':'mean','RefCN':'mean','AltQV':'mean'})
+            tentry = totdb.entries()[0]
+            tentry['Locus'] = tentry['AltLocus'] = tentry.pop('TEMP')
+            sumdb.addEntry(tentry)
+            tkey = sumdb.makeKey(tentry)
+            sumdb.saveToFile(append=True,savekeys=[tkey])
             ### ~ [4] Remove gene SNPs mapped to other features ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             ## ~ [4a] Generate dictionary of mapped SNPs ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             snpft = {}
@@ -490,59 +629,66 @@ class SNPMap(rje_obj.RJE_Object):
     def mapLocusSNPs(self,fullseq,locus):  ### Map loaded SNP and Feature tables
         '''Map loaded SNP and Feature tables'''
         try:### ~ [1] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            if self.getBool('AltFT'): lockey = 'AltLocus'; posfield = 'AltPos'
+            else: lockey = 'Locus'; posfield = 'Pos'
             gb = self.obj['GenBank']
             snpdb = self.db('SNP')
             #self.debug(snpdb.fields())
-            skeys = snpdb.index('Locus')[locus][0:]
+            skeys = snpdb.index(lockey)[locus][0:]
             ftdb = self.db('Feature')
+            if locus not in ftdb.index('locus'): ftlocus = string.split(locus,'_')[-1]
+            else: ftlocus = locus
             mapdb = self.db('snpmap')
             # MapDB Fields: snpdb.fields()+['Strand','GB']+ftdb.fields()+['SNPType','SNPEffect']
             # MapBD Keys: snpdb.keys()+['feature','start','end'])
             ### ~ [2] Map SNPs ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             fx = 0  # No. failures
             skipx = 0   # No. skipped features
-            for fkey in ftdb.index('locus')[locus]: # These should be in a consistent order: ['locus','start','feature','position']
+            for fkey in ftdb.index('locus')[ftlocus]: # These should be in a consistent order: ['locus','start','feature','position']
                 fentry = ftdb.data(fkey)
-                self.debug(fentry)
+                #self.debug(fentry)
                 ## ~ [2a] Check for features to skip ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
                 if fentry['feature'] in self.list['FTSkip']: skipx += 1; continue
                 #Fixed!# if 'join' in fentry['position']: self.warnLog('%s %s %s: Introns not handled' % (locus,fentry['feature'],fentry['position']))
                 ## ~ [2b] Skip SNPs ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
                 while skeys:
                     sentry = snpdb.data(skeys[0])
-                    if (sentry['Pos'] + len(sentry['REF'])) <= fentry['start']: skeys.pop(0)  # No overlap (gone past)
+                    if (sentry[posfield] + len(sentry['REF'])) <= fentry['start']: skeys.pop(0)  # No overlap (gone past)
                     else: break     # Caught up with features!
                 ## ~ [2c] Process overlapping SNPs ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
                 ftsnps = []     # Tuple of (Pos,REF,ALT)
                 sx = 0
                 for skey in skeys:
                     sentry = snpdb.data(skey)
-                    if sentry['Pos'] > fentry['end']: break     # Gone beyond feature
-                    ftsnps.append((sentry['Pos'],sentry['REF'],sentry['ALT']))
+                    if sentry[posfield] > fentry['end']: break     # Gone beyond feature
+                    ftsnps.append((sentry[posfield],sentry['REF'],sentry['ALT']))
                     self.bugPrint('---\nFT: %s' % fentry)
                     self.bugPrint('SNP: %s' % sentry)
                     # NOTE: SNP Data should now be formatted either:
                     # (a) like RATT output with Pos, AltLocus, AltPos, REF and ALT
                     # (b) Like BCF with Pos, REF and ALT
                     try:
-                        mentry = rje.combineDict({'Strand':'+','GB':fullseq[sentry['Pos']]},sentry)
+                        try: mentry = rje.combineDict({'Strand':'+','GB':fullseq[sentry[posfield]-1]},sentry)
+                        except:
+                            self.warnLog('Problem adding GB %s %s %s (%s nt sequence)' % (locus,posfield,rje.iStr(sentry[posfield]-1),rje.iLen(fullseq)))
+                            mentry = rje.combineDict({'Strand':'+','GB':'?'},sentry)
                         mentry = rje.combineDict(mentry,fentry)
                         cseq = gb.featureSequence(fentry)
-                        cpos = gb.featurePos(fentry,sentry['Pos'])  # Position 1-L
+                        cpos = gb.featurePos(fentry,sentry[posfield])  # Position 1-L
                         if 'join' in fentry['position']: self.debug(cpos)
                         if not cpos: raise ValueError('Feature outside position data!')
                         cpos -= 1   # Change to 0<L
                         mentry['length'] = len(cseq)
                         if sentry['REF'] == '.': mentry['GB'] = '-'
-                        if cpos > 0:
+                        if cpos >= 0:
                             try: mentry['GB'] = cseq[cpos]
                             except: print sentry, fentry, len(cseq), cpos; raise
                             if 'complement' in fentry['position']: mentry['Strand'] = '-'
-                            elif sentry['REF'] == '.': cpos += 1
+                            elif sentry['REF'] == '.': cpos += 1    # Want to compare alt nt to next reference nt
                         ### >>> OLD >>>
                         if not 'dealingwithintrons':
                             cseq = fullseq[fentry['start']-1:fentry['end']]
-                            cpos = sentry['Pos'] - fentry['start']
+                            cpos = sentry[posfield] - fentry['start']
                             #!# Add code to return cseq and cpos for join(...) loci #!#
                             #!# Will need to change feature to intron too if required #!#
                             mentry['length'] = len(cseq)
@@ -556,12 +702,13 @@ class SNPMap(rje_obj.RJE_Object):
                                 mentry['Strand'] = '-'
                         ### <<< OLD <<<<
                         # Convert seq and cpos based on join()
-                        if cpos < 1: mentry['SNPEffect'] = 'intron'
+                        # Remember that cpos is now 0<L
+                        if cpos < 0: mentry['SNPEffect'] = 'intron'
                         elif fentry['feature'] == 'CDS':
                             transl = rje.matchExp('/transl_table="?(\d+)"?',fentry['details'])
                             if transl: transl = transl[0]
                             else: transl = '1'
-                            i = 3
+                            i = 3   # End of codon
                             while i <= cpos: i += 3
                             codon = cseq[i-3:i]
                             snp = mentry['ALT']
@@ -575,14 +722,18 @@ class SNPMap(rje_obj.RJE_Object):
                             snpcodon = snpseq[i-3:i]
                             #print '\t', gtype, mentry[gtype], codon, '->', snpcodon
                             if mentry['SNPType'] in ['INS','DEL']:
-                                mentry['SNPEffect'] = '%d:%s->%s' % ((cpos+2)/3,rje_sequence.dna2prot(cseq[i-3:],transl=transl),string.split(rje_sequence.dna2prot(snpseq[i-3:],transl=transl),'*')[0])
+                                mentry['SNPEffect'] = '%d:%s->%s' % ((cpos+3)/3,rje_sequence.dna2prot(cseq[i-3:],transl=transl),string.split(rje_sequence.dna2prot(snpseq[i-3:],transl=transl),'*')[0])
                             else:
-                                mentry['SNPEffect'] = '%s%d%s' % (rje_sequence.dna2prot(codon,transl=transl),(cpos+2)/3,rje_sequence.dna2prot(snpcodon,transl=transl))
+                                mentry['SNPEffect'] = '%s%d%s' % (rje_sequence.dna2prot(codon,transl=transl),(cpos+3)/3,rje_sequence.dna2prot(snpcodon,transl=transl))
                                 # Update SNPType
-                                if mentry['SNPEffect'][0] == mentry['SNPEffect'][-1]: mentry['SNPType'] = 'SYN'
+                                if sentry['REF'] == sentry['ALT']: mentry['SNPType'] = 'ID'
+                                elif mentry['SNPEffect'][0] == mentry['SNPEffect'][-1]: mentry['SNPType'] = 'SYN'
                                 elif mentry['SNPEffect'][-1] == '*': mentry['SNPType'] = 'NON'
+                                elif mentry['SNPEffect'][0] == '*': mentry['SNPType'] = 'EXT'
                                 else: mentry['SNPType'] = 'NS'
                         else: mentry['SNPEffect'] = fentry['feature']
+                        # Do not map internal identical nucleotides
+                        if mentry['SNPType'] == 'ID' and mentry['Pos'] not in [fentry['start'],fentry['end']]: continue
                         #self.deBug(mentry)
                         mapdb.addEntry(mentry); sx += 1
                         sentry['Mapped'] = True
@@ -597,12 +748,12 @@ class SNPMap(rje_obj.RJE_Object):
 
             ### ~ [3] Process intergenic SNPs ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             ix = 0
-            for sentry in snpdb.indexEntries('Locus',locus):
+            for sentry in snpdb.indexEntries(lockey,locus):
                 if not sentry['Mapped']:
                     mentry = rje.combineDict({'Strand':'na'},sentry)
-                    mentry = rje.combineDict(mentry,{'GB':fullseq[sentry['Pos']-1],'feature':'intergenic'})
+                    mentry = rje.combineDict(mentry,{'GB':fullseq[sentry[posfield]-1],'feature':'intergenic'})
                     mapdb.addEntry(mentry); ix += 1
-            self.printLog('#SNPMAP','%s of %s %s SNPs mapped to intergenic regions only.' % (rje.iStr(ix),rje.iLen(snpdb.indexEntries('Locus',locus)),locus))
+            self.printLog('#SNPMAP','%s of %s %s SNPs mapped to intergenic regions only.' % (rje.iStr(ix),rje.iLen(snpdb.indexEntries(lockey,locus)),locus))
             if fx: self.printLog('#FAIL','%s %s SNPs failed to be parsed/mapped.' % (rje.iStr(fx),locus))
             else: self.printLog('#SNPMAP','%s %s SNPs failed to be parsed/mapped.' % (rje.iStr(fx),locus))
         except: self.errorLog('%s.mapLocusSNPs(%s) error' % (self,locus))
@@ -617,17 +768,17 @@ class SNPMap(rje_obj.RJE_Object):
             self.log.printLog('#FILES','%d files identified for batch run' % len(batchfiles))
 
             ### ~ [2] Run each batch file ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            for file in batchfiles: self.processGene(file)
+            for bfile in batchfiles: self.processGene(bfile)
             self.log.printLog('#ZEN',rje_zen.Zen().wisdom())
         except:
             self.log.errorLog(rje_zen.Zen().wisdom())
             raise   # Delete this if method error not terrible
 #########################################################################################################################
-    def processGene(self,file):  ### Main controlling run method for a single gene
+    def processGene(self,gfile):  ### Main controlling run method for a single gene
         '''Main controlling run method for a single gene.'''
         try:### ~ [1] Setup sequences ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            if string.count(file,'.') > 1: return
-            seqlist = self.obj['SeqList'] = rje_seq.SeqList(self.log,self.cmd_list+['seqin=%s' % file])
+            if string.count(gfile,'.') > 1: return
+            seqlist = self.obj['SeqList'] = rje_seq.SeqList(self.log,self.cmd_list+['seqin=%s' % gfile])
             #!# Replace with unaligned sequences and list of exon positions #!#
             gene = seqlist.info['Basefile']
             self.log.printLog('#GENE','Processing files for %s gene' % gene)
@@ -676,11 +827,11 @@ class SNPMap(rje_obj.RJE_Object):
                 snp['MajAA'] = rje_sequence.dna2prot(codon[:frame-1]+snp['MajAllele']+codon[frame:])
                 snp['MinAA'] = rje_sequence.dna2prot(codon[:frame-1]+snp['MinAllele']+codon[frame:])
                 snp['Nonsyn'] = snp['MajAA'] != snp['MinAA']
-                self.deBug(snp)
-                self.deBug(myseq)
-                self.deBug(rje_sequence.dna2prot(myseq))
-                self.deBug(dna[:snp['ProteinPos']*3])
-                self.deBug(rje_sequence.dna2prot(dna[:snp['ProteinPos']*3]))
+                #self.deBug(snp)
+                #self.deBug(myseq)
+                #self.deBug(rje_sequence.dna2prot(myseq))
+                #self.deBug(dna[:snp['ProteinPos']*3])
+                #self.deBug(rje_sequence.dna2prot(dna[:snp['ProteinPos']*3]))
 
             ### ~ [3] Output new data ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             outfile = '%s.snpmap.tdt' % gene
@@ -691,174 +842,6 @@ class SNPMap(rje_obj.RJE_Object):
         except:
             self.log.errorLog(rje_zen.Zen().wisdom())
             raise   # Delete this if method error not terrible
-#########################################################################################################################
-    def OLDsetup(self):    ### Main class setup method.
-        '''Main class setup method.'''
-        try:### ~ [1] Load SNPs ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            delim = rje.delimitFromExt(filename=self.getStr('SNPFile'))
-            skeys = self.list['SNPKeys']
-            if self.list['SNPHead'] and 'Locus' in self.list['SNPHead']: skeys = ['Locus']
-            elif not self.list['SNPHead'] and 'Locus' in rje.readDelimit(open(self.getStr('SNPFile'),'r').readline(),delim): skeys = ['Locus']
-            skeys.append('Pos')
-            snpdb = self.db().addTable(self.getStr('SNPFile'),mainkeys=skeys,headers=self.list['SNPHead'],name='SNP')
-            for field in snpdb.fields():
-                if field.lower() == 'ref' and field != 'REF': snpdb.renameField(field,'REF')
-            if '' in snpdb.fields(): snpdb.dropField('')
-            if 'EXTRA' not in snpdb.fields(): snpdb.addField('EXTRA')
-            snpdb.dataFormat({'Pos':'int'})
-            for gtype in self.list['Genotypes'][0:]:
-                if gtype not in snpdb.fields():
-                    self.printLog('#ERR','Could not find "%s" in %s' % (gtype,self.getStr('SNPFile')))
-                    self.list['Genotypes'].remove(gtype)
-            self.printLog('#GTYPE','%d genotypes to map SNPs' % len(self.list['Genotypes']))
-            ## ~ [1a] Check ScreenMatch versus Genotypes ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-            for g1 in self.list['ScreenMatch'][0:]:
-                if g1 not in self.list['Genotypes']:
-                    self.printLog('#GTYPE','ScreenMatch genotype "%s" not recognised.' % g1)
-                    self.list['ScreenMatch'].remove(g1)
-            if self.list['ScreenMatch']:
-                sx = snpdb.entryNum()
-                for sentry in snpdb.entries()[0:]:
-                    screened = True
-                    for g1 in self.list['ScreenMatch'][:-1]:
-                        for g2 in self.list['ScreenMatch'][1:]:
-                            if sentry[g1] != sentry[g2]: screened = False
-                    if screened: snpdb.dropEntry(sentry)
-                if snpdb.entryNum() != sx: self.printLog('#SNP','%d SNPs screened (matching %s SNPs)' % (sx - snpdb.entryNum(),string.join(self.list['ScreenMatch'],',')))
-            ### ~ [2] Load GenBank ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            gb = self.obj['GenBank']
-            if 'full' not in gb.list['FasOut']: gb.list['FasOut'].append('full')
-            if not gb.loadFeatures() or not os.path.exists('%s.full.fas' % gb.baseFile()): gb.run()
-            self.obj['SeqList'].loadSeq('%s.full.fas' % gb.baseFile())
-            self.obj['SeqList'].nextSeq()
-            ftdb = self.db('Feature')
-            ftdb.dataFormat({'start':'int','end':'int'})
-            self.db().baseFile(self.baseFile())
-            return True     # Setup successful
-        except: self.errorLog('Problem during %s setup.' % self); return False  # Setup failed
-#########################################################################################################################
-    def OLDfeatureSNPs(self):  ### Use loaded SNP and Feature table
-        '''
-        Use loaded SNP and Feature table.
-        '''
-        try:### ~ [1] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            #!# Change this to work on one locus at a time and give method split SNP and FT tables?
-            #!# Or just index SNP and FT tables on locus... (Add locus if not given when loading.)
-            snpdb = self.db('SNP')
-            for sentry in snpdb.entries():
-                for gtype in self.list['Genotypes']:
-                    if gtype != 'ref' and sentry[gtype] == '-': sentry[gtype] = sentry['REF']
-            ftdb = self.db('Feature')
-            mapdb = self.db().addEmptyTable('snpmap',snpdb.fields()+['Strand','GB']+ftdb.fields(),snpdb.keys()+['feature','start','end']) #['feature','start','end','protein_id','details',]
-            if 'Locus' in mapdb.fields() and 'locus' in mapdb.fields(): mapdb.dropField('locus')
-            for gtype in self.list['Genotypes']: mapdb.addField('%s_Effect' % gtype)
-            #fullseq = self.obj['SeqList'].getSeq(format='tuple')[1]     # Only 1 sequence ! #
-            seqdict = self.obj['SeqList'].makeSeqNameDic('accnum')
-            ### ~ [2] Map SNPs ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            fx = 0  # No. failures
-            for sentry in snpdb.entries():
-                if 'Locus' in sentry: fullseq = self.obj['SeqList'].getSeq(seqdict[sentry['Locus']],format='tuple')[1]
-                else: fullseq = self.obj['SeqList'].getSeq(format='tuple')[1]
-                try:
-                    #??? What is this REF stuff about?  ???#
-                    if 'REF' in sentry and 'ALT' in sentry:
-                        if len(sentry['REF']) > len(sentry['ALT']):
-                            if sentry['REF'] == fullseq[sentry['Pos']-1:][:len(sentry['REF'])]:
-                                sentry['EXTRA'] = 'Deletion'
-                            elif sentry['ALT'] == fullseq[sentry['Pos']-1:][:len(sentry['ALT'])]:
-                                sentry['EXTRA'] = 'WT-Insertion'
-                            else:
-                                sentry['EXTRA'] = 'REF/ALT Mismatch'
-                                self.deBug(sentry['REF'])
-                                self.deBug(fullseq[sentry['Pos']-1:][:len(sentry['REF'])])
-                                self.deBug(sentry['ALT'])
-                                self.deBug(fullseq[sentry['Pos']-1:].find(sentry['REF']))
-                        elif len(sentry['REF']) < len(sentry['ALT']):
-                            if sentry['ALT'] == fullseq[sentry['Pos']-1:][:len(sentry['ALT'])]:
-                                sentry['EXTRA'] = 'WT-Deletion'
-                            elif sentry['REF'] == fullseq[sentry['Pos']-1:][:len(sentry['REF'])]:
-                                sentry['EXTRA'] = 'Insertion'
-                            else:
-                                sentry['EXTRA'] = 'ALT/REF Mismatch'
-                                self.deBug(sentry['ALT'])
-                                self.deBug(fullseq[sentry['Pos']-1:][:len(sentry['ALT'])])
-                                self.deBug(sentry['REF'])
-                                self.deBug(fullseq[sentry['Pos']-1:].find(sentry['REF']))
-                    mapped = False
-                    for fentry in ftdb.entries():
-                        if fentry['feature'] in self.list['FTSkip']: continue
-                        if 'Locus' in sentry and fentry['locus'] != sentry['Locus']: continue
-                        if fentry['start'] <= sentry['Pos'] <= fentry['end']:
-                            mentry = rje.combineDict({'Strand':'+'},sentry)
-                            mentry = rje.combineDict(mentry,fentry)
-                            cseq = fullseq[fentry['start']-1:fentry['end']]
-                            cpos = sentry['Pos'] - fentry['start']
-                            if 'complement' in fentry['position']:
-                                cseq = rje_sequence.reverseComplement(cseq)
-                                cpos = len(cseq) - cpos - 1
-                                mentry['Strand'] = '-'
-                            mentry['GB'] = cseq[cpos]
-                            if fentry['feature'] == 'CDS':
-                                i = 3
-                                while i <= cpos: i += 3
-                                codon = cseq[i-3:i]
-                                #print sentry['ref'], mentry['GB'], codon
-                                for gtype in self.list['Genotypes']:
-                                    if mentry[gtype] in ['ins','del']:
-                                        mentry['%s_Effect' % gtype] = 'frameshift'
-                                        #!# Not sure if this is OK #!#
-                                        if mentry[gtype] == 'ins': mentry[gtype] = mentry['GB'] + 'N'
-                                        if mentry[gtype] == 'del': mentry[gtype] = ''
-                                        snpseq = cseq[:cpos] + mentry[gtype] + cseq[cpos+1:]
-                                        mentry['%s_Effect' % gtype] = '%d:%s->%s' % ((cpos+2)/3,rje_sequence.dna2prot(cseq[i-3:]),string.split(rje_sequence.dna2prot(snpseq[i-3:]),'*')[0])
-                                        #!# ^^^^^^^^^^^^^^^^^^^^^^ #!#
-                                    elif len(mentry[gtype]) > 1 and 'REF' in mentry:    # REF vs ALT
-                                        #if len(mentry['REF']) > len(mentry['ALT']):
-                                        #!# Modify to match above #!#
-                                        mentry['%s_Effect' % gtype] = 'indel%d' % rje.modulus(len(mentry['REF']) - len(mentry['ALT']))
-                                    elif mentry[gtype] == '.' and 'REF' in mentry:    # Deletion
-                                        mentry[gtype] = ''
-                                        #!# Not sure if this is right? #!#
-                                        snpseq = cseq[:cpos] + mentry[gtype] + cseq[cpos+1:]
-                                        mentry['%s_Effect' % gtype] = '%d:%s->%s' % ((cpos+2)/3,rje_sequence.dna2prot(cseq[i-3:]),string.split(rje_sequence.dna2prot(snpseq[i-3:]),'*')[0])
-                                    elif 'REF' in mentry and mentry['REF'] == '.':    # Insertion
-                                        mentry[gtype] = mentry['GB'] + mentry[gtype]
-                                        mentry['REF'] = mentry['GB']
-                                        #!# Not sure if this is right? #!#
-                                        snpseq = cseq[:cpos] + mentry[gtype] + cseq[cpos+1:]
-                                        mentry['%s_Effect' % gtype] = '%d:%s->%s' % ((cpos+2)/3,rje_sequence.dna2prot(cseq[i-3:]),string.split(rje_sequence.dna2prot(snpseq[i-3:]),'*')[0])
-                                    else:
-                                        if mentry['Strand'] == '-': snpseq = cseq[:cpos] + rje_sequence.reverseComplement(mentry[gtype]) + cseq[cpos+1:]
-                                        else: snpseq = cseq[:cpos] + mentry[gtype] + cseq[cpos+1:]
-                                        snpcodon = snpseq[i-3:i]
-                                        #print '\t', gtype, mentry[gtype], codon, '->', snpcodon
-                                        mentry['%s_Effect' % gtype] = '%s%d%s' % (rje_sequence.dna2prot(codon),(cpos+2)/3,rje_sequence.dna2prot(snpcodon))
-                            else:
-                                for gtype in self.list['Genotypes']: mentry['%s_Effect' % gtype] = fentry['feature']
-                            #self.deBug(mentry)
-                            mapdb.addEntry(mentry)
-                            mapped = True
-                    if not mapped:
-                        mentry = rje.combineDict({'Strand':'na'},sentry)
-                        mentry = rje.combineDict(mentry,{'GB':fullseq[sentry['Pos']-1],'feature':'intergenic'})
-                        mapdb.addEntry(mentry); fx += 1
-                except:
-                    self.warnLog('Failed: %s' % sentry); fx += 1
-                    mentry = rje.combineDict({'feature':'FAILED'},sentry)
-                    mapdb.addEntry(mentry)
-            ### ~ [3] Remove gene SNPs mapped to other features ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            if 'gene' in mapdb.index('feature'):
-                #!# Incorporate locus properly #!#
-                #!# Then repeat with mRNA to remove CDS annotation #!#
-                #!# Ditto mobile_element #!#
-                gx = 0
-                for mkey in mapdb.index('feature')['gene'][0:]:
-                    mentry = mapdb.data(mkey)
-                    if len(mapdb.indexDataList('Pos',mentry['Pos'],'feature')) > 1: mapdb.dropEntry(mentry); gx += 1
-                self.printLog('#GENE','%d mapped gene features removed. (Mapped to other features.)' % gx)
-            mapdb.saveToFile()
-            self.printLog('#FAIL','%s SNPs failed to be parsed/mapped.' % rje.iStr(fx))
-        except: self.errorLog('%s.method error' % self)
 #########################################################################################################################
 ### End of SECTION II: SNPMap Class                                                                                     #
 #########################################################################################################################

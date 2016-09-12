@@ -7,8 +7,8 @@
 """
 Module:       rje_sequence
 Description:  DNA/Protein sequence object
-Version:      2.5.2
-Last Edit:    15/09/15
+Version:      2.5.3
+Last Edit:    11/04/16
 Copyright (C) 2006  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -61,6 +61,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 2.5.0 - Added yeast genome renaming.
     # 2.5.1 - Modified reverse complement code.
     # 2.5.2 - Tried to speed up dna2prot code.
+    # 2.5.3 - Fixed genetic code warning error.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -244,6 +245,7 @@ class Sequence(rje.RJE_ObjectLite):
         try:### ~ [0] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if not isoform or isoform in [self.getStr('AccNum'),'%s-1' % self.getStr('AccNum')]: ikey = 'Sequence'
             elif not strict and isoform not in self.info: ikey = 'Sequence'
+            elif strict and isoform not in self.info: raise ValueError('%s is not a recognised isoform of %s! (Secondary AccNum?)' % (isoform,self.getStr('AccNum')))
             else: ikey = isoform
             ### ~ [1] All sequences ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if isoform.lower() == 'all':
@@ -254,6 +256,7 @@ class Sequence(rje.RJE_ObjectLite):
                 return fastatxt
             ### ~ [2] One isoform ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ### 
             return '>%s\n%s\n' % (self.name(isoform),self.getSequence(case,gaps,ikey))
+        except ValueError: raise
         except: self.errorLog('Problem with rje_sequence.fasta()')
 #########################################################################################################################
     def getSequence(self,case=False,gaps=True,ikey='Sequence'):   ### Returns sequence
@@ -1427,19 +1430,19 @@ def mapGaps(inseq,gapseq,callobj=None):  ### Returns inseq with gaps inserted as
         print gapseq
         return newseq
 #########################################################################################################################
-def geneticCode(transl='1'):   ### Returns a specific genetic code.
+def geneticCode(transl='1',warnobj=None):   ### Returns a specific genetic code.
     '''
     Returns a specific genetic code.
     >> transl:str ['1'] = NCBI translation table. Default (1) = "Universal" genetic code
     '''
     transl = str(transl)
     if transl in transl_table: return transl_table[transl]
-    self.warnLog('Translation table %s not (yet) implemented. Contact the author. Standard code used.' % transl)
+    if warnobj: warnobj.warnLog('Translation table %s not (yet) implemented. Contact the author. Standard code used.' % transl)
     return genetic_code
 #########################################################################################################################
-def dna2prot(dnaseq,case=False,transl='1'):   ### Returns a protein sequence for a given DNA sequence
+def dna2prot(dnaseq,case=False,transl='1',warnobj=None):   ### Returns a protein sequence for a given DNA sequence
     '''Returns a protein sequence for a given DNA sequence.'''
-    gencode = geneticCode(transl)
+    gencode = geneticCode(transl,warnobj)
     prot = ['']
     i = 0
     while i < len(dnaseq):
@@ -1490,7 +1493,7 @@ def kSDict(callobj=None):   ### Returns the Ks frequency for each codon as a dic
     if callobj: callobj.dict['Ks'] = ksdict
     return ksdict
 #########################################################################################################################
-def reverseComplement(dnaseq,rna=False):  ### Returns the reverse complement of the DNA sequence given (upper case)
+def reverseComplement(dnaseq,rna=False):  ### Returns the reverse complement of the DNA sequence given (mixed case)
     '''Returns the reverse complement of the DNA sequence given.'''
     revcomp = rje.strReverse(dnaseq)
     pairs = [('C','G'),('A','T')]

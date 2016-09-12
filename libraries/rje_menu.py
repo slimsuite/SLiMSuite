@@ -7,8 +7,8 @@
 """
 Module:       rje_menu
 Description:  Generic Menu Methods Module
-Version:      0.3
-Last Edit:    08/02/13
+Version:      0.4.0
+Last Edit:    18/01/16
 Copyright (C) 2006  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -38,11 +38,12 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 0.1 - Added infile and outfile
     # 0.2 - Added extra addcommand and printtext menu options.
     # 0.3 - Modified to work with new object types.
+    # 0.4.0 - Changed handling of default for exiting menu loop. May affect behaviour of some existing menus.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
     '''
-    # [ ] : List here
+    # [ ] : Add a "Flat" menu option that just lists options in each section.
     '''
 #########################################################################################################################
 ### END OF SECTION I                                                                                                    #
@@ -53,7 +54,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 ### SECTION II: METHODS                                                                                                 #
 #########################################################################################################################
-def menu(callobj,headtext='',menulist=[],choicetext='Please select:',changecase=True,default=''):   ### Main Menu method
+def menu(callobj,headtext='',menulist=[],choicetext='Please select:',changecase=True,default='',jointxt=' = '):   ### Main Menu method
     '''
     Main Menu method.
     >> callobj:Object for which attributes are to be read and altered. Also controls interactivity and log.
@@ -67,16 +68,18 @@ def menu(callobj,headtext='',menulist=[],choicetext='Please select:',changecase=
         - If optiontype == 'showtext' then optionkey should contain text to be printed with verbose
         - If optiontype == 'addcmd' then commands can be added.
     >> choicetext:str ['Please select:'] = Text to display for choice option
-    >> changecase:boolean [True] = change all choices and codes to upper text 
+    >> changecase:boolean [True] = change all choices and codes to upper text
+    >> default:str [''] = What to return if nothing selected.
+    >> jointxt:str [' = '] = What to join code and description with when listing options.
     << returns optionkey if appropriate, else True
     '''
     try:### ~ [0] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         ## ~ [0a] Choice Dictionary ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
         choicedict = {}
-        for (code,desc,type,key) in menulist:
-            if not type: continue
-            if changecase: choicedict[code.upper()] = (type,key)
-            else: choicedict[code] = (type,key)
+        for (code,desc,vtype,key) in menulist:
+            if not vtype: continue
+            if changecase: choicedict[code.upper()] = (vtype,key)
+            else: choicedict[code] = (vtype,key)
         ## ~ [0b] Setup Header Text ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
         maxlen = 0
         for line in string.split(headtext,'\n'):
@@ -91,11 +94,13 @@ def menu(callobj,headtext='',menulist=[],choicetext='Please select:',changecase=
             ## ~ [1a] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             mtxt = '\n%s' % string.join(headlist,'\n')
             while mtxt[-2:] != '\n\n': mtxt += '\n'
-            for (code,desc,type,key) in menulist:
-                if type and (code or desc):
-                    mtxt += '<%s> %s' % (code,desc)
-                    if type in ['info','list','opt','stat','int','str','bool','num']: mtxt += ': %s' % callobj.getAttribute(type,key,default='#!#ERROR#!#')
-                    elif type in ['infile','outfile']: mtxt += ': %s' % callobj.getAttribute('info',key,default='#!#ERROR#!#')
+            for (code,desc,vtype,key) in menulist:
+                if vtype and (code or desc):
+                    if code and desc: mtxt += '%s%s%s' % (code,jointxt,desc)
+                    elif code: mtxt += code
+                    elif desc: mtxt += desc
+                    if vtype in ['info','list','opt','stat','int','str','bool','num']: mtxt += ': %s' % callobj.getAttribute(vtype,key,default='#!#ERROR#!#')
+                    elif vtype in ['infile','outfile']: mtxt += ': %s' % callobj.getAttribute('info',key,default='#!#ERROR#!#')
                 else: mtxt += desc
                 mtxt += '\n'
             ## ~ [1b] Give Choices ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
@@ -106,31 +111,29 @@ def menu(callobj,headtext='',menulist=[],choicetext='Please select:',changecase=
                     if changecase: choice = choice.upper()
                     ## ~ Process user choice ~ ##
                     if choicedict.has_key(choice):
-                        (type,key) = choicedict[choice]
-                        if type in ['str','info']: callobj.setInfo({key:callobj._editChoice(key,callobj.getStr(key))})
-                        if type in ['num','stat']: callobj.setStat({key:callobj._editChoice(key,callobj.getNum(key),numeric=True)})
-                        if type == 'int': callobj.setStat({key:int(callobj._editChoice(key,callobj.getInt(key),numeric=True))})
-                        if type in ['bool','opt']: callobj.setOpt({key: not callobj.getBool(key)})
-                        if type == 'list': callobj.list[key] = string.split(callobj._editChoice(key,callobj.list[key]))
-                        if type == 'infile': callobj.setInfo({key: rje.getFileName('%s File Name?' % key,callobj.getStr(key))})
-                        if type == 'outfile': callobj.setInfo({key: rje.getFileName('%s File Name?' % key,callobj.getStr(key),mustexist=False,confirm=True)})
-                        if type == 'showtext': callobj.verbose(-1,-1,key); break
-                        if type == 'addcmd':
+                        (vtype,key) = choicedict[choice]
+                        if vtype in ['str','info']: callobj.setInfo({key:callobj._editChoice(key,callobj.getStr(key))})
+                        if vtype in ['num','stat']: callobj.setStat({key:callobj._editChoice(key,callobj.getNum(key),numeric=True)})
+                        if vtype == 'int': callobj.setStat({key:int(callobj._editChoice(key,callobj.getInt(key),numeric=True))})
+                        if vtype in ['bool','opt']: callobj.setOpt({key: not callobj.getBool(key)})
+                        if vtype == 'list': callobj.list[key] = string.split(callobj._editChoice(key,callobj.list[key]))
+                        if vtype == 'infile': callobj.setInfo({key: rje.getFileName('%s File Name?' % key,callobj.getStr(key))})
+                        if vtype == 'outfile': callobj.setInfo({key: rje.getFileName('%s File Name?' % key,callobj.getStr(key),mustexist=False,confirm=True)})
+                        if vtype == 'showtext': callobj.verbose(-1,-1,key); break
+                        if vtype == 'addcmd':
                             prevcmd = callobj.cmd_list
-                            callobj.cmd_list = rje.inputCmds(out,prevcmd)
+                            callobj.cmd_list = rje.inputCmds(out,choice)
                             callobj.printLog('#CMD','User Added commands: %s' % callobj.cmd_list)
                             callobj._cmdList()
                             callobj.cmd_list = prevcmd + callobj.cmd_list
                             break
-                        if type in ['info','list','opt','stat','infile','outfile','str','bool','int','num']:
-                            callobj.printLog('#%s' % type.upper(),'User edited %s parameter' % key); break
-                        elif type == 'return': return key
+                        if vtype in ['info','list','opt','stat','infile','outfile','str','bool','int','num']:
+                            callobj.printLog('#%s' % vtype.upper(),'User edited %s parameter' % key); break
+                        elif vtype == 'return': return key
                     print 'Choice "%s" not recognised!\n' % choice
                 except KeyboardInterrupt:
                     if rje.yesNo('Terminate program?'): raise
-                    if rje.yesNo('Exit menu and proceed?'):
-                        if default: return default
-                        else: return True
+                    if rje.yesNo('Exit menu and proceed?'): return default
                 except: raise
         ### End ###
         return True

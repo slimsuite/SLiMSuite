@@ -19,11 +19,13 @@
 """
 Program:      SLiMFinder
 Description:  Short Linear Motif Finder
-Version:      5.2.1
-Last Edit:    11/06/15
-Citation:     Edwards, Davey & Shields (2007), PLoS ONE 2(10): e967. [PMID: 17912346]
+Version:      5.2.3
+Last Edit:    07/12/15
+Citation:     Edwards RJ, Davey NE & Shields DC (2007), PLoS ONE 2(10): e967. [PMID: 17912346]
 ConsMask Citation: Davey NE, Shields DC & Edwards RJ (2009), Bioinformatics 25(4): 443-50. [PMID: 19136552]
 SigV/SigPrime Citation: Davey NE, Edwards RJ & Shields DC (2010), BMC Bioinformatics 11: 14. [PMID: 20055997]
+SLiMScape/REST Citation: Olorin E, O'Brien KT, Palopoli N, Perez-Bercoff A & Shields DC, Edwards RJ (2015), F1000Research 4:477.
+SLiMMaker Citation: Palopoli N, Lythgow KT & Edwards RJ (2015), Bioinformatics 31(14): 2284-2293. [PMID: 25792551]
 Webserver:    http://bioware.ucd.ie/
 Copyright (C) 2007  Richard J. Edwards - See source code for GNU License Notice
 
@@ -39,49 +41,67 @@ Function:
     for evolutionary relationships [Davey NE, Shields DC & Edwards RJ (2006): Nucleic Acids Res. 34(12):3546-54].
     SLiMFinder is comprised of two algorithms:
 
-    SLiMBuild identifies convergently evolved, short motifs in a dataset. Motifs with fixed amino acid positions are
+    1. `SLiMBuild` identifies convergently evolved, short motifs in a dataset. Motifs with fixed amino acid positions are
     identified and then combined to incorporate amino acid ambiguity and variable-length wildcard spacers. Unlike
     programs such as TEIRESIAS, which return all shared patterns, SLiMBuild accelerates the process and reduces returned
     motifs by explicitly screening out motifs that do not occur in enough unrelated proteins. For this, SLiMBuild uses
     the "Unrelated Proteins" (UP) algorithm of SLiMDisc in which BLAST is used to identify pairwise relationships.
-    Proteins are then clustered according to these relationships into "Unrelated Protein Clusters" (UPCs), which are
+    Proteins are then clustered according to these relationships into "Unrelated Protein Clusters" (UPC), which are
     defined such that no protein in a UPC has a BLAST-detectable relationship with a protein in another UPC.  If desired,
-    SLiMBuild can be used as a replacement for TEIRESIAS in other software (teiresias=T slimchance=F).
+    `SLiMBuild` can be used as a replacement for TEIRESIAS in other software (teiresias=T slimchance=F).
 
-    SLiMChance estimates the probability of these motifs arising by chance, correcting for the size and composition of
-    the dataset, and assigns a significance value to each motif. Motif occurrence probabilites are calculated
-    independently for each UPC, adjusted the size of a UPC using the Minimum Spanning Tree algorithm from SLiMDisc. These
-    individual occurrence probabilities are then converted into the total probability of the seeing the observed motifs
-    the observed number of (unrelated) times. These probabilities assume that the motif is known before the search. In
-    reality, only over-represented motifs from the dataset are looked at, so these probabilities are adjusted for the
-    size of motif-space searched to give a significance value. This is an estimate of the probability of seeing that
-    motif, or another one like it. These values are calculated separately for each length of motif. Where pre-known
-    motifs are also of interest, these can be given with the slimcheck=MOTIFS option and will be added to the output.
+    2. `SLiMChance` estimates the probability of these motifs arising by chance, correcting for the size and composition
+    of the dataset, and assigns a significance value to each motif. Motif occurrence probabilities are calculated
+    independently for each UPC, adjusted for the size of a UPC using the Minimum Spanning Tree algorithm from SLiMDisc.
+    These individual occurrence probabilities are then converted into the total probability of the seeing the observed
+    motifs the observed number of (unrelated) times. These probabilities assume that the motif is known before the
+    search. In reality, only over-represented motifs from the dataset are looked at, so these probabilities are adjusted
+    for the size of motif-space searched to give a significance value. The returned corrected probability is an estimate
+    of the probability of seeing ANY motif with that significance (or greater) from the dataset (i.e. an estimate of the
+    probability of seeing that motif, *or another one like it*). These values are calculated separately for each length
+    of motif.
+
     SLiMFinder version 4.0 introduced a more precise (but more computationally intensive) statistical model, which can
     be switched on using sigprime=T. Likewise, the more precise (but more computationally intensive) correction to the
-    mean UPC probability heuristic can be switched on using sigv=T. (Note that the other SLiMChance options may not
+    mean UPC probability heuristic can be switched on using sigv=T. (Note that the other `SLiMChance` options may not
     work with either of these options.) The allsig=T option will output all four scores. In this case, SigPrimeV will be
     used for ranking etc. unless probscore=X is used.
 
+    ### Clouds and Statistics:
     Where significant motifs are returned, SLiMFinder will group them into Motif "Clouds", which consist of physically
     overlapping motifs (2+ non-wildcard positions are the same in the same sequence). This provides an easy indication
-    of which motifs may actually be variants of a larger SLiM and should therefore be considered together.
+    of which motifs may actually be variants of a larger SLiM and should therefore be considered together. From version
+    V4.7, `*.cloud.txt` output includes a `SLiMMaker` summary Regex for the whole cloud. NOTE: This may not necessarily
+    match all occurrences in the cloud.
 
-    Additional Motif Occurrence Statistics, such as motif conservation, are handled by the rje_slimlist module. Please
-    see the documentation for this module for a full list of commandline options. These options are currently under
-    development for SLiMFinder and are not fully supported. See the SLiMFinder Manual for further details. Note that the
-    OccFilter *does* affect the motifs returned by SLiMBuild and thus the TEIRESIAS output (as does min. IC and min.
-    Support) but the overall Motif StatFilter *only* affects SLiMFinder output following SLiMChance calculations.
+    Additional Motif Occurrence Statistics, such as motif conservation, are handled by the `rje_slimlist` module and
+    `rje_slimcalc` modules. Please see the documentation for these module for a full list of commandline options. These
+    options have not been fully tested in SLiMFinder, so please report issues and/or request desired functions. Note that
+    occfilter=LIST *does* affect the motifs returned by SLiMBuild and thus the TEIRESIAS output (as does min. IC and min.
+    Support) but the overall Motif slimfilter=LIST *only* affects SLiMFinder output following SLiMChance calculations.
 
-### Secondary Functions:
+    ### Secondary Functions:
     The "MotifSeq" option will output fasta files for a list of X:Y, where X is a motif pattern and Y is the output file.
 
     The "Randomise" function will take a set of input datasets (as in Batch Mode) and regenerate a set of new datasets
     by shuffling the UPC among datasets. Note that, at this stage, this is quite crude and may result in the final
     datasets having fewer UPC due to common sequences and/or relationships between UPC clusters in different datasets.
 
+    Where pre-known motifs are also of interest, these can be given with the slimcheck=MOTIFS option and will be added to
+    the output. In general, it is better to use `SLiMProb` to look for enrichment (or depletion) of pre-defined motifs.
+
+Input/Output:
+    ### SLiMFinder Input:
+    The main input for SLiMFinder is the `seqin=SEQFILE` file of protein sequences, which can be Uniprot plain text
+    (`DATFILE`) or fasta (`FASFILE`) format. A batch of files (incorporating wildcards) can be given using
+    batch=FILELIST. Alternative primary input is uniprotid=LIST. This requires an active internet connection to retrieve
+    the corresponding Uniprot entries.
+
+    ### SLiMFinder Output:
+    Please see Manual for details.
+
 Commandline: ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-    ### Basic Input/Output Options ###
+    ### Basic Input/Output Options: ###
     seqin=SEQFILE   : Sequence file to search. Over-rules batch=FILE and uniprotid=LIST [None]
     batch=FILELIST  : List of files to search, wildcards allowed. (Over-ruled by seqin=FILE.) [*.dat,*.fas]
     uniprotid=LIST  : Extract IDs/AccNums in list from Uniprot into BASEFILE.dat and use as seqin=FILE. []
@@ -103,21 +123,21 @@ Commandline: ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     ptmlist=LIST    : List of PTM letters to add to alphabet for analysis and restrict PTM data []
     ptmdata=DSVFILE : File containing PTM data, including AccNum, ModType, ModPos, ModAA, ModCode
 
-SLiMBuild Options: ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-    ### SLiMBuild Options I: Evolutionary Filtering  ###
+SLiMBuild: ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+    ### SLiMBuild Options I (Evolutionary Filtering): ###
     efilter=T/F     : Whether to use evolutionary filter [True]
     blastf=T/F      : Use BLAST Complexity filter when determining relationships [True]
     blaste=X        : BLAST e-value threshold for determining relationships [1e=4]
-    altdis=FILE     : Alternative all by all distance matrix for relationships [None]
+    altdis=DSVFILE  : Alternative all by all distance matrix for relationships [None]
     gablamdis=FILE  : Alternative GABLAM results file [None] (!!!Experimental feature!!!)
     homcut=X        : Max number of homologues to allow (to reduce large multi-domain families) [0]
     newupc=PATH     : Look for alternative UPC file and calculate Significance using new clusters [None]
 
-    ### SLiMBuild Options II: Input Masking ###
+    ### SLiMBuild Options II (Input Masking): ###
     masking=T/F     : Master control switch to turn off all masking if False [True]
     dismask=T/F     : Whether to mask ordered regions (see rje_disorder for options) [False]
     consmask=T/F    : Whether to use relative conservation masking [False]
-    ftmask=LIST     : UniProt features to mask out [EM]
+    ftmask=LIST     : UniProt features to mask out (True=EM,DOMAIN,TRANSMEM) []
     imask=LIST      : UniProt features to inversely ("inclusively") mask. (Seqs MUST have 1+ features) []
     compmask=X,Y    : Mask low complexity regions (same AA in X+ of Y consecutive aas) [5,8]
     casemask=X      : Mask Upper or Lower case [None]
@@ -127,7 +147,7 @@ SLiMBuild Options: ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     aamask=LIST     : Masks list of AAs from all sequences (reduces alphabet) []
     qregion=X,Y     : Mask all but the region of the query from (and including) residue X to residue Y [0,-1]
 
-    ### SLiMBuild Options III: Basic Motif Construction ###
+    ### SLiMBuild Options III (Basic Motif Construction): ###
     termini=T/F     : Whether to add termini characters (^ & $) to search sequences [True]
     minwild=X       : Minimum number of consecutive wildcard positions to allow [0]
     maxwild=X       : Maximum number of consecutive wildcard positions to allow [2]
@@ -138,7 +158,7 @@ SLiMBuild Options: ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     fixlen=T/F      : If true, will use maxwild and slimlen to define a fixed total motif length [False]
     palindrome=T/F  : Special DNA mode that will search for palindromic sequences only [False]
 
-    ### SLiMBuild Options IV: Ambiguity ###
+    ### SLiMBuild Options IV (Ambiguity): ###
     ambiguity=T/F   : (preamb=T/F) Whether to search for ambiguous motifs during motif discovery [True]
     ambocc=X        : Min. UP occurrence for subvariants of ambiguous motifs (minocc if 0 or > minocc) [0.05]
     absminamb=X     : Used if ambocc<1 to define absolute min. UP occ [2]
@@ -146,7 +166,7 @@ SLiMBuild Options: ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     wildvar=T/F     : Whether to allow variable length wildcards [True]
     combamb=T/F     : Whether to search for combined amino acid degeneracy and variable wildcards [False]
 
-    ### SLiMBuild Options V: Advanced Motif Filtering ###
+    ### SLiMBuild Options V (Advanced Motif Filtering): ###
     altupc=PATH     : Look for alternative UPC file and filter based on minocc [None]
     musthave=LIST   : Returned motifs must contain one or more of the AAs in LIST (reduces search space) []
     query=LIST      : Return only SLiMs that occur in 1+ Query sequences (Name/AccNum) []
@@ -154,7 +174,7 @@ SLiMBuild Options: ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     focusocc=X      : Motif must appear in X+ focus groups (0 = all) [0]
     * See also rje_slimcalc options for occurrence-based calculations and filtering *
     
-SLiMChance Options: ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+SLiMChance: ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
     cloudfix=T/F    : Restrict output to clouds with 1+ fixed motif (recommended) [False]
     slimchance=T/F  : Execute main SLiMFinder probability method and outputs [True]
     sigprime=T/F    : Calculate more precise (but more computationally intensive) statistical model [False]
@@ -162,21 +182,21 @@ SLiMChance Options: ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     dimfreq=T/F     : Whether to use dimer masking pattern to adjust number of possible sites for motif [True]
     probcut=X       : Probability cut-off for returned motifs (sigcut=X also recognised) [0.1]
     maskfreq=T/F    : Whether to use masked AA Frequencies (True), or (False) mask after frequency calculations [True]
-    aafreq=FILE     : Use FILE to replace individual sequence AAFreqs (FILE can be sequences or aafreq) [None]
+    aafreq=AAFILE   : Use FILE to replace individual sequence AAFreqs (FILE can be sequences or aafreq) [None]
     aadimerfreq=FILE: Use empirical dimer frequencies from FILE (fasta or *.aadimer.tdt) (!!!Experimental!!!) [None]
-    negatives=FILE  : Multiply raw probabilities by under-representation in FILE (!!!Experimental!!!) [None]
+    negatives=SEQFILE : Multiply raw probabilities by under-representation in FILE (!!!Experimental!!!) [None]
     smearfreq=T/F   : Whether to "smear" AA frequencies across UPC rather than keep separate AAFreqs [False]
     seqocc=T/F      : Whether to upweight for multiple occurrences in same sequence (heuristic) [False]
     probscore=X     : Score to be used for probability cut-off and ranking (Prob/Sig/S/R) [Sig]
 
-Advanced Output Options: ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-    ### Advanced Output Options I: Output data ###
+Advanced: ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+    ### Advanced Output Options I (Output data): ###
     clouds=X        : Identifies motif "clouds" which overlap at 2+ positions in X+ sequences (0=minocc / -1=off) [2]
     runid=X         : Run ID for resfile (allows multiple runs on same data) [DATE]
     logmask=T/F     : Whether to log the masking of individual sequences [True]
-    slimcheck=FILE  : Motif file/list to add to resfile output [] 
+    slimcheck=MOTIFS : Motif file/list to add to resfile output []
 
-    ### Advanced Output Options II: Output formats ###
+    ### Advanced Output Options II (Output formats): ###
     teiresias=T/F   : Replace TEIRESIAS, making *.out and *.mask.fasta files [False]
     slimdisc=T/F    : Emulate SLiMDisc output format (*.rank & *.dat.rank + TEIRESIAS *.out & *.fasta) [False]
     extras=X        : Whether to generate additional output files (alignments etc.) [1]
@@ -192,19 +212,18 @@ Advanced Output Options: ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
                         - 2 = Delete all bar *.upc (pickle added to tar)
                         - 3 = Delete all dataset-specific files including *.upc and *.pickle (not *.tar.gz)
 
-    ### Advanced Output Options III: Additional Motif Filtering ###
+    ### Advanced Output Options III (Additional Motif Filtering): ###
     topranks=X      : Will only output top X motifs meeting probcut [1000]
     oldscores=T/F   : Whether to also output old SLiMDisc score (S) and SLiMPickings score (R) [False]
     allsig=T/F      : Whether to also output all SLiMChance combinations (Sig/SigV/SigPrime/SigPrimeV) [False]
     minic=X         : Minimum information content for returned motifs [2.1]
     * See also rje_slimcalc options for occurrence-based calculations and filtering *
 
-Additional Functions: ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-    ### Additional Functions I: MotifSeq ###
+    ### Additional Functions I (MotifSeq): ###
     motifseq=LIST   : Outputs fasta files for a list of X:Y, where X is the pattern and Y is the output file []
     slimbuild=T/F   : Whether to build motifs with SLiMBuild. (For combination with motifseq only.) [True]
 
-    ### Additional Functions II: Randomised datasets ###
+    ### Additional Functions II (Randomised datasets): ###
     randomise=T/F   : Randomise UPC within batch files and output new datasets [False]
     randir=PATH     : Output path for creation of randomised datasets [Random/]
     randbase=X      : Base for random dataset name [rand]
@@ -269,6 +288,8 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 5.1.1 - Modified alphabet handling and fixed musthave bug.
     # 5.2.0 - Added PTMList and PTMData modes (dev only).
     # 5.2.1 - Fixed ambocc<1 and minocc<1 issue. (Using integers rather than floats.) Fixed OccRes Sig output format.
+    # 5.2.2 - Added warnings for ambocc and minocc that exceed the absolute minima. Updated docstring.
+    # 5.2.3 - Switched feature masking OFF by default to give consistent Uniprot versus FASTA behaviour. Fixed FTMask=T/F bug.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -308,12 +329,13 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo():     ### Makes Info object
     '''Makes rje.Info object for program.'''
-    (program, version, last_edit, copyyear) = ('SLiMFinder', '5.2.1', 'June 2015', '2007')
+    (program, version, last_edit, copyyear) = ('SLiMFinder', '5.2.3', 'December 2015', '2007')
     description = 'Short Linear Motif Finder'
     author = 'Richard J. Edwards, Norman E. Davey & Denis C. Shields'
     comments = ['Cite: Edwards, Davey & Shields (2007), PLoS ONE 2(10): e967. [PMID: 17912346]',
                 'ConsMask: Davey NE, Shields DC & Edwards RJ (2009), Bioinformatics 25(4): 443-50. [PMID: 19136552]',
                 'SigV/SigPrime: Davey NE, Edwards RJ & Shields DC (2010), BMC Bioinformatics 11: 14. [PMID: 20055997]',
+                'SLiMMaker Citation: Palopoli N, Lythgow KT & Edwards RJ (2015), Bioinformatics 31(14): 2284-2293. [PMID: 25792551]',
                 'Please report bugs to R.Edwards@UNSW.edu.au']
     return rje.Info(program,version,last_edit,description,author,time.time(),copyyear,comments)
 #########################################################################################################################
@@ -326,9 +348,9 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         if helpx > 0:
             print '\n\nHelp for %s %s: %s\n' % (info.program, info.version, time.asctime(time.localtime(info.start_time)))
             out.verbose(-1,4,text=__doc__)
-            if rje.yesNo('Show SLiMCalc commandline options?'): out.verbose(-1,4,text=rje_slimcalc.__doc__)
-            if rje.yesNo('Show RJE_SEQ commandline options?'): out.verbose(-1,4,text=rje_seq.__doc__)
-            if rje.yesNo('Show general commandline options?'): out.verbose(-1,4,text=rje.__doc__)
+            if rje.yesNo('Show SLiMCalc commandline options?',default='N'): out.verbose(-1,4,text=rje_slimcalc.__doc__)
+            if rje.yesNo('Show RJE_SEQ commandline options?',default='N'): out.verbose(-1,4,text=rje_seq.__doc__)
+            if rje.yesNo('Show general commandline options?',default='N'): out.verbose(-1,4,text=rje.__doc__)
             if rje.yesNo('Quit?'): sys.exit()
             cmd_list += rje.inputCmds(out,cmd_list)
         elif out.stat['Interactive'] > 1: cmd_list += rje.inputCmds(out,cmd_list)
@@ -367,7 +389,7 @@ def setupProgram(): ### Basic Setup of Program
 wildcards = ['.','X','x']
 default_equiv = 'AGS,ILMVF,FYW,FYH,KRH,DE,ST'
 probscores = {'none':'Sig','uncorrected':'Prob','raw':'Prob','bonferroni':'Sig','sig':'Sig','':'Sig','s':'S','r':'R',
-              'slimdisc':'S','slimpicks':'R','slimpickings':'R','sigprime':'SigPrime','sigv':'SigV','':'Sig',
+              'slimdisc':'S','slimpicks':'R','slimpickings':'R','sigprime':'SigPrime','sigv':'SigV',
               'sigprimev':'SigPrimeV','sigvprime':'SigPrimeV','1':'Sig','2':'SigV','3':'SigPrime','4':'SigPrimeV'}
 basic_headers = ['Rank','Sig','Pattern','IC','Occ','Support','UP','ExpUP','Prob','S','R','Cloud','CloudSeq','CloudUP']
 #########################################################################################################################
@@ -476,7 +498,7 @@ class SLiMFinder(rje_slimcore.SLiMCore):
     - Alphabet = List of characters to include in search (e.g. AAs or NTs)
     - Batch = List of files to search, wildcards allowed. (Over-ruled by seqin=FILE.) [*.dat,*.fas]
     - Equiv = List (or file) of TEIRESIAS-style ambiguities to use [AGS,ILMV,FYW,KRH,DE,ST]
-    - FTMask = UniProt features to mask out [EM,DOMAIN,TRANSMEM]
+    - FTMask = UniProt features to mask out []
     - Headers = Headers for main SLiMFinder output table
     - HomCut = Max number of homologues to allow (to reduce large multi-domain families) [0]
     - IMask = UniProt features to inversely ("inclusively") mask [IM]
@@ -545,7 +567,6 @@ class SLiMFinder(rje_slimcore.SLiMCore):
                      'OccStatsCalculated':False,'Webserver':False,'DNA':False,'ConsMask':False,'DimFreq':True,
                      'OldScores':False,'SigV':False,'SigPrime':False,'AllSig':False,'FixLen':False,
                      'PickAll':True,'PickID':True,'QExact':True,'Palindrome':False,'CloudFix':False})
-        self.list['FTMask'] = ['EM']
         self.list['Equiv'] = string.split(default_equiv,',')
         self.list['Batch'] = ['*.dat','*.fas']
         self.dict['MaskPos'] = {2:'A'}
@@ -580,7 +601,7 @@ class SLiMFinder(rje_slimcore.SLiMCore):
                                              'AllSig','PickAll','PickID','FixLen','QExact','Palindrome','CloudFix'])
                 self._cmdRead(cmd,'bool','PreAmb','ambiguity')
                 self._cmdRead(cmd,'num','ProbCut','sigcut')
-                self._cmdReadList(cmd,'list',['FTMask','IMask','MustHave','Equiv','Batch','OccScale','Query'])
+                self._cmdReadList(cmd,'list',['MustHave','Equiv','Batch','OccScale','Query'])
                 self._cmdReadList(cmd,'cdict',['MotifSeq','MaskPos'])
             except: self.errorLog('Problem with cmd:%s' % cmd)
         ### Special Conversion ###
@@ -612,6 +633,9 @@ class SLiMFinder(rje_slimcore.SLiMCore):
         if self.getBool('Webserver') and self.getNum('ProbCut') > 0.05 and self.getInt('TopRanks') > 100:
             self.printLog('#TOP','Webserver output limited to top 100 SLiMs. (Reduced from %d)' % self.getInt('TopRanks'))
             self.setInt({'TopRanks':100})
+        if not self.getBool('DisMask'):
+            self.warnLog('No disorder masking. Recommended setting: dismask=T')
+            if self.i() >= 0 and rje.yesNo('Switch on disorder masking?'): self.setBool({'DisMask':True})
 #########################################################################################################################
     ### <2> ### Simple Stats Methods                                                                                    #
 #########################################################################################################################
@@ -873,8 +897,12 @@ class SLiMFinder(rje_slimcore.SLiMCore):
                 newmin = self.getNum(occ) * self.UPNum()
                 if int(newmin) == newmin: newmin = int(newmin)
                 else: newmin = int(newmin) + 1
-                if occ == 'MinOcc' and newmin < self.getInt('AbsMin'): newmin = self.getInt('AbsMin')
-                if occ == 'AmbOcc' and newmin < self.getInt('AbsMinAmb'): newmin = self.getInt('AbsMinAmb')
+                if occ == 'MinOcc':
+                    if newmin <= self.getInt('AbsMin'): newmin = self.getInt('AbsMin')
+                    else: self.warnLog('Adjusted MinOcc exceeds absolute minimum (%d) - may be sacrificing power for speed.' % self.getInt('AbsMin'))
+                if occ == 'AmbOcc':
+                    if newmin <= self.getInt('AbsMinAmb'): newmin = self.getInt('AbsMinAmb')
+                    else: self.warnLog('Adjusted AmbOcc exceeds absolute minimum (%d) - may be sacrificing power for speed.' % self.getInt('AbsMinAmb'))
                 self.printLog('#MIN','%s %.2f & %d UP => %s %d UPC.' % (occ,self.getNum(occ),self.UPNum(),occ,newmin))
                 self.setNum({occ:newmin})
         if self.getInt('AmbOcc') > self.getInt('MinOcc'):
@@ -3057,14 +3085,16 @@ class SLiMFinder(rje_slimcore.SLiMCore):
 #########################################################################################################################
     def restSetup(self):    ### Sets up self.dict['Output'] and associated output options if appropriate.
         '''
-        Run with &rest=help for general options. Run with &rest=full to get full server output.
-        Individual outputs can be identified/parsed:
+        The standared REST server call for SLiMFinder is in the form:
+        `slimfinder`&uniprotid=LIST&dismask=T/F&consmask=T/F
 
-        ###~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~###
-        # OUTFMT:
-        ...
+        Different sources of input can also be given with:
+        `slimfinder`&seqin=LIST&dismask=T/F&consmask=T/F
 
-        Outputs available:
+        Run with &rest=help for general options. Run with &rest=full to get full server output as plain text. Otherwise,
+        individual outputs are parsed and presented in different tabs:
+
+        ### Outputs available:
             main = main results file (extras=-1)
             seqin = Input file (extras=-1)
             occ = occurrence file (extras=0)
@@ -3079,8 +3109,8 @@ class SLiMFinder(rje_slimcore.SLiMCore):
             compare = CM compare.tdt file (extras=2)
             xgmml = XGMML file (extras=2)
             dismatrix = *.dis.tdt file (extras=3)
-            rank = optional SLiMDIsc output (extras=3)
-            dat.rank = optional SLiMDIsc output (extras=3)
+            rank = optional SLiMDisc output (extras=3)
+            dat.rank = optional SLiMDisc output (extras=3)
 
         &rest=OUTFMT can then be used to retrieve individual parts of the output in future.
         '''

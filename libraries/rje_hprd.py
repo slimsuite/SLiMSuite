@@ -19,8 +19,8 @@
 """
 Module:       rje_hprd
 Description:  HPRD Database processing module
-Version:      1.2
-Last Edit:    26/06/08
+Version:      1.2.1
+Last Edit:    16/05/16
 Copyright (C) 2007  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -88,6 +88,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 1.0 - Working version based on rje_ppi.
     # 1.1 - Added protein complexes and PPI Types.
     # 1.2 - Added tracking of evidence.
+    # 1.2.1 - Fixed "PROTEIN_ARCHITECTURE" bug.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -101,7 +102,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo():     ### Makes Info object
     '''Makes rje.Info object for program.'''
-    (program, version, last_edit) = ('RJE_HPRD', '1.2', 'June 2008')
+    (program, version, last_edit) = ('RJE_HPRD', '1.2.1', 'May 2016')
     description = 'HPRD Database processing module'
     author = 'Dr Richard J. Edwards.'
     return rje.Info(program,version,last_edit,description,author,time.time())
@@ -288,12 +289,12 @@ class HPRD(rje.RJE_Object):
             self.dict['Domains'] = {}
             self.dict['DomainSource'] = {}
             if parsedom:
-                hprd = self.loadFromFile('%sPROTEIN_Architecture.txt' % self.info['HPRDPath'],v=1,checkpath=True,chomplines=True)
+                hprd = self.loadFromFile('%sPROTEIN_ARCHITECTURE.txt' % self.info['HPRDPath'],v=1,checkpath=True,chomplines=True)
                 hx = float(len(hprd))
                 while hprd:
                     entry = hprd.pop(0)
                     px = 100.0 * (hx - len(hprd)) / hx 
-                    self.log.printLog('\r#HPRD','Parsing PROTEIN_Architecture: %.1f%%' % px,newline=False,log=False)
+                    self.log.printLog('\r#HPRD','Parsing PROTEIN_ARCHITECTURE: %.1f%%' % px,newline=False,log=False)
                     data = string.split(entry)
                     ## Check ##
                     if len(data) < 9: continue
@@ -304,7 +305,7 @@ class HPRD(rje.RJE_Object):
                     elif hid not in self.dict['Domains'][domain]: self.dict['Domains'][domain].append(hid)
                     if domain not in self.dict['DomainSource']: self.dict['DomainSource'][domain] = [source]
                     elif source not in self.dict['DomainSource'][domain]: self.dict['DomainSource'][domain].append(source)
-                self.log.printLog('\r#HPRD','Parsing PROTEIN_Architecture complete!')
+                self.log.printLog('\r#HPRD','Parsing PROTEIN_ARCHITECTURE complete!')
 
             ### ~ Make SeqList from PROTEIN_SEQUENCES.txt ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if parseseq:

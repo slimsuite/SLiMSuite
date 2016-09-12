@@ -19,8 +19,8 @@
 """
 Program:      SLiMProb
 Description:  Short Linear Motif Probability tool
-Version:      2.2.4
-Last Edit:    11/06/15
+Version:      2.2.5
+Last Edit:    07/12/15
 Citation:     Davey, Haslam, Shields & Edwards (2010), Lecture Notes in Bioinformatics 6282: 50-61. 
 Copyright (C) 2007  Richard J. Edwards - See source code for GNU License Notice
 
@@ -68,17 +68,17 @@ Commandline: ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     masking=T/F     : Master control switch to turn off all masking if False [False]
     dismask=T/F     : Whether to mask ordered regions (see rje_disorder for options) [False]
     consmask=T/F    : Whether to use relative conservation masking [False]
-    ftmask=LIST     : UniProt features to mask out [EM,DOMAIN,TRANSMEM]
+    ftmask=LIST     : UniProt features to mask out (True=EM,DOMAIN,TRANSMEM) []
     imask=LIST      : UniProt features to inversely ("inclusively") mask. (Seqs MUST have 1+ features) []
-    compmask=X,Y    : Mask low complexity regions (same AA in X+ of Y consecutive aas) [5,8]
+    compmask=X,Y    : Mask low complexity regions (same AA in X+ of Y consecutive aas) [None]
     casemask=X      : Mask Upper or Lower case [None]
     motifmask=X     : List (or file) of motifs to mask from input sequences []
     metmask=T/F     : Masks the N-terminal M [False]
-    posmask=LIST    : Masks list of position-specific aas, where list = pos1:aas,pos2:aas  [2:A]
+    posmask=LIST    : Masks list of position-specific aas, where list = pos1:aas,pos2:aas  []
     aamask=LIST     : Masks list of AAs from all sequences (reduces alphabet) []
 
     ### SearchDB Options II: Evolutionary Filtering  ###
-    efilter=T/F     : Whether to use evolutionary filter [False]
+    efilter=T/F     : Whether to use evolutionary filter [True]
     blastf=T/F      : Use BLAST Complexity filter when determining relationships [True]
     blaste=X        : BLAST e-value threshold for determining relationships [1e=4]
     altdis=FILE     : Alternative all by all distance matrix for relationships [None]
@@ -136,6 +136,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 2.2.2 - Modified input to allow motif=X in addition to motifs=X.
     # 2.2.3 - Tweaked basefile setting and citation.
     # 2.2.4 - Improved slimcalc output (s.f.).
+    # 2.2.5 - Fixed FTMask=T/F bug.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -143,19 +144,24 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
     # [ ] : Finish implementation with current methods/options!
     # [ ] : Add occurrence and SLiM filtering.
     # [ ] : Reinstate the expcut=X option for filtering motifs based on expected occurrences.
-    # [ ] : Remove ORTHALN and make mapping like SLiMFinder
+    # [Y] : Remove ORTHALN and make mapping like SLiMFinder
     # [ ] : Add "startfrom" option.
-    # [ ] : Incorporate and test new BLAST module (blast+)
+    # [Y] : Incorporate and test new BLAST module (blast+)
     # [ ] : Test/Check TEIRESIAS output
     # [ ] : Add numpy etc.
     # [ ] : Make sure that Force option does not use old pickles.
     # [ ] : Generally tidy up use of force/debug/test/warn/dev/v/i options. Improve error handling and checking.
     # [Y] : Adjust the maxsize=X setting to be enforced AFTER masking!
+    # [ ] : Make slimsearch variant (prog=slimsearch efilter=F)
+    # [ ] : ResFile default is currently over-ruling basefile=X. Change and test that REST server is still OK.
+    # [ ] : Add pickup=T/F option, as with SLiMFinder.
+    # [ ] : Add maxupc=X        : Maximum UPC size of dataset to process [0]
+    # [ ] : Review masking defaults.
     '''
 #########################################################################################################################
 def makeInfo():     ### Makes Info object
     '''Makes rje.Info object for program.'''
-    (program, version, last_edit, copyyear) = ('SLiMProb', '2.2.4', 'June 2015', '2007')
+    (program, version, last_edit, copyyear) = ('SLiMProb', '2.2.5', 'December 2015', '2007')
     description = 'Short Linear Motif Probability tool'
     author = 'Dr Richard J. Edwards.'
     comments = ['Please cite: Davey, Haslam, Shields & Edwards (2010), Lecture Notes in Bioinformatics 6282: 50-61.']
@@ -166,8 +172,8 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
     try:
         if not info: info = makeInfo()
         if not out: out = rje.Out()
-        help = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
-        if help > 0:
+        helpx = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
+        if helpx > 0:
             print '\n\nHelp for %s %s: %s\n' % (info.program, info.version, time.asctime(time.localtime(info.start_time)))
             out.verbose(-1,4,text=__doc__)
             if rje.yesNo('Show SLiMList commandline options?'): out.verbose(-1,4,text=rje_slimlist.__doc__)
@@ -333,7 +339,7 @@ class SLiMProb(rje_slimcore.SLiMCore):
                 self._cmdReadList(cmd,'int',['MaxSeq','MaxSize','SaveSpace','HomCut','SeqOcc','MaxOcc','Extras'])
                 self._cmdReadList(cmd,'num',['MST','WallTime'])
                 self._cmdRead(cmd,'int','MaxSize','maxaa')
-                self._cmdReadList(cmd,'list',['Batch','FTMask','IMask'])
+                self._cmdReadList(cmd,'list',['Batch'])
             except: self.errorLog('Problem with cmd:%s' % cmd)
 #########################################################################################################################
     ### <2> ### Simple Stats Methods                                                                                    #

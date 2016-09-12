@@ -31,7 +31,7 @@ Commandline:
     basefile=X  : Prefix for output files [slimsuite]
     prevbase=X  : Prefix of output files for previous release (to update) [slimsuite]
     backbase=X  : Prefix of backed up output files for previous release [slimsuite.#DATE]
-    ### ~~~ Python Module Input Options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+    ### ~ Python Module Input Options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     pylist=LIST     : List of python modules to upload. Can have * wildcards. Will add '.py' if missing. ['*']
     pypath=PATH     : Path to python modules. Will also look in listed sourcedir subfolders. [../]
     sourcedir=LIST  : List of subdirectories in which to look for modules [tools,extras,libraries,legacy]

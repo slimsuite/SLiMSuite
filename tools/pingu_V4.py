@@ -19,8 +19,8 @@
 """
 Module:       PINGU
 Description:  Protein Interaction Network & GO Utility
-Version:      4.5.3
-Last Edit:    08/06/15
+Version:      4.8.0
+Last Edit:    17/05/16
 Copyright (C) 2013  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -55,11 +55,20 @@ Function:
     using custom methods: `hprd=PATH` and `reactome=FILE` must be set; HINT data will be read from `sourcepath=PATH/`.
     Otherwise, entries will be treated as files (wildcard lists allowed) and either parsed as a pairwise PPI file (`Hub`
     and `Spoke` fields found) else a MITAB file (see rje_mitab for advanced field settings). The compiled PPI data
-    will be output to `BASEFILE.pingu.tdt` and used as `ppisource=X` for additional processing/output.
+    will be output to `BASEFILE.pairwise.tdt` and used as `ppisource=X` for additional processing/output.
 
     Default mapping fields for XRef mapping are: `Secondary,Ensembl,Aliases,Accessions,RefSeq,Previous Symbols,Synonyms`.
     `Secondary` will be added from Uniprot data if missing from the XRef table. `unifield=X` will also be added to the
     map fields if not included.
+
+    PINGU 4.6.x fixed/updated the PPI Fasta output methods (`ppifas=T`). These will output to a directory named after the
+    `ppisource` file and `ppispec`. Each hub gene will produce a fasta file, `gene.fasid.fas` where `fasid` is set by the
+    `ppisource` unless changed with `fasid=X`. If `combineppi=T`, a single `spec.fasid.fas` file will be created. The
+    `xhubppi=T` setting will generate a set of files containing spoke proteins that have x+ Hub interactors. Note that
+    `*.1hub.fas` is essentially the same as the `combineppi=T` `spec.fasid.fas` file.
+
+    PINGU 4.7 added `ppidbreport=T/F` output for PPI compilation, summarising the evidence codes and PPITypes read from
+    different sources.
 
 Commandline:
     ### ~ SOURCE DATA OPTIONS ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -75,24 +84,29 @@ Commandline:
 
     ### ~ OUTPUT OPTIONS ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     resdir=PATH         : Redirect output files/directories to specified directory [./]
-    basefile=X          : Results file prefix if no data file given with data=FILE [pingu]
+    basefile=X          : Results file prefix [pingu]
     acconly=T/F         : Whether to output lists of Accession numbers only, rather than full fasta files [False]
     fasid=X             : Text ID for fasta files (*.X.fas) [default named after ppisource(+'-dom')]
 
     ### ~ PPI OUTPUT OPTIONS ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-    ppifas=T/F          : Whether to output PPI files [False]
+    ppiout=FILE         : Save pairwise PPI file following processing (if rest=None) [None]
+    ppifas=T/F          : Whether to output PPI fasta files [False]
     domppi=T/F          : Whether to generate Pfam Domain-based PPI files instead of protein-based PPI files [False]
     minppi=X            : Minimum number of PPI for file output [0]
+    combineppi=T/F      : Whether to combine all spokes into a single fasta file [False]
+    xhubppi=T/F         : Whether to generate PPI files of spokes interacting with X+ hubs [False]
     queryppi=FILE       : Load a file of 'Query','Hub' PPI and generate expanded PPI Datasets in PPI.*/ [None]
     queryseq=FILE       : Fasta file containing the Query protein sequences corresponding to QuerySeq [*.fas]
-    allquery=T/F        : Whether to include all the new Queries from QueryPPI in all files [True]
+    allquery=T/F        : Whether to include all the new Queries from QueryPPI in all files for a given hub [True]
 
     ### ~ ADVANCED/DEV OPTIONS ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     sourceurl=CDICT     : Dictionary of Source URL mapping (see code)
 
     ### ~ PPI COMPILATION/FILTERING OPTIONS ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     hublist=LIST        : List of hub genes to restrict pairwise PPI to []
+    hubonly=T/F         : Whether to restrict pairwise PPI to those with both hub and spoke in hublist [False]
     ppicompile=CDICT    : List of db:file PPI Sources to compile and generate *.pairwise.tdt []
+    ppidbreport=T/F     : Summary output for PPI compilation of evidence/PPIType/DB overlaps [True]
     symmetry=T/F        : Whether to enforce Hub-Spoke symmetry during PPI compilation [True]
     hprd=PATH           : Path to HPRD flat files [None]
     taxid=LIST          : List of NCBI Taxa IDs to use [9606]
@@ -134,6 +148,12 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 4.5.1 - Debugging missing identifiers and indexing speed. Added good and bad DB.
     # 4.5.2 - Fixed SIF output and changed names to sif-* for opening in browser.
     # 4.5.3 - Updated REST output.
+    # 4.6.0 - Added hubonly=T/F : Whether to restrict pairwise PPI to those with both hub and spoke in hublist [False]
+    # 4.6.1 - Fixed some ppifas=T/F bugs and added combineppi=T/F : Whether to combine all spokes into a single fasta file [False]
+    # 4.6.2 - Added check/filter for multiple SpokeUni pointing to same sequence. (Compilation redundancy mapping failure!)
+    # 4.6.3 - Fixed issue with 1:many SpokeUni:Spoke mappings messing up XHub.
+    # 4.7.0 - Added ppidbreport=T/F : Summary output for PPI compilation of evidence/PPIType/DB overlaps [True]
+    # 4.8.0 - Fixed report duplication issue and added additional summary output
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -148,17 +168,21 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
     # [Y] : Add catching and summarising of missing accnum when ppisource is used rather than assuming all acc match spec
     # [Y] : Test running with unipath=PATH setting (rather than URL). -> Dropped!
     # [ ] : Need to get the CAEEL gene mapping working OK!
-    # [ ] : Implement the evidence=FILE evidence code mapping.
+    # [ ] : Implement/Update the evidence=FILE evidence code mapping.
     # [Y] : Add goodppi and badppi for evidence filtering.
     # [Y] : Replace ppicompile with list of database types/files.
     # [ ] : Add making a rje_ppi.PPI object from PINGU.db('pairwise') as PPI.db('Edge') for outputs.
     # [Y] : Test with REST output.
     # [ ] : Properly sort out the setup and use of MapFields, incorporating XRef KeyID etc.
+    # [ ] : Add expandppi=X to increase hublist. (Might be easier to read whole in and then remove)
+    # [ ] : Rationalise use of ResDir.
+    # [ ] : Tidy up obselete V3 code.
+    # [ ] : Add hostpathogen=LIST PPI mode to extract one taxon match and one pathogen taxon match in the PPI pairs.
     '''
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copyyear) = ('PINGU', '4.5.3', 'June 2015', '2013')
+    (program, version, last_edit, copyyear) = ('PINGU', '4.8.0', 'May 2016', '2013')
     description = 'Protein Interaction Network & GO Utility'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',
@@ -240,12 +264,16 @@ class PINGU(rje_obj.RJE_Object):
     Bool:boolean
     - AccOnly = Whether to output lists of Accession numbers only, rather than full fasta files [False]
     - AllQuery = Whether to include all the new Queries from QueryPPI in all files [True]
+    - CombinePPI=T/F      : Whether to combine all spokes into a single fasta file [False]
     - DomPPI = Whether to generate Domain-based PPI files [False]
     - Download = Whether to download files directly from websites where possible if missing [True]
+    - HubOnly = Whether to restrict pairwise PPI to those with both hub and spoke in hublist [False]
     - Integrity = Whether to quit by default if input integrity is breached [True]
     - PPICompile = Whether to compile PPI datasets from individual sources and generate *.pairwise.tdt [False]
     - PPIFas = Whether to output PPI files [False]
+    - PPIDBReport = Summary output for PPI compilation of evidence/PPIType/DB overlaps [True]
     - Symmetry = Whether to enforce Hub-Spoke symmetry [True]
+    - XHubPPI=T/F         : Whether to generate PPI files of spokes interacting with X+ hubs [False]
 
     Int:integer
     - MinPPI = Minimum number of PPI for file output [0]
@@ -281,7 +309,7 @@ class PINGU(rje_obj.RJE_Object):
         ### ~ Basics ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         self.strlist = ['FasID','QueryPPI','QuerySeq','ResDir','PPISource','SourceDate','SourcePath','XRefData',
                         'Evidence','DIP','Domino','HPRD','BioGRID','IntAct','MINT','Reactome']
-        self.boollist = ['AccOnly','AllQuery','DomPPI','Download','Integrity','PPICompile','PPIFas','Symmetry']
+        self.boollist = ['AccOnly','AllQuery','CombinePPI','DomPPI','Download','HubOnly','Integrity','PPICompile','PPIDBReport','PPIFas','Symmetry','XHubPPI']
         self.intlist = ['MinPPI']
         self.numlist = []
         self.listlist = ['BadDB','BadPPI','GoodDB','GoodPPI','HubList','MapFields','PPISpec','RestDB','TaxID']
@@ -290,7 +318,7 @@ class PINGU(rje_obj.RJE_Object):
         ### ~ Defaults ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         self._setDefaults(str='None',bool=False,int=0,num=0.0,obj=None,setlist=True,setdict=True)
         self.setStr({'PPISource':'HINT','SourcePath':'SourceData/','UniField':'Uniprot','ResDir':rje.makePath('./')})
-        self.setBool({'Download':True,'Integrity':True,'Symmetry':True})
+        self.setBool({'Download':True,'HubOnly':False,'Integrity':True,'PPIDBReport':True,'Symmetry':True})
         self.setInt({})
         self.setNum({})
         self.list['MapFields'] = string.split('Gene,Uniprot,UniprotID,Secondary,Ensembl,Aliases,Accessions,RefSeq,GenPept,Previous Symbols,Synonyms',',')
@@ -334,8 +362,8 @@ class PINGU(rje_obj.RJE_Object):
                 self._cmdReadList(cmd,'path',['HPRD','SourcePath','ResDir'])  # String representing directory path
                 self._cmdReadList(cmd,'file',['PPISource','QueryPPI','QuerySeq',
                                               'Evidence','DIP','Domino','BioGRID','IntAct','MINT','Reactome'])
-                self._cmdReadList(cmd,'bool',['AccOnly','AllQuery','DomPPI','Download','Integrity','PPICompile',
-                                              'PPIFas','Symmetry'])
+                self._cmdReadList(cmd,'bool',['AccOnly','AllQuery','CombinePPI','DomPPI','Download','HubOnly',
+                                              'Integrity','PPICompile','PPIDBReport','PPIFas','Symmetry','XHubPPI'])
                 self._cmdReadList(cmd,'int',['MinPPI'])   # Integers
                 #self._cmdReadList(cmd,'float',['Att']) # Floats
                 #self._cmdReadList(cmd,'min',['Att'])   # Integer value part of min,max command
@@ -358,6 +386,7 @@ class PINGU(rje_obj.RJE_Object):
             if not self.setup(): return False    #i# Includes PPICompile code
             self.debug('Run...')
             self.filterPPI()
+            if self.getBool('XHubPPI'): self.xHubPPI()
             ### ~ [2] ~ Add main run code here ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             ## ~ [2a] ~ PPI Fasta output ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             if self.getBool('PPIFas'): self.ppiFas()
@@ -581,7 +610,8 @@ class PINGU(rje_obj.RJE_Object):
 
             ### ~ [2] Setup Output ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if not self.getStrLC('FasID'):
-                fasid = string.split(self.getStrLC('PPISource'),'.')[0]
+                fasid = string.split(rje.stripPath(self.getStrLC('PPISource')),'.')[0]
+                self.debug(fasid)
                 if setup_dmi: fasid += '-dom'
                 self.setStr({'FasID':fasid})
             rje.mkDir(self,self.getStr('ResDir'))
@@ -594,10 +624,22 @@ class PINGU(rje_obj.RJE_Object):
         '''Compilation of different PPI sources based on PINGU V3 code.'''
         try:### ~ [0] ~ Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             #if not self.dev(): return self.OLDcompilePPI()
+            dbconvert = {'cpdb':'consensuspathdb'}
             self.printLog('#~~#','# ~~~~~~~~~~~~~~~~~~~~~~~ COMPILE PPI ~~~~~~~~~~~~~~~~~~~~~~~~~~~ #')
             pdb = self.db().addEmptyTable('pairwise',['#','Hub','Spoke','HubUni','SpokeUni','HubTaxID','SpokeTaxID','Evidence','IType'],['#'])
             sdb = self.db('Source') #,['Name','File','Status','Entries','URL'],keys=['Name'],log=False)   # Store Source info
             xdb = self.xrefDB()
+            if self.getBool('PPIDBReport'):
+                self.db().addEmptyTable('report',['DB','Evidence','IType','PPI','Hub','Spoke'],['DB','Evidence','IType'])
+                #self.db().addEmptyTable('report-evidence',['Evidence','PPI','Hubs','Spokes'],['Evidence'])
+                #self.db().addEmptyTable('report-ppidb',['DB','PPI','Hubs','Spokes'],['DB'])
+                #self.db().addEmptyTable('report-ppitype',['PPIType','PPI','Hubs','Spokes'],['DB'])
+            repdb = self.db('report',add=False) #['DB','Evidence','IType','PPI','Hub','Spoke'],['DB','Evidence','IType']
+            #if self.getBool('PPIDBReport'):
+                #repdb = {}
+                #repdb['METHOD'] = repdbev = self.db('report-evidence') #['Evidence','PPI','Hubs','Spokes'],['Evidence']
+                #repdb['DB'] = repdbdb = self.db('report-ppidb')    #['DB','PPI','Hubs','Spokes'],['DB']
+                #repdb['ITYPE'] = repdbtype = self.db('report-ppitype')#['PPIType','PPI','Hubs','Spokes'],['DB']
             if not xdb:
                 self.printLog('#XREF','Cannot compile PPI data w/o XRef data. Check xrefdata=FILE setting.')
                 return False
@@ -635,7 +677,7 @@ class PINGU(rje_obj.RJE_Object):
                                 entry['SpokeUni'] = self.getUniXRef(entry['Spoke'],xfields)
                 ## ~ [1c] Parse Special files ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
                     elif db.lower() == 'reactome': ddb = self.parseReactome(dbfile)
-                    elif db.lower() == 'consensuspathdb': ddb = self.parseConsensusPathDB(dbfile)
+                    elif db.lower() in ['cpdb','consensuspathdb']: ddb = self.parseConsensusPathDB(dbfile)
                     #!# Remove reactome=FILE
                 ## ~ [1d] Parse MITAB file ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
                     else:
@@ -645,8 +687,47 @@ class PINGU(rje_obj.RJE_Object):
                         mitab.run(save=False)
                         ddb = mitab.db('pairwise')
                         sdb.addEntry({'Name':db,'File':dbfile,'Status':'Parsed','Entries':ddb.entryNum()})
-                ## ~ [1e] Combine Tables ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-                if ddb: self.db().mergeTables(pdb,ddb,overwrite=False,matchfields=False)
+                ## ~ [1e] PPIDBReport ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+                if self.getBool('PPIDBReport'):
+                    try:
+                        drdb = self.db().copyTable(ddb,'%s-report' % db,replace=True,add=True)
+                        drdb.addField('PPI',evalue=1)
+                        drdb.keepFields(['#','Evidence','IType','PPI','Hub','Spoke'])
+                        for dentry in drdb.entries():
+                            #if db == 'hint': self.debug(dentry)
+                            if db.lower() in ['cpdb','consensuspathdb']: dentry['Evidence'] = 'cpdb'
+                            evidence = string.split(dentry['Evidence'],'|')
+                            dentry['Evidence'] = []
+                            for istr in evidence: dentry['Evidence'].append(string.split(istr,':',maxsplit=1)[-1])  # Strip db
+                            dentry['Evidence'] = string.join(dentry['Evidence'],'|')
+                            itypes = string.split(dentry['IType'],'|')
+                            dentry['IType'] = []
+                            for istr in itypes: dentry['IType'].append(string.split(istr,':',maxsplit=1)[-1])  # Strip db
+                            dentry['IType'] = string.join(dentry['IType'],'|')
+                        drdb.compress(['Evidence','IType'],rules={'Hub':'list','Spoke':'list','PPI':'sum'},joinchar='|')
+                        drdb.dropField('#')
+                        drdb.addField('DB',evalue=db)
+                        for dentry in drdb.entries():
+                            #if db == 'hint': self.bugPrint(dentry)
+                            dentry['Hub'] = len(string.split(dentry['Hub'],'|'))
+                            dentry['Spoke'] = len(string.split(dentry['Spoke'],'|'))
+                        #['DB','Evidence','IType','PPI','Hub','Spoke'],['DB','Evidence','IType']
+                        drdb.newKey(['DB','Evidence','IType'])
+                        #self.db().mergeTables(repdb,drdb,overwrite=False,matchfields=False)
+                        drx = drdb.entryNum(); repx = repdb.entryNum()
+                        rje.combineDict(repdb.dict['Data'],drdb.dict['Data'])   # Should be no key conflicts
+                        self.printLog('#MERGE','%s + %s %s -> %s report entries.' % (rje.iStr(repx),rje.iStr(drx),db,rje.iStr(repdb.entryNum())))
+                    except: self.errorLog('PPIDBReport error')
+                ## ~ [1f] Combine Tables ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+                if ddb:
+                    #self.db().mergeTables(pdb,ddb,overwrite=False,matchfields=False)
+                    ddx = ddb.entryNum(); ppx = pdb.entryNum();
+                    if ppx:
+                        pmax = max(pdb.datakeys())
+                        for dentry in ddb.entries(): dentry['#'] += pmax
+                    ddb.remakeKeys()
+                    rje.combineDict(pdb.dict['Data'],ddb.dict['Data'])   # Should be no key conflicts now
+                    self.printLog('#MERGE','%s + %s %s -> %s pairwise entries.' % (rje.iStr(ppx),rje.iStr(ddx),db,rje.iStr(pdb.entryNum())))
                 else: raise ValueError('Parsing %s failed!' % db)
 
             ### ~ [2] ~ Compress and save Pairwise Table ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -654,7 +735,10 @@ class PINGU(rje_obj.RJE_Object):
             pdb.dropField('#')
             self.printLog('#PPI','%s unique pairwise PPI (Symmetry=%s)' % (rje.iStr(pdb.entryNum()),self.getBool('Symmetry')))
             pdb.saveToFile('%s.pairwise.tdt' % self.baseFile())
-            if self.v() > 0:
+            ## ~ [2a] Log Report & Summaries ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            idb = None
+            if self.v() > 0 or self.getBool('PPIDBReport'):
+                idb = self.db().addEmptyTable('ireport',['Data','Value','PPI'],['Data','Value'])
                 report = {'DB':{},'METHOD':{},'ITYPE':{}}
                 rx = 0.0; rtot = pdb.entryNum()
                 for entry in pdb.entries():
@@ -672,6 +756,30 @@ class PINGU(rje_obj.RJE_Object):
                 for ri in ['DB','METHOD','ITYPE']:
                     for rk in rje.sortKeys(report[ri]):
                         self.printLog('#%s' % ri,'%s: %s' % (rk,rje.iStr(report[ri][rk])))
+                        idb.addEntry({'Data':ri,'Value':rk,'PPI':report[ri][rk]})
+            ## ~ [2b] PPIDBReport ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            if self.getBool('PPIDBReport'):
+                idb.saveToFile('%s.ireport.tdt' % self.baseFile())
+                repdb.saveToFile('%s.report.tdt' % self.baseFile())
+                dbdb = self.db().addEmptyTable('dbreport',['DB'],['DB'])
+                for db in rje.sortKeys(self.dict['PPICompile']): dbdb.addEntry({'DB':db})
+                for db in rje.sortKeys(self.dict['PPICompile']): dbdb.addField(db,evalue=0)
+                for db in ['Unique','Total']: dbdb.addField(db,evalue=0)
+                for entry in pdb.entries():
+                    pdblist = []
+                    for dbmethod in string.split(entry['Evidence'],'|'):
+                        evdb = string.split(dbmethod,':')[0]
+                        if evdb not in self.dict['PPICompile'] and evdb in dbconvert: evdb = dbconvert[evdb]
+                        if evdb not in self.dict['PPICompile']:
+                            self.warnLog('Database %s not recognised' % evdb,warntype='db_missing',quitchoice=True,suppress=True,dev=False,screen=True)
+                            continue
+                        pdblist.append(evdb)
+                    for db1 in pdblist:
+                        for db2 in pdblist:
+                            dbdb.data(db1)[db2] += 1
+                        dbdb.data(db1)['Total'] += len(pdblist)
+                        if len(pdblist) == 1: dbdb.data(db1)['Unique'] += 1
+                dbdb.saveToFile('%s.dbreport.tdt' % self.baseFile())
 
             return pdb
         except: self.errorLog('%s.compilePPI error' % self); return False
@@ -733,6 +841,32 @@ class PINGU(rje_obj.RJE_Object):
                 pdb.saveToFile('%s.filteredppi.tdt' % self.baseFile())
             return pdb
         except: self.errorLog('%s.filterPPI error' % self); return False
+#########################################################################################################################
+    def xHubPPI(self):  ### Converts pairwise table into numbers of interacting hubs for each spoke
+        '''Converts pairwise table into numbers of interacting hubs for each spoke.'''
+        try:### ~ [0] ~ Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            pdb = self.db('pairwise')
+            if not pdb: return None
+            ### ~ [1] ~ Calculate Numbers of Hubs ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            # First compress to Hub:SpokeUni pairs. NOTE: SpokeUni can map to multiple spokes, so this is needed!
+            pdb.compress(['Hub','SpokeUni'],rules={},default='sum',best=[],joinchar='|')
+            # Now count the unique hubs per spoke
+            for entry in pdb.entries(): entry['Hub'] = 1
+            pdb.compress(['SpokeUni'],rules={},default='sum',best=[],joinchar='|')
+            pdb.newKey(['Hub','SpokeUni'])  # Just for compatibility with later code
+            #!# This assumes that different SpokeUni are not ultimately mapping on to the same Uniprot entry #!#
+            ## ~ [1a] ~ Convert to cumulative counts ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            hubx = pdb.indexKeys('Hub')
+            hubx.reverse()
+            for i in range(len(hubx)-1):
+                x = hubx[i]
+                ix = len(pdb.indexEntries('Hub',x))
+                prex = len(pdb.indexDataList('Hub',hubx[i+1],'SpokeUni'))
+                for entry in pdb.indexEntries('Hub',x): pdb.addEntry(rje.combineDict({'Hub':hubx[i+1]},entry,overwrite=False))
+                postx = len(pdb.indexDataList('Hub',hubx[i+1],'SpokeUni'))
+                self.printLog('#XHUB','Added %s x %dhub to %dhub: %s -> %s.' % (rje.iStr(ix),x,hubx[i+1],rje.iStr(prex),rje.iStr(postx)))
+            return pdb
+        except: self.errorLog('%s.xHubPPI error' % self); return False
 #########################################################################################################################
     def parsePPI(self):     ### Parses PPI Database files into objects
         '''Parses PPI Database files into objects.'''
@@ -967,6 +1101,7 @@ class PINGU(rje_obj.RJE_Object):
                     #elif 'BRCA1' in [pentry['Hub'],pentry['Spoke'],entry['Hub'],entry['Spoke']]: self.bugPrint('%s >> %s' % (pentry,entry))
                     #elif self.dev(): continue
                     if 'None' in [entry['Hub'],entry['Spoke']]: continue
+                    if not entry['Hub'] or not entry['Spoke']: continue
                     pdb.addEntry(entry)
                     if self.getBool('Symmetry'):
                         pdb.addEntry({'#':pdb.entryNum(),'Hub':entry['Spoke'],'Spoke':entry['Hub'],
@@ -987,6 +1122,7 @@ class PINGU(rje_obj.RJE_Object):
             self.list['HubList'].sort()
             delimit = rje.delimitFromExt(filename=dbfile)
             ### ~ [1] Load data ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            #!# Add expandppi=X looping to increase hublist. (Might be easier to read whole in and then remove)
             if self.list['HubList']:
                 ex = 0
                 headers = rje.readDelimit(open(dbfile,'r').readline(),delimit)
@@ -996,11 +1132,13 @@ class PINGU(rje_obj.RJE_Object):
                 self.open('pairwise')
                 dline = self.findlines('pairwise',self.list['HubList'],asdict=False,wrap=False,chomp=True,warnings=True,nextonly=True)
                 while dline:
-                    ex += 1; self.progLog('\r#PPI','Reading Pairwise PPI for %s hubs: %s PPI' % (rje.iLen(self.list['HubList']),rje.iStr(ex)))
-                    ppdb.addEntry(rje.listToDict(rje.readDelimit(dline,delimit),headers))
+                    self.progLog('\r#PPI','Reading Pairwise PPI for %s hubs (hubonly=%s): %s PPI' % (rje.iLen(self.list['HubList']),self.getBool('HubOnly'),rje.iStr(ex)))
+                    pentry = rje.listToDict(rje.readDelimit(dline,delimit),headers)
+                    if not self.getBool('HubOnly') or pentry['Spoke'] in self.list['HubList']: ppdb.addEntry(pentry); ex += 1
                     dline = self.findlines('pairwise',self.list['HubList'],asdict=False,wrap=False,chomp=True,warnings=True,nextonly=True)
                 self.close('pairwise')
-                self.printLog('\r#PPI','Reading %s pairwise PPI for %s hubs from %s.' % (rje.iStr(ppdb.entryNum()),rje.iLen(self.list['HubList']),dbfile))
+                self.printLog('\r#PPI','Read in %s pairwise PPI for %s hubs (hubonly=%s) from %s.' % (rje.iStr(ppdb.entryNum()),rje.iLen(self.list['HubList']),self.getBool('HubOnly'),dbfile))
+                ppdb.saveToFile('%s.pairwise.tdt' % self.baseFile())
             else:
                 ppdb = self.db().addTable(dbfile,mainkeys=['Hub','Spoke'],name='pairwise')
                 self.printLog('\r#PPI','Reading %s pairwise PPI from %s.' % (rje.iStr(ppdb.entryNum()),dbfile))
@@ -1011,21 +1149,26 @@ class PINGU(rje_obj.RJE_Object):
 #########################################################################################################################
     ### <4> ### Class Output Methods                                                                                    #
 #########################################################################################################################
-    def ppiFas(self):   ### Outputs PPI data to Fasta Files
-        '''Outputs PPI data to Fasta Files'''
+    def ppiFas(self,pdb=None):   ### Outputs PPI data to Fasta Files
+        '''
+        Outputs PPI data to Fasta Files.
+        >> pdb:Table with "Hub" and "SpokeUni" fields.
+        '''
         try:### ~ [1] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             # PPI data should be stored in PPI.SPEC or DomPPI.SPEC tables.
             force = self.force()
             db = self.obj['DB']
+            if not pdb: pdb = self.db('pairwise',add=False)
+            self.debug(pdb)
             ppitype = 'PPI'; hubtype = 'Hub'
             if self.getBool('DomPPI'): ppitype = 'DomPPI'; hubtype = 'Pfam'
             ### ~ [1] ~ Generate PPI Datasets ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             for spec in self.list['PPISpec']:
                 self.printLog('#~~#','# ~~~~~~~~~~~~~~~~~~~~~~~ %s PPI DATASETS ~~~~~~~~~~~~~~~~~~~~~~~~~~ #' % spec)
-                pdb = self.db('PPISource',add=False)
                 if not pdb: pdb = self.db('%s.%s' % (ppitype,spec))
-                ppisource = rje.baseFile(self.getStr('PPISource'))
+                ppisource = rje.baseFile(self.getStr('PPISource'),strip_path=True)
                 datadir = rje.makePath('%s%s.%s.%s/' % (self.getStr('ResDir'),ppisource,ppitype,spec))
+                self.debug(datadir)
 
                 #if self.db('PPISource',add=False):
                 #    pdb = self.db('PPISource')
@@ -1038,50 +1181,86 @@ class PINGU(rje_obj.RJE_Object):
                 #    datadir = rje.makePath('%sPPI.%s/' % (self.getStr('ResDir'),spec))
                 if os.path.exists(datadir) and force: rje.deleteDir(self,datadir)
                 rje.mkDir(self,datadir,True)
-                ppidat = self.getStr('Uniprot.%s' % spec)
+                self.setStr({'Uniprot.%s' % spec: 'uniprot.%s.dat' % spec})
+                ppidat = self.sourceDataFile('Uniprot.%s' % spec,expect=True,ask=False)
+                if not ppidat: raise IOError('Something went wrong making/finding %s UniProt file.' % spec)
+                #ppidat = self.getStr('Uniprot.%s' % spec)
+                self.debug(ppidat)
                 if spec in self.dict['UniSpec']:
                     ppuni = self.dict['UniSpec'][spec]
                     unimap = ppuni.accDictFromEntries()     # Map all accession numbers onto species UniProt entries
                 else: unimap = {}
                 ## ~ [1a] Take each hub in turn ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+                self.debug(self.getBool('CombinePPI'))
+                if self.getBool('CombinePPI'):
+                    #basename = rje.baseFile(self.baseFile(),strip_path=True)
+                    ppiseqfile = '%s%s.%s.fas' % (datadir,spec,self.getStr('FasID'))
+                    if not self.getBool('CombinePPI') and rje.exists(ppiseqfile) and not force:
+                        self.printLog('#SKIP','%s file %s found (force=F).' % (spec,ppiseqfile))
+                        continue
                 seqfilex = 0; unihubx = 0; minx = 0; sfail = []; hfail = []
                 for hub in rje.sortKeys(pdb.index(hubtype)):  # This is now a hub protein: find in ppi
                     self.progLog('\r#PPI','%s PPI files made from %s hubs. (%s < %d MinPPI)' % (rje.iStr(seqfilex),rje.iStr(unihubx),rje.iStr(minx),self.getInt('MinPPI')))
-                    ppiseqfile = '%s%s.%s.fas' % (datadir,hub,self.getStr('FasID'))
                     unihubx += 1
-                    if rje.exists(ppiseqfile) and not force: seqfilex += 1; continue
-                    elif not unimap:    # This is done here to save time if all files are made
+                    if not self.getBool('CombinePPI'):
+                        if self.getBool('XHubPPI'): ppiseqfile = '%s%s.%s.%shub.fas' % (datadir,spec,self.getStr('FasID'),hub)
+                        else: ppiseqfile = '%s%s.%s.fas' % (datadir,hub,self.getStr('FasID'))
+                        if rje.exists(ppiseqfile) and not force: seqfilex += 1; continue
+                    if not unimap:    # This is done here to save time if all files are made
+                        #ppuni = rje_uniprot.UniProt(self.log,self.cmd_list)
                         ppuni = rje_uniprot.UniProt(self.log,self.cmd_list+['unipath=%s' % self.getStr('SourceData')])
+                        self.debug(self.getStr('SourceData'))
                         ppuni.setStr({'Name':ppidat})
+                        self.debug(ppidat)
                         ppuni.readUniProt()
                         if not self.getBool('MemSaver'): self.dict['UniSpec'][spec] = ppuni
                         unimap = ppuni.accDictFromEntries()     # Map all accession numbers onto species UniProt entries
+                        self.debug(len(unimap))
                     ppiseqs = []
-                    spokelist = pdb.indexDataList(hubtype,hub,'SpokeUni')
+                    if self.getBool('CombinePPI'):
+                        spokelist = pdb.indexKeys('SpokeUni')
+                        hub = 'combined'
+                    else: spokelist = pdb.indexDataList(hubtype,hub,'SpokeUni')
                     while '' in spokelist: spokelist.remove('')
                     for spoke in spokelist:
                         spacc = spoke.split('-')[0]     # PPI can have isoforms?
                         try: seq = (unimap[spacc].obj['Sequence'],spoke)   # SeqAcc can be isoform
                         except:
-                            if self.db('PPISource',add=False):
+                            if self.db('pairwise',add=False):
                                 if spoke not in sfail: sfail.append(spoke)
                             else: self.printLog('#ERR','Failed to get sequence for %s.' % (spoke))
                             continue
                         if seq not in ppiseqs: ppiseqs.append(seq)
                     if ppiseqs:
                         if len(ppiseqs) < self.getInt('MinPPI'): minx += 1; continue
+                        ppifas = []; redseq = []
+                        for seq in ppiseqs:
+                            seqfas = seq[0].fasta(seq[1])
+                            if seqfas not in ppifas: ppifas.append(seqfas)
+                            else:
+                                if seq[0] not in redseq: redseq.append(seq[0])
+                                self.warnLog('%s already detected in output. Secondary AccNum in pairwise PPI?' % seq[0].shortName())
+                        if len(ppifas) < self.getInt('MinPPI'): minx += 1; continue
+                        ppifas.sort()
                         PPISEQ = open(ppiseqfile,'w')
-                        for seq in ppiseqs: PPISEQ.write(seq[0].fasta(seq[1]))
+                        PPISEQ.write(string.join(ppifas,''))
                         PPISEQ.close()
-                        self.printLog('\r#SEQ','%s sequences output to %s' % (len(ppiseqs),ppiseqfile),screen=self.v()>1)
+                        self.printLog('\r#SEQ','%s sequences output to %s' % (len(ppifas),ppiseqfile),screen=self.v()>1)
+                        for rseq in redseq:
+                            redspoke = []
+                            for seq in ppiseqs:
+                                if seq[0] == rseq: redspoke.append(seq[1])
+                            redspoke.sort()
+                            self.warnLog('Check %s for multiple mapping to %s: %s.' % (ppisource,rseq.shortName(),string.join(redspoke,'; ')))
                         seqfilex += 1
                     else:
-                        if self.db('PPISource',add=False):
+                        if self.db('pairwise',add=False):
                             if hub not in hfail: hfail.append(hub)
                         else: self.printLog('\r#PPI','No sequences to output for %s PPI. (No mapped spokes.)' % (hub))
+                    if self.getBool('CombinePPI'): unihubx = len(pdb.index('Hub')); break
                 self.printLog('\r#PPI','%s PPI files made from %s hubs. (%s < %d MinPPI)' % (rje.iStr(seqfilex),rje.iStr(unihubx),rje.iStr(minx),self.getInt('MinPPI')))
-                if self.db('PPISource'):
-                    self.printLog('#PPI','%s hubs and %s spokes missing %s PPI data in %s' % (rje.iLen(hfail),rje.iLen(sfail),spec,self.db('PPISource').getStr('Source')))
+                if self.db('pairwise'):
+                    self.printLog('#PPI','%s hubs and %s spokes missing %s PPI data in %s' % (rje.iLen(hfail),rje.iLen(sfail),spec,self.db('pairwise').getStr('Source')))
             return
         except: self.errorLog('%s.ppiFas error' % self)
 #########################################################################################################################
@@ -1091,7 +1270,7 @@ class PINGU(rje_obj.RJE_Object):
             # PPI data should be in PPI.SPEC/ or DomPPI.SPEC/ directories.
             force = self.force()
             db = self.obj['DB']
-            pdb = self.db('PPISource',add=False)
+            pdb = self.db('pairwise',add=False)
             spec = self.list['PPISpec'][0]
             self.printLog('#QSPEC','## ~~~~~~~~~~~~~~~~~~~~~ %s QueryPPI ~~~~~~~~~~~~~~~~~~~ ##' % spec,log=False)
             if len(self.list['PPISpec']) > 1: self.printLog('#QPPI','Can only process one PPISpec at a time for QueryPPI: will use %s.' % spec)

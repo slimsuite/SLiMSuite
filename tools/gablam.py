@@ -19,8 +19,8 @@
 """
 Program:      GABLAM
 Description:  Global Analysis of BLAST Local AlignMents
-Version:      2.20.0
-Last Edit:    18/11/15
+Version:      2.23.0
+Last Edit:    08/08/16
 Citation:     Davey, Shields & Edwards (2006), Nucleic Acids Res. 34(12):3546-54. [PMID: 16855291]
 Copyright (C) 2006  Richard J. Edwards - See source code for GNU License Notice
 
@@ -73,7 +73,9 @@ Function:
     following fields: `Locus`, `Pos`, `REF`, `ALT`, `AltLocus`, `AltPos`. The `localunique=T/F` controls whether hit
     regions can be covered multiple times (`False`) or (default:`True`) reduced to unique "best" hits. Local hits are
     sorted according to `localsort=X` (default:`Identity`). NOTE: Output is restricted to regions of overlap between
-    query and hit proteins. See `*.local.tdt` or `*.unique.tdt` output to identify regions covered.
+    query and hit sequences. Regions of each that are not covered will be output in `*.nocoverage.tdt`. See `*.local.tdt`
+    or `*.unique.tdt` output for the regions covered. Normally, the reference genome will be `seqin=FILE` and the genome
+    to compare against the reference will be `searchdb=FILE`.
 
 Commandline:
     ### ~ Input/Search Options ~ ###
@@ -94,9 +96,9 @@ Commandline:
     local=T/F       : Whether to output local alignment summary stats table [True]
     qassemble=T/F   : Whether to fully assemble query stats from all hits in HitSum [False]
     localmin=X      : Minimum length of local alignment to output to local stats table [0]
-    snptable=T/F    : Generate a SNP table (similar to MUMmer NUCmer output) for query/hit overlap (fullblast=T) [False]
-    localunique=T/F : Reduce local hits to unique non-overlapping regions for SNP table output [True]
+    localunique=T/F : Reduce local hits to unique non-overlapping regions (*.unique.tdt) [True]
     localsort=X     : Local hit field used to sort local alignments for localunique reduction [Identity]
+    snptable=T/F    : Generate a SNP table (similar to MUMmer NUCmer output) for query/hit overlap (fullblast=T) [False]
     selfhit=T/F     : Whether to include self hits in the fullres output [True] * See also selfsum=T/F *
     selfsum=T/F     : Whether to also include self hits in hitsum output [False] * selfhit must also be T *
     qryacc=T/F      : Whether to use the Accession Number rather than the short name for the Query [True]
@@ -125,7 +127,9 @@ Commandline:
     fasout=T/F      : Output a fasta file per input sequence "ACCNUM.DBASE.fas" [False]   (GABLAM from FASTA only)
     fasdir=PATH     : Directory in which to save fasta files [BLASTFAS/]
     fragfas=T/F     : Whether to output fragmented Hits based on local alignments [False]
+    fragrevcomp=T/F : Whether to reverse-complement DNA fragments that are on reverse strand to query [True]
     gablamfrag=X    : Length of gaps between mapped residues for fragmenting local hits [100]
+    fragmerge=X     : Max Length of gaps between fragmented local hits to merge [0]
     addflanks=X     : Add flanking regions of length X to fragmented hits [0]
     combinedfas=T/F : Whether to generate a combined fasta file [False]
 
@@ -151,8 +155,8 @@ Commandline:
     blastpath+=PATH : path for blast+ files [c:/bioware/blast+/] *Use fwd slashes
     blastpath=PATH  : path for blast files [c:/bioware/blast/] *Use fwd slashes
     blaste=X        : E-Value cut-off for BLAST searches (BLAST -e X) [1e-4]
-    blastv=X        : Number of one-line hits per query (BLAST -v X)
-    blastb=X        : Number of hit alignments per query (BLAST -b X)
+    blastv=X        : Number of one-line hits per query (BLAST -v X) [500]
+    blastb=X        : Number of hit alignments per query (BLAST -b X) [500]
     blastf=T/F      : Complexity Filter (BLAST -F X) [False]
     checktype=T/F   : Whether to check sequence types and BLAST program selection [True]
 
@@ -216,6 +220,13 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 2.19.1 - Fixed handling of basefile and results generation for blastres=FILE.
     # 2.19.2 - Modified output to be in rank order.
     # 2.20.0 - Added SNP Table output.
+    # 2.21.0 - Added nocoverage Table output of regions missing from pairwise SNP Table.
+    # 2.21.1 - Added fragrevcomp=T/F : Whether to reverse-complement DNA fragments that are on reverse strand to query [True]
+    # 2.22.0 - Added description to HitSum table.
+    # 2.22.1 - Added localaln=T/F to keep local alignment sequences in the BLAST local Table.
+    # 2.22.2 - Fixed local output error. (Query/Qry issue - need to fix this and make consistent!)
+    # 2.22.3 - Fixed blastv and blastb error: limit also applies to individual pairwise hits!
+    # 2.23.0 - Divided GablamFrag and FragMerge.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -245,11 +256,16 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
     # [ ] : Need to add an option for compiling fragments in order where possible (e.g. exons of a gene).
     # [Y] : Add a sequence number limit for dismat output to avoid excessively long runtimes.
     # [ ] : Add revcomp and (m)orfextend options to fragfas output.
+    # [ ] : Make sure that `Qry` is used in local table etc. - will need to check/update a LOT of scripts. :o(
+    # [ ] : Implement fragrevcomp=T/F : Whether to reverse-complement DNA fragments that are on reverse strand to query [True]
+    # [ ] : Add a circularisation mode with self-only analyses and dot plots. And/or circle and stitch based on PAGSAT tidy?
+    # [Y] : Add descriptions to hitsum output.
+    # [ ] : Add optional revcomp for non-fragfas fasta output?
     '''
 #########################################################################################################################
 def makeInfo():     ### Makes Info object
     '''Makes rje.Info object for program.'''
-    (program, version, last_edit, copyyear) = ('GABLAM', '2.20.0', 'November 2015', '2006')
+    (program, version, last_edit, copyyear) = ('GABLAM', '2.23.0', 'August 2016', '2006')
     description = 'Global Analysis of BLAST Local AlignMents'
     author = 'Dr Richard J. Edwards.'
     comments = ['Please cite: Davey, Shields & Edwards (2006), Nucleic Acids Res. 34(12):3546-54. [PMID: 16855291]']
@@ -344,7 +360,9 @@ class GABLAM(rje.RJE_Object):
     - DotPlots = Whether to use gablam.r to output dotplots. (Needs R installed an setup) [False]
     - FullBlast = Whether to perform full BLAST followed by blastres analysis [False]
     - FragFas = Whether to output fragmented Hits based on local alignments [False]
+    - FragRevComp=T/F : Whether to reverse-complement DNA fragments that are on reverse strand to query [True]
     - GlobID = Whether to output Global %ID using ALIGN [False]
+    - LocalAln = Whether to keep local alignments in Local Table [False]
     - LocalAlnFas = Whether to output local alignments to *.local.fas fasta file (if local=T) [False]
     - SaveUPC = Whether to output a UPC file for SLiMSuite compatibility [False]
     - SelfHit = Whether to include self hits in the output [True]
@@ -375,6 +393,7 @@ class GABLAM(rje.RJE_Object):
     - ClusterSplit = Threshold at which clusters will be split (e.g. must be < distance to cluster) [1.0]
     - DBSize =  Size of BLAST Database
     - DotLocalMin = Minimum length of local alignment to output to local hit dot plots [1000]
+    - FragMerge=X     : Max Length of gaps between fragmented local hits to merge [0]
     - MaxAll = Maximum number of sequences for all-by-all outputs [100]
     - NRCut = Cut-off for non-redundancy filter, uses cutstat=X for either query or hit [100.0]
     - GABLAMCut = Min. percentage value for a GABLAM stat to report hit [0.0]
@@ -407,8 +426,8 @@ class GABLAM(rje.RJE_Object):
                          'GablamOut','HitSumOut','OutStats','BLASTP','LocalOut','DisMatOut','DisKey','NRStat',
                          'LocalSort']
         self.optlist = ['AlnStats','Singletons','GlobID','SelfHit','SelfSum','QryAcc','MySQL','FasOut','FullRes',
-                        'PercRes','HitSum','KeepBlast','PosInfo','Local','LocalAlnFas','DisMat','FragFas','CheckType',
-                        'CombinedFas','Clusters','SaveUPC','DisTrees','DisGraph','DotPlots','FullBlast',
+                        'PercRes','HitSum','KeepBlast','PosInfo','Local','LocalAln','LocalAlnFas','DisMat','FragFas','CheckType',
+                        'CombinedFas','Clusters','SaveUPC','DisTrees','DisGraph','DotPlots','FullBlast','FragRevComp',
                         'NRSeq','NRSameSpec','NRKeepAnn','QAssemble','SNPTable','LocalUnique']
         self.statlist = ['AddFlanks','BlastE','RankAln','EvalAln','AlnCut','DBSize','GABLAMCut','ByCluster','LocalCut',
                          'LocalMin','DotLocalMin','NRCut','MaxAll']
@@ -422,9 +441,9 @@ class GABLAM(rje.RJE_Object):
                       'NRStat':'OrderedAlnID','LocalSort':'Identity'})
         self.setOpt({'AlnStats':True,'MemSaver':True,'SelfHit':True,'QryAcc':True,'FullRes':True,'HitSum':True,'CheckType':True,
                      'PercRes':True,'PosInfo':True,'Local':True,'DisMat':True,'DisTrees':True,'DisGraph':False,
-                     'NRSeq':False,'NRSameSpec':False,'NRKeepAnn':False,'SNPTable':False,'LocalUnique':True})
+                     'NRSeq':False,'NRSameSpec':False,'NRKeepAnn':False,'SNPTable':False,'LocalAln':False,'LocalUnique':True})
         self.setStat({'AddFlanks':0,'EvalAln':1000,'GABLAMCut':0.0,'ByCluster':0,'ClusterSplit':1.0,'LocalCut':0,
-                      'LocalMin':0,'DotLocalMin':1000,'NRCut':100.0,'BlastE':1e-4,'MaxAll':100})
+                      'LocalMin':0,'DotLocalMin':1000,'NRCut':100.0,'BlastE':1e-4,'MaxAll':100,'FragMerge':0})
         self.list['GraphTypes'] = ['xgmml','png']
         self.list['NRChoice'] = ['db','nonx','length','manual']
         self.list['NRSource'] = ['sprot','ipi','uniprot','trembl','ens_known','ens_novel','ens_scan']
@@ -449,11 +468,11 @@ class GABLAM(rje.RJE_Object):
                 self._cmdReadList(cmd,'info',['StartFrom','CutStat','CutFocus','OutStats','BLASTP','DisKey','NRStat',
                                               'LocalSort'])
                 self._cmdReadList(cmd,'opt',['AlnStats','Singletons','GlobID','SelfHit','SelfSum','QryAcc','MySQL','DotPlots',
-                                             'FasOut','FullRes','FragFas','SaveUPC','HitSum','PercRes','KeepBlast','CheckType',
-                                             'PosInfo','Local','LocalAlnFas','DisMat','DisTrees','DisGraph','CombinedFas','Clusters',
+                                             'FasOut','FullRes','FragFas','FragRevComp','SaveUPC','HitSum','PercRes','KeepBlast','CheckType',
+                                             'PosInfo','Local','LocalAln','LocalAlnFas','DisMat','DisTrees','DisGraph','CombinedFas','Clusters',
                                              'NRSeq','NRSameSpec','NRKeepAnn','FullBlast','QAssemble','SNPTable','LocalUnique'])
                 self._cmdReadList(cmd,'stat',['RankAln','EvalAln','AlnCut','GABLAMCut','ClusterSplit','NRCut','BlastE'])
-                self._cmdReadList(cmd,'int',['AddFlanks','ByCluster','LocalCut','LocalMin','DotLocalMin','MaxAll'])
+                self._cmdReadList(cmd,'int',['AddFlanks','ByCluster','LocalCut','LocalMin','DotLocalMin','MaxAll','FragMerge'])
                 self._cmdReadList(cmd,'list',['Missing','Reduced','GraphTypes','NRChoice'])
                 self._cmdReadList(cmd,'lclist',['NRChoice','NRDB'])
                 self._cmdReadList(cmd,'uclist',['NRSpec'])
@@ -505,6 +524,16 @@ class GABLAM(rje.RJE_Object):
         if self.getBool('FullBlast') and self.getBool('Append'):
             self.printLog('#CMD','Switching append=F. Incompatible with fullblast=T.')
             self.setBool({'Append':False})
+        if not self.getBool('FullBlast'): self.warnLog('No HitSum Query descriptions if fullblast=F.')
+        ### Adjust SNPTable and LocalUnique
+        if self.getBool('SNPTable'):
+            self.setBool({'LocalUnique':True})
+            if self.getBool('QryAcc') and self.i() >= 0 and rje.yesNo('Recommended qryacc=F for snptable=T. Switch qryacc=F?'):
+                self.setBool({'QryAcc':False})
+        else: self.setBool({'LocalUnique':False})
+        for cmd in self.cmd_list:
+            try: self._cmdReadList(cmd,'opt',['LocalUnique'])
+            except: pass
         if self.i() >= 0 and self.getBool('SNPTable') and self.getBool('LocalUnique') and self.getInt('LocalMin') < 10:
             self.setInt({'LocalMin':rje.getInt('Recommended min local length >=10 for LocalUnique SNP Table',default='0',confirm=True)})
 
@@ -611,7 +640,7 @@ class GABLAM(rje.RJE_Object):
             self.setBool({'QryAcc':self.getBool('QryAcc') and not self.getBool('DisMat')})
             self.setBool({'Gablam':self.getBool('FullRes') or self.getBool('DisMat')})
             ### ~ [1] ~ Setup Results Files ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            for res in ['Unique','SNP']:    #!# This should all be rationalised at some point #!#
+            for res in ['Unique','SNP','NoCoverage']:    #!# This should all be rationalised at some point #!#
                 res_out = '%sOut' % res
                 file_ext = '%s.%s' % (res.lower(),delimit_ext)
                 self.setStr({res_out:'%s.%s' % (self.basefile(),file_ext)})
@@ -645,7 +674,7 @@ class GABLAM(rje.RJE_Object):
                     if self.opt['GlobID']: headlist += ['ALIGN_ID','ALIGN_Len']
                     self.list['FullResHeaders'] = headlist[0:]
                 elif res == 'HitSum':
-                    headlist = ['Qry','HitNum','MaxScore','EVal']
+                    headlist = ['Qry','HitNum','MaxScore','EVal','Description']
                     if self.getBool('QAssemble'): headlist += ['Length','Coverage','Identity','Positives']
                     self.list['HitSumHeaders'] = headlist[0:]
                     #self.debug(self.list['HitSumHeaders'])
@@ -767,7 +796,7 @@ class GABLAM(rje.RJE_Object):
                         else: nrdump = ('Qry','%s vs %s positions' % (rje.iStr(qlen),rje.iStr(hlen)))
                     if nrchoice == 'spec':
                         qspec = seqin.seqSpec(qseq); hspec = seqin.seqSpec(hseq)
-                        if qspec == hpsec: continue
+                        if qspec == hspec: continue
                         if qspec not in self.list['NRSpec'] and hspec not in self.list['NRSpec']: continue
                         if qspec not in self.list['NRSpec'] or self.list['NRSpec'].index(hspec) < self.list['NRSpec'].index(qspec): nrdump = ('Qry','Favoured species %s vs %s' % (hspec,qspec))
                         else: nrdump = ('Hit','Favoured species %s vs %s' % (qspec,hspec))
@@ -833,7 +862,9 @@ class GABLAM(rje.RJE_Object):
             if (self.getBool('FullBlast') and self.fullBlastGABLAM()) or (not self.getBool('FullBlast') and self.bamForker()):
                 if self.getBool('DotPlots'): self.pngDotPlots()
                 if self.getBool('DisMat'): self.disMatrixOut()
-                if self.getBool('CombinedFas') and self.getBool('FasOut'): self.combinedFas()
+                if self.getBool('CombinedFas') and self.getBool('FasOut'):
+                    if self.dev() and self.getBool('FragFas'): self.printLog('#DEV','Combined fragfas output should have been done!')
+                    else: self.combinedFas()
                 return True
         except SystemExit: sys.exit()
         except: self.errorLog('Error in GABLAM()',printerror=True,quitchoice=True)
@@ -979,7 +1010,7 @@ class GABLAM(rje.RJE_Object):
         try:
             if self.opt['QryAcc']: seqlist.saveFasta(name='AccNum',seqs=[nextseq],seqfile='%s.qry' % new_fork_id,screen=self.v()>1)
             else: seqlist.saveFasta(name='short',seqs=[nextseq],seqfile='%s.qry' % new_fork_id,screen=self.v()>1)
-            blastcmd = ['blastf=F','blastv=%d' % self.stat['DBSize'],'blastb=%d' % self.stat['DBSize'],'ignoredate=T'] + self.cmd_list + ['i=-1']
+            blastcmd = ['blastf=F','blastv=%d' % max(500,self.stat['DBSize']),'blastb=%d' % max(500,self.stat['DBSize']),'ignoredate=T'] + self.cmd_list + ['i=-1']
             if not self.opt['AlnStats']: blastcmd += ['blastb=0']
             if self.getBool('FragFas'): blastcmd = ['gablamfrag=100'] + blastcmd
             blast = rje_blast.blastObj(self.log,blastcmd,type='dev')
@@ -1030,7 +1061,7 @@ class GABLAM(rje.RJE_Object):
                 if not rje.exists(seqfile): seqlist.saveSeq(reformat='accfas',seqfile=seqfile)
             else: seqfile = self.getStr('QueryDB')
             blastfile = '%s%s.blast' % (self.getStr('BlastDir'),os.path.basename(self.basefile()))
-            blastcmd = ['blastf=F','blastv=%d' % self.stat['DBSize'],'blastb=%d' % self.stat['DBSize'],'ignoredate=T'] + self.cmd_list + ['i=-1']
+            blastcmd = ['blastf=F','blastv=%d' % max(500,self.stat['DBSize']),'blastb=%d' % max(500,self.stat['DBSize']),'ignoredate=T'] + self.cmd_list + ['i=-1']
             if not self.opt['AlnStats']: blastcmd += ['blastb=0']
             if self.getBool('FragFas'): blastcmd = ['gablamfrag=100'] + blastcmd
             if self.getInt('Forks') > 0: blastcmd += ['blasta=%s' % self.getInt('Forks')]
@@ -1050,12 +1081,13 @@ class GABLAM(rje.RJE_Object):
             self.printLog('#RES','Generating GABLAM output from full BLAST results: %s' % self.getStr('BlastRes'))
             if self.basefile().lower() in ['','none']: self.basefile(self.getStr('BlastRes'))
             blast = rje_blast.BLASTRun(log=self.log,cmd_list=['blastf=F']+self.cmd_list)
+            self.obj['BLAST'] = blast
             self.setupResultsFiles(saveheads=False)
             self.setStr({'BamFile':self.getStr('GablamOut'),'SumFile':self.getStr('HitSumOut'),
                          'LocFile':self.getStr('LocalOut'),'DisFile':self.getStr('DisMatOut')})
             ### ~ [1] Read Results ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if not self.getBool('Local'): self.setBool({'LocalAlnFas':False})
-            keepaln = self.getBool('LocalAlnFas') or self.getBool('SNPTable')
+            keepaln = self.getBool('LocalAlnFas') or self.getBool('SNPTable') or self.getBool('LocalAln')
             blast.readBLAST(resfile=self.getStr('BlastRes'),clear=True,gablam=True,local=self.getBool('Local'),keepaln=keepaln)
             #!# Were these tables replacing out OK? Check?! #!#
             #if self.dev():  # Not sure whether these can be used
@@ -1072,13 +1104,15 @@ class GABLAM(rje.RJE_Object):
 #########################################################################################################################
     def multiGABLAM(self,blast):  ### Performs GABLAM manipulation and output for a single search
         '''
-        Performs GABLAM manipulation and output for a mutliple searches. Will ultimately replace single search GABLAM
+        Performs GABLAM manipulation and output for a multiple searches. Will ultimately replace single search GABLAM
         with a switch to perform the full BLAST search first and then use multiGABLAM reading of the the output. GABLAM
         Output file names should be in self.info 'FullFile' and 'SumFile' as set by bamRead() and GABLAMFromBLASTRes().
         Align is performed if desired with searchAlign().
         >> blast:BLASTRun object needed for Fasta output
         '''
         try:### [0] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            self.printLog('#GABLAM','Executing multiGABLAM extraction of full BLAST results.')
+            self.obj['BLAST'] = blast
             ores = {'GABLAM':'Aln','GABLAMO':'OrderedAln'}
             if self.getBool('GlobID'): self.warnLog('ALIGN Gobal identity not yet available with BLAST+','align',suppress=True)
             ## blast.db() now contains:
@@ -1230,31 +1264,46 @@ class GABLAM(rje.RJE_Object):
                         LALN.write('%s\n' % lentry['SbjSeq'])
                     LALN.close()
                     self.printLog('\r#FAS','Local alignment output to %s complete.' % lalnfile)
+                ## Local Unique Table output
+                if self.getBool('LocalUnique'):
+                    if self.getStr('LocalSort') not in ldb.fields():
+                        raise ValueError('"%s" (localsort=X) is not a valid Local hit table field (%s)' % (self.getStr('LocalSort'),string.join(ldb.fields(),'|')))
+                    udb = blast.reduceLocal(sortfield=self.getStr('LocalSort'),minloclen=self.getInt('LocalMin'))
+                    if udb:
+                        udb.setStr({'Name':'unique'})
+                        udb.saveToFile(self.getStr('UniqueOut'),savefields=['Query','Hit','AlnID','BitScore','Expect','Length','Identity','Positives','QryStart','QryEnd','SbjStart','SbjEnd'])
+                    else: self.errorLog('BLAST.reduceLocal() failed.',printerror=False)
                 ## SNP Table output
                 if self.getBool('SNPTable'):
                     if self.getBool('LocalUnique'):
-                        if self.getStr('LocalSort') not in ldb.fields():
-                            raise ValueError('"%s" (localsort=X) is not a valid Local hit table field (%s)' % (self.getStr('LocalSort'),string.join(ldb.fields(),'|')))
-                        udb = blast.reduceLocal(sortfield=self.getStr('LocalSort'),minloclen=self.getInt('LocalMin'))
-                        if udb:
-                            udb.setStr({'Name':'unique'})
-                            udb.saveToFile(self.getStr('UniqueOut'),savefields=['Query','Hit','AlnID','BitScore','Expect','Length','Identity','Positives','QryStart','QryEnd','SbjStart','SbjEnd'])
-                        else: self.errorLog('BLAST.reduceLocal() failed: No SNP Table output.',printerror=False)
+                        #udb = self.db('unique')
+                        if not udb: self.errorLog('BLAST.reduceLocal() failed: No SNP Table output.',printerror=False)
                     else: udb = ldb; udb.dataFormat({'AlnID':'int','BitScore':'num','Expect':'num','Identity':'int','QryStart':'int','QryEnd':'int','SbjStart':'int','SbjEnd':'int','Length':'int'})
                     if udb:
+                        nocovdb = blast.noCoverage(udb,save=False)
+                        if nocovdb:
+                            nocovdb.saveToFile(self.getStr('NoCoverageOut'))
+                        else: self.errorLog('BLAST NoCoverage Table generation failed.',printerror=False)
                         snpdb = blast.snpTableFromLocal(udb,save=False)
                         if snpdb:
                             snpdb.saveToFile(self.getStr('SNPOut'))
                         else: self.errorLog('BLAST SNP Table generation failed: No SNP Table output.',printerror=False)
                 ## Tidy up Local DB Table
-                ldb.dropFields(['QrySeq','SbjSeq','AlnSeq'])
-                ldb.renameField('Query','Qry')
+                #!# Need to rationalise use of Query vs Qry
+                ldb.renameField('Query','Qry')  #?# Why???
                 ldb.renameField('AlnID','AlnNum')
-                ldb.saveToFile(self.getStr('LocFile'))
+                savefields = ldb.fields()
+                for field in ['QrySeq','SbjSeq','AlnSeq']: savefields.remove(field)
+                if not self.getBool('LocalAln'): ldb.dropFields(['QrySeq','SbjSeq','AlnSeq'])
+                ldb.saveToFile(self.getStr('LocFile'),savefields=savefields)
             ## [2c] Hit Summary Table ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             if self.getBool('HitSum'):
+                qlist = ['seqin=%s' % self.getStr('QueryDB'), 'seqmode=file', 'autoload=T', 'autofilter=F']
+                qseq = rje_seqlist.SeqList(log=self.log,cmd_list=qlist)
+                if self.getBool('QryAcc'): qdict = qseq.makeSeqNameDic('accnum')
+                else: qdict = qseq.makeSeqNameDic('short')
                 resdb.setStr({'Name':'HitSum'})
-                headlist = ['Qry','Hit','Score','EVal']
+                headlist = ['Qry','Hit','Score','EVal','Description']
                 if self.getBool('QAssemble'): headlist += ['Length','Coverage','Identity','Positives']
                 resdb.keepFields(headlist,log=False)
                 if self.getBool('SelfHit') and not self.getBool('SelfSum'):
@@ -1269,12 +1318,15 @@ class GABLAM(rje.RJE_Object):
                 resdb.renameField('Score','MaxScore')
                 nullx = 0
                 for entry in sdb.entries():
+                    desc = ''
+                    if entry['Query'] in qdict: desc = qseq.seqDesc(qdict[entry['Query']])
                     if resdb.data(entry['Query']):
                         qentry = resdb.data(entry['Query'])
+                        qentry['Description'] = desc
                         if self.getBool('QAssemble'):
                             for field in ['Length','Coverage','Identity','Positives']: qentry[field] = entry[field]
                     else:
-                        qentry = {'Qry':entry['Query'],'HitNum':entry['Hits'],'MaxScore':entry['MaxScore'],'EVal':entry['TopE']}
+                        qentry = {'Qry':entry['Query'],'HitNum':entry['Hits'],'MaxScore':entry['MaxScore'],'EVal':entry['TopE'],'Description':desc}
                         if self.getBool('QAssemble'):
                             for field in ['Length','Coverage','Identity','Positives']: qentry[field] = entry[field]
                         resdb.addEntry(qentry); nullx += 1
@@ -1286,8 +1338,12 @@ class GABLAM(rje.RJE_Object):
             ## ~ [3a] Fasta Output ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             #self.debug('FasOut')
             addflanks = self.getInt('AddFlanks')
-            gabfrag = max(blast.getInt('GablamFrag') - addflanks,0)     # Want to join fragments within gabfrag distance
-            if self.getBool('FasOut') and hdb.entryNum():               # Data to output
+            gabfrag = max(self.getInt('FragMerge') - addflanks,0)     # Want to join fragments within gabfrag distance
+            minfrag = max(self.getInt('LocalMin'),self.getInt('LocalCut'))
+            if self.dev() and self.getBool('FasOut') and self.getBool('FragFas'):
+                blast.setStr({'DBase':self.getStr('SearchDB')})
+                blast.localFragFas(byquery=True,combined=self.getBool('CombinedFas'),fragdir=self.getStr('FasDir'),outbase=self.baseFile(),minfrag=minfrag,addflanks=addflanks,revcomp=self.getBool('FragRevComp'),append=self.getBool('Append'))
+            elif self.getBool('FasOut') and hdb.entryNum():               # Data to output
                 outfas = rje_seqlist.SeqList(self.log,self.cmd_list+['seqin=%s' % self.getStr('SearchDB'),'autoload=T','autofilter=F','mode=file'])
                 qx = 0; qtot = len(hdb.index('Query')); fasx = 0
                 for Qry in hdb.index('Query'):
@@ -1303,6 +1359,9 @@ class GABLAM(rje.RJE_Object):
                         #self.deBug(hitseq)
                         for hit in hitlist:
                             #self.bugPrint(hit.dict['GABLAM']['Hit'])
+                            #!# Will need to add locdb assessment of direction for fragrevcomp=T
+                            #!# -> Repeat below in other fragfas code
+                            #!# Rationalise fragfas code! Replace with something that uses localdb data directly?
                             if hit not in hitseq: continue
                             gdata = blast.gablamData(hit,Qry)
                             ftot = len(gdata['Hit']['GABLAM Frag'])
@@ -1332,7 +1391,7 @@ class GABLAM(rje.RJE_Object):
                                 #seq = hitseq[hit]
                                 #(fullseqname,sequence) = outfas.getSeqFrag(seq,fragstart+1,fragend+1)
                                 seqname = string.split(fullseqname)
-                                seqname[0] = '%s-%s.%s' % (seqname[0],rje.preZero(fragstart,seqlen),rje.preZero(fragend,seqlen))
+                                seqname[0] = '%s.%s-%s' % (seqname[0],rje.preZero(fragstart,seqlen),rje.preZero(fragend,seqlen))
                                 if len(seqname) == 1: seqname.append('No description')
                                 seqname[-1] += '|(Pos:%s..%s)' % (rje.iStr(fragstart),rje.iStr(fragend))
                                 seqname.insert(1,'%s GABLAM Hit:' % Qry)
@@ -1499,7 +1558,7 @@ class GABLAM(rje.RJE_Object):
             ## ~ [3c] Fasta Output ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             #self.debug('FasOut')
             addflanks = self.getInt('AddFlanks')
-            gabfrag = max(blast.getInt('GablamFrag') - addflanks,0)     # Want to join fragments within gabfrag distance
+            gabfrag = max(self.getInt('FragMerge') - addflanks,0)     # Want to join fragments within gabfrag distance
             if self.opt['FasOut'] and blast and hitlist:
                 bfas = os.path.join(rje.makePath(self.info['FasDir']),'%s.fas' % os.path.basename(Qry))
                 #outfas = rje_seq.SeqList(self.log,self.cmd_list+['seqin=None'])
@@ -1542,7 +1601,8 @@ class GABLAM(rje.RJE_Object):
                             #seq = hitseq[hit]
                             #(fullseqname,sequence) = outfas.getSeqFrag(seq,fragstart+1,fragend+1)
                             seqname = string.split(fullseqname)
-                            seqname[0] = '%s-%s.%s' % (seqname[0],rje.preZero(fragstart,seqlen),rje.preZero(fragend,seqlen))
+                            #x#seqname[0] = '%s-%s.%s' % (seqname[0],rje.preZero(fragstart,seqlen),rje.preZero(fragend,seqlen))
+                            seqname[0] = '%s.%s-%s' % (seqname[0],rje.preZero(fragstart,seqlen),rje.preZero(fragend,seqlen))
                             if len(seqname) == 1: seqname.append('No description')
                             seqname[-1] += '|(Pos:%s..%s)' % (rje.iStr(fragstart),rje.iStr(fragend))
                             seqname.insert(1,'%s GABLAM Hit:' % Qry)
@@ -1574,7 +1634,8 @@ class GABLAM(rje.RJE_Object):
                             seq = hitseq[hit]
                             fullseq = seq.getSequence()
                             seqname = string.split(seq.info['Name'])
-                            seqname[0] = '%s-%s.%s' % (seqname[0],rje.preZero(fragstart+1,seq.seqLen()),rje.preZero(fragend+1,seq.seqLen()))
+                            #x#seqname[0] = '%s-%s.%s' % (seqname[0],rje.preZero(fragstart+1,seq.seqLen()),rje.preZero(fragend+1,seq.seqLen()))
+                            seqname[0] = '%s.%s-%s' % (seqname[0],rje.preZero(fragstart+1,seq.seqLen()),rje.preZero(fragend+1,seq.seqLen()))
                             seqname.insert(1,'GABLAM Fragment %d of %d (%s - %s)' % (fx+1,ftot,rje.iStr(fragstart+1),rje.iStr(fragend+1)))
                             seqname = string.join(seqname)
                             sequence = fullseq[fragstart:fragend+1]
@@ -1745,7 +1806,8 @@ class GABLAM(rje.RJE_Object):
                             seq = hitseq[hit]
                             fullseq = seq.getSequence()
                             seqname = string.split(seq.info['Name'])
-                            seqname[0] = '%s-%s.%s' % (seqname[0],rje.preZero(fragstart+1,seq.seqLen()),rje.preZero(fragend+1,seq.seqLen()))
+                            #x#seqname[0] = '%s-%s.%s' % (seqname[0],rje.preZero(fragstart+1,seq.seqLen()),rje.preZero(fragend+1,seq.seqLen()))
+                            seqname[0] = '%s.%s-%s' % (seqname[0],rje.preZero(fragstart+1,seq.seqLen()),rje.preZero(fragend+1,seq.seqLen()))
                             seqname.insert(1,'GABLAM Fragment %d of %d (%s - %s)' % (fx+1,ftot,rje.iStr(fragstart+1),rje.iStr(fragend+1)))
                             seqname = string.join(seqname)
                             sequence = fullseq[fragstart:fragend+1]
@@ -1912,7 +1974,7 @@ class GABLAM(rje.RJE_Object):
                 self.progLog('\r#FRAG','Compiling fragments: %s redundant fragments removed' % rje.iStr(fx))
                 bugger = '1'
                 try:
-                    (name,fragstart,fragend) = rje.matchExp('^(\S+)-(\d+)\.(\d+)$',string.split(seq[0])[0])
+                    (name,fragstart,fragend) = rje.matchExp('^(\S+)\.(\d+)-(\d+)$',string.split(seq[0])[0])
                     maxlen = int('9' * len(fragend))
                     if name not in fragdict: fragdict[name] = []
                     addfrag = True
@@ -1961,7 +2023,8 @@ class GABLAM(rje.RJE_Object):
                             bugger = '8'
                             sname[-1] = string.split(sname[-1],'|')[0]
                             sname[-1] += '|(Pos:%s..%s)' % (rje.iStr(fragstart),rje.iStr(fragend))
-                            seq = ('%s-%s.%s %s' % (name,rje.preZero(fragstart,maxlen),rje.preZero(fragend,maxlen),string.join(sname[1:])),seq[1])
+                            #seq = ('%s-%s.%s %s' % (name,rje.preZero(fragstart,maxlen),rje.preZero(fragend,maxlen),string.join(sname[1:])),seq[1])
+                            seq = ('%s.%s-%s %s' % (name,rje.preZero(fragstart,maxlen),rje.preZero(fragend,maxlen),string.join(sname[1:])),seq[1])
                     fragdict[name].append((fragstart,fragend,seq))
                 else: hitseq.list['Seq'].remove(seq); fx += 1
             self.printLog('\r#FRAG','Compiled fragments: %s redundant fragments removed.' % rje.iStr(fx))
@@ -2013,7 +2076,7 @@ class GABLAM(rje.RJE_Object):
                 self.progLog('\r#FRAG','Compiling fragments: %s redundant fragments removed' % rje.iStr(fx))
                 bugger = '1'
                 try:
-                    (name,fragstart,fragend) = rje.matchExp('^(\S+)-(\d+)\.(\d+)$',string.split(seq[0])[0])
+                    (name,fragstart,fragend) = rje.matchExp('^(\S+)\.(\d+)-(\d+)$',string.split(seq[0])[0])
                     maxlen = int('9' * len(fragend))
                     if name not in fragdict: fragdict[name] = []
                     addfrag = True
@@ -2062,7 +2125,8 @@ class GABLAM(rje.RJE_Object):
                             bugger = '8'
                             sname[-1] = string.split(sname[-1],'|')[0]
                             sname[-1] += '|(Pos:%s..%s)' % (rje.iStr(fragstart),rje.iStr(fragend))
-                            seq = ('%s-%s.%s %s' % (name,rje.preZero(fragstart,maxlen),rje.preZero(fragend,maxlen),string.join(sname[1:])),seq[1])
+                            #X#seq = ('%s-%s.%s %s' % (name,rje.preZero(fragstart,maxlen),rje.preZero(fragend,maxlen),string.join(sname[1:])),seq[1])
+                            seq = ('%s.%s-%s %s' % (name,rje.preZero(fragstart,maxlen),rje.preZero(fragend,maxlen),string.join(sname[1:])),seq[1])
                     fragdict[name].append((fragstart,fragend,seq))
                 else: hitseq.list['Seq'].remove(seq); fx += 1
             self.printLog('\r#FRAG','Compiled fragments: %s redundant fragments removed.' % rje.iStr(fx))

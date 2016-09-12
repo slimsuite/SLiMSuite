@@ -19,8 +19,8 @@
 """
 Module:       rje_obj
 Description:  Contains revised General Object templates for Rich Edwards scripts and bioinformatics programs
-Version:      2.1.3
-Last Edit:    09/06/15
+Version:      2.2.1
+Last Edit:    13/04/16
 Copyright (C) 2011  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -60,6 +60,7 @@ System Commandline:
     webserver=T/F   : Trigger webserver run and output [False]
     soaplab=T/F     : Implement special options/defaults for SoapLab implementations [False]
     rest=X          : Variable that sets the output to be returned by REST services [None]
+    screenwrap=X    : Maximum width for some screen outputs [200]
 
 Forking Commandline:
     noforks=T/F     : Whether to avoid forks [False]
@@ -107,6 +108,8 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 2.1.1 - Removed excess REST HTML methods.
     # 2.1.2 - Tweaked glist cmdRead warnings.
     # 2.1.3 - Modified integer commands to read/convert floats.
+    # 2.2.0 - Added screenwrap=X.
+    # 2.2.1 - Improved handling of integer parameters when given bad commands.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -180,7 +183,7 @@ class RJE_Object(object):     ### Metaclass for inheritance by other classes
         self.str = {'Name':'None','Basefile':'None','Delimit':rje.getDelimit(self.cmd_list),'ErrorLog':'None',
                     'RunPath':rje.makePath(os.path.abspath(os.curdir)),'RPath':'R','Rest':'None'}
         self.str['Path'] = rje.makePath(os.path.abspath(string.join(string.split(sys.argv[0],os.sep)[:-1]+[''],os.sep)))
-        self.int = {'Verbose':1,'Interactive':0}
+        self.int = {'Verbose':1,'Interactive':0,'ScreenWrap':200}
         self.bool = {'DeBug':False,'Win32':False,'PWin':False,'MemSaver':False,'Append':False,'MySQL':False,
                      'Force':False,'Pickle':True,'SoapLab':False,'Test':False,'Backups':True,'Silent':False,
                      'Webserver':False,'ProgLog':True,'Warn':True,'Dev':False,'Setup':False,'OSX':False}
@@ -266,6 +269,8 @@ class RJE_Object(object):     ### Metaclass for inheritance by other classes
     def dev(self): return self.getBool('Dev')
     def zen(self): return rje_zen.Zen().wisdom()
     def debugging(self): return self.getBool('DeBug')
+    def win32(self): return self.getBool('Win32')
+    def osx(self): return self.getBool('OSX')
 #########################################################################################################################
     def getStrLC(self,key,return_none=False):
         if not key: return ''
@@ -357,9 +362,17 @@ class RJE_Object(object):     ### Metaclass for inheritance by other classes
         if self.dev() and warn: self.printLog('#DEV','Code calling getOpt() for new %s object' % self)
         return self.getBool(key,default,checkdata)
 #########################################################################################################################
-    def yesNo(self,text='',default='Y',confirm=False):
-        if self.i() < 0: return {'Y':True,'N':False}[default.upper()]
+    def yesNo(self,text='',default='Y',confirm=False,i=0):
+        if self.i() < i:
+            self.printLog('#AUTO','%s: %s' % (text,default.upper()))
+            return {'Y':True,'N':False}[default.upper()]
         else: return rje.yesNo(text,default,confirm)
+#########################################################################################################################
+    def choice(self,text='',default='Y',confirm=False,i=0):
+        if self.i() < i:
+            self.printLog('#AUTO','%s: %s' % (text,default))
+            return default
+        else: return rje.choice(text,default,confirm)
 #########################################################################################################################
     def db(self,table=None,add=False,forcecheck=True,mainkeys=[]):   ### Return rje_dbase Database object or Table
         '''
@@ -487,7 +500,7 @@ class RJE_Object(object):     ### Metaclass for inheritance by other classes
         try:
             self._cmdRead(cmd,type='int',att='Verbose',arg='v')
             self._cmdRead(cmd,type='int',att='Interactive',arg='i')
-            self._cmdReadList(cmd,type='int',attlist=['Verbose','Interactive'])
+            self._cmdReadList(cmd,type='int',attlist=['Verbose','Interactive','ScreenWrap'])
             self._cmdReadList(cmd,type='num',attlist=['MaxBin'])
             self._cmdRead(cmd,type='file',att='Basefile',arg='outfile')
             self._cmdRead(cmd,type='str',att='Rest',arg='outfmt')
@@ -539,7 +552,8 @@ class RJE_Object(object):     ### Metaclass for inheritance by other classes
         elif type == 'int':
             try: self.int[att] = string.atoi(value)
             except:
-                self.int[att] = int(string.atof(value))
+                if rje.matchExp('^(\d+)',value): self.int[att] = string.atoi(rje.matchExp('^(\d+)',value)[0])
+                else: self.int[att] = int(string.atof(value))
                 self.warnLog('%s=%s needs integer -> %s=%d' % (arg,value,arg,self.int[att]))
         elif type in ['float','stat','num']: self.num[att] = string.atof(value)
         elif type == 'max' and rje.matchExp('^\d+,(\d+)',value): self.int[att] = string.atoi(rje.matchExp('^\d+,(\d+)',value)[0])
@@ -637,6 +651,32 @@ class RJE_Object(object):     ### Metaclass for inheritance by other classes
             while newline > 0: print; newline -= 1
             try: sys.stdout.flush()
             except: pass
+#########################################################################################################################
+    def screenWrap(self,intext,screenwrap=0,prefix='',suffix='',fixwidth=False,wordsplit=True):   ### Returns wrapped text
+        '''
+        Returns wrapped text, framed by prefix and suffix.
+        @param intext:str Text to wrap.
+        @param screenwrap:int [0] width at which to wrap. Will use self.getInt('ScreenWrap') if < 1.
+        @param prefix:str [''] Text to place at start of each line.
+        @param suffix:str  [''] Text to place at end of each line.
+        @param fixwidth:bool [False] Whether to pad wraptext with spaces to always hit fixwidth
+        @param wordsplit:bool [True] Whether to wrap at whitespace [True] or at any point [False]
+        @return: wrapped text
+        '''
+        if screenwrap < 1: screenwrap = self.getInt('ScreenWrap')
+        wrapped = []
+        if wordsplit: wraptext = string.split(intext)
+        else: wraptext = rje.strList(intext)
+        splitlen = screenwrap - len(prefix) - len(suffix)
+        while wraptext:
+            addtext = wraptext.pop(0)
+            while wraptext and (len(addtext) + len(wraptext[0])) <= splitlen:
+                if wordsplit: addtext += ' '
+                addtext += wraptext.pop(0)
+            if fixwidth and len(addtext) < splitlen: addtext += ' ' * (splitlen - len(addtext))
+            wrapped.append('%s%s%s' % (prefix,addtext,suffix))
+        while intext.endswith('\n') and len(wrapped) < 2: wrapped.append('')
+        return string.join(wrapped,'\n')
 #########################################################################################################################
     def debug(self,text): self.deBug(text)
 #########################################################################################################################
@@ -1204,6 +1244,20 @@ class RJE_Object(object):     ### Metaclass for inheritance by other classes
                 self.stat[key] = attdict[key]
                 if addtolist and key not in self.statlist: self.statlist.append(key)
         except: self.errorLog('Problem with %s.setNum()' % self,True)
+#########################################################################################################################
+    def _editChoice(self,text,value,numeric=False,boolean=False):  ### Returns Current or New Value as chosen
+        '''
+        Returns Current or New Value as chosen.
+        >> text:str = Text to dislay for choice
+        >> value:str/int/float/bool = Existing value
+        >> numeric:bool = whether a numeric value is wanted
+        >> boolean:bool = whether a True/False value is wanted
+        '''
+        try:
+            if numeric: return rje.getFloat(text=text,default=value)
+            elif boolean: return rje.getBool(text=text,default=value)
+            else: return rje.choice(text=text,default=value)
+        except: self.log.errorLog('Major problem with _editChoice()')
 #########################################################################################################################
     ### <8> ### Methods for open file handles in self.file                                                              #
 #########################################################################################################################

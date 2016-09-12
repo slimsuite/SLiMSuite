@@ -36,6 +36,8 @@ Function:
     overestimate coverage. Note that `smrtreads=X` can be used to input sequence capacity in Gb (or Mb) rather than read
     counts by changing `smrtunits=X`.
 
+    NOTE: This module has been superseded by SMRTSCAPE.
+
 Output:
     Main output is a results table containing the following fields:
     * XCoverage = estimated average X genome coverage.

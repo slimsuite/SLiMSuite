@@ -17,16 +17,17 @@
 # To incorporate this module into your own programs, please see GNU Lesser General Public License disclaimer in rje.py
 
 """
-Module:       rje_program
-Description:  Generic RJE Program Template
+Module:       1433SLiMs-Jan16
+Description:  Bespoke 1433SLiMs-Jan16 project methods
 Version:      0.0.0
 Last Edit:    01/01/16
-Copyright (C) 2016  Richard J. Edwards - See source code for GNU License Notice
+Copyright (C) 2015  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
     The function of this module will be added here.
 
 Commandline:
+    ### ~ SOURCE DATA OPTIONS ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
 
     ### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
 """

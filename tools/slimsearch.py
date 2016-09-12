@@ -19,8 +19,8 @@
 """
 Program:      SLiMSearch
 Description:  Short Linear Motif Search tool
-Version:      1.7
-Last Edit:    18/12/12
+Version:      1.7.1
+Last Edit:    03/12/15
 Citation:     Davey, Haslam, Shields & Edwards (2010), Lecture Notes in Bioinformatics 6282: 50-61. 
 Copyright (C) 2007  Richard J. Edwards - See source code for GNU License Notice
 
@@ -34,7 +34,7 @@ Function:
     * searching with mismatches rather than restricting hits to perfect matches.
     * optional equivalency files for searching with specific allowed mismatched (e.g. charge conservation)
     * generation or reading of alignment files from which to calculate conservation statistics for motif occurrences.
-    * additional statistics, inlcuding protein disorder, surface accessibility and hydrophobicity predictions
+    * additional statistics, including protein disorder, surface accessibility and hydrophobicity predictions
     * recognition of "n of m" motif elements in the form <X:n:m>, where X is one or more amino acids that must occur n+
     times across which m positions. E.g. <IL:3:5> must have 3+ Is and/or Ls in a 5aa stretch.
 
@@ -42,7 +42,7 @@ Function:
     allow output of alignments of motifs and their occurrences. The primary outputs are named *.csv for the occurrence
     data and *.summary.csv for the summary data for each motif/dataset pair. 
     
-    NOTE: SLiMSearch has now been replaced by SLiMProb.
+    NOTE: SLiMSearch has now been largely superseded by SLiMProb for motif statistics.
 
 Commandline: ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
     ### Basic Input/Output Options ###
@@ -125,6 +125,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 1.5 - Add MaxOcc setting.
     # 1.6 - Minor tweaks to Log output. Add option for UPC number in occ output.
     # 1.7 - Modified to work with GOPHER V3.0.
+    # 1.7.1 - Minor modification to docstring. Preparation for update to SLiMSearch 2.0 optimised for proteome searches.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -138,11 +139,11 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo():     ### Makes Info object
     '''Makes rje.Info object for program.'''
-    (program, version, last_edit, copyright) = ('SLiMSearch', '1.7', 'December 2012', '2007')
+    (program, version, last_edit, cyear) = ('SLiMSearch', '1.7', 'December 2012', '2007')
     description = 'Short Linear Motif Regular Expression Search Tool'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is under development and may contain bugs!',rje_zen.Zen().wisdom()]
-    return rje.Info(program,version,last_edit,description,author,time.time(),copyright,comments)
+    return rje.Info(program,version,last_edit,description,author,time.time(),cyear,comments)
 #########################################################################################################################
 def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for more sys.argv commands
     '''Prints *.__doc__ and asks for more sys.argv commands.'''
@@ -286,7 +287,7 @@ class SLiMSearch(rje_slimcore.SLiMCore):
         self.setInfo({'BuildPath':rje.makePath('SLiMSearch/'),'CompMask':'None',
                       'ResDir':rje.makePath('SLiMSearch/'),'ResFile':'slimsearch.csv'})
         self.setStat({'SeqOcc':1,'MaxSeq':0,'MaxSize':1e5})
-        self.setOpt({'ConsMask':False,'EFilter':True,'MaskM':False,'DisMask':False,'Masking':True})
+        self.setOpt({'ConsMask':False,'EFilter':False,'MaskM':False,'DisMask':False,'Masking':True})
         self.dict['MaskPos'] = {}
         t = time.localtime(time.time())
         self.info['RunID'] = self.info['Date'] = '%s%s%s-%s:%s' % (str(t[0])[-2:],rje.preZero(t[1],12),rje.preZero(t[2],31),rje.preZero(t[3],24),rje.preZero(t[4],60)) #x#time.ctime(self.stat['StartTime'])

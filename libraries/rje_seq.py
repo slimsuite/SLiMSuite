@@ -19,8 +19,8 @@
 """
 Program:      RJE_SEQ
 Description:  DNA/Protein sequence list module
-Version:      3.23.0
-Last Edit:    12/04/15
+Version:      3.24.0
+Last Edit:    02/12/15
 Copyright (C) 2005  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -197,6 +197,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 3.22.0 - Added loading sequences from provided sequence files contents directly, bypassing file reading.
     # 3.22.1 - Fixed problem if seqin is blank, triggering odd Uniprot download.
     # 3.23.0 - Add speclist to reformat options.
+    # 3.24.0 - Added REST seqout output.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -245,7 +246,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo():     ### Makes Info object
     '''Makes rje.Info object for program.'''
-    (program, version, last_edit, cyear) = ('RJE_SEQ', '3.23.0', 'April 2015', '2005')
+    (program, version, last_edit, cyear) = ('RJE_SEQ', '3.24.0', 'December 2015', '2005')
     description = 'RJE Sequence Dataset Manipulation Module'
     author = 'Dr Richard J. Edwards.'
     comments = ['Please report bugs to r.edwards@soton.ac.uk']
@@ -578,6 +579,7 @@ class SeqList(rje.RJE_Object):
             #    else: self.list['Alphabet'] = alph_protx + ['-']
             ## Non-Redundancy ##                
             if self.opt['SeqNR']: self.opt['AccNR'] = True
+            if self.getStrLC('Rest'): self.dict['Output']['seqout'] = 'No sequence data'
             ## AutoLoad ##
             self.autoLoad()
         except:
@@ -691,7 +693,7 @@ class SeqList(rje.RJE_Object):
             ### ~ [2] ~ SeqNR ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if self.opt['SeqNR']: self.makeNR()
             ### ~ [3] ~ SeqOut/SplitSeq/Reformat ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            if self.info['ReFormat'] == 'None' and (int(self.stat['Split']) > 0 or self.info['SeqOut'] != 'None'):
+            if self.info['ReFormat'] == 'None' and (int(self.stat['Split']) > 0 or self.info['SeqOut'] != 'None' or self.getStrLC('Rest')):
                 self.info['ReFormat'] = 'fasta'
             #!# Reformat and splitseq taken care of by module main run #!#
         except: self.errorLog('Minor disaster in rje_seq autoFilter!',quitchoice=True)
@@ -1868,6 +1870,8 @@ class SeqList(rje.RJE_Object):
             if splitfile > 0:
                 (outbase,outext) = os.path.splitext(outfile)
                 outfile = '%s.%d%s' % (outbase,splitfile,outext)
+            ## ~ [0c] ~ REST ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            if self.getStrLC('Rest'): self.dict['Output']['seqout'] = outfile
 
             ### ~ [1] ~ Special Reformat ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             ## ~ [1a] ~ Phylip format ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
@@ -1939,6 +1943,7 @@ class SeqList(rje.RJE_Object):
                     os.rename(outfile,self.info['Name'])
                     outfile = self.info['Name']
             self.printLog('#OUT','%d Sequences output to %s in %s format' % (splitx,outfile,reformat)) 
+            if self.getStrLC('Rest'): self.dict['Output']['seqout'] = outfile
         except:
             self.errorLog('Calamity during rje_seq.reFormat(%s)' % reformat)
 #########################################################################################################################

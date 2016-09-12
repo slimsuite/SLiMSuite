@@ -19,8 +19,8 @@
 """
 Module:       SLiMParser
 Description:  SLiMSuite REST output parsing tool.
-Version:      0.3.3
-Last Edit:    31/07/15
+Version:      0.4.0
+Last Edit:    12/09/16
 Copyright (C) 2014  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -53,7 +53,7 @@ See also rje.py generic commandline options.
 #########################################################################################################################
 ### SECTION I: GENERAL SETUP & PROGRAM DETAILS                                                                          #
 #########################################################################################################################
-import os, string, sys, time, urllib2
+import json, os, string, sys, time, urllib2
 slimsuitepath = os.path.abspath(os.path.join(os.path.dirname(os.path.realpath(__file__)),'../')) + os.path.sep
 sys.path.append(os.path.join(slimsuitepath,'libraries/'))
 sys.path.append(os.path.join(slimsuitepath,'tools/'))
@@ -71,6 +71,8 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 0.3.1 - Fixed issue that had broken REST server full output.
     # 0.3.2 - Fixed issue reading files for full output.
     # 0.3.3 - Tidied output names when restbase=jobid.
+    # 0.3.4 - Tweaked error messages.
+    # 0.4.0 - Added simple json format output.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -85,7 +87,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copy_right) = ('SLiMParser', '0.3.3', 'July 2015', '2014')
+    (program, version, last_edit, copy_right) = ('SLiMParser', '0.4.0', 'September 2016', '2014')
     description = 'SLiMSuite REST output parsing tool'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_obj.zen()]
@@ -220,7 +222,7 @@ class SLiMParser(rje_obj.RJE_Object):
                 #self._cmdReadList(cmd,'glist',['Att']) # List of files using wildcards and glob
                 #self._cmdReadList(cmd,'cdict',['Att']) # Splits comma separated X:Y pairs into dictionary
                 #self._cmdReadList(cmd,'cdictlist',['Att']) # As cdict but also enters keys into list
-            except: self.errorLog('Problem with cmd:%s' % cmd)
+            except: self.errorLog('Problem with SLiMParser cmd:%s' % cmd)
 #########################################################################################################################
     ### <2> ### Main Class Backbone                                                                                     #
 #########################################################################################################################
@@ -231,10 +233,10 @@ class SLiMParser(rje_obj.RJE_Object):
             ### ~ [2] ~ Add main run code here ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if self.getStr('RestIn').startswith('http:') and not self.restAPI(): return 'ERROR: REST call failed.'
             restparse = self.parse()
-            if not self.parse(): return 'ERROR: Rest Parsing error.'
+            if not restparse: return 'ERROR: Rest Parsing error.'
             if self.getBool('PureAPI'): return restparse
             elif self.getBool('RestOut'): self.save()
-        except: self.errorLog(self.zen())
+        except: self.errorLog('Problem with main SLiMParser Run()')
         return self.restOutput(maxparsesize=maxparsesize)
 #########################################################################################################################
     def setup(self):    ### Main class setup method.
@@ -331,31 +333,47 @@ class SLiMParser(rje_obj.RJE_Object):
                 self.printLog('#OUT','%s: %s' % (rkey,self.dict['Outfile'][rkey]))
             elif rkey not in ['intro']: self.warnLog('No outfile parsed/generated for %s output' % rkey)
 #########################################################################################################################
-    def restOutput(self,outfmt=None,maxparsesize=0):    ### Returns rest output for outfmt
+    def jsonOutput(self,outfmt=None,maxparsesize=0):    ### Returns json output for outfmt
+        '''Returns json output for outfmt.'''
+        return json.dumps(self.restOutput(outfmt,maxparsesize))     #!# Need to improve this!
+#########################################################################################################################
+    def jsonText(self,text,asjson=False):
+        if asjson: return json.dumps(text)
+        else: return text
+#########################################################################################################################
+    def restOutput(self,outfmt=None,maxparsesize=0,asjson=False):    ### Returns rest output for outfmt
         '''Returns rest output for outfmt.'''
         if not outfmt: outfmt = self.getStrLC('Rest')
-        if not outfmt: return 'No REST output'
+        if not outfmt: self.jsonText('No REST output',asjson)
         if outfmt in self.dict['Output']:
             rfile = string.split(self.dict['Output'][outfmt],'\n')[0]
             if rje.exists(rfile):
                 nbytes = os.path.getsize(rfile)
                 if nbytes > maxparsesize > 0:   # Too large to parse
-                    otext = '%s is too large to return (%s)' % (os.path.basename(rfile),rje.humanByteSize(nbytes))
+                    otext = '%s is too large to return (%s > %s)' % (os.path.basename(rfile),rje.humanByteSize(nbytes),rje.humanByteSize(maxparsesize))
                     try: jobid = self.dict['Output']['jobid']
                     except: jobid = None
                     resturl = '%sretrieve&jobid=%s&rest=%s[&password=X]' % (self.getStr('RestURL'),jobid,outfmt)
-                    if not jobid or outfmt == self.getStrLC('Rest'): return 'ERROR: %s' % (otext)
-                    else: return '%s in full output. Try %s.' % (otext,resturl)
+                    if not jobid or outfmt == self.getStrLC('Rest'): return self.jsonText('ERROR: %s' % (otext),asjson)
+                    else: return self.jsonText('%s in full output. Try %s.' % (otext,resturl),asjson)
                 else:
-                    outtxt = open(rfile,'r').read()
-                    if not outtxt.endswith('\n'): outtxt += '\n'
-                    return outtxt
+                    delimit = rje.delimitFromExt(filename=rfile,write=False)
+                    if asjson and delimit in [',','\t']:
+                        jtext = []
+                        for rline in open(rfile,'r').readlines():
+                            jtext.append(json.dumps(rje.readDelimit(rline,delimit)))
+                        return '[%s]' % string.join(jtext,',\n        ')
+                    #!# Add json parsing of fasta files?
+                    else:
+                        outtxt = open(rfile,'r').read()
+                        if not outtxt.endswith('\n'): outtxt += '\n'
+                        return self.jsonText(outtxt,asjson)
             return self.dict['Output'][outfmt]
         elif outfmt in ['parse','format']:
             intro = '<pre>%s</pre>\n\n' % self.restOutput('intro')
-            return intro
-        elif outfmt in ['default','full']: return self.restFullOutput(maxparsesize)
-        return 'No %s output generated.' % outfmt
+            return self.jsonText(intro,asjson)
+        elif outfmt in ['default','full']: return self.jsonText(self.restFullOutput(maxparsesize),asjson)
+        return self.jsonText('No %s output generated.' % outfmt,asjson)
 #########################################################################################################################
     def restFullOutput(self,maxparsesize=0):   ### Returns full REST output from file
         '''Returns full REST output from file.'''
@@ -371,7 +389,7 @@ class SLiMParser(rje_obj.RJE_Object):
                 rfile = string.split(self.dict['Output'][rkey],'\n')[0]
                 nbytes = os.path.getsize(rfile)
                 if nbytes > maxparsesize > 0:   # Too large to parse
-                    otext = '%s is too large to return (%s)' % (os.path.basename(rfile),rje.humanByteSize(nbytes))
+                    otext = '%s is too large to return (%s > %s)' % (os.path.basename(rfile),rje.humanByteSize(nbytes),rje.humanByteSize(maxparsesize))
                     resturl = '%sretrieve&jobid=%s&rest=%s[&password=X]' % (self.getStr('RestURL'),jobid,rkey)
                     rtxt += '%s in full output. Try %s.' % (otext,resturl)
                 else:

@@ -19,8 +19,8 @@
 """
 Module:       rje_pydocs
 Description:  Python Module Documentation & Distribution
-Version:      2.16.2
-Last Edit:    30/05/15
+Version:      2.16.3
+Last Edit:    03/12/15
 Copyright (C) 2011 Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -99,6 +99,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 2.16.0 - Added Webserver tab to doc parsing from settings/*.form.
     # 2.16.1 - Added parsing of imports within a try/except block. (Cannot be on same line as try: or except:)
     # 2.16.2 - Tweaked makePages() output.
+    # 2.16.3 - Fixed docstring REST parsing to work with _V* modules.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -135,7 +136,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copyyear) = ('RJE_PYDOCS', '2.16.0', 'May 2015', '2011')
+    (program, version, last_edit, copyyear) = ('RJE_PYDOCS', '2.16.3', 'December 2015', '2011')
     description = 'Python Module Documentation & Distribution'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_zen.Zen().wisdom()]
@@ -1606,7 +1607,8 @@ class PyDoc(rje_obj.RJE_Object):
                     docstring = string.replace(docstring,'%s =' % cmd,'<code>%s</code> !!*!!' % (cmd),1)
                 while rje.matchExp('(&\S+=\S*\w)',docstring):    # opt=value
                     cmdstr = rje.matchExp('(&\S+=\S*\w)',docstring)[0]
-                    [cmd,opt] = string.split(cmdstr,'=')
+                    [cmd,opt] = string.split(cmdstr,'=',maxsplit=1)
+                    opt = string.replace(opt,'=','!!*!!')   # For REST calls etc.
                     docstring = string.replace(docstring,cmdstr,'<code>%s!!*!!%s</code>' % (cmd,opt),1)
                 pretext = rje.matchExp('(###[~]+###.*\n# OUTFMT\:.*\n\.\.\..*)',docstring)
                 if pretext: docstring = string.replace(docstring,pretext[0],'<pre>%s</pre>' % string.replace(pretext[0],'\n','<PREND>'))
@@ -1631,12 +1633,13 @@ class PyDoc(rje_obj.RJE_Object):
                 if self.findModule(docmod): docstring = string.replace(docstring,'%s.py' % docmod,'[%s!!.!!py]{module:%s}' % (docmod,docmod),1)
                 else: docstring = string.replace(docstring,'%s.py' % docmod,'%s!!.!!py' % docmod,1)
         except:
-            self.errorLog('formatDocString error')
+            self.errorLog('formatDocString error',quitchoice=False)
             docstring += '<p><i>Something went wrong with docstring formatting!</i></p>'
         ### ~ [2] Tidy and return ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         docstring = string.replace(docstring,'!!HTTP!!','http')
         docstring = string.replace(docstring,'!!*!!','=')
         docstring = string.replace(docstring,'!!.!!','.')
+        docstring = string.replace(docstring,'</code><code>','')
         if outfmt:
             docstring = docstring.replace('\n','<br>\n')
             docstring = docstring.replace('<PREND>','\n')
@@ -1760,10 +1763,12 @@ class PyDoc(rje_obj.RJE_Object):
                     tablist.append((tabid,tabhtml,tabdesc))
             except: self.errorLog('History')
             ## [3d] Add REST Tab ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            restmod = pymod
+            if restmod[-3:-1] == '_V': restmod = restmod[:-3]
             try:
-                resturl = '%s%s&rest=outfmt' % (self.getStr('RestURL'),pymod)
+                resturl = '%s%s&rest=outfmt' % (self.getStr('RestURL'),restmod)
                 outfmt = self.formatDocString(urllib2.urlopen(resturl).read(),outfmt=True)
-            except: outfmt = self.errorLog('Failure to parse %s outfmt' % pymod)
+            except: outfmt = self.errorLog('Failure to parse %s outfmt' % restmod)
             if not outfmt.startswith('ERROR') and not outfmt.startswith('#ERR'):
                 outfmt = '<h2>%s REST Output formats</h2>\n\n%s' % (data['Program'],outfmt)
                 tablist.append(('REST',outfmt,'%s REST Output formats' % data['Program']))
@@ -1839,15 +1844,18 @@ class PyDoc(rje_obj.RJE_Object):
                     omod = string.split(ofile,'/')[-1][:-3]
                     pagetxt += ' <code>[%s]{module:%s}</code>' % (omod,omod)
                 pagetxt += '</p>\n\n'
-                pagetxt += '<!-- INSERT CUSTOM TEXT HERE -->'
+                #pagetxt += '<!-- INSERT CUSTOM TEXT HERE -->'
                 prevpage = '%scmd/%s.page' % (prevdir,arg)
                 if os.path.exists(prevpage):
-                    self.bugPrint(prevpage)
-                    prevtext = string.replace(open(prevpage,'r').read(),'\n','!!!N!!!')
-                    prevtext = rje.matchExp('<!-- INSERT CUSTOM TEXT HERE -->(.+)<!-- END CUSTOM TEXT -->',prevtext)
-                    if prevtext: prevtext = string.replace(prevtext[0],'!!!N!!!','\n')
-                    else: prevtext = '\n\n'
-                else: prevtext = '\n\n'
+                    prevtext = open(prevpage,'r').read()
+                    prevtext = prevtext[prevtext.find('<!-- INSERT CUSTOM TEXT HERE -->'):prevtext.find('<!-- END CUSTOM TEXT -->')]
+                    if not prevtext: prevtext = '<!-- INSERT CUSTOM TEXT HERE -->\n\n'
+                else: prevtext = '<!-- INSERT CUSTOM TEXT HERE -->\n\n'
+#                    prevtext = string.replace(open(prevpage,'r').read(),'\n','!!!N!!!')
+#                    prevtext = rje.matchExp('<!-- INSERT CUSTOM TEXT HERE -->(.+)<!-- END CUSTOM TEXT -->',prevtext)
+#                    if prevtext: prevtext = string.replace(prevtext[0],'!!!N!!!','\n')
+#                    else: prevtext = '\n\n'
+#                else: prevtext = '\n\n'
                 pagetxt += prevtext
                 pagetxt += '<!-- END CUSTOM TEXT -->\n\n'
                 pagetxt += '<hr>'
@@ -1883,13 +1891,16 @@ class PyDoc(rje_obj.RJE_Object):
                     omod = string.split(ofile,'/')[-1][:-3]
                     pagetxt += ' <code>[%s]{module:%s}</code>' % (omod,omod)
                 pagetxt += '</p>\n\n'
-                pagetxt += '<!-- INSERT CUSTOM TEXT HERE -->'
+                #pagetxt += '<!-- INSERT CUSTOM TEXT HERE -->'
                 prevpage = string.replace(apage,pagedir,prevdir)
                 if os.path.exists(prevpage):
-                    prevtext = rje.matchExp('<!-- INSERT CUSTOM TEXT HERE -->(.+)<!-- END CUSTOM TEXT -->',open(prevpage,'r').read())
-                    if prevtext: prevtext = prevtext[0]
-                    else: prevtext = '\n\n'
-                else: prevtext = '\n\n'
+                    prevtext = open(prevpage,'r').read()
+                    prevtext = prevtext[prevtext.find('<!-- INSERT CUSTOM TEXT HERE -->'):prevtext.find('<!-- END CUSTOM TEXT -->')]
+                    if prevtext: self.bugPrint(prevtext)
+                    #prevtext = rje.matchExp('<!-- INSERT CUSTOM TEXT HERE -->(.+)<!-- END CUSTOM TEXT -->',open(prevpage,'r').read())
+                    #if prevtext: prevtext = prevtext[0]
+                    else: prevtext = '<!-- INSERT CUSTOM TEXT HERE -->\n\n'
+                else: prevtext = '<!-- INSERT CUSTOM TEXT HERE -->\n\n'
                 pagetxt += prevtext
                 pagetxt += '<!-- END CUSTOM TEXT -->\n\n'
                 pagetxt += '<table width="100%" border=0>\n'

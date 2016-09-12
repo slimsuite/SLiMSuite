@@ -19,8 +19,8 @@
 """
 Module:       rje_taxonomy
 Description:  Downloads, reads and converts Uniprot species codes and NCBI Taxa IDs
-Version:      1.1.0
-Last Edit:    11/09/15
+Version:      1.2.0
+Last Edit:    19/05/16
 Copyright (C) 2014  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -53,7 +53,7 @@ Function:
     list given. (Note that this list could itself be created by a previous file of rje_taxonomy and given as a file.)
     Taxa IDs are then mapped on the Uniprot species codes and species names using the SpecFile data. If missing from this
     file, scientific names will be pulled out of the NCBI NameMap file instead. NOTE: Uniprot is used first because NCBI
-    has more redundnant taxonomy assignments.
+    has more redundant taxonomy assignments.
 
     Output is determined by the taxout=LIST option, which is set by default to 'taxid'. Four possible output types are
     permitted:
@@ -102,6 +102,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 0.1 - Initial working version with rje_ensembl.
     # 1.0 - Fully functional version with modified viral species code creation.
     # 1.1.0 - Added parsing of yeast strains.
+    # 1.2.0 - Added storage of Parents.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -203,7 +204,9 @@ class Taxonomy(rje_obj.RJE_Object):
     - TaxOut = List of output formats (taxid/spcode/name/common) [taxid]
 
     Dict:dictionary
-    - NameMap = Dictionary of {TaxID:Scientific Name}
+    - NameMap = Dictionary of {TaxID:Scientific Name}       ??? Is this used ???
+    - Parent = Dictionary of {TaxID:Parent TaxID}
+    - Rank = Dictionart of {TaxID:Taxonomic ranking}
     - SourceURL = dictionary of {Data Source: download URL}
     - TaxDict = Dictionary of {'TaxID':{'SpCode':X,'Name':X,'Common':X}}
     - TaxMap = Dictionary of {'TaxID':[Child TaxIDs]}
@@ -221,7 +224,7 @@ class Taxonomy(rje_obj.RJE_Object):
         self.intlist = []
         self.numlist = []
         self.listlist = ['RankTypes','RestrictID','RankID','TaxIn','TaxOut']
-        self.dictlist = ['NameMap','SourceURL','TaxDict','TaxMap']
+        self.dictlist = ['NameMap','Parent','Rank','SourceURL','TaxDict','TaxMap']
         self.objlist = []
         ### ~ Defaults ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         self._setDefaults(str='None',bool=False,int=0,num=0.0,obj=None,setlist=True,setdict=True)
@@ -285,7 +288,7 @@ class Taxonomy(rje_obj.RJE_Object):
             self.errorLog(self.zen())
             raise   # Delete this if method error not terrible
 #########################################################################################################################
-    def setup(self,force=False):    ### Main class setup method.
+    def setup(self,force=False,parents=True):    ### Main class setup method.
         '''Main class setup method.'''
         try:### ~ [1] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if self.getBool('Setup') and not force: self.printLog('#SETUP','Taxonomy setup already complete.'); return True
@@ -304,11 +307,14 @@ class Taxonomy(rje_obj.RJE_Object):
                 #try: (child,parent,taxtype) = rje.matchExp('^(\d+)\s+\|\s+(\d+)\s+\|\s+(\S+)\s+',tline)
                 try: (child,parent,taxtype) = string.split(tline,'\t|\t')[:3]
                 except: fx += 1; self.debug(tline); continue
+                self.dict['Rank'][child] = taxtype
                 if parent not in taxmap: taxmap[parent] = []
                 if not taxmap[parent]: px += 1
                 if taxtype in self.list['RankTypes']: self.list['RankID'].append(child)
                 if child not in taxmap: taxmap[child] = []
                 taxmap[parent].append(child); tx += 1
+                if child in self.dict['Parent']: self.warnLog('Child TaxID "%s" already has parent!' % child)
+                if parents and child != parent: self.dict['Parent'][child] = parent
             self.printLog('\r#TAXID','%s TaxID (%s parent taxa) read from %s; %s failed.' % (rje.iStr(tx),rje.iStr(px),self.getStr('TaxMap'),rje.iStr(fx)))
             self.printLog('#SPEC','%s TaxID mapped to %s RankTypes' % (rje.iLen(self.list['RankID']),string.join(self.list['RankTypes'],'/')))
             if self.test():

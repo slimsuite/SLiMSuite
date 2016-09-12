@@ -63,6 +63,7 @@ argList = function(args,lists){
 ############# ::: CALL APPROPRIATE SCRIPT ::: ###########################
 # Newer scripts that make use of commandline argument capability
 if (rtype == 'pagsat'){ rjesource("pagsat.R") }
+if (rtype == 'snapper'){ rjesource("snapper.R") }
 if (rtype == 'pacbio'){ rjesource("pacbio.R") }
 if (rtype == 'tree'){ rjesource("tree.R") }
 

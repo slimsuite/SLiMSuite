@@ -19,8 +19,8 @@
 """
 Module:       SeqSuite
 Description:  Miscellaneous biological sequence analysis toolkit
-Version:      1.11.0
-Last Edit:    25/11/15
+Version:      1.11.2
+Last Edit:    23/05/16
 Copyright (C) 2014  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -47,14 +47,13 @@ SeqSuite tools:
     - HAQESAC = haqesac.HAQESAC. Homologue Alignment Quality, Establishment of Subfamilies and Ancestor Construction.
     - MITAB = rje_mitab.MITAB. MITAB PPI parser.
     - MultiHAQ = multihaq.MultiHAQ. Multi-Query HAQESAC controller.
-    - PacBio = rje_pacbio.PacBio. PacBio sequencing coverage estimator. (Development only)
     - PAGSAT = pagsat.PAGSAT. Pairwise Assembled Genome Sequence Analysis Tool. (Development only)
     - PINGU = pingu_V4.PINGU. Protein Interaction Network & GO Utility.
     - PyDocs = rje_pydocs.PyDoc. Python Module Documentation & Distribution.
     - RJE_Seq = rje_seq.SeqList. Fasta file sequence manipulation/reformatting.
     - SAMTools = rje_samtools.SAMTools. SAMTools mpileup analysis tool. (Development only)
     - SeqList = rje_seqlist.SeqList. Fasta file sequence manipulation/reformatting.
-    - SMRTSCAPE = smrtscape.SMRTSCAPE. SMRT Subread Coverage & Assembly Parameter Estimator. (Development only)
+    - SMRTSCAPE (/PacBio) = smrtscape.SMRTSCAPE. SMRT Subread Coverage & Assembly Parameter Estimator. (Development only)
     - Snapper = snp_mapper.SNPMap. SNV to feature annotations mapping and rating tool. (Development only)
     - Taxonomy = rje_taxonomy.Taxonomy. Taxonomy download/conversion tool.
     - Tree = rje_tree.Tree. Phylogenetic Tree Module.
@@ -94,7 +93,7 @@ import rje, rje_obj, rje_zen
 import rje_dbase, rje_ensembl, rje_genbank, rje_mitab, rje_pydocs, rje_seq, rje_seqlist, rje_taxonomy, rje_tree, rje_uniprot, rje_xref
 import fiesta, gablam, gopher, haqesac, multihaq
 import pingu_V4 as pingu
-import extatic, revert, rje_pacbio, pagsat, smrtscape, snp_mapper, rje_samtools
+import extatic, revert, pagsat, smrtscape, snapper, snp_mapper, rje_samtools
 #########################################################################################################################
 def history():  ### Program History - only a method for PythonWin collapsing! ###
     '''
@@ -115,6 +114,9 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 1.9.1 - Fixed HAQESAC setobjects=True error.
     # 1.10.0 - Added batchrun=FILELIST batcharg=X batch running mode.
     # 1.11.0 - Added SAMTools and Snapper/SNP_Mapper.
+    # 1.11.1 - Redirected PacBio to call SMRTSCAPE.
+    # 1.11.2 - Fixed batchrun batchlog=False log error.
+    # 1.12.0 - Added Snapper.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -131,7 +133,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copy_right) = ('SeqSuite', '1.11.0', 'November 2015', '2014')
+    (program, version, last_edit, copy_right) = ('SeqSuite', '1.12.0', 'June 2016', '2014')
     description = 'Miscellaneous biological sequence analysis tools suite'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_obj.zen()]
@@ -182,8 +184,8 @@ mod = {'seqlist':rje_seqlist,'rje_seqlist':rje_seqlist,'rje_seq':rje_seq,'seq':r
        'dbase':rje_dbase,'database':rje_dbase,'uniprot':rje_uniprot,'rje_uniprot':rje_uniprot,
        'rje_taxonomy':rje_taxonomy,'taxonomy':rje_taxonomy,'rje_tree':rje_tree,'tree':rje_tree,
        'pydocs':rje_pydocs,'genbank':rje_genbank,'gopher':gopher,'gablam':gablam,'pagsat':pagsat,'smrtscape':smrtscape,
-       'samtools':rje_samtools.SAMtools,'snapper':snp_mapper.SNPMap,'snp_mapper':snp_mapper.SNPMap,
-       'ensembl':rje_ensembl,'rje_ensembl':rje_ensembl,'extatic':extatic,'pacbio':rje_pacbio,
+       'samtools':rje_samtools,'snapper':snapper,'snp_mapper':snp_mapper,
+       'ensembl':rje_ensembl,'rje_ensembl':rje_ensembl,'extatic':extatic,'pacbio':smrtscape,
        'fiesta':fiesta,'haqesac':haqesac,'multihaq':multihaq,'revert':revert}
 #########################################################################################################################
 # List of queries to remove from command list in REST server output
@@ -318,7 +320,9 @@ class SeqSuite(rje_obj.RJE_Object):
                 self.printLog('#CMD','Full %s CmdList: %s' % (i.program,rje.argString(rje.tidyArgs(progcmd,nopath=self.getStrLC('Rest') and not self.dev(),purgelist=purgelist))),screen=False)
                 #self.debug(prog); self.debug(progcmd)
             ## ~ [1a] ~ Make self.obj['Prog'] ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-                if prog in ['seqlist','rje_seqlist']: self.obj['Prog'] = rje_seqlist.SeqList(self.log,progcmd)
+                if prog in ['seqlist','rje_seqlist']:
+                    progcmd = ['reformat=rest'] + progcmd
+                    self.obj['Prog'] = rje_seqlist.SeqList(self.log,progcmd)
                 elif prog in ['uniprot','rje_uniprot']: self.obj['Prog'] = rje_uniprot.UniProt(self.log,progcmd)
                 elif prog in ['taxonomy','rje_taxonomy']: self.obj['Prog'] = rje_taxonomy.Taxonomy(self.log,progcmd)
                 elif prog in ['tree','rje_tree']: self.obj['Prog'] = rje_tree.Tree(self.log,progcmd)
@@ -337,11 +341,12 @@ class SeqSuite(rje_obj.RJE_Object):
                 elif prog in ['haqesac']: self.obj['Prog'] = haqesac.HAQESAC(self.log,progcmd)
                 elif prog in ['multihaq']: self.obj['Prog'] = multihaq.MultiHAQ(self.log,progcmd)
                 elif prog in ['pingu']: self.obj['Prog'] = pingu.PINGU(self.log,progcmd)
-                elif prog in ['pacbio']: self.obj['Prog'] = rje_pacbio.PacBio(self.log,progcmd)
+                #elif prog in ['pacbio']: self.obj['Prog'] = rje_pacbio.PacBio(self.log,progcmd)
                 elif prog in ['pagsat']: self.obj['Prog'] = pagsat.PAGSAT(self.log,progcmd)
-                elif prog in ['smrtscape']: self.obj['Prog'] = smrtscape.SMRTSCAPE(self.log,progcmd)
+                elif prog in ['smrtscape','pacbio']: self.obj['Prog'] = smrtscape.SMRTSCAPE(self.log,progcmd)
                 elif prog in ['samtools']: self.obj['Prog'] = rje_samtools.SAMtools(self.log,progcmd)
-                elif prog in ['snapper','snp_mapper']: self.obj['Prog'] = snp_mapper.SNPMap(self.log,progcmd)
+                elif prog in ['snapper']: self.obj['Prog'] = snapper.Snapper(self.log,progcmd)
+                elif prog in ['snp_mapper']: self.obj['Prog'] = snp_mapper.SNPMap(self.log,progcmd)
                 elif prog in ['rje_zen','zen']: self.obj['Prog'] = rje_zen.Zen(self.log,progcmd)
 
             ### ~ [2] ~ Failure to recognise program ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -385,8 +390,11 @@ class SeqSuite(rje_obj.RJE_Object):
                 ## Setup parameters
                 bbase = rje.baseFile(bfile,strip_path=True)
                 bcmd = ['%s=%s' % (barg,bfile)]
-                if self.getBool('BatchBase'): bcmd += ['basefile=%s%s' % (bbase,rje.baseFile(blog))]
-                else: bcmd += ['log=%s%s' % (bbase,blog)]
+                if self.getBool('BatchBase'):
+                    if blog == '.log': bcmd += ['basefile=%s' % bbase]
+                    else: bcmd += ['basefile=%s%s' % (bbase,rje.baseFile(blog))]
+                elif self.getStrLC('BatchLog'): bcmd += ['log=%s%s' % (bbase,blog)]
+                else: bcmd += ['newlog=F']
                 #self.debug(bcmd)
                 ## Setup Seqsuite object
                 self.cmd_list = rawcmd + bcmd

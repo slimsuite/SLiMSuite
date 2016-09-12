@@ -1,7 +1,7 @@
 ########################################################
 ### Pairwise Assembled Genome Sequence Analysis Tool ###
-### VERSION: 0.7.1                             ~~~~~ ###
-### LAST EDIT: 09/09/15                        ~~~~~ ###
+### VERSION: 0.7.4                             ~~~~~ ###
+### LAST EDIT: 29/08/16                        ~~~~~ ###
 ### AUTHORS: Richard Edwards 2015              ~~~~~ ###
 ### CONTACT: richard.edwards@unsw.edu.au       ~~~~~ ###
 ########################################################
@@ -12,6 +12,9 @@
 # v0.6.0 : Altered identity to be relative to coverage, not length
 # v0.7.0 : Added ChromAlignLoc output
 # v0.7.1 : Added haploid/doploid modes for ChromAlignLoc output.
+# v0.7.2 : Switched off some outputs if tables missing.
+# v0.7.3 : Corrected crash in absence of Bwd hits.
+# v0.7.4 : Added comment.char="" to read.table function calls to avoid issue with # in input. (Odd R default!!)
 
 #!# Rearrange a little and make more elements into functions (load data etc.)
 
@@ -38,6 +41,10 @@ settings$refbase = refbase
 settings$assessment = TRUE # Process outputs from assessment run
 settings$covplot = TRUE    # Whether to generate chromosome and contig coverage plots.
 settings$diploid = TRUE    # Whether to run ChromAlignLoc in diploid mode.
+settings$genesummary = TRUE    # Whether to run GeneSummary plot.
+settings$protsummary = TRUE    # Whether to run ProtSummary plot.
+settings$chromalign = TRUE    # Whether to run ChromAlign plot.
+settings$features = TRUE    # Whether to expect Features table plot.
 settings$pngwidth = 2400
 settings$pngheight = 1600
 settings$pointsize = 36
@@ -49,7 +56,7 @@ settings$plotft = c("gene","mRNA","CDS","rRNA","tRNA","ncRNA","mobile","LTR","or
 
 # Update default settings from commandline arguments (setting=value)
 (arglist)  # This contains settings read in from arguments
-arglist = argBool(arglist,c("assessment","covplot","diploid"))    # List of Boolean settings
+arglist = argBool(arglist,c("assessment","covplot","diploid","genesummary","protsummary","chromalign"))    # List of Boolean settings
 arglist = argNum(arglist,c("pngwidth","pngheight","pointsize","minloclen","topcontigs"))     # List of numeric settings
 arglist = argList(arglist,c("plotft"))
 for(cmd in names(arglist)){
@@ -83,6 +90,8 @@ settings$col = list()   # This will have contigs and chromosomes added later.
 for(fi in 1:length(settings$plotft)){
   settings$col[[settings$plotft[fi]]] = soton$col[fi+1]
 }
+settings$col[["LTR"]] = soton$col[15]
+settings$col[["mobile"]] = soton$col[16]
 
 (settings)  # This contains final settings
 
@@ -90,10 +99,10 @@ for(fi in 1:length(settings$plotft)){
 #? Should this be made a function?
 
 ## ~ Overal summary data ~ ##
-(summdata = read.table( paste(basefile,".Summary.tdt",sep=""), header = T, stringsAsFactors = T, sep = '\t', quote = ''))
+(summdata = read.table( paste(basefile,".Summary.tdt",sep=""), header = T, stringsAsFactors = T, sep = '\t', quote = '', comment.char=""))
 
 ## ~ Reference Coverage Summary
-rcovdata = read.table( paste(basefile,".Reference.Coverage.tdt",sep=""), header = T, stringsAsFactors = T, sep = '\t', quote = '')
+rcovdata = read.table( paste(basefile,".Reference.Coverage.tdt",sep=""), header = T, stringsAsFactors = T, sep = '\t', quote = '', comment.char="")
 summary(rcovdata)
 # Update colour dicionary for chromosomes
 cx = 0
@@ -106,7 +115,7 @@ for(chrom in rcovdata[order(rcovdata$Length,decreasing=TRUE),"Qry"]){
 }
 
 ## ~ Assembly Coverage Summary ~ ##
-acovdata = read.table( paste(basefile,".Assembly.Coverage.tdt",sep=""), header = T, stringsAsFactors = T, sep = '\t', quote = '')
+acovdata = read.table( paste(basefile,".Assembly.Coverage.tdt",sep=""), header = T, stringsAsFactors = T, sep = '\t', quote = '', comment.char="")
 summary(acovdata)
 # Update colour dicionary for contigs
 cx = 0
@@ -121,34 +130,41 @@ settings$col[["NULL"]] = "black"
 print(settings$col)
 
 ## ~ Reference chromosome coverage ~ ##
-chromdata = read.table( paste(basefile,".covplot.chrom.tdt",sep=""), header = T, stringsAsFactors = T, sep = '\t', quote = '')
+chromdata = read.table( paste(basefile,".covplot.chrom.tdt",sep=""), header = T, stringsAsFactors = T, sep = '\t', quote = '', comment.char="")
 summary(chromdata)
 
 # ~ Assembly contig coverage ~ ##
-contigdata = read.table( paste(basefile,".covplot.contig.tdt",sep=""), header = T, stringsAsFactors = T, sep = '\t', quote = '')
+contigdata = read.table( paste(basefile,".covplot.contig.tdt",sep=""), header = T, stringsAsFactors = T, sep = '\t', quote = '', comment.char="")
 summary(contigdata)
 
 ## ~ Load directional contig plot. (Obselete?) ~ ##
-dirndata = read.table( paste(basefile,".dirplot.contig.tdt",sep=""), header = T, stringsAsFactors = T, sep = '\t', quote = '')
+dirndata = read.table( paste(basefile,".dirplot.contig.tdt",sep=""), header = T, stringsAsFactors = T, sep = '\t', quote = '', comment.char="")
 summary(dirndata)
 
 ## ~ Gene and Protein TopHits data ~ ##
-genedata = read.table( paste(basefile,".Genes.TopHits.tdt",sep=""), header = T, stringsAsFactors = T, sep = '\t', quote = '')
-if(dim(genedata[genedata$Hit == "",])[1] > 0){
-  genedata[genedata$Hit == "",]$Qry_AlnID = 0
+if(settings$genesummary){
+  genedata = read.table( paste(basefile,".Genes.TopHits.tdt",sep=""), header = T, stringsAsFactors = T, sep = '\t', quote = '', comment.char="")
+  if(dim(genedata[genedata$Hit == "",])[1] > 0){
+    genedata[genedata$Hit == "",]$Qry_AlnID = 0
+  }
+  summary(genedata)  
 }
-summary(genedata)
-protdata = read.table( paste(basefile,".Proteins.TopHits.tdt",sep=""), header = T, stringsAsFactors = T, sep = '\t', quote = '')
-if(dim(protdata[protdata$Hit == "",])[1] >0){
-  protdata[protdata$Hit == "",]$Qry_AlnID = 0
+
+if(settings$protsummary){
+  protdata = read.table( paste(basefile,".Proteins.TopHits.tdt",sep=""), header = T, stringsAsFactors = T, sep = '\t', quote = '', comment.char="")
+  if(dim(protdata[protdata$Hit == "",])[1] >0){
+    protdata[protdata$Hit == "",]$Qry_AlnID = 0
+  }
+  summary(protdata)
 }
-summary(protdata)
   
 ## ~ Reference vs Assembly local BLAST hits ~ ##
-locdata = read.table( paste(settings$gablamdir,settings$basename,".Reference.local.tdt",sep=""), header = T, stringsAsFactors = T, sep = '\t', quote = '')
+locdata = read.table( paste(settings$gablamdir,settings$basename,".Reference.local.tdt",sep=""), header = T, stringsAsFactors = T, sep = '\t', quote = '', comment.char="")
 locdata = locdata[locdata$Length >= settings$minloclen,]
 locdata$Dirn = "Fwd"
-locdata[locdata$SbjStart > locdata$SbjEnd,]$Dirn = "Bwd"
+if(length(locdata[locdata$SbjStart > locdata$SbjEnd,]$Dirn) > 0){
+  locdata[locdata$SbjStart > locdata$SbjEnd,]$Dirn = "Bwd"  
+}
 locdata$QryCol = ""
 for(chrom in locdata$Qry){
   locdata[locdata$Qry==chrom,][["QryCol"]] = settings$col[[as.character(chrom)]]
@@ -160,30 +176,40 @@ for(chrom in locdata$Hit){
 summary(locdata)
 
 ## ~ "Aligned" Reference vs Assembly local BLAST hits ~ ##
-alndata = read.table( paste(basefile,".ChromAlignLoc.tdt",sep=""), header = T, stringsAsFactors = T, sep = '\t', quote = '')
-#alndata = locdata[locdata$Length >= settings$minloclen,]
-alndata$Dirn = "Fwd"
-alndata[alndata$SbjStart > alndata$SbjEnd,]$Dirn = "Bwd"
-alndata$QryCol = ""
-for(chrom in alndata$Qry){
-  alndata[alndata$Qry==chrom,][["QryCol"]] = settings$col[[as.character(chrom)]]
+if(settings$chromalign){
+  alndata = read.table( paste(basefile,".ChromAlignLoc.tdt",sep=""), header = T, stringsAsFactors = T, sep = '\t', quote = '', comment.char="")
+  #alndata = locdata[locdata$Length >= settings$minloclen,]
+  alndata$Dirn = "Fwd"
+  if(length(alndata[alndata$SbjStart > alndata$SbjEnd,]$Dirn)>0){
+    alndata[alndata$SbjStart > alndata$SbjEnd,]$Dirn = "Bwd"
+  }
+  alndata$QryCol = ""
+  for(chrom in alndata$Qry){
+    alndata[alndata$Qry==chrom,][["QryCol"]] = settings$col[[as.character(chrom)]]
+  }
+  alndata$HitCol = ""
+  for(chrom in alndata$Hit){
+    alndata[alndata$Hit==chrom,][["HitCol"]] = settings$col[[as.character(chrom)]]
+  }
+  summary(alndata)
 }
-alndata$HitCol = ""
-for(chrom in alndata$Hit){
-  alndata[alndata$Hit==chrom,][["HitCol"]] = settings$col[[as.character(chrom)]]
-}
-summary(alndata)
 
 ## ~ Reference genome features ~ ##
-features = read.table( paste(refbase,".Feature.tdt",sep=""), header = T, stringsAsFactors = F, sep = '\t', quote = '')
-features = features[features$feature != "source",]
-features = features[features$feature != "misc_RNA",]
-features = features[features$feature != "misc_feature",]
-features[features$feature == "mobile_element",]$feature = "mobile"
-features[features$feature == "rep_origin",]$feature = "origin"
-features$feature = as.factor(features$feature)
-summary(features)
-(levels(features$feature))
+if(settings$features){
+  features = read.table( paste(refbase,".Feature.tdt",sep=""), header = T, stringsAsFactors = F, sep = '\t', quote = '', comment.char="")
+  features = features[features$feature != "source",]
+  features = features[features$feature != "misc_RNA",]
+  features = features[features$feature != "misc_feature",]
+  if(length(features[features$feature == "mobile_element",]$feature)>0){
+    features[features$feature == "mobile_element",]$feature = "mobile"    
+  }
+  if(length(features[features$feature == "rep_origin",]$feature)>0){
+    features[features$feature == "rep_origin",]$feature = "origin"
+  }
+  features$feature = as.factor(features$feature)
+  summary(features)
+  (levels(features$feature))
+}else{ features = data.frame() }
 
 ############# ::: DEFINE METHODS ::: ##################
 
@@ -351,13 +377,15 @@ featurePlot = function(chromdata,features,chrom){
   plot(c(0,xmax),c(0,ymax),col="red",type="n",main=paste(chrom,"features"),ylab="",xlab=paste("Chromosome Position",units),xaxs="i",yaxt="n")
   plotGridlines(0,xmax,0,ymax,10000/scaling,50000/scaling,1,ymax)
   # Plot Features
-  for(fi in 1:ymax){
-    y = ymax-fi
-    ftype = plotft[fi]
-    text(0,y+0.5,ftype,pos=2,xpd=TRUE,cex=0.8)
-    ftdata = features[features$feature == ftype & features$locus == locus,]
-    if(dim(ftdata)[1] > 0){
-      rect(ftdata$start/scaling,y,ftdata$end/scaling,y+1,col=settings$col[[ftype]],border=NA)  
+  if(settings$features){
+    for(fi in 1:ymax){
+      y = ymax-fi
+      ftype = plotft[fi]
+      text(0,y+0.5,ftype,pos=2,xpd=TRUE,cex=0.8)
+      ftdata = features[features$feature == ftype & features$locus == locus,]
+      if(dim(ftdata)[1] > 0){
+        rect(ftdata$start/scaling,y,ftdata$end/scaling,y+1,col=settings$col[[ftype]],border=NA)  
+      }
     }
   }
 }
@@ -461,6 +489,8 @@ dotplot = function(locdata,qry,hit,qlen,hlen,pcol=rep(soton$col[1],100),minfrag=
   ### ~ Setup Plot ~ ###
   scaling = settings$scaling
   units = paste("(",settings$units,")",sep="")
+  if(is.na(hlen) | is.na(qlen)){ return() }
+  if(hlen <= 0 | qlen <= 0){ return() }
   #title(main=paste(hit," vs ",qry," (Minfrag=",minfrag,"bp)",sep=""))
   ### ~ Plot local hit data ~ ###
   ldata = locdata[locdata$Qry==qry & locdata$Hit==hit & locdata$Length >= minfrag,]
@@ -686,22 +716,24 @@ for(chrom in levels(chromdata$Chrom)){
 }
 
 ### ~ Generate multipanel plots of top gene/protein hits for each reference chromosome ~~~~~~~~~~~~~ ###
-for(chrom in levels(chromdata$Chrom)){
-  pngfile=paste(settings$pngbase,"genehits",chrom,"png",sep=".")
-  #CairoPNG(filename=pngfile, width=pwidth, height=pheight, pointsize=12)
-  png(filename=pngfile, width=settings$pngwidth, height=settings$pngheight, units = "px", pointsize=settings$pointsize)
-  panels = c(rep(1,7),rep(2,4),rep(3,6))
-  layout(matrix(panels,byrow=TRUE,nrow=length(panels)))
-  par(mar=c(2,6,2,1))
-  chromGenesPlot(chromdata,genedata,protdata,chrom,ctype="Chromosome")
-  featurePlot(chromdata,features,chrom)
-  cname = strsplit(chrom,"_")[[1]][1]
-  hitlist = levels(as.factor(as.vector(genedata[genedata$Chrom==cname & genedata$Synteny != "Orphan",]$Hit)))
-  par(mar=c(5,6,2,1))
-  localChromPlot(chromdata,chrom,hitlist,ctype="GeneHit")
-  dev.off()
+if(settings$genesummary){
+  for(chrom in levels(chromdata$Chrom)){
+    pngfile=paste(settings$pngbase,"genehits",chrom,"png",sep=".")
+    #CairoPNG(filename=pngfile, width=pwidth, height=pheight, pointsize=12)
+    png(filename=pngfile, width=settings$pngwidth, height=settings$pngheight, units = "px", pointsize=settings$pointsize)
+    panels = c(rep(1,7),rep(2,4),rep(3,6))
+    layout(matrix(panels,byrow=TRUE,nrow=length(panels)))
+    par(mar=c(2,6,2,1))
+    chromGenesPlot(chromdata,genedata,protdata,chrom,ctype="Chromosome")
+    featurePlot(chromdata,features,chrom)
+    cname = strsplit(chrom,"_")[[1]][1]
+    hitlist = levels(as.factor(as.vector(genedata[genedata$Chrom==cname & genedata$Synteny != "Orphan",]$Hit)))
+    par(mar=c(5,6,2,1))
+    localChromPlot(chromdata,chrom,hitlist,ctype="GeneHit")
+    dev.off()
+  }
 }
-
+  
 ### ~ Generate multipanel plots for each assembled contig ~~~~~~~~~~~~~ ###
 for(contig in levels(contigdata$Chrom)){
   pngfile=paste(settings$pngbase,"covplot",contig,"png",sep=".")
@@ -722,7 +754,11 @@ for(contig in levels(contigdata$Chrom)){
   (hitlist = levels(locdata$Qry)[order(covsum,decreasing=TRUE)[1:4]])
   par(mar=c(5,6,1,1))
   for(chrom in hitlist){  # Have chrom as Query otherwise need to reverse Qry/Hit(Sbj) data - also allows alignments of contig
-    dotplot(locdata,chrom,contig,qlen=max(chromdata[chromdata$Chrom==chrom,]$Pos),hlen=max(contigdata[contigdata$Chrom==contig,]$Pos),pcol=pcol,minfrag=settings$minloclen)
+    if(dim(locdata[locdata$Qry==chrom & locdata$Hit==contig,]) > 0){
+      dotplot(locdata,chrom,contig,qlen=max(chromdata[chromdata$Chrom==chrom,]$Pos),hlen=max(contigdata[contigdata$Chrom==contig,]$Pos),pcol=pcol,minfrag=settings$minloclen)      
+    }else{
+      plot(c(1,2),c(1,2),type="n",xlab="-",ylab="-",axes=TRUE,ann=TRUE,mar=c(0,1,4,1))      
+    }    
   }
   dev.off()
 }
@@ -770,10 +806,12 @@ coverageByChromosome(rcovdata,locdata,features,gtype="Reference")
 dev.off()
 
 ## ~ One-panel plot of overal alignments ~ ##
-pngfile=paste(settings$pngbase,"chromalign","png",sep=".")
-png(filename=pngfile, width=settings$pngwidth, height=settings$pngheight, units = "px", pointsize=settings$pointsize)
-alignedChromosomes(rcovdata,alndata,features)
-dev.off()
+if(settings$chromalign){
+  pngfile=paste(settings$pngbase,"chromalign","png",sep=".")
+  png(filename=pngfile, width=settings$pngwidth, height=settings$pngheight, units = "px", pointsize=settings$pointsize)
+  alignedChromosomes(rcovdata,alndata,features)
+  dev.off()
+}
 
 ## ~ Plot contig coverage ~ ##
 pngfile=paste(settings$pngbase,"assembly","png",sep=".")

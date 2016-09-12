@@ -19,8 +19,8 @@
 """
 Module:       rje
 Description:  Contains General Objects for all my (Rich's) scripts
-Version:      4.15.0
-Last Edit:    27/07/15
+Version:      4.17.0
+Last Edit:    06/08/16
 Copyright (C) 2005  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -153,6 +153,10 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 4.14.1 - Fixed matchExp method to be able to handline multilines. (Shame re.DOTALL doesn't work!)
     # 4.14.2 - Modified integer commands to read/convert floats.
     # 4.15.0 - Added intList() and numList() functions.
+    # 4.15.1 - Fixed rare errorlog printlog error vicious cycle.
+    # 4.16.0 - Added list2dict(inlist,inkeys) and dict2list(indict,inkeys) functions.
+    # 4.16.1 - Improved handling of integer parameters when given bad commands.
+    # 4.17.0 - Added extra functions to randomList()
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -271,8 +275,16 @@ class RJE_Object_Shell(object):     ### Metaclass for inheritance by other class
     def me(self): return string.split('%s' % self)[0][1:]
 #########################################################################################################################
     def yesNo(self,text='',default='Y',confirm=False,i=0):
-        if self.i() < i: return {'Y':True,'N':False}[default.upper()]
-        else: return yesNo(text,default,confirm=False)
+        if self.i() < i:
+            self.printLog('#AUTO','%s: %s' % (text,default.upper()))
+            return {'Y':True,'N':False}[default.upper()]
+        else: return yesNo(text,default,confirm=confirm)
+#########################################################################################################################
+    def choice(self,text='',default='Y',confirm=False,i=0):
+        if self.i() < i:
+            self.printLog('#AUTO','%s: %s' % (text,default))
+            return default
+        else: return choice(text,default,confirm=confirm)
 #########################################################################################################################
     def db(self,table=None):    ### Return rje_dbase Database object, if one associated with Object
         try:
@@ -350,9 +362,12 @@ class RJE_Object_Shell(object):     ### Metaclass for inheritance by other class
         elif type == 'int':
             try: self.stat[att] = string.atoi(value)
             except:
-                self.stat[att] = int(string.atof(value))
+                if matchExp('^(\d+)',value): self.stat[att] = string.atoi(matchExp('^(\d+)',value)[0])
+                else: self.stat[att] = int(string.atof(value))
                 self.log.warnLog('%s=%s needs integer -> %s=%d' % (arg,value,arg,self.stat[att]))
         elif type in ['float','stat','num']: self.stat[att] = string.atof(value)
+        elif type == 'fmax' and matchExp('^[\d\.]+,([\d\.]+)',value): self.stat[att] = string.atof(matchExp('^[\d\.]+,([\d\.]+)',value)[0])
+        elif type in ['fmin','fmax'] and matchExp('^([\d\.]+)',value): self.stat[att] = string.atof(matchExp('^([\d\.]+)',value)[0])
         elif type == 'max' and matchExp('^\d+,(\d+)',value): self.stat[att] = string.atoi(matchExp('^\d+,(\d+)',value)[0])
         elif type in ['min','max'] and matchExp('^(\d+)',value): self.stat[att] = string.atoi(matchExp('^(\d+)',value)[0])
         elif type == 'list': self.list[att] = listFromCommand(value)
@@ -1844,12 +1859,14 @@ class Log(RJE_Object_Shell):
             if self.opt['Silent'] and id != '#ERR': return text      # Do not write to log or screen
             if error and self.info['ErrorLog'].lower() not in ['','none']: logfile = self.info['ErrorLog']
             else: logfile = self.info['LogFile']
-            if logfile and log: open(logfile,'a').write('%s\n' % string.strip(text,'\r\n'))
+            if logfile and log: open(str(logfile),'a').write('%s\n' % string.strip(text,'\r\n'))
             if screen and error: print text
             elif screen and (log or self.opt['ProgLog']): self.verbose(0,4,text,0)
             return text
         except:
-            if id == '#ERR': os._exit(1)
+            if id.endswith('#ERR'):
+                print 'Error causing printLog() issues: %s' % text
+                os._exit(1)     # Need to catch \n and \r line starts too.
             self.errorLog('printLog() problem')
 #########################################################################################################################
     def errorLog(self, text='Missing text for errorLog() call!',quitchoice=False,printerror=True,nextline=True,log=True,errorlog=True,warnlist=True):
@@ -1861,6 +1878,7 @@ class Log(RJE_Object_Shell):
         >> nextline:bool [True] = whether to print error on next line
         '''
         ### Handle SystemExit and KeyboardInterrupt from previous sources
+        new = '\r'
         try:
             new = {True:'\n',False:'\r'}[nextline]
             if not printerror or not sys.exc_info()[0]: return self.printLog('%s#ERR' % new,text,log=log,warnlist=warnlist)
@@ -2885,12 +2903,14 @@ def OLDbinomial(observed,trials,prob,exact=False,usepoisson=True,callobj=None): 
 def dp(data,dp): ### Returns number rounded to X dp
     '''Returns number rounded to X dp.'''
     #if dp == 1: data = string.atof('%.1f' % data)
+    if not type(data) in [float,int]: data = float(data)
     if dp > 0: data = int(data * (10 ** dp) + 0.5) / float(10 ** dp)
     elif dp == 0: data = int(data + 0.5)
     return data
 #########################################################################################################################
 def sf(data,sf=3): ### Returns number rounded to X sf
     '''Returns number rounded to X sf.'''
+    if not type(data) in [float,int]: data = float(data)
     neg = data < 0
     if neg: data = -data
     if not data: return dp(data,sf-1)
@@ -3085,9 +3105,24 @@ def dictValueList(dict,keys):   ### Returns dictionary (subset) values in same o
 #########################################################################################################################
 ###  List Manipulation Functions                                                                                        #
 #########################################################################################################################
-def collapseTupleList(inlist):  ### Collapses a list of (x,y) values by merging/removing overlaps where required.
+def collapseTupleList(inlist,joindistance=1):  ### Collapses a list of (x,y) values by merging/removing overlaps where required.
+    '''Collapses a list of (x,y) values by merging/removing overlaps where required.'''
+    joindistance = max(0,joindistance)
+    inlist = inlist[0:] # Create a copy
+    if not inlist: return inlist
+    inlist.sort()
+    i = 1
+    while i < len(inlist):
+        if inlist[i][0] <= (inlist[i-1][1]+joindistance):
+            inlist[i-1] = (inlist[i-1][0],max(inlist[i-1][1],inlist[i][1]))
+            inlist.pop(i)
+        else: i += 1
+    return inlist
+#########################################################################################################################
+def collapseTupleListOLD(inlist):  ### Collapses a list of (x,y) values by merging/removing overlaps where required.
     '''Collapses a list of (x,y) values by merging/removing overlaps where required.'''
     inlist = inlist[0:] # Create a copy
+    if not inlist: return inlist
     inlist.sort()
     i = 1
     while i < len(inlist):
@@ -3096,6 +3131,33 @@ def collapseTupleList(inlist):  ### Collapses a list of (x,y) values by merging/
             inlist.pop(i)
         else: i += 1
     return inlist
+#########################################################################################################################
+def invertTupleList(inlist,minx=None,maxx=None): ### Convert a list of (x,y) tuples into the "missing" (x,y) regions
+    '''
+    Convert a list of (x,y) tuples into the "missing" (x,y) regions.
+    @param inlist: input list of (x,y) tuples.
+    @param minx: minimum value of (x,y) list to return. (If None, will use (x,y) list limits)
+    @param maxx: maximum value of (x,y) list to return. (If None, will use (x,y) list limits)
+    @return: inverted inlist
+    '''
+    # Setup
+    inlist = collapseTupleList(inlist)
+    # Trim
+    if minx != None:
+        while inlist and inlist[0][1] < minx: inlist.pop(0)
+    if maxx != None:
+        while inlist and inlist[-1][0] > maxx: inlist = inlist[:-1]
+    if not inlist:
+        if minx == None or maxx == None: return []
+        else: return [(minx,maxx)]
+    # Make invlist
+    invlist = []
+    if minx != None and minx < inlist[0][0]: invlist.append((minx,inlist[0][0]-1))
+    while len(inlist) > 1:
+        invlist.append((inlist[0][1]+1,inlist[1][0]-1))
+        inlist.pop(0)
+    if maxx != None and maxx > inlist[0][1]: invlist.append((inlist[0][1]+1,maxx))
+    return invlist
 #########################################################################################################################
 def intList(inlist): ### Converts inlist to integers and returns
     '''Converts inlist to integers and returns.'''
@@ -3139,20 +3201,24 @@ def rankList(scorelist=[],rev=False,absolute=False,lowest=False,unique=False):  
         if unique: rsorted[rsorted.index(score)] = None
     return ranklist
 #########################################################################################################################
-def randomList(inlist): ### Returns inlist in randomised order
+def randomList(inlist,listlen=0,replace=False): ### Returns inlist in randomised order
     '''
     Returns inlist in randomised order.
     >> inlist:List object
+    >> listlen:int [-1] = length of list to return (inlist length if <= 0)
+    >> replace:bool [False] = whether to generate new list with replacement (i.e. keep sampling from original list)
     << ranlist:randomised order list
     '''
     ### ~ [1] ~ Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+    if listlen <= 0 or (replace and listlen > len(inlist)): listlen = len(inlist)
     ordlist = inlist[0:]    # Don't mess up original
     ranlist = []            # Random list
     ### ~ [2] ~ Randomise ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-    while ordlist:
+    for i in range(listlen):
         r = random.randint(0,len(ordlist)-1)
-        ranlist.append(ordlist.pop(r))
-    if len(ranlist) == len(inlist): return ranlist
+        if replace: ranlist.append(ordlist[r])
+        else: ranlist.append(ordlist.pop(r))
+    if len(ranlist) == listlen: return ranlist
     else: raise ValueError
 #########################################################################################################################
 def sortUnique(inlist,xreplace=True,num=False): ### Returns sorted unique list: *** Case-insensitive collation ***
@@ -3319,6 +3385,28 @@ def checkForFile(file):     ### Returns True if file exists or False if not
     '''Returns True if file exists or False if not.'''
     return file and os.path.exists(file)
 #########################################################################################################################
+def checkForFiles(filelist=[],basename='',log=None,cutshort=True,ioerror=False,missingtext=''):     ###
+    '''
+    Returns True if all files exist or False if not.
+    @param filelist: list of file extension to be joined to basename.
+    @param basename: basename to be added to all files. (Should include dot if requried for %s.%s join)
+    @log: log object for #CHECK log output.
+    @cutshort:bool [True] Whether to return False as soon as failure detected.
+    @ioerror:bool [False] Whether to raise IOError is file missing.
+    @missingtext:str [''] Additional text to report with missing file.
+    @return: Returns True if all files exist or False if not.
+    '''
+    failed = False
+    for wext in filelist:
+        wfile = '%s%s' % (basename,wext)
+        if not os.path.exists(wfile):
+            failed = True
+            if log: log.printLog('#CHECK','%s: Missing!%s' % (wfile,missingtext))
+            if ioerror: raise IOError('Cannot find %s!' % wfile)
+            if cutshort: return False
+        elif log: log.printLog('#CHECK','%s: Found.' % wfile)
+    return not failed
+#########################################################################################################################
 def makePath(path='',wholepath=False,return_blank=True):  ### Returns path that can be used for calling programs etc.
     '''
     Returns path that can be used for calling programs etc.
@@ -3367,6 +3455,7 @@ def subDir(pathname,exclude=[]):   ### Returns the subdirectories given by glob.
     return subdir
 #########################################################################################################################
 def stripPath(path): return os.path.basename(path)
+def basePath(path): return makePath(os.path.dirname(path))
 def baseFile(filename,strip_path=False,extlist=[],keepext=False):   ### Returns file without extension, with or without path
     '''
     Returns file without extension, with or without path.
@@ -3656,8 +3745,9 @@ def deleteDir(callobj,deldir,contentsonly=True,confirm=True,report=True):   ### 
     dtxt = '%s files from %s' % (len(files),deldir)
     if not contentsonly: dtxt += ' (and %s)' % deldir
     ### Confirm ###
-    if confirm and callobj and (callobj.i() >= 0 or callobj.getBool('DeBug')):
-        print '\n%d files in %s:\n - %s\n' % (len(files),deldir,string.join(files,'\n - '))
+    if confirm and callobj and (callobj.i() >= 0 or callobj.getBool('DeBug') or callobj.dev()):
+        if callobj.i() >= 1 or callobj.getBool('DeBug') or callobj.dev():
+            print '\n%d files in %s:\n - %s\n' % (len(files),deldir,string.join(files,'\n - '))
         if not yesNo('Delete %s?' % dtxt): raise KeyboardInterrupt
     ### Delete files ###
     for f in files:
@@ -3719,6 +3809,21 @@ def humanByteSize(nbytes):
         i += 1
     f = ('%.2f' % nbytes).rstrip('0').rstrip('.')
     return '%s %s' % (f, suffixes[i])
+#########################################################################################################################
+def targz(callobj=None,targz='',tarfile=None): ### Tars and zips the files/directories given by targz
+    '''
+    Tars and zips the files/directories given by targz.
+    >> callobj:Obj = optional object for log output.
+    >> targz:str = string of paths to add to tar file.
+    >> tarfile:str [None] = Name of the tarfile. If None, will use targz. (Must not have * in targz.)
+    '''
+    if not tarfile:
+        if '*' in targz: raise ValueError('Cannot have wildcard (*) in targz filename!')
+        tarfile = '%s.tgz' % os.path.normpath(targz)
+    if callobj: callobj.printLog('#TARGZ','%s -> %s' % (targz,tarfile))
+    tar = os.popen('tar -czf %s %s' % (tarfile,targz)).read()
+    if tar and callobj: callobj.warnLog(tar)
+    elif tar: raise ValueError(tar)
 #########################################################################################################################
 ###  End of File Manipulation Functions                                                                                 #
 #########################################################################################################################
@@ -3846,6 +3951,18 @@ def readDelimit(line='',delimit='\t'):  ### Returns list of strings from file li
         s += 1
     return readlist
 #########################################################################################################################
+def list2dict(inlist,inkeys,indict=None,strict=True): # Converts input list and keys to dictionary
+    if not indict: indict = {}
+    if len(inlist) > len(inkeys): raise ValueError('Not enough keys for rje.list2dict!')
+    if len(inlist) < len(inkeys) and strict: raise ValueError('Too many keys for rje.list2dict!')
+    for i in range(len(inlist)): indict[inkeys[i]] = inlist[i]
+    return indict
+#########################################################################################################################
+def dict2list(indict,inkeys): # Converts input dict and keys to list
+    outlist = []
+    for ikey in inkeys: outlist.append(indict[ikey])    # Will raise exception if key missing.
+    return outlist
+#########################################################################################################################
 def delimitedFileOutput(callobj,filename,headers,delimit=None,datadict={},rje_backup=False):   ### Outputs a single line of compiled data to file
     '''
     Outputs a single line of compiled data to file.
@@ -3918,6 +4035,7 @@ def dataDict(callobj,filename,mainkeys=[],datakeys=[],delimit=None,headers=[],ge
         while not headers:
             fline = FILE.readline()
             if ignoreLine(fline,ignore): continue
+            if not fline: raise ValueError('EOF before headers read.')
             if uselower: fline = fline.lower()
             headers = readDelimit(fline,delimit)
             while headers and not headers[-1]: headers.pop(-1)

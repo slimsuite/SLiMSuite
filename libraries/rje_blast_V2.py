@@ -19,8 +19,8 @@
 """
 Module:       rje_blast
 Description:  BLAST+ Control Module
-Version:      2.9.1
-Last Edit:    15/05/15
+Version:      2.11.2
+Last Edit:    26/05/16
 Copyright (C) 2013  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -83,7 +83,7 @@ import copy, glob, os, re, string, sys, time
 sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)),'../libraries/'))
 sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)),'../tools/'))
 ### User modules - remember to add *.__doc__ to cmdHelp() below ###
-import rje, rje_blast_V1, rje_db, rje_obj, rje_seq, rje_seqlist
+import rje, rje_blast_V1, rje_db, rje_obj, rje_seq, rje_seqlist, rje_sequence
 import rje_dismatrix_V2 as rje_dismatrix
 #########################################################################################################################
 def history():  ### Program History - only a method for PythonWin collapsing! ###
@@ -101,6 +101,10 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 2.8.0 - A more significant BLAST e-value setting will filter read results.
     # 2.9.0 - Added     qassemble=T/F   : Whether to fully assemble query stats from all hits [False].
     # 2.9.1 - Updated default BLAST and BLAST+ paths to '' for added modules.
+    # 2.10.0 - Added nocoverage calculation based on local alignment table.
+    # 2.11.0 - Added localFragFas output method.
+    # 2.11.1 - Fixed snp local table revcomp bug. [Check this!]
+    # 2.11.2 - Fixed GABLAM calculation bug when '*' in protein sequences.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -129,11 +133,12 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
     # [ ] : Consider adding extra info to Query table, such as top hit e-value (e.g. GABLAM HitSum).
     # [ ] : Make sure that BLAST+ does not receive duplicate commands if blastopt is used. (blastopt over-rules)
     # [Y] : Add selfhit removal option for qassemble
+    # [ ] : Add Description to Search table.
     '''
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, cyear) = ('RJE_BLAST', '2.9.1', 'May 2015', '2013')
+    (program, version, last_edit, cyear) = ('RJE_BLAST', '2.11.2', 'May 2016', '2013')
     description = 'BLAST+ Control Module'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.']
@@ -321,7 +326,7 @@ class BLASTRun(rje_obj.RJE_Object):
         newfound = os.path.exists(self.getStr('%s Path' % blast)+'makeblastdb')
         #?# Should BLAST installation detection over-ride blastpath setting #?#
         if not self.getStr('%s Path' % blast):
-            if os.popen({'BLAST':'formatdb','BLAST+':'makeblastdb'}[blast]).read():
+            if os.popen({'BLAST':'formatdb','BLAST+':'makeblastdb -help'}[blast]).read():
                 self.printLog('#NCBI','Installation of %s detected. Path not required.' % blast)
             else:
                 self.printLog('#NCBI','Installation of %s not detected and no path given.' % blast)
@@ -1028,7 +1033,7 @@ class BLASTRun(rje_obj.RJE_Object):
                 elif string.split(query,'__')[-1] == hit['Hit']: qassemble = []
             ### ~ [2] Compile alignments ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             #self.deBug('GABLAMO for Hit %s: %d alignments' % (self.info['Name'],self.alnNum()))
-            lcutx = 0
+            lcutx = 0; coredirn = None
             for aln in localdata:
                 if aln['Length'] < self.int['LocalCut']: lcutx += 1; continue
                 ## ~ [2a] Assess for backwards hit as in nucleotide BLAST ~~~~~~~~~~~~~~~~~~~~~~~~~ ##
@@ -1036,6 +1041,7 @@ class BLASTRun(rje_obj.RJE_Object):
                 sbackwards = aln['SbjEnd'] < aln['SbjStart']       # Whether match reversed (e.g. TBLASTN)
                 gablam['QryDirn'] = orientation[gablam['QryDirn']][qbackwards]
                 gablam['HitDirn'] = orientation[gablam['HitDirn']][sbackwards]
+                if not coredirn: coredirn = gablam['HitDirn']
                 gablam['QryStart'] = min(gablam['QryStart'],aln['QryStart'],aln['QryEnd'])
                 gablam['HitStart'] = min(gablam['HitStart'],aln['SbjStart'],aln['SbjEnd'])
                 gablam['QryEnd'] = max(gablam['QryEnd'],aln['QryStart'],aln['QryEnd'])
@@ -1082,7 +1088,7 @@ class BLASTRun(rje_obj.RJE_Object):
                                 if gablam['Hit'][hres] != '|': gablam['Hit'][hres] = '+'
                                 if gablam['QryO'][qres] != '|' and order_ok: gablam['QryO'][qres] = '+'
                                 if gablam['HitO'][hres] != '|' and order_ok: gablam['HitO'][hres] = '+'
-                            elif aln['AlnSeq'][r] == '|' or re.search('[A-Za-z]',aln['AlnSeq'][r]):   # ID
+                            elif aln['AlnSeq'][r] == '|' or re.search('[A-Za-z*]',aln['AlnSeq'][r]):   # ID
                                 gablam['Qry'][qres] = '|'
                                 if qassemble: qassemble[qres] = '|'
                                 gablam['Hit'][hres] = '|'
@@ -1097,8 +1103,8 @@ class BLASTRun(rje_obj.RJE_Object):
                                 if order_ok and gablam['HitO'][hres] == '-': gablam['HitO'][hres] = 'X'
                             if i < 2 and self.str['Type'] == 'blastx' and aln['QrySeq'][r] not in [' ','-']: qres += qhop    # DNA triplet
                             if i < 2 and self.str['Type'] == 'tblastn' and aln['SbjSeq'][r] not in [' ','-']: hres += shop    # DNA triplet
-                        if re.search('[A-Za-z]',aln['QrySeq'][r]) or aln['QrySeq'][r] == '*': qres += qhop
-                        if re.search('[A-Za-z]',aln['SbjSeq'][r]) or aln['SbjSeq'][r] == '*': hres += shop
+                        if re.search('[A-Za-z*]',aln['QrySeq'][r]): qres += qhop
+                        if re.search('[A-Za-z*]',aln['SbjSeq'][r]): hres += shop
                     if qbackwards: qres += 2
                     if sbackwards: hres += 2
                     if qres != aln['QryEnd']:
@@ -1128,6 +1134,7 @@ class BLASTRun(rje_obj.RJE_Object):
 
             ### ~ [3] Make GABLAM calculations ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             self.verbose(2,4,'\n*** Hit: %s ***' % hit['Hit'],1)
+            if coredirn != gablam['HitDirnO']: gablam['HitDirnO'] = '%s.%s' % (coredirn,gablam['HitDirnO'])
             for aln in ['Qry','Hit','QryO','HitO']:  # O = ordered
                 gablam[aln] = string.join(gablam[aln],'')
                 #self.verbose(2,4,'%s: %s' % (aln, gablam[aln]),1)
@@ -1246,6 +1253,133 @@ class BLASTRun(rje_obj.RJE_Object):
             if asdict: return hitseq
             else: return rje.dictValueList(hitseq,hitlist)
         except: self.errorLog('Major error during BLASTRun.hitToSeq().');  raise
+#########################################################################################################################
+    def localFragFas(self,byquery=True,combined=True,fragdir='BLASTFAS/',outbase=None,minfrag=0,addflanks=0,revcomp=True,append=False):
+
+        try:### ~ [0] ~ Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            if not outbase: outbase = self.baseFile()               # Basename for combined fasta file
+            fragbase = '%s%s' % (fragdir,rje.stripPath(outbase))    # Basename for fragment fasta files [option?]
+            #addflanks = self.getInt('AddFlanks')                   # Length of sequence to add each side
+            #?# Option to set gabfrag as method parameter?
+            gabfrag = max(self.getInt('GablamFrag') - addflanks,0)  # Want to join fragments within gabfrag distance
+            hdb = self.db('Hit')                                    # Need this for Hit Lengths
+            hqfield = 'Query'
+            ldb = self.db('Local')                                  # Use this for fragment data
+            lqfield = 'Query'
+            if lqfield not in ldb.fields() and 'Qry' in ldb.fields(): lqfield = 'Qry'
+            if not hdb.entryNum(): return self.printLog('#FAS','No Hit entries for %s localFragFas output.' % outbase)
+            if not ldb.entryNum(): return self.printLog('#FAS','No Local entries for %s localFragFas output.' % outbase)
+            hitlen = {}                                             # Dictionary of Hit:Length
+            hitfrag = {}                                            # Dictionary of Hit:{Dirn:[tuple list]}
+            qryfrag = {}                                            # Dictionary of Qry:{Hit:{Dirn:[tuple list]}}
+            for qry in hdb.indexKeys(hqfield): qryfrag[qry] = {}
+            for entry in hdb.entries():
+                hitlen[entry['Hit']] = entry['Length']
+                hitfrag[entry['Hit']] = {'Fwd':[],'Bwd':[]}
+                qryfrag[entry[hqfield]][entry['Hit']] = {'Fwd':[],'Bwd':[]}
+            ### ~ [1] ~ Generate Fragment Tuples for hits ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            ex = 0.0; etot = ldb.entryNum()
+            for entry in ldb.entries():
+                self.progLog('\r#FRAG','Generating hit fragments: %.1f%%' % (ex/etot)); ex += 100.0
+                if entry['Length'] < minfrag: continue
+                hit = entry['Hit']
+                qry = entry[lqfield]
+                if entry['SbjStart'] > entry['SbjEnd']:
+                    dirn = 'Bwd'
+                    frag = (max(entry['SbjEnd']-addflanks,1),min(entry['SbjStart']+addflanks,hitlen[hit]))
+                    if not revcomp: dirn = 'Fwd'
+                else:
+                    dirn = 'Fwd'
+                    frag = (min(entry['SbjStart']-addflanks,hitlen[hit]),max(entry['SbjEnd']+addflanks,1))
+                #hitfrag[hit][dirn].append(frag)
+                qryfrag[qry][hit][dirn].append(frag)
+            self.progLog('\r#FRAG','Generating hit fragments: compressing.')
+            ### ~ [2] ~ Collapse Fragment Tuples for hits ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            qfx = 0
+            for qry in qryfrag:
+                for hit in qryfrag[qry]:
+                    for dirn in qryfrag[qry][hit]:
+                        qryfrag[qry][hit][dirn] = rje.collapseTupleList(qryfrag[qry][hit][dirn],joindistance=gabfrag)
+                        qfx += len(qryfrag[qry][hit][dirn])
+                        if combined: hitfrag[hit][dirn] += qryfrag[qry][hit][dirn]
+            self.printLog('\r#FRAG','Generated %s collapsed hit fragments.' % rje.iStr(qfx))
+            if combined:
+                hfx = 0
+                for hit in hitfrag:
+                    for dirn in hitfrag[hit]:
+                        #hitfrag[hit][dirn] = rje.collapseTupleList(hitfrag[hit][dirn],joindistance=gabfrag)
+                        hitfrag[hit][dirn] = rje.collapseTupleList(hitfrag[hit][dirn],joindistance=1)
+                        self.debug(hitfrag[hit][dirn])
+                        hfx += len(hitfrag[hit][dirn])
+                self.printLog('\r#FRAG','%s -> %s combined hit fragments.' % (rje.iStr(qfx),rje.iStr(hfx)))
+            ### ~ [3] ~ Output of fragments ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            self.debug(self.getStr('DBase'))
+            self.debug(rje.exists(self.getStr('DBase')))
+            hitseqlist = rje_seqlist.SeqList(self.log,self.cmd_list+['seqin=%s' % self.getStr('DBase'),'autoload=T','autofilter=F','mode=file'])
+            hitseqdict = hitseqlist.makeSeqNameDic('short')
+            if byquery:
+                fasx = 0; qtot = len(qryfrag)
+                for qry in rje.sortKeys(qryfrag):
+                    #qfile = '%s.%s.fas' % (fragbase,qry)
+                    qfile = '%s%s.fas' % (fragdir,qry)
+                    qseq = []
+                    for hit in rje.sortKeys(qryfrag[qry]):
+                        (seqname,sequence) = hitseqlist.getSeq(hitseqdict[hit])
+                        seqlen = len(sequence)
+                        for (fragstart,fragend) in qryfrag[qry][hit]['Fwd']:
+                            fragstart = max(1,fragstart+1)
+                            fragend = min(fragend+1,seqlen)
+                            fraqseq = sequence[fragstart-1:fragend]
+                            fragname = string.split(seqname)
+                            fragname[0] += '.%s-%s' % (rje.preZero(fragstart,seqlen),rje.preZero(fragend,seqlen))
+                            if len(fragname) == 1: fragname.append('No description')
+                            fragname[-1] += '|(Pos:%s..%s)' % (rje.iStr(fragstart),rje.iStr(fragend))
+                            #fragname.insert(1,'%s GABLAM Hit:' % qry)
+                            fragname = string.join(fragname)
+                            qseq.append((fragname,fraqseq))
+                        for (fragstart,fragend) in qryfrag[qry][hit]['Bwd']:
+                            fragstart = max(1,fragstart+1)
+                            fragend = min(fragend+1,seqlen)
+                            fraqseq = rje_sequence.reverseComplement(sequence[fragstart-1:fragend])
+                            fragname = string.split(seqname)
+                            fragname[0] += '.%s-%s' % (rje.preZero(fragend,seqlen),rje.preZero(fragstart,seqlen))
+                            fragname.insert(1,'RevComp')
+                            fragname[-1] += '|(Pos:%s..%s)' % (rje.iStr(fragstart),rje.iStr(fragend))
+                            #fragname.insert(1,'%s GABLAM Hit:' % qry)
+                            fragname = string.join(fragname)
+                            qseq.append((fragname,fraqseq))
+                    if qseq:
+                        hitseqlist.saveSeq(qseq,qfile,append=append,seqtuples=True)
+                        fasx += 1
+                self.printLog('\r#FAS','Generated %s fasta files for %s queries.' % (rje.iStr(fasx),rje.iStr(qtot)))
+            if combined:
+                hfile = '%s.fas' % (outbase)
+                hseq = []
+                for hit in rje.sortKeys(hitfrag):
+                    (seqname,sequence) = hitseqlist.getSeq(hitseqdict[hit])
+                    seqlen = len(sequence)
+                    for (fragstart,fragend) in hitfrag[hit]['Fwd']:
+                        fragstart = max(1,fragstart+1)
+                        fragend = min(fragend+1,seqlen)
+                        fraqseq = sequence[fragstart-1:fragend]
+                        fragname = string.split(seqname)
+                        fragname[0] += '.%s-%s' % (rje.preZero(fragstart,seqlen),rje.preZero(fragend,seqlen))
+                        if len(fragname) == 1: fragname.append('No description')
+                        fragname[-1] += '|(Pos:%s..%s)' % (rje.iStr(fragstart),rje.iStr(fragend))
+                        fragname = string.join(fragname)
+                        hseq.append((fragname,fraqseq))
+                    for (fragstart,fragend) in hitfrag[hit]['Bwd']:
+                        fragstart = max(1,fragstart+1)
+                        fragend = min(fragend+1,seqlen)
+                        fraqseq = rje_sequence.reverseComplement(sequence[fragstart-1:fragend])
+                        fragname = string.split(seqname)
+                        fragname[0] += '.%s-%s' % (rje.preZero(fragend,seqlen),rje.preZero(fragstart,seqlen))
+                        fragname.insert(1,'RevComp')
+                        fragname[-1] += '|(Pos:%s..%s)' % (rje.iStr(fragstart),rje.iStr(fragend))
+                        fragname = string.join(fragname)
+                        hseq.append((fragname,fraqseq))
+                hitseqlist.saveSeq(hseq,hfile,append=append,seqtuples=True)
+        except: self.errorLog('Major error during BLASTRun.localFragFas().');  raise
 #########################################################################################################################
     def blastClusters(self,seqfile,seqdict={},dna=False,keepblast=False):   ### Performs BLAST and returns sequence clusters #V2.3
         '''
@@ -1484,6 +1618,7 @@ class BLASTRun(rje_obj.RJE_Object):
             while bentries:
                 ## ~ [1a] Grab next best remaining hit from bentries ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
                 entry = bentries.pop(0)     # This is best remaining hit
+                #self.debug('QrySeq: %d; AlnSeq: %d; SbjSeq: %d' % (len(entry['QrySeq']),len(entry['AlnSeq']),len(entry['SbjSeq'])))
                 ax += 1
                 self.progLog('\r#LOCALN','Processing local alignments: %s -> %s' % (rje.iLen(bentries),rje.iStr(ax)))
                 hit = entry['Hit']
@@ -1514,18 +1649,18 @@ class BLASTRun(rje_obj.RJE_Object):
                         xalnx = max(bdb.indexDataList('Hit',hit,'AlnID'))
                         yentry = rje.combineDict({'AlnID':xalnx+1},xentry,overwrite=False)
                         self.printLog('#ALNID','%s vs %s Aln %d -> %d & %d' % (xentry['Query'],xentry['Hit'],xentry['AlnID'],xentry['AlnID'],yentry['AlnID']))
-                        self.bugPrint(rje.combineDict({'QrySeq':'','SbjSeq':'','AlnSeq':''},xentry,overwrite=False,replaceblanks=False))
+                        #self.bugPrint(rje.combineDict({'QrySeq':'','SbjSeq':'','AlnSeq':''},xentry,overwrite=False,replaceblanks=False))
                         self.trimLocal(xentry,trimend='End',trimto=region[0],sortends=True)   # Trim the end back to region[0]
-                        self.debug(rje.combineDict({'QrySeq':'','SbjSeq':'','AlnSeq':''},xentry,overwrite=False,replaceblanks=False))
-                        self.bugPrint(rje.combineDict({'QrySeq':'','SbjSeq':'','AlnSeq':''},yentry,overwrite=False,replaceblanks=False))
+                        #self.debug(rje.combineDict({'QrySeq':'','SbjSeq':'','AlnSeq':''},xentry,overwrite=False,replaceblanks=False))
+                        #self.bugPrint(rje.combineDict({'QrySeq':'','SbjSeq':'','AlnSeq':''},yentry,overwrite=False,replaceblanks=False))
                         self.trimLocal(yentry,trimend='Start',trimto=region[1],sortends=True)   # Trim the start back to region[1]
-                        self.debug(rje.combineDict({'QrySeq':'','SbjSeq':'','AlnSeq':''},yentry,overwrite=False,replaceblanks=False))
+                        #self.debug(rje.combineDict({'QrySeq':'','SbjSeq':'','AlnSeq':''},yentry,overwrite=False,replaceblanks=False))
                     # Overlap at one end
                     elif region[0] <= xregion[1] <= region[1]:  # End overlaps with focal entry
-                        self.bugPrint('\nEnd overlap: %s vs %s' % (xregion,region))
+                        #self.bugPrint('\nEnd overlap: %s vs %s' % (xregion,region))
                         self.trimLocal(xentry,trimend='End',trimto=region[0],sortends=True)   # Trim the end back to region[0]
                     elif region[0] <= xregion[0] <= region[1]:  # Start overlaps with focal entry
-                        self.bugPrint('\nStart overlap: %s vs %s' % (xregion,region))
+                        #self.bugPrint('\nStart overlap: %s vs %s' % (xregion,region))
                         self.trimLocal(xentry,trimend='Start',trimto=region[1],sortends=True)   # Trim the start back to region[1]
                     else: raise ValueError('Entry filtering has gone wrong: %s vs %s' % (xregion,region))
                     ## Check lengths
@@ -1542,7 +1677,7 @@ class BLASTRun(rje_obj.RJE_Object):
             return bdb
         except: self.errorLog('Problem during BLASTRun.reduceLocal()'); return None
 #########################################################################################################################
-    def trimLocal(self,lentry,trimend,trimto,sortends=True,debug=False):  # Trims local alignment entry data
+    def trimLocal(self,lentry,trimend,trimto,sortends=True,debug=False):  # Trims local alignment entry data to hit coordinates
         '''
         Trims local alignment entry data.
         @param lentry: local alignment entry
@@ -1553,6 +1688,10 @@ class BLASTRun(rje_obj.RJE_Object):
         '''
         try:### ~ [0] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             # ['Query','Hit','AlnID','BitScore','Expect','Length','Identity','Positives','QryStart','QryEnd','SbjStart','SbjEnd','QrySeq','SbjSeq','AlnSeq'],
+            for field in ['QrySeq','SbjSeq','AlnSeq']:
+                if not lentry[field]:
+                    self.bugPrint(rje.combineDict({'QrySeq':'','SbjSeq':'','AlnSeq':''},lentry,overwrite=False,replaceblanks=False))
+                    raise ValueError('Empty %s!' % field)
             fwd = lentry['SbjStart'] <= lentry['SbjEnd']
             if sortends and not fwd: trimend = {'Start':'End','End':'Start'}[trimend]
             if debug: self.bugPrint('Fwd:%s => %s' % (fwd,trimend))
@@ -1603,7 +1742,7 @@ class BLASTRun(rje_obj.RJE_Object):
                 lentry['Length'] -= len(lentry['AlnSeq'][ai:])
                 lentry['AlnSeq'] = lentry['AlnSeq'][:ai]
             ### ~ [2] Return trimmed entry ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            self.bugPrint(rje.combineDict({'QrySeq':'','SbjSeq':'','AlnSeq':''},lentry,overwrite=False,replaceblanks=False))
+            #self.bugPrint(rje.combineDict({'QrySeq':'','SbjSeq':'','AlnSeq':''},lentry,overwrite=False,replaceblanks=False))
             return lentry
         except:
             self.debug(rje.combineDict({'QrySeq':'','SbjSeq':'','AlnSeq':''},lentry,overwrite=False,replaceblanks=False))
@@ -1621,6 +1760,7 @@ class BLASTRun(rje_obj.RJE_Object):
         try:### ~ [0] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             db = self.db()
             snpdb = db.addEmptyTable('SNP',['Locus','Pos','REF','ALT','AltLocus','AltPos'],keys=['Locus','Pos','AltLocus','AltPos'])
+            snpdb.setBool({'TupleKeys':True})
             if not locdb: locdb = self.db('Local')
             if rje.listDifference(queries,locdb.index('Query')):
                 self.warnLog('Queries for snpTableFromLocal() not found in local table','missing_queries',suppress=True)
@@ -1642,12 +1782,54 @@ class BLASTRun(rje_obj.RJE_Object):
                     if lentry['QrySeq'][ai].upper() == lentry['SbjSeq'][ai].upper(): continue   # Identity
                     sentry = {'Locus':lentry['Query'],'Pos':qpos,'REF':lentry['QrySeq'][ai].upper(),
                               'ALT':lentry['SbjSeq'][ai].upper(),'AltLocus':lentry['Hit'],'AltPos':spos}
-                    if not fwd: sentry['ALT'] = revcomp[sentry['ALT']]
+                    #!# Why reverse complement this?! ALready done in alignment sequences!!
+                    #???# if not fwd: sentry['ALT'] = revcomp[sentry['ALT']]
                     snpdb.addEntry(sentry)
             ### ~ [2] Output SNP Table ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if save: snpdb.saveToFile()
             return snpdb
         except: self.errorLog('BLASTRun.snpTableFromLocal() error'); return None
+#########################################################################################################################
+    def noCoverage(self,locdb=None,queries=[],hits=[],save=True):    ### Outputs a table of regions not covered by local alignments
+        '''
+        Outputs a table of regions not covered by local alignments.
+        @param locdb:Table [self.db('local')] = Local hits database Table to modify.
+        @param queries:list = Restrict analysis to search queries.
+        @param hits:list = Restrict analysis to search hits.
+        @param save:bool = Whether to save SNP table once generated.
+        @return: local region table
+        '''
+        try:### ~ [0] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            db = self.db()
+            if not locdb: locdb = self.db('local')
+            # ['Query','Hit','AlnID','BitScore','Expect','Length','Identity','Positives','QryStart','QryEnd','SbjStart','SbjEnd','QrySeq','SbjSeq','AlnSeq'],
+            locdb.dataFormat({'QryStart':'int','QryEnd':'int','SbjStart':'int','SbjEnd':'int'})
+            ## ~ [0a] CovDict and Lengths ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            covdict = {'Qry':{},'Hit':{}}       # Tuples of coverage (to invert)
+            lengths = {'Qry':{},'Hit':{}}
+            for qry in locdb.index('Query'): covdict['Qry'][qry] = []; lengths['Qry'][qry] = None
+            for hit in locdb.index('Hit'): covdict['Hit'][hit] = []; lengths['Hit'][hit] = None
+            qdb = self.db('Search')
+            if qdb:
+                for entry in qdb.entries(): lengths['Qry'][entry['Query']] = int(entry['Length'])
+            hdb = self.db('Hit')
+            if hdb:
+                for entry in hdb.entries(): lengths['Hit'][entry['Hit']] = int(entry['Length'])
+            ### ~ [1] Make coverage lists ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            for entry in locdb.entries():
+                covdict['Qry'][entry['Query']].append((min(entry['QryStart'],entry['QryEnd']),max(entry['QryStart'],entry['QryEnd'])))
+                covdict['Hit'][entry['Hit']].append((min(entry['SbjStart'],entry['SbjEnd']),max(entry['SbjStart'],entry['SbjEnd'])))
+            ### ~ [2] Make inverted no-coverage lists ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            nocovdb = db.addEmptyTable('nocoverage',['QryHit','Locus','Start','End'],keys=['QryHit','Locus','Start'])
+            for Qry in covdict['Qry']:
+                for (start,end) in rje.invertTupleList(covdict['Qry'][Qry],minx=1,maxx=lengths['Qry'][Qry]):
+                    nocovdb.addEntry({'QryHit':'Qry','Locus':Qry,'Start':start,'End':end})
+            for Hit in covdict['Hit']:
+                for (start,end) in rje.invertTupleList(covdict['Hit'][Hit],minx=1,maxx=lengths['Hit'][Hit]):
+                    nocovdb.addEntry({'QryHit':'Hit','Locus':Hit,'Start':start,'End':end})
+            if save: nocovdb.saveToTable()
+            return nocovdb
+        except: self.errorLog('BLASTRun.noCoverage() error'); return None
 #########################################################################################################################
 ### SECTION IIb: OLD BLASTRun Class                                                                                     #
 #########################################################################################################################
@@ -2044,7 +2226,7 @@ def cleanupDB(callobj=None,dbfile=None,deletesource=False):     ### Deletes file
     >> deletesource:boolean = whether to delete dbfile as well
     '''
     try:
-        for suf in ['phr','pin','psd','psi','psq','pal','nhr','nin','nsd','nsi','nsq','pni','pnd','pog']:
+        for suf in ['phr','pin','psd','psi','psq','pal','nhr','nin','nsd','nsi','nsq','pni','pnd','pog','nog']:
             if os.path.exists('%s.%s' % (dbfile,suf)): os.unlink('%s.%s' % (dbfile,suf))
             for x in range(100):
                 xstr = rje.preZero(x,99)

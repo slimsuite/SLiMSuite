@@ -19,8 +19,8 @@
 """
 Module:       rje_genbank
 Description:  RJE GenBank Module
-Version:      1.3.2
-Last Edit:    21/11/15
+Version:      1.5.2
+Last Edit:    05/09/16
 Copyright (C) 2011  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -31,6 +31,7 @@ Input Options:
     fetchuid=LIST   : Genbank retrieval to of a list of nucleotide entries to generate seqin=FILE []
     spcode=X        : Overwrite species read from file (if any!) with X [None]
     taxdir=PATH     : Path to taxonomy files for species code extraction. (Will not use if blank or None) [./SourceData/]
+    addtags=T/F     : Add locus_tag identifiers if missing - needed for gene/cds/prot fasta output [False]
 
 Output Options:
     basefile=FILE   : Root of output file names (same as input file by default) []
@@ -69,17 +70,24 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 1.3.0 - Added split viral output.
     # 1.3.1 - Fixed bug in split viral output.
     # 1.3.2 - Fixed bug in reverse complement sequences with introns.
+    # 1.4.0 - Added addtags=T/F : Add locus_tag identifiers if missing - needed for gene/cds/prot fasta output [False]
+    # 1.4.1 - Fixed genetic code warning.
+    # 1.5.0 - Added setupRefGenome() method based on PAGSAT code.
+    # 1.5.1 - Fixed logskip append locus sequence file bug.
+    # 1.5.2 - Fixed addtag(s) bug.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
     '''
     # [Y] : Add conversion of TaxID to SpCode using rje_taxonomy.
     # [ ] : Add dealing with alternative genetic code.
+    # [ ] : Fix appending to protein sequence (by locus) error.
+    # [ ] : Add more codon tables - some just have different initiator codons.
     '''
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copy_right) = ('RJE_GenBank', '1.3.2', 'November 2015', '2011')
+    (program, version, last_edit, copy_right) = ('RJE_GenBank', '1.5.2', 'September 2016', '2011')
     description = 'RJE GenBank Module'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_zen.Zen().wisdom()]
@@ -149,6 +157,7 @@ class GenBank(rje_obj.RJE_Object):
     - LocusDir = Directory in which to generate output by locus [./]
 
     Bool:boolean
+    - AddTags=T/F      : Add locus_tag identifiers if missing - needed for gene/cds/prot fasta output [False]
     - TabOut = Delimited table output of features [False]
     - LocusOut = Whether to generate output by locus (True, accnum basefile) or combined (False) [False]
 
@@ -177,7 +186,7 @@ class GenBank(rje_obj.RJE_Object):
         '''Sets Attributes of Object.'''
         ### ~ Basics ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         self.strlist = ['GeneAcc','ProtAcc','SeqIn','SpCode','FetchUID','TaxDir','LocusDir']
-        self.boollist = ['TabOut','LocusOut']
+        self.boollist = ['AddTags','TabOut','LocusOut']
         self.intlist = []
         self.numlist = []
         self.listlist = ['Details','DetailSkip','FasOut','Features','FetchUID']
@@ -192,7 +201,7 @@ class GenBank(rje_obj.RJE_Object):
         #self.list['FasOut'] = string.split('full,gene,cds,prot',',')
         self.list['DetailSkip'] = ['translation']
         ### ~ Other Attributes ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-        self.obj['DB'] = rje_db.Database(self.log,self.cmd_list)
+        self.obj['DB'] = rje_db.Database(self.log,self.cmd_list+['tuplekeys=T'])
         self._setForkAttributes()   # Delete if no forking
 #########################################################################################################################
     def _cmdList(self):     ### Sets Attributes from commandline
@@ -209,7 +218,7 @@ class GenBank(rje_obj.RJE_Object):
                 self._cmdReadList(cmd,'file',['SeqIn','FetchUID'])
                 self._cmdReadList(cmd,'path',['LocusDir'])
                 self._cmdReadList(cmd,'str',['GeneAcc','ProtAcc','SpCode','TaxDir'])
-                self._cmdReadList(cmd,'bool',['TabOut','LocusOut'])
+                self._cmdReadList(cmd,'bool',['AddTags','TabOut','LocusOut'])
                 self._cmdReadList(cmd,'list',['Details','DetailSkip','FasOut','Features','FetchUID'])
             except: self.errorLog('Problem with cmd:%s' % cmd)
         if self.getStr('SpCode').lower() in ['','none']: self.str['SpCode'] = ''
@@ -228,6 +237,7 @@ class GenBank(rje_obj.RJE_Object):
             ### ~ [2] ~ Add main run code here ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if not self.fetchGenbank(): return self.printLog('#FAIL','Failed to fetch uid from Genbank nuccore.')
             if not self.parseGenbank(): return self.printLog('#FAIL','Failed to parse Genbank file.')
+            if not self.addTags(): return self.printLog('#FAIL','Failed to deal with locus_tags for fasta output.')
             if self.getBool('TabOut'):
                 self.processFeatures()
                 if self.getBool('LocusOut'):
@@ -297,6 +307,7 @@ class GenBank(rje_obj.RJE_Object):
                 return True
             rje.backup(self,self.getStr('SeqIn'))
             ## ~ [1a] EFetch URL ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            self.printLog('#FETCH','%s Genbank IDs to download into %s.' % (rje.iLen(uid),self.getStr('SeqIn')))
             if len(uid) > 200: return self.fetchSplitGenbank(uid)
             baseurl = 'http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nuccore&rettype=gb&retmode=text&id='
             fullurl = baseurl + uidstr
@@ -335,6 +346,43 @@ class GenBank(rje_obj.RJE_Object):
             return rje.exists(self.getStr('SeqIn'))
         except: self.errorLog('Problem during %s.fetchSplitGenbank().' % self); return False  # Setup failed
 #########################################################################################################################
+    def addTags(self):  ### Adds locus_tags to features if required
+        '''Adds locus_tags to features if required.'''
+        try:### ~ [1] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            ftdb = self.db('Feature')
+            ## ~ [1a] Establish presence of locus_tags ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            ftags = {}  # Dictionary of feature type and whether all have locus_tags
+            for ftentry in ftdb.entries():
+                ftype = ftentry['feature']
+                if ftype not in ftags: ftags[ftype] = True
+                ftags[ftype] = ftags[ftype] and ftentry['locus_tag']
+            ## ~ [1b] Establish need to add tags ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            addtags = self.getBool('AddTags')
+            for (ftype,fasout) in [('CDS','prot'),('CDS','cds'),('gene','gene')]:
+                if addtags: break
+                if fasout in self.list['FasOut'] and ftype in ftags and not ftags[ftype]:
+                    if not self.getBool('AddTags'):
+                        self.setBool({'AddTags':rje.yesNo('%s locus_tags required for %s fasta output. Set addtags=T?' % (ftype,fasout))})
+                        addtags = self.getBool('AddTags')
+                        if not addtags and rje.yesNo('Switch off %s fasta output. (May get strange behaviour otherwise.)' % fasout):
+                            self.list['FasOut'].remove(fasout)
+                        if not addtags: self.warnLog('%s fasta output but addtags=False.' % fasout)
+            if not addtags: return True
+            ### ~ [2] Add Tags ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            self.processFeatures()
+            ftdb.newKey(['locus','feature','start','end'])
+            for ftype in ftdb.index('feature'):
+                loctot = {}; locx = {}; addx = 0
+                floci = ftdb.indexDataList('feature',ftype,'locus',sortunique=False)
+                for locus in floci: loctot[locus] = floci.count(locus); locx[locus] = 0
+                for ftentry in ftdb.indexEntries('feature',ftype):
+                    locus = ftentry['locus']
+                    locx[locus] += 1
+                    if not ftentry['locus_tag']: ftentry['locus_tag'] = '%s%s%s' % (locus,ftype.upper(),rje.preZero(locx[locus],loctot[locus])); addx += 1
+                self.printLog('#TAG','Added %s %s locus_tag.' % (rje.iStr(addx),ftype))
+            return True
+        except: self.errorLog('Problem during %s.addTags().' % self); return False  # Setup failed
+#########################################################################################################################
     def parseGenbank(self,filename=None): ### Parses details from GenBank file into attributes
         '''Parses details from GenBank file into attributes.'''
         try:### ~ [1] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -350,13 +398,14 @@ class GenBank(rje_obj.RJE_Object):
                 self.obj['Taxonomy'].log.no_suppression.append("Invented SpCode")
                 self.obj['Taxonomy'].setup()
             ### ~ [2] Load file contents ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            FILE = open(filename,'r'); line = FILE.readline(); nx = 0; features = False; fentry = {}
+            FILE = open(filename,'r'); line = FILE.readline(); nx = 0; features = False; readft = False; fentry = {}
             while line:
                 self.progLog('#GB','Loading %s: %s entries; %s features; %s nt' % (loadtxt,rje.iStr(ex),rje.iStr(fx),rje.iStr(nx)))
                 data = string.split(rje.chomp(line))
                 if not data: line = FILE.readline(); continue
                 cntd = line[:12] == '            '
                 if not cntd: ltype = data[0]
+                if line.startswith(ltype): readft = False     # Stop reading FEATURES
                 if ltype == 'LOCUS':
                     locus = data[1]
                     if locus in self.dict['Sequence']:
@@ -373,7 +422,7 @@ class GenBank(rje_obj.RJE_Object):
                     try: entry['gi'] = string.split(data[2],'GI:')[1]
                     except: entry['gi'] = '-'
                 elif ltype in ['ORGANISM'] and not cntd: entry[ltype.lower()] = string.join(data[1:])
-                elif ltype == 'FEATURES': features = True; ftentry = {}
+                elif ltype == 'FEATURES': features = True; readft = True; ftentry = {}
                 elif ltype == 'ORIGIN': self.dict['Sequence'][locus] = ''
                 elif ltype == '//':
                     if self.getStr('SpCode'): entry['spcode'] = self.getStr('SpCode')
@@ -400,7 +449,7 @@ class GenBank(rje_obj.RJE_Object):
                     seqline = string.join(data[1:],'')
                     self.dict['Sequence'][locus] += seqline
                     nx += len(seqline)
-                elif features:
+                elif readft:
                     if cntd and ftentry:
                         ftentry['details'] = string.join([ftentry['details']] + data)
                         #self.debug('"%s"' % ftentry['details'])
@@ -439,6 +488,7 @@ class GenBank(rje_obj.RJE_Object):
                 ftentry = fdb.data(ftkey)
                 ftdic = self.featureDict(ftentry)
                 for field in self.list['Details'] + ['start','end','details']: ftentry[field] = ftdic[field]
+                for field in ['start','end']: ftentry[field] = int(ftentry[field])
         except: self.errorLog('%s.processFeatures error' % self)
 #########################################################################################################################
     def featureDict(self,ftentry):  ### Converts feature entry to dictionary of data (including sequence)
@@ -503,6 +553,7 @@ class GenBank(rje_obj.RJE_Object):
         >> force:bool [False] = Whether to regenerate sequence even if found.
         '''
         try:### ~ [0] ~ Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            #self.debug(self.dict['Sequence'].keys())
             if 'sequence' in ftdic and ftdic['sequence'] and not force: return ftdic['sequence']
             try:
                 ftstart = ftdic['start']
@@ -510,6 +561,8 @@ class GenBank(rje_obj.RJE_Object):
             except: ftstart = ftend = 0
             ftdic['sequence'] = ''
             locus = ftdic['locus']
+            if locus not in self.dict['Sequence']: ftlocus = string.split(locus,'_')[-1]
+            else: ftlocus = locus
             ### ~ [1] Generate list of positions to stick together ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             pos = ftdic['position'][0:]
             if pos.find('complement') == 0:
@@ -548,8 +601,8 @@ class GenBank(rje_obj.RJE_Object):
                     self.printLog('#ERR','Problem with locus %s position: %s' % (ftdic['locus'],ftdic['position']))
                     ftdic['end'] = rje.matchExp('(\d+)',end)[0]
                     self.printLog('#END','Corrected end position: %s -> %d' % (end,string.atoi(ftdic['end'])))
-                if fragcomp: ftdic['sequence'] += rje_sequence.reverseComplement(self.dict['Sequence'][locus][string.atoi(start)-1:string.atoi(ftdic['end'])])
-                else: ftdic['sequence'] += self.dict['Sequence'][locus][string.atoi(start)-1:string.atoi(ftdic['end'])]
+                if fragcomp: ftdic['sequence'] += rje_sequence.reverseComplement(self.dict['Sequence'][ftlocus][string.atoi(start)-1:string.atoi(ftdic['end'])])
+                else: ftdic['sequence'] += self.dict['Sequence'][ftlocus][string.atoi(start)-1:string.atoi(ftdic['end'])]
             if complement: ftdic['sequence'] = rje_sequence.reverseComplement(ftdic['sequence'])
             #x# V1.3.1: Complement was always handled for each fragment - this would give sequences stuck together
             #X# in the wrong order!
@@ -575,6 +628,8 @@ class GenBank(rje_obj.RJE_Object):
         '''
         try:### ~ [0] ~ Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             locus = ftdic['locus']
+            if locus not in self.dict['Sequence']: ftlocus = string.split(locus,'_')[-1]
+            else: ftlocus = locus
             ftseq = '' #self.featureSequence(ftdic)
             if ftdic['start'] < ftdic['end'] and (genpos < ftdic['start'] or genpos > ftdic['end']): return 0
             elif ftdic['start'] > ftdic['end'] and (ftdic['start'] > genpos > ftdic['end']): return 0    # Feature over split circle
@@ -613,8 +668,8 @@ class GenBank(rje_obj.RJE_Object):
                 self.debug('%s <= %s <= %s?' % (start,genpos,end))
                 if genpos < start: return -1  # Intron
                 if genpos > end:
-                    if fragcomp: ftseq += rje_sequence.reverseComplement(self.dict['Sequence'][locus][start-1:end])
-                    else: ftseq += self.dict['Sequence'][locus][start-1:end]
+                    if fragcomp: ftseq += rje_sequence.reverseComplement(self.dict['Sequence'][ftlocus][start-1:end])
+                    else: ftseq += self.dict['Sequence'][ftlocus][start-1:end]
                     continue
                 if fragcomp:
                     ftpos = end - genpos + 1 + len(ftseq)
@@ -673,7 +728,7 @@ class GenBank(rje_obj.RJE_Object):
                         #if 'CDS' in ftdb.index('feature'): self.warnLog('"Protein" and "CDS" features found! Mixed sequence types? Will only output "Protein" features to *.prot.fas')
                         ftype = 'Protein'
                     else: ftype = 'CDS'
-                    self.printLog('#PROT','"%s" feature type used for *.prot.fas output.' % ftype)
+                    self.printLog('#PROT','%s feature type used for *.prot.fas output.' % ftype)
                 else: ftype = seqtype
                 fasfile = self.getStr('Basefile') + '.%s.fas' % seqtype; rje.backup(self,fasfile,appendable=False)
                 if not ftdb.indexEntries('feature',ftype):
@@ -690,7 +745,8 @@ class GenBank(rje_obj.RJE_Object):
                     loc2save = []
                     for locus in ftdb.indexKeys('locus'):
                         fasfile = '%s%s.%s.fas' % (self.getStr('LocusDir'),locus,seqtype)
-                        if os.path.exists(fasfile) and logskip: self.printLog('#SKIP','Skipping %s output (force=F)' % fasfile)
+                        if os.path.exists(fasfile):
+                            if logskip: self.printLog('#SKIP','Skipping %s output (force=F)' % fasfile)
                         else: loc2save.append(locus)
                 for ftentry in ftdb.indexEntries('feature',ftype):
                     locus = ftentry['locus']
@@ -716,6 +772,14 @@ class GenBank(rje_obj.RJE_Object):
                             accnum = ftdic[self.getStr('ProtAcc')]
                         elif seqtype == 'gene' and self.getStr('GeneAcc') in ftdic and ftdic[self.getStr('GeneAcc')]:
                             accnum = ftdic[self.getStr('GeneAcc')]
+                        elif seqtype == 'mobile_element':
+                            accmatch = rje.matchExp('/note="(\S+);',ftdic['details'])
+                            if accmatch: accnum = accmatch[0]
+                            else: accnum = 'TE%s' % rje.preZero(fx+1,len(ftdb.indexEntries('feature',ftype)))
+                        elif seqtype in ['mobile_element','LTR']:
+                            accmatch = rje.matchExp('/note="(\S+)\s.+/db_xref="SGD:(\S+)"',ftdic['details'])
+                            if accmatch: accnum = '%s.%s' % accmatch
+                            else: accnum = '%s%s' % ({'mobile_element':'TE','LTR':'LTR'}[seqtype],rje.preZero(fx+1,len(ftdb.indexEntries('feature',ftype))))
                         else: accnum = ftdic['locus_tag']
                         name = '%s__%s' % (name,accnum)
                     except: self.errorLog('Cannot output %s %s %s' % (ftentry['locus'],ftentry['feature'],ftentry['position'])); continue
@@ -726,9 +790,9 @@ class GenBank(rje_obj.RJE_Object):
                     if addorg not in name: name = '%s %s' % (name,addorg)
                     if seqtype == 'prot' and ftype == 'CDS':
                         try: sequence = string.join(ftdic['translation'],'')
-                        except: sequence = rje_sequence.dna2prot(ftdic['sequence'],transl=transl)
+                        except: sequence = rje_sequence.dna2prot(ftdic['sequence'],transl=transl,warnobj=self)
                         if self.test() and transl != '1':
-                            translseq = rje_sequence.dna2prot(ftdic['sequence'],transl=transl)
+                            translseq = rje_sequence.dna2prot(ftdic['sequence'],transl=transl,warnobj=self)
                             if translseq == rje_sequence.dna2prot(ftdic['sequence']):
                                 self.warnLog('/transl_table="%s" does nothing for %s?' % (transl,name))
                             if translseq != sequence: self.warnLog('%s seems to have ignored /transl_table="%s"?' % (name,transl))
@@ -751,7 +815,59 @@ class GenBank(rje_obj.RJE_Object):
 #########################################################################################################################
 ### SECTION III: MODULE METHODS                                                                                         #
 #########################################################################################################################
-
+def setupRefGenome(callobj):    ### This is a generic reference genome setup method for callobj.
+    '''
+    This is a generic reference genome setup method for callobj.
+    >> callobj should have str['RefGenome']. This could be a fasta file, genbank file (*.gb or *.gbk) or basefile.
+    << callobj will get str['RefBase'], str['RefGenome'], bool['Features'] and str['FTFile'] set.
+    '''
+    self = callobj
+    try:### ~ [1] Setup Reference Genome with Genbank extraction if required ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+        ## ~ [1a] Reference Basename ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+        gbfile = genbankFile(self.getStr('RefGenome'))
+        if gbfile:
+            self.setStr({'RefBase':rje.baseFile(gbfile)})
+            self.printLog('#GBK','GenBank file found: %s' % gbfile)
+        else: self.setStr({'RefBase':rje.baseFile(self.getStr('RefGenome'))})
+        # >>> #
+        ## ~ [1b] Determine whether GenBank Parsing required ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+        checkfiles = ['.full.fas','.gene.fas','.prot.fas','.Feature.tdt']
+        rungb = gbfile and not rje.checkForFiles(filelist=checkfiles,basename=self.getStr('RefBase'),log=self.log,cutshort=False,ioerror=False,missingtext='')
+        self.debug('Run Genbank: %s' % rungb)
+        ## ~ [1c] GenBank Parsing ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+        if rungb:
+            gcmd = ['protacc=locus_tag','details=product,gene_synonym,note,db_xref']   # Defaults
+            gcmd += self.cmd_list   # Can over-ride/add. This include spcode=X
+            gcmd += ['seqin=%s.gb' % self.getStr('RefBase'),'taxdir=','tabout=T','fasout=full,gene,cds,prot']
+            GenBank(self.log,gcmd).run()
+            rje.checkForFiles(filelist=checkfiles,basename=self.getStr('RefBase'),log=self.log,cutshort=False,ioerror=True,missingtext=' Genbank parsing failed?')
+        ## ~ [1d] Features file ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+        ftfile = '%s.Feature.tdt' % self.getStr('RefBase')
+        self.setBool({'Features':os.path.exists(ftfile)})   # Whether features table generated
+        if not rje.exists(self.getStr('FTFile')):
+            self.setStr({'FTFile':ftfile})
+            self.printLog('#FTFILE','FTFile set: %s' % ftfile)
+        self.debug('Features: %s' % self.getBool('Features'))
+        ## ~ [1e] RefGenome ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+        if not rje.exists(self.getStr('RefGenome')) or self.getStr('RefGenome') == gbfile:
+            self.setStr({'RefGenome':'%s.full.fas' % self.getStr('RefBase')})
+            self.printLog('#SETREF','RefGenome: %s.full.fas' % self.getStr('RefBase'))
+        if not rje.exists(self.getStr('RefGenome')): raise IOError('Cannot find RefGenome: %s!' % self.getStr('RefGenome'))
+    except: self.errorLog('%s setupRefGenome() error.' % self.prog())
+#########################################################################################################################
+def genbankFile(filename):  ### Looks for associated *.gb or *.gbk file and returns, else None.
+    '''
+    Looks for associated *.gb or *.gbk file and returns, else None.
+    >> filename:basefile or filename for which extension will be removed.
+    << genbank file name or None if not found.
+    '''
+    files = [filename,rje.baseFile(filename)]
+    exts = ['gb','gbk']
+    for gbase in files:
+        for ext in exts:
+            gfile = '%s.%s' % (gbase,ext)
+            if rje.exists(gfile): return gfile
+    return None
 #########################################################################################################################
 ### END OF SECTION III                                                                                                  #
 #########################################################################################################################
