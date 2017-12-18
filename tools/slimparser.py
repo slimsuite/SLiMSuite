@@ -19,8 +19,8 @@
 """
 Module:       SLiMParser
 Description:  SLiMSuite REST output parsing tool.
-Version:      0.4.0
-Last Edit:    12/09/16
+Version:      0.5.0
+Last Edit:    27/09/17
 Copyright (C) 2014  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -73,6 +73,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 0.3.3 - Tidied output names when restbase=jobid.
     # 0.3.4 - Tweaked error messages.
     # 0.4.0 - Added simple json format output.
+    # 0.5.0 - Added restkeys/outputs output of REST output keys.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -87,7 +88,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copy_right) = ('SLiMParser', '0.4.0', 'September 2016', '2014')
+    (program, version, last_edit, copy_right) = ('SLiMParser', '0.5.0', 'September 2017', '2014')
     description = 'SLiMSuite REST output parsing tool'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_obj.zen()]
@@ -286,6 +287,8 @@ class SLiMParser(rje_obj.RJE_Object):
             for restdata in string.split(restin,'###~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~###\n'):
                 if not jobid:
                     self.dict['Output']['intro'] = restdata
+                    prog = rje.matchExp('Output for (\S+)',restdata)[0]
+                    self.dict['Output']['prog'] = prog
                     jobid = rje.matchExp('JobID: (\d+)',restdata)[0]
                     self.dict['Output']['jobid'] = jobid
                     if not self.getStrLC('RestBase'): rbase = '%s%s' % (self.getStr('RestOutDir'),jobid)
@@ -368,11 +371,14 @@ class SLiMParser(rje_obj.RJE_Object):
                         outtxt = open(rfile,'r').read()
                         if not outtxt.endswith('\n'): outtxt += '\n'
                         return self.jsonText(outtxt,asjson)
+            elif asjson and outfmt in self.dict['Outfile']:
+                pass    #!# Sort out json formatting here based on file extension!
             return self.dict['Output'][outfmt]
         elif outfmt in ['parse','format']:
             intro = '<pre>%s</pre>\n\n' % self.restOutput('intro')
             return self.jsonText(intro,asjson)
         elif outfmt in ['default','full']: return self.jsonText(self.restFullOutput(maxparsesize),asjson)
+        elif outfmt in ['restkeys','outputs']: return string.join(self.list['RestKeys']+[''],'\n')
         return self.jsonText('No %s output generated.' % outfmt,asjson)
 #########################################################################################################################
     def restFullOutput(self,maxparsesize=0):   ### Returns full REST output from file

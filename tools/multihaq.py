@@ -19,8 +19,8 @@
 """
 Program:      MultiHAQ
 Description:  Multi-Query HAQESAC controller
-Version:      1.2.2
-Last Edit:    12/05/15
+Version:      1.3.0
+Last Edit:    08/09/17
 Citation:     Jones, Edwards et al. (2011), Marine Biotechnology 13(3): 496-504. [PMID: 20924652]
 Copyright (C) 2009  Richard J. Edwards - See source code for GNU License Notice
 
@@ -47,6 +47,8 @@ Commandline:
     blast2fas=LIST  : List of databases to BLAST queries against prior to HAQESAC []
     addqueries=T/F  : Whether to add query database to blast2fas list [True]
     keepblast=T/F   : Whether to keep BLAST results files [True]
+    blastcut=X      : Restrict HAQESAC and MultiHAQ BLAST searches to top X BLAST hits [0]
+    multicut=X      : Restrict MultiHAQ BLASTs to the top X hits from each database (over-rides blastcut) [0]
 
     ### ~~~ MULTIHAQ OPTIONS ~~~ ###
     haqesac=T/F     : Run HAQESAC (True) or limit to batch file output (False) [True]
@@ -83,6 +85,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 1.2 - Changed defaults to autoskip=F.
     # 1.2.1 - Updated documentation to include the HAQESAC reference.
     # 1.2.2 - Switched default to keepblast=T. Added forking blasta=X command to BLAST.
+    # 1.3.0 - MultiCut : Restrict BLAST to the top X hits from each database [100]
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -90,11 +93,13 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
     # [ ] : Add forking for Phase I multihaq runs?
     # [ ] : Upgrade to new object type.
     # [ ] : Add HTML output. Currently coded up in ProtHunter.
+    # [Y] : Separate the MultiHAQ and HAQESAC blastcut values.
+    # [ ] : Name the _HAQESAC output directory using basefile, not seqin, by default.
     '''
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, cyear) = ('MULTIHAQ', '1.2.2', 'April 2015', '2009')
+    (program, version, last_edit, cyear) = ('MULTIHAQ', '1.3.0', 'September 2017', '2009')
     description = 'Multi-Query HAQESAC controller'
     author = 'Dr Richard J. Edwards.'
     comments = ['Please cite: Jones, Edwards et al. (2011), Marine Biotechnology 13(3): 496-504.',
@@ -168,6 +173,7 @@ class MultiHAQ(rje.RJE_Object):
 
     Stat:numeric
     - BlastCut = Maximum number of sequences to have in dataset (BLAST query against NR dataset.)
+    - MultiCut = Restrict BLAST to the top X hits from each database [0]
 
     List:list
 
@@ -188,7 +194,7 @@ class MultiHAQ(rje.RJE_Object):
         ### ~ Basics ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         self.infolist = ['HaqDir']
         self.optlist = ['AddQueries','AutoSkip','Chaser','HAQESAC','MultiHAQ','ScreenQry']
-        self.statlist = ['BlastCut']
+        self.statlist = ['BlastCut','MultiCut']
         self.listlist = []
         self.dictlist = []
         self.objlist = ['SeqList']
@@ -210,7 +216,7 @@ class MultiHAQ(rje.RJE_Object):
                 self._forkCmd(cmd)  # Delete if no forking
                 ### Class Options ### 
                 self._cmdReadList(cmd,'path',['HaqDir'])
-                self._cmdReadList(cmd,'int',['BlastCut'])
+                self._cmdReadList(cmd,'int',['BlastCut','MultiCut'])
                 self._cmdReadList(cmd,'opt',['AddQueries','AutoSkip','Chaser','HAQESAC','MultiHAQ','ScreenQry'])
             except: self.errorLog('Problem with cmd:%s' % cmd)
 #########################################################################################################################
@@ -262,7 +268,8 @@ class MultiHAQ(rje.RJE_Object):
                 return False
             ### ~ [2] Execute ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             rje.backup(self,null_file); nx = 0
-            if self.getInt('BlastCut'): self.obj['SeqList'].cmd_list += ['blastb=%d' % self.getInt('BlastCut'),'blastv=%d' % self.getInt('BlastCut')]
+            if self.getInt('MultiCut'): self.obj['SeqList'].cmd_list += ['blastb=%d' % self.getInt('MultiCut'),'blastv=%d' % self.getInt('MultiCut')]
+            elif self.getInt('BlastCut'): self.obj['SeqList'].cmd_list += ['blastb=%d' % self.getInt('BlastCut'),'blastv=%d' % self.getInt('BlastCut')]
             if self.getInt('Forks'): self.obj['SeqList'].cmd_list += ['blasta=%d' % self.getInt('Forks')]
             rje_seq.Blast2Fas(self.obj['SeqList'])
             for seq in self.seqs():
@@ -314,8 +321,11 @@ class MultiHAQ(rje.RJE_Object):
                 logfile = rje.makePath('%s%s.log' % (self.info['HaqDir'],acc),wholepath=True)
                 infile = rje.makePath('%s%s.fas' % (self.info['HaqDir'],acc),wholepath=True)
                 pkfile = rje.makePath('%s%s.pickle' % (self.info['HaqDir'],acc),wholepath=True)
+                pkzfile = rje.makePath('%s%s.pickle.gz' % (self.info['HaqDir'],acc),wholepath=True)
                 if not os.path.exists(infile): self.printLog('#SKIP','%s input file %s not found: Skipped' % (seq.shortName(),infile)); continue
-                if not finalrun and not self.opt['Force'] and rje.isYounger(logfile,infile) == logfile:
+                if not finalrun and not self.opt['Force'] and rje.isYounger(pkzfile,infile) == pkzfile:
+                    self.printLog('#SKIP','%s run detected: Skipped' % seq.shortName()); continue
+                if not finalrun and not self.opt['Force'] and rje.isYounger(pkfile,infile) == pkfile:
                     self.printLog('#SKIP','%s run detected: Skipped' % seq.shortName()); continue
                 inseqx = rje_seq.SeqCount(self,infile)
                 if inseqx < 2: self.printLog('#SKIP','Only one sequence found in %s: Skipped' % (infile)); continue

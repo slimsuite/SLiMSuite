@@ -7,8 +7,8 @@
 """
 Module:       RJE_SLiM
 Description:  Short Linear Motif class module
-Version:      1.12.0
-Last Edit:    30/05/15
+Version:      1.12.1
+Last Edit:    18/01/17
 Copyright (C) 2007  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -79,6 +79,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 1.10.3 - Fixed makeSlim bug with variable length wildcards at start of sequence.
     # 1.11.0 - Added splitMotif() function.
     # 1.12.0 - Added equiv to makeSlim() function.
+    # 1.12.1 - Modified error message.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -1098,12 +1099,12 @@ def splitPattern(regex):     ### Splits complex motifs on "|" and returns list
                 while pre < 1:
                     x -= 1
                     if x < 0:   # The whole pattern is an X|Y split with no outside brackets.
-                        raise ValueError
+                        raise ValueError('Parenthesis issue or 3+ variants in splitPattern() trying to split: "%s"' % regex)
                     if base[x] == '(': pre += 1
                     if base[x] == ')': pre -= 1
                 while post < 1:
                     y += 1
-                    if y >= len(base): raise ValueError
+                    if y >= len(base): raise ValueError('Parenthesis issue or 3+ variants in splitPattern() trying to split: "%s"' % regex)
                     if base[y] == '(': post -= 1
                     if base[y] == ')': post += 1
                 ## ~ [1b] Replace swap region with variants ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##

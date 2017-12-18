@@ -19,8 +19,8 @@
 """
 Module:       rje_qsub
 Description:  QSub Generating module
-Version:      1.6.3
-Last Edit:    10/07/15
+Version:      1.9.1
+Last Edit:    02/11/17
 Copyright (C) 2006  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -39,10 +39,13 @@ Commandline:
     - pause=X       : Wait X seconds before attempting showstart [5]
     - report=T/F    : Pull out running job IDs and run showstart [False]
     - email=X       : Email address to email job stats to at end ['']
+    - mailstart=T/F : Whether to email user at start of run [False]
     - hpc=X         : Name of HPC system for depend ['IRIDIS4']
     - dependhpc=X   : Name of HPC system for depend ['blue30.iridis.soton.ac.uk']
     - vmem=X        : Virtual Memory limit for run (GB) [48]
-    - modules=LIST  : List of modules to add in job file [blast+/2.2.30,clustalw,clustalo,fsa,mafft,muscle,pagan,R/3.1.1]
+    - modules=LIST  : List of modules to add in job file []
+    - modpurge=T/F  : Whether to purge loaded modules in qsub job file prior to loading [True]
+    - precall=LIST  : List of additional commands to run between module loading and program call []
 
 Uses general modules: copy, os, string, sys, time
 Uses RJE modules: rje
@@ -70,6 +73,10 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 1.6.1 - Added R/3.1.1 to modules.
     # 1.6.2 - Updated module list: blast+/2.2.30,clustalw,clustalo,fsa,mafft,muscle,pagan,R/3.1.1
     # 1.6.3 - Tweaked the showstart command for katana.
+    # 1.7.0 - Added option for email when job started
+    # 1.8.0 - Added modpurge=T/F : Whether to purge loaded modules in qsub job file prior to loading [True]
+    # 1.9.0 - Added precall=LIST  : List of additional commands to run between module loading and program call []
+    # 1.9.1 - Removed default module list: causing conflicts. Better to have in INI file.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -81,7 +88,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo():     ### Makes Info object
     '''Makes rje.Info object for program.'''
-    (program, version, last_edit, copy_right) = ('RJE_QSUB', '1.6.3', 'July 2015', '2006')
+    (program, version, last_edit, copy_right) = ('RJE_QSUB', '1.9.1', 'October 2017', '2006')
     description = 'QSub Generating module'
     author = 'Dr Richard J. Edwards.'
     comments = [rje_zen.Zen().wisdom()]
@@ -153,6 +160,8 @@ class QSub(rje.RJE_Object):
     - Job = Name of job file (.job added) [qsub]
     
     Opt:boolean
+    - MailStart = Whether to email user at start of run [False]
+    - ModPurge=T/F : Whether to purge loaded modules in qsub job file prior to loading [True]
     - RjePy = Whether program is an RJE *.py script (adds python /home/richard/Python_Modules) [True]
     - Report = Pull out running job IDs and run showstart [False]
 
@@ -166,6 +175,7 @@ class QSub(rje.RJE_Object):
     List:list
     - Depend = List of job ids to wait for before starting job []
     - Modules = List of modules to add in job file [blast+/2.2.30,clustalw,clustalo,fsa,mafft,muscle,pagan,R/3.1.1]
+    - PreCall=LIST  : List of additional commands to run between module loading and program call []
 
     Dict:dictionary    
 
@@ -178,7 +188,7 @@ class QSub(rje.RJE_Object):
         '''
         Sets Attributes of Object:
         - Info:str ['Program','QPath','Job']
-        - Opt:boolean ['RjePy']
+        - Opt:boolean ['ModPurge','RjePy']
         - Stats:float ['Nodes','Walltime','VMem']
         - List:list ['Depend','Modules']
         - Dict:dictionary []
@@ -186,9 +196,9 @@ class QSub(rje.RJE_Object):
         '''
         ### Basics ###
         self.infolist = ['Program','QPath','Job','PyPath','Email','HPC','DependHPC']
-        self.optlist = ['RjePy','Report']
+        self.optlist = ['ModPurge','RjePy','Report','MailStart']
         self.statlist = ['Nodes','Walltime','PPN','Pause']
-        self.listlist = ['Depend']
+        self.listlist = ['Depend','PreCall','Modules']
         self.dictlist = []
         self.objlist = []
         ### Defaults ###
@@ -198,8 +208,8 @@ class QSub(rje.RJE_Object):
                       'PyPath':'/home/re1u06/Serpentry/','Email':'',
                       'HPC':'IRIDIS4','DependHPC':'blue30.iridis.soton.ac.uk'})
         self.setStat({'Walltime':60,'Nodes':1,'PPN':12,'Pause':5,'VMem':48})
-        self.setOpt({'Report':False})
-        self.list['Modules'] = string.split('blast+/2.2.30,clustalw,clustalo,fsa,mafft,muscle,pagan,R/3.1.1,fasttree,phylip',',')
+        self.setOpt({'Report':False,'MailStart':False,'ModPurge':True})
+        #self.list['Modules'] = string.split('blast+/2.2.30,clustalw,clustalo,fsa,mafft,muscle,pagan,R/3.1.1,fasttree,phylip',',')
 #########################################################################################################################
     def _cmdList(self):     ### Sets Attributes from commandline
         '''
@@ -215,8 +225,8 @@ class QSub(rje.RJE_Object):
                 self._cmdReadList(cmd,'path',['QPath','PyPath'])
                 self._cmdReadList(cmd,'int',['Nodes','PPN','Pause','VMem'])
                 self._cmdReadList(cmd,'stat',['Walltime'])
-                self._cmdReadList(cmd,'opt',['RjePy','Report'])
-                self._cmdReadList(cmd,'list',['Depend','Modules'])
+                self._cmdReadList(cmd,'opt',['RjePy','Report','MailStart','ModPurge'])
+                self._cmdReadList(cmd,'list',['Depend','Modules','PreCall'])
             except: self.errorLog('Problem with cmd:%s' % cmd)
         if self.getStr('Email').lower() in ['none','']: self.info['Email'] = ''
 #########################################################################################################################
@@ -232,16 +242,24 @@ class QSub(rje.RJE_Object):
                      '#PBS -N %s' % string.replace('%s.job' % self.info['Job'],'.job',''),  #,'#PBS -q batch',
                      '#PBS -l nodes=%d:ppn=%d' % (self.stat['Nodes'],self.stat['PPN']),
                      '#PBS -l walltime=%d:%d:00' % (hr,min),'#PBS -l vmem=%dgb' % self.getInt('VMem'),'']     #10
-            if self.getStr('Email'): jlist += ['#PBS -M %s' % self.getStr('Email'),'#PBS -m ae']
+            if self.getStr('Email'):
+                jlist += ['#PBS -M %s' % self.getStr('Email'),'#PBS -m ae']
+                if self.getBool('MailStart'): jlist[-1] = '#PBS -m bae'
             jlist += ['### Define number of processors','NPROCS=`wc -l < $PBS_NODEFILE`',
                       'echo Running on host `hostname`','echo Time is `date`','echo Directory is `pwd`', #2
                       'echo This jobs runs on the following processors:','echo `cat $PBS_NODEFILE`','',                #5
                       'echo This job has allocated $NPROCS cpus','']
             self.printLog('#PPN','%d Node(s) requested: %d PPN.' % (self.getInt('Nodes'),self.getInt('PPN')))
             self.printLog('#VMEM','%s GB VMem requested.' % (self.getStat('VMem')))
+            if self.getBool('ModPurge'):
+                jlist.append('module purge')
+                self.printLog('#MOD','Modules purged (modpurge=T)')
             for mod in self.list['Modules']:
                 if mod.lower() not in ['','none']: jlist.append('module add %s' % mod)
             if self.list['Modules']: self.printLog('#MOD','Modules added: %s' % string.join(self.list['Modules'],'; '))
+            for pcall in self.list['PreCall']:
+                self.printLog('#PCALL',pcall)
+                jlist.append(pcall)
             #x#jlist = ['#!/bin/sh']   # New Iridis shell script method!
             ### Directory & Program ###
             jlist.append('cd %s' % self.info['QPath'])

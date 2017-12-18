@@ -19,8 +19,8 @@
 """
 Module:       rje_slimcalc
 Description:  SLiM Attribute Calculation Module
-Version:      0.9.2
-Last Edit:    12/06/15
+Version:      0.9.3
+Last Edit:    27/09/17
 Copyright (C) 2007  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -106,6 +106,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 0.9 - Improvements to use of GOPHER.
     # 0.9.1 - Modified combining of motif stats to handle expectString format for individual values.
     # 0.9.2 - Changed default conscore in docstring to RLC.
+    # 0.9.3 - Changed fudge error to warning.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -961,8 +962,8 @@ class SLiMCalc(rje.RJE_Object):
             if self.stat['Interactive'] < 1 or rje.yesNo('%s. Try to find closest correct match?' % etxt):
                 fudge = self.findFudge(string.replace(qry.info['Sequence'],'-',''),qmatch,Occ['Pos']-1)
                 if fudge:
-                    if self.stat['Verbose'] > 0: self.log.errorLog('%s in alignment differs from input: Fudged %s by %d aa!' % (qry.shortName(),qmatch,fudge),printerror=False)
-                    else: self.log.printLog('#ERR','%s in alignment differs from input: Fudged %s by %d aa!' % (qry.shortName(),qmatch,fudge),screen=False)
+                    if self.stat['Verbose'] > 0: self.warnLog('%s in alignment differs from input: Fudged %s by %d aa!' % (qry.shortName(),qmatch,fudge),'fudge')
+                    else: self.warnLog('%s in alignment differs from input: Fudged %s by %d aa!' % (qry.shortName(),qmatch,fudge),'fudge',screen=False)
                     return self.findOccPos(Occ,qry,fudge)
                 self.log.errorLog('%s in alignment differs from input: Cannot find %s anywhere' % (qry.shortName(),qmatch),printerror=False)
                 return (-1,-1)

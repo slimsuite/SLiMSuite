@@ -19,8 +19,8 @@
 """
 Module:       rje_taxmap
 Description:  Mapping taxonomic groups onto sequences based on Newick trees.
-Version:      0.4.0
-Last Edit:    06/06/16
+Version:      0.5.0
+Last Edit:    15/11/17
 Copyright (C) 2016  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -65,6 +65,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 0.2.1 - Fixed missing species names in *.taxa.tdt output.
     # 0.3.0 - Added monophyly=T/F   : Enforce strict monophyly and change any multiple assignments to "Uncertain" [False]
     # 0.4.0 - Added TaxFilter, minsum=X and classify=FILELIST files containing protein IDs (first column) for additional taxsum outputs [*.class]
+    # 0.5.0 - Fixed the filtering of Unmapped taxa when other (mapped) taxa are present.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -90,7 +91,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copy_right) = ('TAXMAP', '0.4.0', 'June 2016', '2016')
+    (program, version, last_edit, copy_right) = ('TAXMAP', '0.5.0', 'November 2017', '2016')
     description = 'Mapping taxonomic groups onto sequences based on Newick trees'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_obj.zen()]
@@ -429,18 +430,24 @@ class TaxMap(rje_obj.RJE_Object):
                 rentry = {}
                 for nextrank in ranks:
                     taxa = []
-                    for spcode in string.split(entry['spcode'],'|'): taxa.append(rankmap[nextrank][spcode])
+                    unmapped = ''
+                    for spcode in string.split(entry['spcode'],'|'):
+                        ranktax = rankmap[nextrank][spcode]
+                        if 'unmapped' in ranktax.lower() and ranktax not in taxa:
+                            if unmapped: self.warnLog('Two Unmapped %s taxa: %s & %s' % (nextrank,unmapped,ranktax))
+                            unmapped = ranktax   #i# Should only be one
+                        if ranktax not in taxa: taxa.append(ranktax)
                     if len(taxa) > 1 and 'None' in taxa:
                         self.warnLog('None in: %s' % string.join(rje.sortUnique(taxa),'|'))
                         taxa.remove('None')
-                    if len(taxa) > 1 and 'Unmapped' in taxa: taxa.remove('Unmapped')
+                    if len(taxa) > 1 and unmapped: taxa.remove(unmapped)
                     if len(taxa) > 1 and self.getBool('Monophyly'): rentry[nextrank] = 'Uncertain'
                     else: rentry[nextrank] = string.join(rje.sortUnique(taxa),'|')
                 rankdb.addEntry(rje.combineDict(rentry,entry))
             self.printLog('\r#SPEC','%s proteins with species codes processed.' % rje.iStr(stot))
             rankdb.saveToFile()
             taxdb.saveToFile()
-        except: self.errorLog('%s.taxaMap error' % self.prog())
+        except: self.errorLog('%s.taxaMap error' %  self.prog())
 #########################################################################################################################
     def summaryScores(self,rankdb=None,sumstr='taxasum',minsum='MinSum'):   ### Generates summary scores from rank table.
         '''Generates summary scores from rank table.'''

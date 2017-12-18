@@ -19,8 +19,8 @@
 """
 Module:       PeptCluster
 Description:  Peptide Clustering Module
-Version:      1.5.2
-Last Edit:    26/11/15
+Version:      1.5.4
+Last Edit:    01/11/17
 Webserver:    http://bioware.soton.ac.uk/peptcluster.html
 Copyright (C) 2012  Richard J. Edwards - See source code for GNU License Notice
 
@@ -86,6 +86,8 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 1.5.0 - Added peptalign=T/F/X function for aligning peptides using regex or minimal gap addition. Added REST.
     # 1.5.1 - Updated REST output. Removed peptide redundancy.
     # 1.5.2 - Improved clarity of warning message.
+    # 1.5.3 - Added catching of splitPattern() error during alignment.
+    # 1.5.4 - Fixed error message error.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -100,7 +102,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, cyear) = ('PeptCluster', '1.5.2', 'November 2015', '2012')
+    (program, version, last_edit, cyear) = ('PeptCluster', '1.5.4', 'November 2017', '2012')
     description = 'Peptide Clustering Module'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_zen.Zen().wisdom()]
@@ -361,7 +363,11 @@ class PeptCluster(rje_obj.RJE_Object):
             else:
                 #!# Need to deal with multiple regex?! (Use one with most matches and only keep that one?!)
                 if rje_slim.needToSplitPattern(regex):
-                    splits = rje_slim.splitPattern(regex)
+                    try: splits = rje_slim.splitPattern(regex)
+                    except:
+                        self.errorLog('SLiM "%s" splitPattern failure' % regex)
+                        self.warnLog('Will try SLiM-free alignment following splitPattern() error.')
+                        return self.peptAlign('TRUE',peptides,peptdis,termini,save)
                     self.printLog('#SPLIT','%s => %s' % (regex,string.join(splits,' | ')))
                     newregex = ''; bestpep = []
                     for regsplit in splits:

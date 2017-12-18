@@ -19,8 +19,8 @@
 """
 Module:       SLiMMaker
 Description:  SLiM generator from aligned peptide sequences
-Version:      1.6.1
-Last Edit:    30/05/15
+Version:      1.7.0
+Last Edit:    01/02/17
 Citation:     Palopoli N, Lythgow KT & Edwards RJ. Bioinformatics 2015; doi: 10.1093/bioinformatics/btv155 [PMID: 25792551]
 Webserver:    http://www.slimsuite.unsw.edu.au/servers/slimmaker.php
 Copyright (C) 2014  Richard J. Edwards - See source code for GNU License Notice
@@ -78,6 +78,7 @@ Function:
 Commandline:
     ### ~ SLiMMaker Options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     peptides=LIST   : These can be entered as a list or a file. If a file, lines following '#' or '>' are ignored
+    maxlen=INT      : Maximum length for peptide [50]
     peptalign=T/F/X : Align peptides. Will use as guide regular expression, else T/True for regex-free alignment. [True]
     minseq=X        : Min. no. of sequences for an aa to be in [3]
     minfreq=X       : Min. combined freq of accepted aa to avoid wildcard [0.75]
@@ -115,6 +116,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 1.5.0 - Added peptalign=X functionality, using PeptCluster peptide alignment.
     # 1.6.0 - Added equiv=LIST : List (or file) of TEIRESIAS-style ambiguities to use [AGS,ILMVF,FYW,FYH,KRH,DE,ST]
     # 1.6.1 - Fixed peptide case bug.
+    # 1.7.0 - Added maxlen parameter.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -129,7 +131,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copyyear) = ('SLiMMaker', '1.6.1', 'May 2015', '2012')
+    (program, version, last_edit, copyyear) = ('SLiMMaker', '1.7.0', 'January 2017', '2012')
     description = 'SLiM generator from aligned peptide sequences'
     author = 'Dr Richard J. Edwards.'
     comments = ['Cite: Palopoli N, Lythgow KT & Edwards RJ. Bioinformatics 2015; doi: 10.1093/bioinformatics/btv155 [PMID: 25792551]',
@@ -201,6 +203,7 @@ class SLiMMaker(rje_obj.RJE_Object):
     Int:integer
     - MinSeq = Min. no. of sequences for an aa to be in [3]
     - MaxAA = Max. no. different amino acids for one position [5]
+    - MaxLen=INT      : Maximum length for peptide [50]
 
     Num:float
     - MinFreq = Min. combined freq of accepted aa to avoid wildcard [0.75]
@@ -223,7 +226,7 @@ class SLiMMaker(rje_obj.RJE_Object):
         ### ~ Basics ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         self.strlist = ['Ignore','PeptAlign']
         self.boollist = ['DNA','ExtendAA','Iterate','VarLength']
-        self.intlist = ['MinSeq','MaxAA']
+        self.intlist = ['MinSeq','MaxAA','MaxLen']
         self.numlist = ['MinFreq']
         self.listlist = ['Equiv','Input','Peptides']
         self.dictlist = []
@@ -232,7 +235,7 @@ class SLiMMaker(rje_obj.RJE_Object):
         self._setDefaults(str='None',bool=False,int=0,num=0.0,obj=None,setlist=True,setdict=True)
         self.setStr({'Ignore':'X-','Basefile':'slimmaker','PeptAlign':'True'})
         self.setBool({'VarLength':True})
-        self.setInt({'MinSeq':3,'MaxAA':5})
+        self.setInt({'MinSeq':3,'MaxAA':5,'MaxLen':50})
         self.setNum({'MinFreq':0.75})
         self.list['Equiv'] = string.split('AGS,ILMVF,FYW,KRH,DE,ST',',')
         ### ~ Other Attributes ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -254,7 +257,7 @@ class SLiMMaker(rje_obj.RJE_Object):
                 #self._cmdReadList(cmd,'path',['Att'])  # String representing directory path 
                 #self._cmdReadList(cmd,'file',['Att'])  # String representing file path 
                 self._cmdReadList(cmd,'bool',['DNA','ExtendAA','Iterate','VarLength'])  # True/False Booleans
-                self._cmdReadList(cmd,'int',['MinSeq','MaxAA'])   # Integers
+                self._cmdReadList(cmd,'int',['MinSeq','MaxAA','MaxLen'])   # Integers
                 self._cmdReadList(cmd,'float',['MinFreq']) # Floats
                 #self._cmdReadList(cmd,'min',['Att'])   # Integer value part of min,max command
                 #self._cmdReadList(cmd,'max',['Att'])   # Integer value part of min,max command
@@ -275,11 +278,7 @@ class SLiMMaker(rje_obj.RJE_Object):
             slim = ''
             if iterate == None: iterate = self.getBool('Iterate')
             elif iterate: self.setBool({'Iterate':True})
-            self.setup(log=log)
-            self.setInt({'MinSeq':max(1,self.getInt('MinSeq'))})
-            if len(self.list['Peptides']) < self.getInt('MinSeq'):
-                if log: self.printLog('#MIN','Too few peptides (%d) for minseq=%d' % (len(self.list['Peptides']),self.getInt('MinSeq')))
-                return ('','Too few peptides (%d) for minseq=%d' % (len(self.list['Peptides']),self.getInt('MinSeq')))
+            if not self.setup(log=log): return ('','SLiMMaker setup failed. Check log.')
             if not self.list['Input']: self.list['Input'] = self.list['Peptides'][0:]
             equiv = []
             if self.getBool('ExtendAA'):
@@ -353,7 +352,9 @@ class SLiMMaker(rje_obj.RJE_Object):
                 pep = string.split(inpep,'>')[0]
                 pep = string.split(pep,'#')[0]
                 for pep in string.split(pep):
-                    if pep:
+                    if len(pep) > self.getInt('MaxLen'):
+                        if log: self.warnLog('Peptide ignored - exceeds maxlen (%d): %s' % (self.getInt('MaxLen'),pep))
+                    elif pep:
                         mypep.append(pep)
                         if peplen and len(pep) != peplen: pepaln = False
                         else: peplen = len(pep)
@@ -362,13 +363,18 @@ class SLiMMaker(rje_obj.RJE_Object):
             if 'peptides' not in self.dict['Output']: self.dict['Output']['peptides'] = string.join(self.list['Peptides'],'\n')
             peptxt = {True:'fragments',False:'peptides'}[self.getBool('DNA')]
             if log: self.printLog('#PEP','%s %s read from %s input %s' % (len(mypep),peptxt,inx,peptxt))
+            self.setInt({'MinSeq':max(1,self.getInt('MinSeq'))})
+            if len(self.list['Peptides']) < self.getInt('MinSeq'):
+                if log: self.warnLog('Too few peptides (%d) for minseq=%d' % (len(self.list['Peptides']),self.getInt('MinSeq')))
+                return False
             if not pepaln and self.getStrLC('PeptAlign'):
-                self.printLog('#ALN','Unaligned peptides: aligning with PeptCluster')
+                if log: self.printLog('#ALN','Unaligned peptides: aligning with PeptCluster')
                 pclust = self.obj['PeptCluster']
                 self.list['Peptides'] = pclust.peptAlign(self.getStrUC('PeptAlign'),self.list['Peptides'])
                 self.dict['Output']['aligned'] = string.join(self.list['Peptides'],'\n')
             elif not pepaln: self.printLog('#WARN','Warning: %s are not all same length!' % peptxt)
             self.restSetup()
+            return True
         except: self.errorLog('Problem during %s setup.' % self); return False  # Setup failed
 #########################################################################################################################
     ### <3> ### REST Output Methods                                                                                     #

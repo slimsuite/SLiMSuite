@@ -19,8 +19,8 @@
 """
 Module:       rje_synteny
 Description:  Gene/Protein Annotation Transfer and Synteny Tool
-Version:      0.0.0
-Last Edit:    11/06/16
+Version:      0.0.3
+Last Edit:    26/06/17
 Copyright (C) 2016  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -56,6 +56,9 @@ import rje, rje_db, rje_genbank, rje_obj, rje_seqlist
 def history():  ### Program History - only a method for PythonWin collapsing! ###
     '''
     # 0.0.0 - Initial Compilation.
+    # 0.0.1 - Altered problematic ValueError to warnLog()
+    # 0.0.2 - Updated the synteny mappings to be m::n instead of m:n for Excel compatibility.
+    # 0.0.3 - Added catching of the Feature locus/accnum mismatch issue.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -71,7 +74,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copy_right) = ('RJE_SYNTENY', '0.0.0', 'June 2016', '2016')
+    (program, version, last_edit, copy_right) = ('RJE_SYNTENY', '0.0.3', 'June 2017', '2016')
     description = 'Gene/Protein Annotation Transfer and Synteny Tool'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_obj.zen()]
@@ -276,6 +279,15 @@ class Synteny(rje_obj.RJE_Object):
             refseq = self.obj['RefSeq']
             acc2chr = {}    # This maps sequence accession numbers onto reference chromosomes
             for seq in refseq.seqs(): acc2chr[string.split(refseq.seqAcc(seq),'.')[0]] = refseq.seqGene(seq)
+            # Check for data integrity
+            lfield = 'locus'
+            if lfield not in ftdb.fields(): lfield = 'Locus'
+            if lfield not in ftdb.fields(): self.warnLog('Could not find "locus" or "Locus" field in features table! No AccNum/Locus check.')
+            else:
+                for locus in ftdb.indexKeys(lfield):
+                    if locus not in acc2chr:
+                        self.warnLog('Feature locus "%s" missing from Reference Sequence. AccNum/Locus mismatch in Reference?' % locus)
+                        ftdb.dropEntriesDirect(lfield,[locus])
 
             ### ~ [1] Generate initial hits table from features and GABLAM ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             # Reformat Qry sequence names to match feature locus tags
@@ -337,7 +349,9 @@ class Synteny(rje_obj.RJE_Object):
                 thishit = rje.matchExp('^(\S+)_\S+__(\S+)-(\d+)\.(\d+)$',ghit)
                 if not thishit: thishit = rje.matchExp('^(\S+)_\S+__(\S+)\.(\d+)-(\d+)$',ghit)
                 if prevhit and prevhit[0] == thishit[0]:
-                    if int(thishit[-1]) < int(prevhit[-2]): raise ValueError('Overlapping fragment %s vs %s. Should not happen!' % (ghit,prevhit))
+                    if int(thishit[-2]) < int(prevhit[-1]):
+                        #raise ValueError('Overlapping fragment %s vs %s. Should not happen!' % (ghit,prevhit))
+                        self.warnLog('Overlapping fragment %s vs %s. Should not happen!' % (ghit,prevhit),'overlap',quitchoice=True)
                 prevhit = thishit
                 # Rename protein/gene
                 gx += 1
@@ -376,15 +390,15 @@ class Synteny(rje_obj.RJE_Object):
             fdb.index('Gene'); fdb.index(gfield)
             self.progLog('\r#HITS','Classify m:n %s mappings...' % gtype.lower()[:-1])
             for entry in fdb.entries():
-                if not entry['Qry_AlnID']: entry['Mapping'] = '1:0'; continue
+                if not entry['Qry_AlnID']: entry['Mapping'] = '1::0'; continue
                 n = len(fdb.index('Gene')[entry['Gene']])
                 m = len(fdb.index(gfield)[entry[gfield]])
-                entry['Mapping'] = '%s:%s' % (m,n)
+                entry['Mapping'] = '%s::%s' % (m,n)
             ## ~ [4d] Identify 1:x mappings and map ref ID ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             self.progLog('\r#HITS','Identify and map 1:x %s mappings...' % gtype.lower()[:-1])
             for m2n in fdb.index('Mapping'):
                 if m2n[:2] != '1:': continue
-                if m2n == '1:0': continue
+                if m2n == '1::0': continue
                 for gene in fdb.indexDataList('Mapping',m2n,'Gene'):
                     gx = 1; gtot = len(fdb.index('Gene')[gene])
                     for entry in fdb.indexEntries('Gene',gene):
@@ -492,7 +506,7 @@ class Synteny(rje_obj.RJE_Object):
                         gid = entry[gfield]     # Old gene prior to update
                         synteny_updated = synteny_updated or prevsyn != entry['Synteny']    # Changed synteny
                         if entry['Synteny'] not in ['Syn','Inv']: continue
-                        if entry['Mapping'] == '1:1': continue  # Nothing else to update
+                        if entry['Mapping'] == '1::1': continue  # Nothing else to update
                         if not entry['Mapping'].endswith(':1'):
                             # Check for a single Syn rating for assembly gene and update, then delete rest of entries
                             synx = 0
@@ -621,7 +635,9 @@ class Synteny(rje_obj.RJE_Object):
                     thishit = rje.matchExp('^(\S+)_\S+__(\S+)-(\d+)\.(\d+)$',ghit)
                     if not thishit: thishit = rje.matchExp('^(\S+)_\S+__(\S+)\.(\d+)-(\d+)$',ghit)
                     if prevhit and prevhit[0] == thishit[0]:
-                        if int(thishit[-1]) < int(prevhit[-2]): raise ValueError('Overlapping fragment %s vs %s. Should not happen!' % (ghit,prevhit))
+                        if int(thishit[-1]) < int(prevhit[-2]):
+                            #raise ValueError('Overlapping fragment %s vs %s. Should not happen!' % (ghit,prevhit))
+                            self.warnLog('Overlapping fragment %s vs %s. Should not happen!' % (ghit,prevhit),'overlap',quitchoice=True)
                     prevhit = thishit
                     # Rename protein/gene
                     gx += 1
@@ -651,15 +667,15 @@ class Synteny(rje_obj.RJE_Object):
                 fdb.index('Gene'); fdb.index(gfield)
                 self.progLog('\r#HITS','Classify m:n mappings...')
                 for entry in fdb.entries():
-                    if not entry['Qry_AlnID']: entry['Mapping'] = '1:0'; continue
+                    if not entry['Qry_AlnID']: entry['Mapping'] = '1::0'; continue
                     n = len(fdb.index('Gene')[entry['Gene']])
                     m = len(fdb.index(gfield)[entry[gfield]])
-                    entry['Mapping'] = '%s:%s' % (m,n)
+                    entry['Mapping'] = '%s::%s' % (m,n)
                 ## ~ [1g] Identify 1:x mappings and map ref ID ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
                 self.progLog('\r#HITS','Identify and map 1:x mappings...')
                 for m2n in fdb.index('Mapping'):
                     if m2n[:2] != '1:': continue
-                    if m2n == '1:0': continue
+                    if m2n == '1::0': continue
                     for gene in fdb.indexDataList('Mapping',m2n,'Gene'):
                         gx = 1; gtot = len(fdb.index('Gene')[gene])
                         for entry in fdb.indexEntries('Gene',gene):

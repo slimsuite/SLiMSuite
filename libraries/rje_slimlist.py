@@ -366,6 +366,7 @@ class SLiMList(rje.RJE_Object):
             else:
                 self.warnLog('SLiM "%s" being over-written in slimdict' % name)
                 slimdict[name] = [slim]
+        return slimdict
 #########################################################################################################################
     ### <3> ### Motif loading/reformatting methods                                                                      #
 #########################################################################################################################

@@ -19,8 +19,8 @@
 """
 Module:       rje_uniprot
 Description:  RJE Module to Handle Uniprot Files
-Version:      3.22.0
-Last Edit:    30/11/15
+Version:      3.24.1
+Last Edit:    09/02/17
 Copyright (C) 2007 Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -39,7 +39,8 @@ Function:
     largely synonymously. Rather than extract all db xref by default, there is now a default list of databases to parse:
     ['UniProtKB/Swiss-Prot','ensembl','REFSEQ','HGNC','Entrez Gene','FlyBase','Pfam','GO','MGI','ZFIN'].
 
-Input Options:
+Input/Output:
+    ### ~ Input Options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     unipath=PATH    : Path to UniProt Datafile (looks here for DB Index file; url = use Web downloads) [url]
     dbindex=FILE    : Database index file [uniprot.index]
     uniprot=FILE    : Name of UniProt file [None]
@@ -59,39 +60,41 @@ Input Options:
     uniformat=X     : Desired UniProt format for URL download (over-rules normal processing). Append gz to compress. [txt]
                         - html | tab | xls | fasta | gff | txt | xml | rdf | list | rss
 
-Output Options:
-    datout=FILE     : Name of new (reduced) UniProt DAT file of extracted sequences [None]
-    tabout=FILE     : Table of extracted UniProt details [None]
-    ftout=FILE      : Outputs table of features into FILE [None]
-    basefile=X      : If set, can use "T" or "True" for the above *out options. (Will default to datout) [None]
+    ### ~ Output Options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+    basefile=X      : If set, can use "T" or "True" for other `*out` options. (Will default to `datout` if given) [None]
+    datout=T/F/FILE : Name of new (reduced) UniProt DAT file of extracted sequences [None]
+    tabout=T/F/FILE : Table of extracted UniProt details [None]
+    ftout=T/F/FILE  : Outputs table of features into FILE [None]
+    pfamout=T/F/FILE: Whether to output a "long" table of (accnum, pfam, name, num) [False]
     domtable=T/F    : Makes a table of domains from uniprot file [False]
     gotable=T/F     : Makes a table of AccNum:GO mapping [False]
     cc2ft=T/F       : Extra whole-length features added for TISSUE and LOCATION (not in datout) [False]
-    xrefout=FILE    : Table of extracted Database xref (Formerly linkout=FILE) [None]
+    xrefout=T/F/FILE: Table of extracted Database xref (Formerly linkout=FILE) [None]
     longlink=T/F    : Whether link table is to be "long" (acc,db,dbacc) or "wide" (acc, dblinks) [True]
     dblist=LIST     : List of databases to extract (extract all if empty or contains 'all') [see above]
     dbsplit=T/F     : Whether to generate a table per dblist database (basefile.dbase.tdt) [False]
     dbdetails=T/F   : Whether to extract full details of DR line rather than parsing DB xref only [False]
+    append=T/F      : Append to results files rather than overwrite [False]
 
-UniProt Conversion Options:
+    ### ~ UniProt Conversion Options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     ucft=X          : Feature to add for UpperCase portions of sequence []
     lcft=X          : Feature to add for LowerCase portions of sequence []
     maskft=LIST     : List of Features to mask out []
     invmask=T/F     : Whether to invert the masking and only retain maskft features [False]
     caseft=LIST     : List of Features to make upper case with rest of sequence lower case []
 
-Parsing Options (Programming Only):
+Specialist Options:
+    ### ~ Parsing Options (Programming Only) ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     fullref=T/F     : Whether to store full Reference information in UniProt Entry objects [False]
     dbparse=LIST    : List of databases to parse from DR lines in UniProtEntry object [see code]
     uparse=LIST     : Restricted lines to parse to accelerate parsing of large datasets for limited information []
 
-General Options:
-    append=T/F      : Append to results files rather than overwrite [False]
+    ### ~ General Options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     memsaver=T/F    : Memsaver option to save memory usage - does not retain entries in UniProt object [False]
     cleardata=T/F   : Whether to clear unprocessed Entry data (True) or (False) retain in Entry & Sequence objects [True]
     specsleep=X     : Sleep for X seconds between species downloads [60]
 
-UniProt Download Processing Options:
+    ### ~ UniProt Download Processing Options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     makeindex=T/F   : Generate UniProt index files [False]
     makespec=T/F    : Generate species table [False]
     makefas=T/F     : Generate fasta files [False]
@@ -161,6 +164,9 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 3.21.3 - Added REST datout to proteomes extraction.
     # 3.21.4 - Fixed Feature masking. Should this be switched off by default?
     # 3.22.0 - Tweaked REST table output.
+    # 3.23.0 - Added accnum map table output. Fixed REST output bug when bad IDs given. Added version and about output.
+    # 3.24.0 - Added pfam out and changed map table headers.
+    # 3.24.1 - Fixed process Uniprot error when uniprot=FILE given.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -191,7 +197,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo():     ### Makes Info object
     '''Makes rje.Info object for program.'''
-    (program, version, last_edit, copyyear) = ('RJE_UNIPROT', '3.22.0', 'November 2015', '2007')
+    (program, version, last_edit, copyyear) = ('RJE_UNIPROT', '3.24.1', 'February 2017', '2007')
     description = 'RJE Uniprot Parsing/Extraction Module'
     author = 'Dr Richard J. Edwards.'
     comments = []
@@ -211,7 +217,7 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
             cmd_list += rje.inputCmds(out,cmd_list)
         elif out.stat['Interactive'] > 1: cmd_list += rje.inputCmds(out,cmd_list)
         return cmd_list
-    except SystemExit: sys.exit()
+    except SystemExit: sys.exit(0)
     except KeyboardInterrupt: sys.exit()
     except: print 'Major Problem with cmdHelp()'
 #########################################################################################################################
@@ -225,17 +231,19 @@ def setupProgram(): ### Basic Setup of Program
     try:
         ### Initial Command Setup & Info ###
         info = makeInfo()
+        if len(sys.argv) == 2 and sys.argv[1] in ['version','-version','--version']: print(info.version); sys.exit(0)
         cmd_list = rje.getCmdList(sys.argv[1:],info=info)      ### Load defaults from program.ini
         ### Out object ###
         out = rje.Out(cmd_list=cmd_list)
         out.verbose(2,2,cmd_list,1)
         out.printIntro(info)
+        if len(sys.argv) == 2 and sys.argv[1] in ['about','-about','--about']: sys.exit(0)
         ### Additional commands ###
         cmd_list = cmdHelp(info,out,cmd_list)
         ### Log ###
         log = rje.setLog(info=info,out=out,cmd_list=cmd_list)
         return [info,out,log,cmd_list]
-    except SystemExit: sys.exit()
+    except SystemExit: sys.exit(0)
     except KeyboardInterrupt: sys.exit()
     except:
         print 'Problem during initial setup.'
@@ -293,6 +301,7 @@ class UniProt(rje.RJE_Object):
     - UniPath = Path to UniProt Datafile (will look here for DB Index file) [UniProt/]
     - DBIndex = Database index file [uniprot.index]
     - DATOut = Name of new (reduced) UniProt DAT file of extracted sequences [None]
+    - PfamOut = Whether to output a "long" table of (accnum, pfam, desc) [False]
     - TabOut = Name of table of extracted sequence details [None]
     - XRefOut = Table of extracted Database links [None]
     - FTOut = Outputs table of features into FILE [None]
@@ -314,6 +323,7 @@ class UniProt(rje.RJE_Object):
     - MakeIndex = Generate UniProt index files [False]
     - MakeSpec = Generate species table [False]
     - MakeFas = Generate fasta files [False]
+    - PfamOut = Whether to output a "long" table of (accnum, pfam, name, num) [None]
     - Reviewed = Whether to restrict input to reviewed entries only [False]
     - SpliceVar = Whether to search for AccNum allowing for splice variants (AccNum-X) [True]
     - UseBeta = Whether to use beta.uniprot.org rather than www.uniprot.org [False]
@@ -342,10 +352,11 @@ class UniProt(rje.RJE_Object):
     def _setAttributes(self):   ### Sets Attributes of Object
         '''Sets Attributes of Object.'''
         ### Basics ###
-        self.infolist = ['AccTable','AccField','Name','UniPath','DBIndex','DATOut','TabOut','XRefOut','FTOut',
+        self.infolist = ['AccTable','AccField','Name','UniPath','DBIndex','DATOut','TabOut','XRefOut','FTOut','PfamOut',
                          'UCFT','LCFT','SplitOut','UniFormat']
         self.optlist = ['Complete','DBSplit','DBDetails','DomTable','LongLink','MakeIndex','MakeSpec','MakeFas',
-                        'SpliceVar','ClearData','GrepDat','FullRef','Reviewed','UseBeta','GOTable']
+                        'SpliceVar','ClearData','GrepDat','FullRef','Reviewed','UseBeta','GOTable',
+                        'DATOut','TabOut','XRefOut','FTOut','MapOut','PfamOut']
         self.statlist = ['SpecSleep']
         self.listlist = ['DBList','Extract','Entry','Proteome','SpecDat','Taxonomy','UParse']
         self.dictlist = []
@@ -358,7 +369,7 @@ class UniProt(rje.RJE_Object):
         self.setInt({'SpecSleep':60})
         self.list['DBList'] = dbparse[0:]
         self._setForkAttributes()   # Delete if no forking
-        self.obj['DB'] = rje_db.Database(self.log,self.cmd_list)
+        self.obj['DB'] = rje_db.Database(self.log,self.cmd_list+['tuplekeys=T'])
 #########################################################################################################################
     def _cmdList(self):     ### Sets Attributes from commandline
         '''
@@ -372,13 +383,13 @@ class UniProt(rje.RJE_Object):
                 self._forkCmd(cmd)  # Delete if no forking
                 ### Class Options ###
                 self._cmdReadList(cmd,'path',['UniPath'])
-                self._cmdReadList(cmd,'file',['AccTable','DBIndex','DATOut','TabOut','XRefOut','FTOut'])
+                self._cmdReadList(cmd,'file',['AccTable','DBIndex','DATOut','TabOut','XRefOut','FTOut','PfamOut'])
                 self._cmdRead(cmd,'file','XRefOut','linkout')
                 self._cmdReadList(cmd,'info',['AccField','UCFT','LCFT'])
                 self._cmdReadList(cmd.lower(),'info',['UniFormat'])
                 self._cmdReadList(cmd,'opt',['Complete','DomTable','LongLink','MakeIndex','SpliceVar','MakeSpec',
                                              'MakeFas','ClearData','GrepDat','FullRef','Reviewed','DBSplit','DBDetails',
-                                             'UseBeta','GOTable'])
+                                             'UseBeta','GOTable','DATOut','TabOut','XRefOut','FTOut','MapOut','PfamOut'])
                 self._cmdReadList(cmd,'int',['SpecSleep'])
                 self._cmdReadList(cmd,'list',['DBList','Extract','Proteome','SpecDat','Taxonomy','UParse'])
                 self._cmdRead(cmd,type='list',att='DBList',arg='dbparse')
@@ -391,14 +402,16 @@ class UniProt(rje.RJE_Object):
         if 'all' in string.join(self.list['DBList']).lower(): self.list['DBList'] = []
         else: self.list['DBList'] = rje.listLower(self.list['DBList'])
         delimit = rje.getDelimit(self.cmd_list)
-        for ofile in ['DBIndex','DATOut','TabOut','XRefOut','FTOut']:
+        for ofile in ['DBIndex','DATOut','TabOut','XRefOut','FTOut','MapOut','PfamOut']:
             if self.getStr(ofile).lower() in ['none','f','false']: self.setStr({ofile:''})
-        if self.basefile().lower() in ['','none'] and self.getStr('DATOut').lower() not in ['','t','to']: self.basefile(rje.baseFile(self.getStr('DATOut')))
+            # Where a boolean has been added too, a straight call of the parameter will switch on output
+            if ofile in self.opt and self.getOpt(ofile) and not self.getStr(ofile): self.setStr({ofile:'t'})
+        if self.basefile().lower() in ['','none'] and self.getStr('DATOut').lower() not in ['','t','true']: self.basefile(rje.baseFile(self.getStr('DATOut')))
         if self.basefile().lower() in ['','none'] and self.getStr('Name'): self.basefile(rje.baseFile(self.getStr('Name')))
-        for ofile in ['DATOut','TabOut','XRefOut','FTOut']:
+        for ofile in ['DATOut','TabOut','XRefOut','FTOut','MapOut','PfamOut']:
             newfile = '%s.%s' % (self.basefile(),ofile[:-3].lower())
             if not newfile.endswith('dat'): newfile = '%s.%s' % (newfile,rje.delimitExt(delimit))
-            if self.getStr(ofile).lower() in ['t','true']:
+            if self.getStr(ofile).lower() in ['t','true'] or ofile == 'MapOut':
                 self.setStr({ofile:newfile})
                 self.printLog('#%s' % ofile.upper()[:-3],'New %s filename set: %s' % (ofile,newfile))
 #########################################################################################################################
@@ -436,7 +449,7 @@ class UniProt(rje.RJE_Object):
                 else: self.printLog('#MEM',memtext); self.setStr({'TabOut':''})
             rje.backup(self,self.getStr('TabOut'))  # Will skip if empty value
             ## ~ [2d] ~ Setup general tabular output file db tables ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-            self.setupDB(xref=self.getStr('XRefOut') or self.getBool('DBSplit'),ft=self.getStr('FTOut') or self.getBool('DomTable'))
+            self.setupDB(xref=self.getStr('XRefOut') or self.getBool('DBSplit') or self.getStr('PfamOut'),ft=self.getStr('FTOut') or self.getBool('DomTable'))
             #i# DomTable is just a cut-down FTOut with DOMAIN features only! Store in ft table and then make at end.
 
             ### >>> Delete when safe <<< ###
@@ -468,6 +481,7 @@ class UniProt(rje.RJE_Object):
         >> xref:bool [True] = setup xref table.
         >> ft:bool [True] = setup ft table.
         '''
+        self.db().addEmptyTable('map',['uniprotid','accnum'],['uniprotid'])  # Mapping of input accnum to output accnum
         if xref: self.db().addEmptyTable('xref',['accnum','db','xref'],['accnum','db'])
         if ft: self.db().addEmptyTable('ft',['accnum','feature','ft_start','ft_end','description'],['accnum','feature','ft_start','ft_end','description'])
 #########################################################################################################################
@@ -481,7 +495,7 @@ class UniProt(rje.RJE_Object):
             for restfmt in ['dom','go']:
                 if restfmt not in self.dict['Output'] or not self.dict['Output'][restfmt] or not rje.exists(self.dict['Output'][restfmt]):
                     self.dict['Output'][restfmt] = 'No output generated.'
-            for restfmt in ['ft','tab','xref']:
+            for restfmt in ['ft','tab','xref','map']:
                 if restfmt not in self.dict['Output'] or not self.dict['Output'][restfmt] or not rje.exists(self.getStr(self.dict['Output'][restfmt])):
                     self.dict['Output'][restfmt] = 'No output generated.'
             ### ~ [1] RESTful output to return ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -491,6 +505,8 @@ class UniProt(rje.RJE_Object):
             if outfmt in ['fullhtml','html']: return self.restHTMLOutput()
             if outfmt == 'version': return rje.Out(self.log,['v=-1']).printIntro(self.log.obj['Info'])
             if outfmt == 'outfmt': return self.restSetup.__doc__
+            if outfmt == 'warnings': return string.join(self.log.list['WarnLog'],'\n')  # List of log warning messages.
+            if outfmt == 'errors': return string.join(self.log.list['ErrorLog'],'\n')   # List of log error messages.
             if outfmt in ['fas','fasta']:
                 fastxt = ''
                 for entry in self.entries(): fastxt += entry.fasta()
@@ -512,31 +528,52 @@ class UniProt(rje.RJE_Object):
             return '# SERVER ERROR: "&rest=%s" not a recognised output\n%s' % (outfmt,self.restFullOutput())
         except: return self.errorLog('Uniprot.restOutput(%s) error.' % outfmt)
 #########################################################################################################################
-    def restOutputOrder(self): return rje.sortKeys(self.dict['Output'])
+    def restOutputOrder(self):
+        outlist = []
+        for outfmt in ['dat','map','failed','tab','ft','dom','pfam','xref','go']:
+            if outfmt in self.dict['Output']: outlist.append(outfmt)
+        return outlist
+#########################################################################################################################
     def restOutputDefault(self): return 'dat'
 #########################################################################################################################
     def restSetup(self):    ### Sets up self.dict['Output'] and associated output options if appropriate.
         '''
-        There is currently no specific help available on REST output for this program. Run with &rest=help for general
-        options. Run with &rest=full to get full server output. Individual outputs can be identified/parsed:
+        Run with &rest=docs for program documentation and options. A plain text version is accessed with &rest=help.
+        &rest=OUTFMT can be used to retrieve individual parts of the output, matching the tabs in the default
+        (&rest=format) output. Individual `OUTFMT` elements can also be parsed from the full (&rest=full) server output,
+        which is formatted as follows:
 
         ###~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~###
         # OUTFMT:
-        ...
+        ... contents for OUTFMT section ...
+        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
-        &rest=OUTFMT can then be used to retrieve individual parts of the output in future.
+        ### Available REST Outputs:
+        dat = main Uniprot flat file. [dat]
+        map = table of `uniprotid` elements given and the accession numbers they mapped to. [tdt]
+        failed = list of identifiers that failed to map to uniprot. (Missing if none.) [list]
+        tab = tabular summary of uniprot data (&tabout=T). [tdt]
+        ft = table of parsed uniprot features (&ftout=T). [tdt]
+        dom = table of parsed `DOMAIN` features and their positions (&domtable=T). [tdt]
+        pfam = table of parsed `Pfam` domains and their counts for each protein (&pfamout=T). [tdt]
+        xref = table of extracted database cross-references (&xrefout=T). [tdt]
+        go = table of GO categories extracted for each protein (&gotable=T). [tdt]
         '''
         try:### ~ [0] ~ Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             ext = {}
             ### ~ [1] ~ Possible rest service outputs: ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             # dat = DAT download (or any alternative format using uniformat=X
             self.dict['Output']['dat'] = 'DATOut'; ext['dat'] = 'dat'
-            # tab = Table of extracted extracted UniProt details [None]
+            # tab = Table of extracted UniProt details [None]
             self.dict['Output']['tab'] = 'TabOut'; ext['tab'] = 'tdt'
+            # map = Table of mapped accession numbers [None]
+            self.dict['Output']['map'] = 'MapOut'; ext['map'] = 'map.tdt'
             # ft = Outputs table of features into FILE [None]
             self.dict['Output']['ft'] = 'FTOut'; ext['ft'] = 'features.tdt'
             # xref = Table of extracted Database xref (Formerly linkout=FILE) [None]
             self.dict['Output']['xref'] = 'XRefOut'; ext['xref'] = 'xref.tdt'
+            # pfam = Table of PFam domains from uniprot file [False]
+            self.dict['Output']['pfam'] = '%s.pfam.tdt' % self.basefile()     #!# This needs modifying/updating
             # dom = Table of domains from uniprot file [False]
             self.dict['Output']['dom'] = '%s.domains.tdt' % self.basefile()     #!# This needs modifying/updating
             # go = Makes a table of AccNum:GO mapping [False]
@@ -732,6 +769,8 @@ class UniProt(rje.RJE_Object):
                             tracc = string.split(acc,'_')[0]
                             if acc not in [new_id,new_acc] and tracc != new_acc:
                                 self.printLog('\n#ACC','Secondary AccNum %s mapped to %s (%s).' % (acc,new_id,new_acc),screen=self.v() > 0)
+                            try: self.db('map').addEntry({'uniprotid':acc,'accnum':new_acc},warn=False)
+                            except: self.debug(self.db('map'))
                         # Update
                         ex += 1
                         self._entryTableData(self.list['Entry'][-1])
@@ -887,7 +926,10 @@ class UniProt(rje.RJE_Object):
                         _entry = self.list['Entry'][-1]
                         [new_id,new_acc] = [_entry.obj['Sequence'].info['ID'],_entry.obj['Sequence'].info['AccNum']]
                         for acc in [new_id,new_acc]:
-                            if acc in extract: extract.remove(acc)
+                            if acc in extract:
+                                extract.remove(acc)
+                                try: self.db('map').addEntry({'uniprotid':acc,'accnum':new_acc},warn=False)
+                                except: self.debug(self.db('map'))
                             if acc in batch: batch.remove(acc)
                         try: secondaries = _entry.obj['Sequence'].list['Secondary ID']
                         except: secondaries = []
@@ -898,9 +940,13 @@ class UniProt(rje.RJE_Object):
                             if acc in extract:
                                 extract.remove(acc)
                                 self.printLog('\n#ACC','Secondary AccNum %s mapped to %s (%s).' % (acc,new_id,new_acc),screen=self.v() > 0)
+                                try: self.db('map').addEntry({'uniprotid':acc,'accnum':new_acc},warn=False)
+                                except: self.debug(self.db('map'))
                             if old_id in extract:
                                 extract.remove(old_id)
                                 self.printLog('\n#ACC','Secondary AccNum %s mapped to %s (%s).' % (old_id,new_id,new_acc),screen=self.v() > 0)
+                                try: self.db('map').addEntry({'uniprotid':old_id,'accnum':new_acc},warn=False)
+                                except: self.debug(self.db('map'))
                         #self._writeSingleEntry(_entry,reformat=reformat)
                         self._entryTableData(_entry)
                         if self.opt['MemSaver']: self.list['Entry'] = []     # Delete for memsaver
@@ -920,16 +966,22 @@ class UniProt(rje.RJE_Object):
             dx = len(acclist) - (rx + fx)   # Number of duplicates ignored
             if log:
                 self.printLog('\r#URL','%s: %s read & extracted; %s failed; %s duplicates.' % (logtext,rje.iStr(rx),rje.iStr(fx),rje.iStr(dx)))
-                for acc in extract: self.warnLog('Uniprot extraction for %s failed.' % acc,'extract_fail',suppress=True)
-            if extract:
+                for acc in extract:
+                    self.warnLog('Uniprot extraction for %s failed.' % acc,'extract_fail',suppress=True)
+                    try:
+                        if not self.db('map').data(acc):
+                            self.db('map').addEntry({'uniprotid':acc,'accnum':'!FAILED!'},warn=False)
+                    except: self.debug(self.db('map'))
+            if extract: #x# and not self.getStrLC('Rest'):
                 if self.getStrLC('DATOut'): mfile = rje.baseFile(self.getStr('DATOut')) + '.missing.acc'
                 else: mfile = None
                 if mfile and (self.i() < 0 or rje.yesNo('Save missing accnum to %s?' % mfile)):
                     open(mfile,'w').write(string.join(extract,'\n'))
                     self.printLog('#FAIL','%s missing accnum output to %s' % (rje.iLen(extract),mfile))
-                if self.i() < 0 or rje.yesNo('Try one-by-one for the %s failures?' % rje.iStr(fx)):
+                    self.dict['Output']['failed'] = mfile
+                if not self.getStrLC('Rest') and (self.i() < 0 or rje.yesNo('Try one-by-one for the %s failures?' % rje.iStr(fx))):
                     self.printLog('#FAIL','UniProt._extractProteinsFromURL() failures. Will try one-by-one for failures.')
-                    return self._extractFromURL(extract,logft,False,reformat,log,onebyone=True)
+                    return rx > 0 or self._extractFromURL(extract,logft,False,reformat,log,onebyone=True)
             return True
         except:
             self.errorLog('UniProt._extractProteinsFromURL() Failed. Check format. Will try one-by-one for full set.')
@@ -974,6 +1026,8 @@ class UniProt(rje.RJE_Object):
                         extracted[acc] += 1
                         new_id = self.list['Entry'][-1].obj['Sequence'].info['ID']
                         new_acc = self.list['Entry'][-1].obj['Sequence'].info['AccNum']
+                        try: self.db('map').addEntry({'uniprotid':acc,'accnum':new_acc},warn=False)
+                        except: self.debug(self.db('map'))
                         if acc not in [new_id,new_acc]: self.printLog('\n#ACC','Secondary AccNum %s mapped to %s (%s).' % (acc,new_id,new_acc),screen=self.v() > 0)
                         if new_acc in primaries: self.list['Entry'].pop(-1); dx += 1 # Duplicate!
                         else:
@@ -1026,7 +1080,11 @@ class UniProt(rje.RJE_Object):
             return True     
         except: self.errorLog('Cataclysmic error during %s._processWholeFile()!' % self); return False
 #########################################################################################################################
-    def _newEntryObject(self): return UniProtEntry(log=self.log,cmd_list=self.cmd_list,parent=self)
+    def _newEntryObject(self):
+        ecmd = self.cmd_list
+        # Add Pfam to DBParse list if required for PfamOut
+        if self.getStrLC('PfamOut') and 'pfam' not in self.list['DBList']: ecmd.append('dblist=%s,pfam' % string.join(self.list['DBList'],','))
+        return UniProtEntry(log=self.log,cmd_list=ecmd,parent=self)
 #########################################################################################################################
     def _writeSingleEntry(self,_entry,reformat=False): ### Handles writing of entry data from _readSingleEntry
         '''Handles writing of entry data from _readSingleEntry.'''
@@ -1205,13 +1263,21 @@ class UniProt(rje.RJE_Object):
             ### ~ [1] ~ Output xref and feature tables ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             ## ~ [1a] ~ Database Links Tables ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             if self.getBool('GOTable'): self.goTable()
-            if self.getStrLC('XRefOut') or self.getBool('DBSplit'): self.xrefOutput()
+            if self.getStrLC('XRefOut') or self.getBool('DBSplit') or self.getStrLC('PfamOut'): self.xrefOutput()
             ## ~ [1b] ~ Feature/Domain output ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             if self.getStrLC('FTOut') or self.getBool('DomTable'): self.ftOutput()
+            ## ~ [1c] ~ Mapping information ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            try:
+                if self.getStrLC('DATOut') or self.getStrLC('TabOut'):
+                    if self.db('map').entryNum(): self.db('map').saveToFile(self.getStr('MapOut'))
+            except: self.errorLog('Problem saving AccNum map table.')
 
             ### ~ [2] ~ Special Table Output ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if self.info['TabOut'].lower() in ['','none']:
                 return
+
+
+            #!# Add secondary accnum! #!#
 
             ### Setup Groups and Columns ###
             headers = {'#1# Basic Details #':['#','AccNum','ID','Len','Description','Gene','Species'],
@@ -1439,7 +1505,12 @@ class UniProt(rje.RJE_Object):
         '''Delimited output of UniProt database links.'''
         try:### ~ [0] ~ Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             xdb = self.db('xref')
-            if not xdb.entryNum(): self.printLog('#XREF','No database xref parsed for output!')
+            if self.getStrLC('PfamOut'):
+                pfamdata = xdb.subset('db','Pfam',copy=False)
+                self.debug(pfamdata)
+            if 'pfam' not in self.list['DBList'] and 'Pfam' in xdb.index('db'): xdb.dropEntriesDirect('db',['Pfam'])
+            if not self.getStrLC('XRefOut'): self.printLog('#XREF','No xref output (xrefout=F/None).')
+            elif not xdb.entryNum(): self.printLog('#XREF','No database xref parsed for output!')
             ### ~ [1] ~ Split output ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             elif self.getBool('DBSplit'): self.linkDBSplitOutput()
             ### ~ [2] ~ Simple output ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -1464,7 +1535,32 @@ class UniProt(rje.RJE_Object):
                     self.progLog('\r#OUT','Database Links output: %.1f%%' % (ex/etot)); ex += 100.0
                 self.printLog('\r#OUT','Database Links output for %s entries.' % rje.integerString(self.entryNum()))
                 LINKFILE.close()
-            ### ~ [4] ~ Memsaver clearup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            ### ~ [4] ~ Pfam Table Output ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            if self.getStrLC('PfamOut'):
+                pfamdb = self.db().addEmptyTable('pfam',['accnum','pfam','name','num'],['accnum','pfam'])
+                acclist = []
+                for (acc,db) in rje.sortKeys(pfamdata):
+                    pfamdata[acc] = pfamdata.pop((acc,db))
+                    acclist.append(acc)
+                self.debug(pfamdata)
+                for entry in self.entries():
+                    acc = entry.accNum()
+                    if acc not in acclist: acclist.append(acc)
+                if self.db('map'): acclist = rje.listUnion(acclist,self.db('map').indexKeys('accnum'))
+                acclist.sort()
+                if '!FAILED!' in acclist: acclist.remove('!FAILED!')
+                self.debug(acclist)
+                for acc in acclist:
+                    if acc in pfamdata:
+                        for pfamdom in string.split(pfamdata.pop(acc)['xref'],'|'):
+                            domdata = string.split(pfamdom,'; ')
+                            pentry = {'accnum':acc,'pfam':domdata[0],'name':pfamdom,'num':0}
+                            if len(domdata) > 1: pentry['name'] = domdata[1]
+                            if len(domdata) > 2: pentry['num'] = int(domdata[2][:-1])
+                            pfamdb.addEntry(pentry)
+                    else: pfamdb.addEntry({'accnum':acc,'pfam':'','name':'No Pfam domains parsed.','num':0})
+                pfamdb.saveToFile(self.getStr('PfamOut'))
+            ### ~ [5] ~ Memsaver clearup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if self.getBool('MemSaver'): self.db().deleteTable('xref')
         except: self.errorLog('Major error during UniProt.xrefOutput()!',quitchoice=True)
 #########################################################################################################################
@@ -2493,6 +2589,9 @@ class UniProtEntry(rje.RJE_Object):
                             ensm = rje.matchExp('(\S+)-(R\S)',ens)
                             if ensm: self.dict['DB']['ENST'].append('%s-%s' % ensm)
                         if ensm and ensm[0] not in self.dict['DB']['ENSG']: self.dict['DB']['ENSG'].append(ensm[0])
+                # Cleanup empty entries for xref output
+                for db in ['ENSG','ENSP','ENST']:
+                    if not self.dict['DB'][db]: self.dict['DB'].pop(db)
                 return True
 
             ###~RefSeq/NCBI (From IPI DAT)~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~###
@@ -2775,8 +2874,10 @@ def processUniProt(callobj,makeindex=True,makespec=True,makefas=True,temp=False)
         unipath = callobj.info['UniPath']
         try: indexfile = unipath + callobj.info['DBIndex']
         except: indexfile = unipath + 'uniprot.index'
-        datfiles = glob.glob('%s*.dat' % unipath)
-        datfiles.sort()
+        if callobj.getStrLC('Name'): datfiles = [callobj.getStr('Name')]
+        else:
+            datfiles = glob.glob('%s*.dat' % unipath)
+            datfiles.sort()
         if not datfiles: return callobj.errorLog('No *.dat files found in %s!' % unipath,printerror=False)
         ## ~ [1a] Check index file ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
         if makeindex or callobj.stat['Interactive'] < 1 or rje.yesNo('Check/Make UniProt index file?'):

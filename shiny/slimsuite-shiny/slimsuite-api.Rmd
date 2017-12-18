@@ -1,0 +1,160 @@
+---
+title: "SLiMSuite REST API"
+author: "Rich Edwards"
+date: "18/12/2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Programmatic access to SLiMSuite REST services
+
+By default, the REST services return human-readable HTML when queued or running. Default output is formatted full server output.
+
+Individual components can be accessed in plain text using &rest=X, where X is the chosen server output. Details of server output can be found in the main Help page for universal outputs, or by running the chosen program with &rest=outfmt. REST outputs are also listed in the main documentation for the program, accessed with &rest=docs.
+
+However, even when plain text output is being required, the main program run may still need to go into a queue and/or may take several minutes to complete. To avoid proxy timeouts, these outputs will still go via a human-readable intermediate queue page.
+
+Programmatic access is therefore a three step process:
+
+1. Set the job going and retrieve the `JobID` by calling the program with `&rest=jobid`. This will return the job ID in the form of an 11-digit number, e.g. `15010900002`.
+
+2. Check the progress of your job using `check&jobid=X`, where `X` is the job ID returned in step 1. This will return `Queued`, `Running` or `Finished`, dependent on the status of the job. If something has gone wrong, `Failed` will be returned. Please cycle and check periodically until `Finished` is return. We request that you do not make this cycle period too short - once every few seconds/minutes (depending on the job) is recommended.
+
+3. Once `Finished`, retrieve the desired output using `retrieve&jobid=X&rest=X`. To get all outputs, use `&rest=full`. The tool `SLiMParser` can be used to split the full output into separate files if desired. If there is a problem, the output should start with `ERROR:`.
+
+Note: By default, jobs are unprotected. To eliminate the risk of other users retrieving your jobs, you can add `&password=X` to each of these calls.
+
+SLiMParser can also be used to execute this process in full:
+
+```
+python SLIMSUITEPATH/tools/slimparser.py restin=RESTURL restout=T restoutdir=PATH
+```
+
+## Example R Code for Programmatic Access
+
+We will be using the mock ["Zen Wisdom Generator"](http://rest.slimsuite.unsw.edu.au/zen) as an example as it is quick to run. (**Disclaimer:** `rje_zen` was written to generate entertaining errors during testing and word combinations are random - it is not to be taken seriously in _any_ way!)
+
+First, we need to set up the URL for the server call itself (see <http://rest.slimsuite.unsw.edu.au>). The basic REST commands all have the same structure:
+
+```
+http://rest.slimsuite.unsw.edu.au/prog&options
+```
+
+where `prog` is the SLiMSuite program to run and `&options` is a list of options separated by `&` characters in the form `&cmd=value`. Options match those documented in the relevant SLiMSuite program, e.g. the command line option `dismask=T` would be given as `&dismask=T`. In addition, the server can take `&rest=X` to specificy the output and/or `&password=X` to protect the job with a password.
+
+**Note:** Without at least one `&` in the URL, it be recognised as a documentation request, e.g. (`http://rest.slimsuite.unsw.edu.au/zen`)[http://rest.slimsuite.unsw.edu.au/zen].
+
+```{r rest}
+restbase = "http://rest.slimsuite.unsw.edu.au/"
+restprog = "zen"
+# We will set the server to return 10 wisdoms and sleep for 1s between wisdoms, so the job should take about 10 seconds.
+restopt = "&wisdoms=10&zensleep=1"
+#i# Full REST call:
+restcall = paste0(restbase,restprog,restopt)
+writeLines(restcall)
+```
+
+Next, we need to call the server and retrieve the job ID:
+
+```{r jobid}
+jobcall = paste0(restcall,"&rest=jobid")
+writeLines(jobcall)
+jobid = readLines(jobcall,warn=FALSE)
+writeLines(jobid)
+```
+
+Then, we check the status of the job. Jobs can be `Queued`, `Running`, `Finished` or `Failed`, so we will want to loop until it is complete:
+
+```{r checkstatus}
+jobcall = paste0(restcall,"&rest=jobid")
+writeLines(jobcall)
+jobid = readLines(jobcall,warn=FALSE)
+joburl = paste0(restbase,"check","&jobid=",jobid)
+writeLines(joburl)
+status = readLines(joburl,warn=FALSE)
+while(! status %in% c("Finished","Failed")){
+  writeLines(paste0(status," - Sleep!"))
+  Sys.sleep(5)   # We will pause for a five seconds to give the job a chance
+  status = readLines(joburl,warn=FALSE)
+}
+writeLines(status)
+```
+**Note:** Bigger jobs will be queued for a while before Running. It is not currently possible to predict the length of time that jobs might be queued. You can see the current queue status at <http://rest.slimsuite.unsw.edu.au/status>.
+
+Once the job is run, you will want to retrieve the results. A list of possible outputs for each server can be retrieved with `&rest=restkeys`:
+
+```{r restkeys}
+joburl = paste0(restbase,"retrieve&jobid=",jobid,"&rest=restkeys")
+writeLines(joburl)
+restkeys = readLines(joburl,warn=FALSE)
+print(restkeys)
+```
+The following are generic for all servers: `status`, `version`, `ini`, `log`, `warnings`, `errors`, `prog`. Not all of these appear in the `restkeys` list.
+
+Additional outputs are server-specific. In this case, we have `wisdoms`. These can be read simply into a character vector like the `restkeys` output itself, using `readLines()`:
+
+```{r wisdoms}
+restkey = "wisdoms"
+joburl = paste0(restbase,"retrieve&jobid=",jobid,"&rest=",restkey)
+writeLines(joburl)
+wisdoms = readLines(joburl,warn=FALSE)
+writeLines(wisdoms)
+```
+It is also possible to read outputs into a data frame using `read.delim()`. The `log` output, for example, is a tab-delimited file (without headers):
+
+```{r logtable}
+restkey = "log"
+joburl = paste0(restbase,"retrieve&jobid=",jobid,"&rest=",restkey)
+writeLines(joburl)
+logtable = read.delim(joburl,header=FALSE,sep="\t")
+colnames(logtable) = c("Log","Time","Description")
+summary(logtable)
+knitr::kable(logtable, caption="Tabulated log output")
+```
+
+Other servers have tabular outputs that include headers and/or are comma separated (denoted by `*.csv` extensions). The will need to be parsed with `headers=TRUE` and/or `sep=","` (or `read.csv()`).
+
+### SLiMProb example
+We can put this altogether to use a different server with an example from the [BioInfoSummer2015 SLiMSuite Workshop](http://slimsuite.blogspot.com.au/2015/12/bioinfosummer2015-slimsuite-workshop.html). This time, we will call [SliMProb](http://rest.slimsuite.unsw.edu.au/slimprob) to find a couple of custom motifs in an Uniprot protein. We will also update the code to be able to handle a password:
+
+```{r fullapi}
+#1# Setup REST Options
+restbase = "http://rest.slimsuite.unsw.edu.au/"
+restprog = "slimprob"
+restopt = "&uniprotid=E1A_ADE02&motifs=LxCxE,PxDLS"
+password = "None"   
+#i# Running with None will set no password. If a password is set, it will be needed for all retrieve calls.
+#># Get JobID:
+restcall = paste0(restbase,restprog,restopt,"&password=",password,"&rest=jobid")
+jobid = readLines(restcall,warn=FALSE)
+writeLines(paste(restcall,"=",jobid))
+#># Check for job completion
+cycles = 0
+joburl = paste0(restbase,"check","&jobid=",jobid,"&password=",password)
+status = readLines(joburl,warn=FALSE)
+while(! status %in% c("Finished","Failed")){
+  cycles = cycles + 1
+  Sys.sleep(5)   # We will pause for a five seconds to give the job a chance
+  status = readLines(joburl,warn=FALSE)
+}
+writeLines(paste(status,"after",cycles,"sleep cycles"))
+#># Print restkeys for SLiMProb server
+joburl = paste0(restbase,"retrieve&jobid=",jobid,"&rest=restkeys","&password=",password)
+restkeys = readLines(joburl,warn=FALSE)
+print(restkeys)
+writeLines( readLines(paste0(restbase,"retrieve&jobid=",jobid,"&rest=warnings","&password=",password), warn=FALSE) )
+writeLines( readLines(paste0(restbase,"retrieve&jobid=",jobid,"&rest=errors","&password=",password), warn=FALSE) )
+#># Retrieve SLiMProb Occ
+restkey = "occ"
+joburl = paste0(restbase,"retrieve&jobid=",jobid,"&rest=",restkey,"&password=",password)
+occdb = read.csv(joburl)
+knitr::kable(occdb, caption="SLiMProb Occurrences")
+```
+
+---
+
+
+

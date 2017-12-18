@@ -19,8 +19,8 @@
 """
 Module:       SLiMBench
 Description:  Short Linear Motif prediction Benchmarking
-Version:      2.10.1
-Last Edit:    25/11/15
+Version:      2.14.0
+Last Edit:    08/11/17
 Citation:     Palopoli N, Lythgow KT & Edwards RJ. Bioinformatics 2015; doi: 10.1093/bioinformatics/btv155 [PMID: 25792551]
 Copyright (C) 2012  Richard J. Edwards - See source code for GNU License Notice
 
@@ -40,17 +40,18 @@ Function:
 
 Commandline:
     ### ~ SOURCE DATA OPTIONS ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-    sourcepath=PATH/    : Will look in this directory for input files if not found ['SourceData/']
+    sourcepath=PATH/    : Will look in this directory for input files if not found [SourceData/]
     sourcedate=DATE     : Source file date (YYYY-MM-DD) to preferentially use [None]
-    elmclass=FILE       : Download from ELM website of ELM classes ['elm_classes.tsv']
-    elminstance=FILE    : Download from ELM website of ELM instances ['elm_instances.tsv']
-    elminteractors=FILE : Download from ELM website of ELM interactors ['elm_interactions.tsv']
-    elmdomains=FILE     : Download from ELM website of ELM Pfam domain interactors ['elm_interaction_domains.tsv']
+    elmclass=FILE       : Download from ELM website of ELM classes [elm_classes.tsv]
+    elminstance=FILE    : Download from ELM website of ELM instances [elm_instances.tsv]
+    elminteractors=FILE : Download from ELM website of ELM interactors [elm_interactions.tsv]
+    elmdomains=FILE     : Download from ELM website of ELM Pfam domain interactors [elm_interaction_domains.tsv]
     elmdat=FILE         : File of downloaded UniProt entries (See rje_uniprot for more details) ['ELM.dat']
     ppisource=X         : Source of PPI data. (See documentation for details.) (HINT/FILE) ['HINT']
     ppispec=LIST        : List of PPI files/species/databases to generate PPI datasets from [HUMAN,MOUSE,DROME,YEAST]
     ppid=X              : PPI source protein identifier type (gene/uni/none; will work out from headers if None) [None]
     randsource=FILE     : Source for random/simulated dataset sequences. If species, will extract from UniProt [HUMAN]
+    randat=T/F          : Whether to use DAT file for random source [False]
     download=T/F        : Whether to download files directly from websites where possible if missing [True]
     integrity=T/F       : Whether to quit by default if source data integrity is breached [False]
     unipath=PATH        : Path to UniProt download. Will query website if "URL" [URL]
@@ -87,13 +88,14 @@ Commandline:
 
     ### ~ BENCHMARK ASSESSMENT OPTIONS ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     benchmark=T/F       : Whether to perfrom SLiMBench benchmarking assessment against motif file [False]
-    datatype=X          : Type of data to be generated and/or benchmarked (occ/elm/ppi/sim/simonly) [elm]
+    datatype=X          : Type of data to be generated and/or benchmarked (occ/elm/ppi/dom/sim/simonly) [elm]
     queries=T/F         : Whether to datasets have specific Query proteins [False]
     resfiles=LIST       : List of (Q)SLiMFinder results files to use for benchmarking [*.csv]
+    balanced=T/F        : Whether to reduce benchmarking to datasets found for all RunIDs [True]
     compdb=FILE         : Motif file to be used for benchmarking [elmclass file] (reduced unless occ/ppi)
     occbenchpos=FILE    : File of all positive occurrences for OccBench [genpath/ELM_OccBench/ELM.full.ratings.csv]
     benchbase=X         : Basefile for SLiMBench benchmarking output [slimbench]
-    runid=LIST          : List of factors to split RunID column into (on '.') ['Program','Analysis']
+    runid=LIST          : List of factors to split RunID column into (on '.') [Program,Analysis]
     bycloud=X           : Whether to compress results into clouds prior to assessment (True/False/Both) [Both]
     sigcut=LIST         : Significance thresholds to use for assessment [0.1,0.05,0.01,0.001,0.0001]
     iccut=LIST          : Minimum IC for (Q)SLiMFinder results for elm/sim/ppi benchmark assessment [2.0,2.1,3.0]
@@ -149,6 +151,16 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 2.9.1 - Enabled download only with generate=F benchmark=F.
     # 2.10.0 - Add generation of table mapping PPIBench dataset generation.
     # 2.10.1 - Updated ELM Source URLs.
+    # 2.10.2 - Updated HINT Source URLs.
+    # 2.11.0 - Fixed issue with ELM motifs file names (*.motifs, not *.motifs.txt). Updated some warning/error messages.
+    # 2.11.1 - Switched mergesplits=F for SLiMProb run. (Not expecting it.)
+    # 2.11.2 - Trying to complete implementation of PPIBench.
+    # 2.11.3 - Fixed ppdb bug when making simbench without ppibench.
+    # 2.12.0 - Added randat=T/F : Whether to use DAT file for random source [False]
+    # 2.13.0 - Added balanced=T/F : Whether to reduce benchmarking to datasets found for all RunIDs [True]
+    # 2.13.1 - Set tuplekeys=T for benchmark assessment runs.
+    # 2.13.2 - Fixed tuplekeys=T bug for benchmark assessment runs.
+    # 2.14.0 - Added wPPV = SN/(SN+FPR) for OccBench.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -192,11 +204,15 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
     # [Y] : Add new ELM domain interactions table: http://www.elm.eu.org/infos/browse_elm_interactiondomains.tsv = "ELM identifier"	"Interaction Domain Id"	"Interaction Domain Description"	"Interaction Domain Name"
     # [ ] : Consider adding Domain Name to DPI files (in addition to Pfam ID).
     # [ ] : Add CompariMotif settings for OT/TP etc. - How will they affect benchmarking?
+    # [ ] : Update to handle run with mergesplits=T.
+    # [ ] : Fixed ppi benchmark in non-Memsaver mode.
+    # [ ] : Check domppi benchmark=T.
+    # [ ] : Check SimBench generation with queries=F and region settings.
     '''
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copyyear) = ('SLiMBench', '2.10.1', 'November 2015', '2012')
+    (program, version, last_edit, copyyear) = ('SLiMBench', '2.14.0', 'November 2017', '2012')
     description = 'Short Linear Motif prediction Benchmarking'
     author = 'Dr Richard J. Edwards.'
     comments = ['Cite: Palopoli N, Lythgow KT & Edwards RJ. Bioinformatics 2015; doi: 10.1093/bioinformatics/btv155 [PMID: 25792551]',
@@ -287,6 +303,7 @@ class SLiMBench(rje_obj.RJE_Object):
     - SourcePath = Will look in this directory for input files if not found ['SourceData/']
 
     Bool:boolean
+    - Balanced=T/F        : Whether to reduce benchmarking to datasets found for all RunIDs [True]
     - Benchmark = Whether to perfrom SLiMBench benchmarking assessment [False]
     - DomBench = Whether to generate Pfam domain ELM PPI datasets [True]
     - DomLink = Link ELMs to PPI via Pfam domains (True) or (False) just use direct protein links [True]
@@ -300,6 +317,7 @@ class SLiMBench(rje_obj.RJE_Object):
     - PPIBench = Whether to generate ELM PPI datasets [True]
     - Queries = Whether to generate datasets with specific Query proteins [True]
     - RanBench = Whether to generate randomised datasets (part of simulation if SimBench=T) [False]
+    - RanDat=T/F : Whether to use DAT file for random source [False]
     - SimBench = Whether to generate simulated datasets using reduced ELMs (if found) [False]
     - SLiMMaker = Whether to use SLiMMaker to "reduce" ELMs to more findable SLiMs [True]
 
@@ -345,8 +363,8 @@ class SLiMBench(rje_obj.RJE_Object):
         self.strlist = ['BenchBase','ByCloud','CompDB','DataType','DMIData','ELMClass','ELMDat','ELMInstance','IType',
                         'ELMInteractors','FilterDir','GenPath','OccBenchPos','PPISource','PPID','ELMDomains',
                         'RanDir','RandBase','RandSource','SourcePath','SourceDate','SearchINI']
-        self.boollist = ['Benchmark','DomBench','Download','ELMBench','OccBench','PPIBench','Generate','Integrity','Masking',
-                         'NoAmb','Queries','RanBench','SimBench','SLiMMaker','DomLink']
+        self.boollist = ['Balanced','Benchmark','DomBench','Download','ELMBench','OccBench','PPIBench','Generate','Integrity','Masking',
+                         'NoAmb','Queries','RanBench','RanDat','SimBench','SLiMMaker','DomLink']
         self.intlist = ['MinUPC','RandReps']
         self.numlist = ['MinIC','MinResIC']
         self.listlist = ['GenSpec','ByCloud','FlankMask','ICCut','SimCount','ResFiles','RunID','SimRatios','SigCut','SLiMLenCut','PPISpec']
@@ -363,7 +381,8 @@ class SLiMBench(rje_obj.RJE_Object):
                      'RanDir':rje.makePath('./Random/'),'RandBase':'rand',
                      'SourcePath':rje.makePath('./SourceData/')})
         self.setBool({'Generate':False,'Integrity':False,'Masking':True,'NoAmb':False,'Queries':False,'SLiMMaker':True,
-                      'ELMBench':True,'PPIBench':True,'Download':True,'DomBench':True,'OccBench':True,'DomLink':True})
+                      'ELMBench':True,'PPIBench':True,'Download':True,'DomBench':True,'OccBench':True,'DomLink':True,
+                      'Balanced':True})
         self.setInt({'MinUPC':3,'RandReps':8})
         self.setNum({'MinIC':2.0,'MinResIC':2.1})
         self.cmd_list = ['minic=2.0','minupc=3'] + self.cmd_list    # Propagate defaults
@@ -375,10 +394,9 @@ class SLiMBench(rje_obj.RJE_Object):
         self.list['SigCut'] = [0.1,0.05,0.01,0.001,0.0001]
         self.list['SLiMLenCut'] = [0,3,4,5]
         self.list['ICCut'] = [2.0,2.1,3.0]
-        self._cmdRead('resfiles=*.csv',type='glist',att='ResFiles')
         ### ~ Other Attributes ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         self.cmd_list.insert(0,'basefile=slimbench')
-        self.obj['DB'] = rje_db.Database(self.log,self.cmd_list)
+        self.obj['DB'] = rje_db.Database(self.log,self.cmd_list+['tuplekeys=T'])
         self.obj['SLiMMaker'] = slimmaker.SLiMMaker(self.log,self.cmd_list)
         self.obj['UniProt'] = rje_uniprot.UniProt(self.log,['unipath=url']+self.cmd_list)
 #########################################################################################################################
@@ -396,7 +414,7 @@ class SLiMBench(rje_obj.RJE_Object):
                 self._cmdReadList(cmd,'date',['SourceDate'])   # Normal strings
                 self._cmdReadList(cmd,'path',['GenPath','RanDir','SourcePath'])  # String representing directory path 
                 self._cmdReadList(cmd,'file',['BenchBase','CompDB','ELMClass','ELMInstance','ELMInteractors','ELMDomains','SearchINI','RandSource','ELMDat','OccBenchPos','PPISource'])  # String representing file path
-                self._cmdReadList(cmd,'bool',['Benchmark','DomBench','DomLink','Download','ELMBench','OccBench','PPIBench','Generate','Integrity','Masking','NoAmb','Queries','RanBench','SimBench','SLiMMaker'])  # True/False Booleans
+                self._cmdReadList(cmd,'bool',['Benchmark','DomBench','DomLink','Download','ELMBench','OccBench','PPIBench','Generate','Integrity','Masking','NoAmb','Queries','RanBench','RanDat','SimBench','SLiMMaker'])  # True/False Booleans
                 self._cmdReadList(cmd,'int',['MinUPC','RandReps'])   # Integers
                 self._cmdReadList(cmd,'float',['MinIC','MinResIC']) # Floats
                 #self._cmdReadList(cmd,'min',['Att'])   # Integer value part of min,max command
@@ -421,6 +439,7 @@ class SLiMBench(rje_obj.RJE_Object):
         if not self.getStrLC('OccBenchPos'): self.setStr({'OccBenchPos':'%sELM_OccBench/ELM.full.ratings.csv' % self.getStr('GenPath')})
         if not self.dev(): self.setBool({'MemSaver':True})
         if not self.getStrLC('IType'): self.setStr({'IType':string.split(rje.baseFile(self.getStrLC('PPISource'),strip_path=True),'.')[0]})
+        if self.getBool('Benchmark') and not self.list['ResFiles']: self._cmdRead('resfiles=*.csv',type='glist',att='ResFiles')
 #########################################################################################################################
     ### <2> ### Main Class Backbone                                                                                     #
 #########################################################################################################################
@@ -482,11 +501,11 @@ class SLiMBench(rje_obj.RJE_Object):
                          'ELMInstance':'http://www.elm.eu.org/instances.tsv?q=*',
                          'ELMInteractors':'http://www.elm.eu.org/interactions/as_tsv',
                          'ELMDomains':'http://www.elm.eu.org/infos/browse_elm_interactiondomains.tsv',
-                         'HINT.HUMAN':'http://hint.yulab.org/HumanBinaryHQ.txt',
-                         'HINT.YEAST':'http://hint.yulab.org/CervBinaryHQ.txt',
-                         'HINT.MOUSE':'http://hint.yulab.org/MouseBinaryHQ.txt',
-                         'HINT.DROME':'http://hint.yulab.org/FlyBinaryHQ.txt',
-                         'HINT.CAEEL':'http://hint.yulab.org/WormBinaryHQ.txt',
+                         'HINT.HUMAN':'http://hint.yulab.org/download/HomoSapiens/binary/hq/',
+                         'HINT.YEAST':'http://hint.yulab.org/download/SaccharomycesCerevisiaeS288C/binary/hq/',
+                         'HINT.MOUSE':'http://hint.yulab.org/download/MusMusculus/binary/hq/',
+                         'HINT.DROME':'http://hint.yulab.org/download/DrosophilaMelanogaster/binary/hq/',
+                         'HINT.CAEEL':'http://hint.yulab.org/download/CaenorhabditisElegans/binary/hq/',
                          'Uniprot.HUMAN':'http://www.uniprot.org/uniprot/?query=organism:9606+AND+reviewed:yes&format=txt',
                          'Uniprot.YEAST':'http://www.uniprot.org/uniprot/?query=organism:559292+AND+reviewed:yes&format=txt',
                          'Uniprot.MOUSE':'http://www.uniprot.org/uniprot/?query=organism:10090+AND+reviewed:yes&format=txt',
@@ -519,14 +538,15 @@ class SLiMBench(rje_obj.RJE_Object):
             if not expect: return None
 
             ### ~ [2] Optional download ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            if self.getBool('Download') and str in ['HINT.DROME']:
-                self.warnLog('Trying to correct for dodgy HINT.DROME download w/o headers')
-                ## Special fudge 
-                open(nowfile,'w').write('%s\n' % string.join('Id_A Id_B Gene_A Gene_B Pubmedid,EvidenceCode,HT'.split(),'\t'))
-                sourcefile = nowfile
-                rje.urlToFile(sourceurl[str],nowfile,self,backupfile=False)
-                sentry['Status'] = 'Download'
-            elif self.getBool('Download') and str in sourceurl:
+            #x# Special fudge for DROME no longer required. NOTE: HINT headers have now changed.
+            #if self.getBool('Download') and str in ['HINT.DROME']:
+            #    self.warnLog('Trying to correct for dodgy HINT.DROME download w/o headers')
+            #    ## Special fudge
+            #    open(nowfile,'w').write('%s\n' % string.join('Id_A Id_B Gene_A Gene_B Pubmedid,EvidenceCode,HT'.split(),'\t'))
+            #    sourcefile = nowfile
+            #    rje.urlToFile(sourceurl[str],nowfile,self,backupfile=False)
+            #    sentry['Status'] = 'Download'
+            if self.getBool('Download') and str in sourceurl:
                 sourcefile = nowfile
                 rje.urlToFile(sourceurl[str],nowfile,self)
                 sentry['Status'] = 'Download'
@@ -696,7 +716,7 @@ class SLiMBench(rje_obj.RJE_Object):
 
             ### ~ [3] Generate ELM motif file ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             elmbase = '%s%s' % (self.getStr('SourcePath'),rje.baseFile(self.getStr('ELMClass'),strip_path=True))
-            motif_file = '%s.motifs.txt' % elmbase
+            motif_file = '%s.motifs' % elmbase
             sentry = sdb.addEntry({'Name':'ELMMotifs','File':motif_file,'Status':'Found'})
             if rje.checkForFile(motif_file) and not self.force(): self.printLog('#MOTIF','%s file found (force=F).' % motif_file)
             else:
@@ -734,6 +754,7 @@ class SLiMBench(rje_obj.RJE_Object):
                     needsource = (self.getBool('PPIBench') and not ppifile) or (self.getBool('DomBench') and not domfile)  or (self.getBool('DomBench') and not ppifile)
                     ppisource = self.sourceDataFile('%s.%s' % (self.getStr('PPISource'),spec),expect=needsource,ask=False)  # If this exists, will use
                 ## ~ [4d] Download/Check/Generate Pairwise PPI Data ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+                    ppdb = None
                     if ppifile:
                         if not ppisource: self.warnLog('%s exists but source %s not found.' % (self.getStr('PPI.%s' % spec),self.getStr('PPISource')),quitchoice=self.getBool('Integrity'))
                         ppdb = self.db().addTable(ppifile,mainkeys=['Hub','Spoke'],name='PPI.%s' % spec)
@@ -749,6 +770,7 @@ class SLiMBench(rje_obj.RJE_Object):
                             else:
                                 ppuni = rje_uniprot.UniProt(self.log,self.cmd_list+['dbparse=flybase,pfam'])   #!# Make sure to add more as needed #!#
                                 ppuni.setStr({'Name':ppidat})
+                                ppuni.baseFile(rje.baseFile(ppidat))
                                 ppuni.readUniProt()
                                 sdb.data('Uniprot.%s' % spec)['Entries'] = ppuni.entryNum()
                                 if not self.getBool('MemSaver'): self.dict['UniSpec'][spec] = ppuni
@@ -757,8 +779,12 @@ class SLiMBench(rje_obj.RJE_Object):
                                 acc = entry.acc()
                                 if 'FlyBase' in entry.dict['DB']:
                                     for fbg in entry.dict['DB']['FlyBase']:
-                                        for pentry in ppdb.indexEntries('Id_A',fbg): pentry['HubUni'] = acc
-                                        for pentry in ppdb.indexEntries('Id_B',fbg): pentry['SpokeUni'] = acc
+                                        for field in ['Id_A','Gene_A']:
+                                            if field in ppdb.fields():
+                                                for pentry in ppdb.indexEntries(field,fbg): pentry['HubUni'] = acc
+                                        for field in ['Id_B','Gene_B']:
+                                            if field in ppdb.fields():
+                                                for pentry in ppdb.indexEntries(field,fbg): pentry['SpokeUni'] = acc
                                 #if gene in ppdb.index('Hub'):
                                 for pentry in ppdb.indexEntries('Hub',gene): pentry['HubUni'] = acc
                                 for pentry in ppdb.indexEntries('Spoke',gene): pentry['SpokeUni'] = acc
@@ -768,7 +794,7 @@ class SLiMBench(rje_obj.RJE_Object):
                         #ppdb.dropEntriesDirect('Spoke',[''])
                         ppdb.saveToFile(ppifile)
                         self.db().list['Tables'].append(ppdb)
-                    sdb.data('PPI.%s' % spec)['Entries'] = ppdb.entryNum()
+                    if ppdb: sdb.data('PPI.%s' % spec)['Entries'] = ppdb.entryNum()
                     if not domfile and self.getBool('PPIBench'):  ## Generate Pairwise PPI file
                         domfile = string.replace(ppisource,'ppi','domppi')  #!# Is this used for anything ever?
                 ## ~ [4e] Generate Protein-Pfam Links ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
@@ -805,7 +831,8 @@ class SLiMBench(rje_obj.RJE_Object):
                         if not makedomdb: pfx += len(entry.dict['DB']['Pfam']); continue
                         for pfam in entry.dict['DB']['Pfam']:
                             pfx += 1
-                            for pentry in ppdb.indexEntries('HubUni',acc): domdb.addEntry({'Pfam':pfam,'Spoke':pentry['Spoke'],'SpokeUni':pentry['SpokeUni']},warn=False)
+                            if ppdb:
+                                for pentry in ppdb.indexEntries('HubUni',acc): domdb.addEntry({'Pfam':pfam,'Spoke':pentry['Spoke'],'SpokeUni':pentry['SpokeUni']},warn=False)
                     if makedomdb:
                         domdb.saveToFile(domfile)
                         self.printLog('#PFAM','Added %s DomPPI for %s Pfam domains in %s of %s UniProt entries.' % (rje.iStr(domdb.entryNum()),rje.iStr(pfx),rje.iStr(epx),rje.iStr(utot)))
@@ -826,13 +853,15 @@ class SLiMBench(rje_obj.RJE_Object):
                     randdat = self.sourceDataFile(datkey,expect=True,ask=False)
                     #self.deBug(randdat)
                     if randdat:
-                        self.setStr({'RandSource':rje.baseFile(randdat) + '.fas'})
-                        rseq = rje_seq.SeqList(self.log,['seqin=%s' % randdat,'seqout=%s' % self.getStr('RandSource'),'autoload=T','gnspacc=T','memsaver=T','accnr=F','seqnr=F','autofilter=T'])
-                        #!# autofilter=T fudge to get this to work (for some reason) #!#
-                        #!# Replace with UniProt code at some point - option to output splice variants too? #!#
-                        sdb.data('RandSource')['Status'] = 'Made'
-                        sdb.data('RandSource')['File'] = self.getStr('RandSource')
-                        #self.deBug(self.getStr('RandSource')); self.deBug(rje.exists(self.getStr('RandSource')))
+                        if self.getBool('RanDat'): self.setStr({'RandSource':randdat})
+                        else:
+                            self.setStr({'RandSource':rje.baseFile(randdat) + '.fas'})
+                            rseq = rje_seq.SeqList(self.log,['seqin=%s' % randdat,'seqout=%s' % self.getStr('RandSource'),'autoload=T','gnspacc=T','memsaver=T','accnr=F','seqnr=F','autofilter=T'])
+                            #!# autofilter=T fudge to get this to work (for some reason) #!#
+                            #!# Replace with UniProt code at some point - option to output splice variants too? #!#
+                            sdb.data('RandSource')['Status'] = 'Made'
+                            sdb.data('RandSource')['File'] = self.getStr('RandSource')
+                            #self.deBug(self.getStr('RandSource')); self.deBug(rje.exists(self.getStr('RandSource')))
                         randfas = self.sourceDataFile('RandSource',expect=True,ask=False)  # If this exists, will use
                     else:
                         self.str.pop(datkey)
@@ -849,7 +878,7 @@ class SLiMBench(rje_obj.RJE_Object):
             #!# Add integrity/date check using sb entries #!#
             if 'Download' in self.db('Source').index('Status'): sdb.saveToFile()
             if not self.force() and 'Download' in self.db('Source').index('Status'): 
-                self.setBool({'Force':rje.yesNo('New source download detected: switch force=T?')})
+                self.setBool({'Force':rje.yesNo('New source download detected: switch force=T for SLiMBench?')})
             return True     # Setup successful            
         except KeyboardInterrupt: raise
         except: self.errorLog('Problem during SLiMBench.setupSourceData().'); return False  # Setup failed
@@ -1204,7 +1233,7 @@ class SLiMBench(rje_obj.RJE_Object):
             self.printLog('#~~#','# ~~~~~~~~~~~~~~~~~~~~~~~ SLiMMaker ELM Reduction ~~~~~~~~~~~~~~~~~~~~~~~~~~~ #')
             db = self.obj['DB']
             elmbase = '%s%s' % (self.getStr('GenPath'),rje.baseFile(self.getStr('ELMClass'),strip_path=True))
-            motif_file = '%s.reduced.motifs.txt' % elmbase
+            motif_file = '%s.reduced.motifs' % elmbase
             datadir = rje.makePath('%sELM_Reduced/' % self.getStr('GenPath'))
             if os.path.exists(datadir) and self.force(): rje.deleteDir(self,datadir)
             rje.mkDir(self,datadir,True)
@@ -1295,12 +1324,12 @@ class SLiMBench(rje_obj.RJE_Object):
             ### ~ [2] ~ Generate Reduced ELM Datasets ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if not self.getBool('ELMBench') and not self.getBool('OccBench'): return
             self.printLog('#~~#','# ~~~~~~~~~~~~~~~~~~~~~~~ Reduced ELM Datasets ~~~~~~~~~~~~~~~~~~~~~~~~~~~ #')
-            seqfilex = 0
+            seqfilex = 0; redelms = []  # File count and list of Reduced ELMs output
             for elm in elmc.dataKeys():
                 elmseqfile = '%s%s.reduced.fas' % (datadir,elm)
                 if not self.force() and rje.checkForFile(elmseqfile):
                     elmc.data(elm)['ReducedSeqNum'] = rje_seq.SeqCount(self,elmseqfile)
-                    seqfilex += 1
+                    seqfilex += 1; redelms.append(elm)
                 else:
                     rje.backup(self,elmseqfile,appendable=False)
                     elmseqs = []
@@ -1316,10 +1345,11 @@ class SLiMBench(rje_obj.RJE_Object):
                         for seq in elmseqs: ELMSEQ.write(seq[0].fasta(seq[1]))
                         ELMSEQ.close()
                         self.printLog('#SEQ','%s sequences output to %s' % (len(elmseqs),elmseqfile))
-                        seqfilex += 1
+                        seqfilex += 1; redelms.append(elm)
                     else: self.printLog('#ELM','No sequences to output for %s' % elm)
             self.printLog('#DSETS','%d Reduced ELM sequence datasets (force=%s)' % (seqfilex,self.force()))
             elmc.saveToFile(rdbfile,backup=False)
+            if len(redelms) != seqfilex: raise ValueError('Reduced ELM seqfile count (%d) and ELM list size (%d) mismatch!' % (seqfilex,len(redelms)))
 
             ### ~ [3] ~ Generate OccBench Datasets ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if not self.getBool('OccBench'): return
@@ -1330,7 +1360,7 @@ class SLiMBench(rje_obj.RJE_Object):
                 else: self.printLog('#OCC','%s found (force=F).' % occfile); return
             occseq = rje_seqlist.SeqList(self.log,self.cmd_list+['autoload=F','seqout=%s' % occfile,'seqmode=list'])
             noseq = elmc.indexDataList('ReducedSeqNum',0,'ELMIdentifier')
-            for elm in elmc.dataKeys():
+            for elm in redelms:
                 elmseqfile = '%s%s.reduced.fas' % (datadir,elm)
                 if rje.exists(elmseqfile): occseq.loadSeq(elmseqfile,clearseq=False)
                 elif elm not in noseq: self.warnLog('Reduced ELM file %s missing!' % elmseqfile)
@@ -1368,7 +1398,7 @@ class SLiMBench(rje_obj.RJE_Object):
                 sscmd = ['extras=0','maxsize=0'] + self.cmd_list + ['runid=%s' % slimkey]   # Note that self.cmdlist defaults to minic=2.0
                 if rje.checkForFile(self.getStr('SearchINI')): sscmd += rje.getCmdList(['ini=%s' % self.getStr('SearchINI')])
                 sscmd += ['resfile=%s' % ssfile,'masking=F','basefile=None','occupc=T','append=T','motifs=','seqin=%s' % elmfas,'resdir=%sSLiMProb/' % datadirpath]
-                ss = slimprob.SLiMProb(self.log,sscmd)  #+['debug=F'])
+                ss = slimprob.SLiMProb(self.log,sscmd+['mergesplits=F'])  #+['debug=F'])
                 slimlist = ss.obj['SlimList']
                 slimlist.list['Motif'] = []
                 slimlist._addMotif(elm,slim,check=True)
@@ -1391,8 +1421,8 @@ class SLiMBench(rje_obj.RJE_Object):
         try:### ~ [0] ~ Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             self.printLog('#~~#','# ~~~~~~~~~~~~~~~~~~~~~~~ OccBench SLiMProb ~~~~~~~~~~~~~~~~~~~~~~~~~~~ #')
             db = self.obj['DB']
-            motif_file = {'reduced':'%s%s.reduced.motifs.txt' % (self.getStr('GenPath'),rje.baseFile(self.getStr('ELMClass'),strip_path=True)),
-                          'full':'%s%s.motifs.txt' % (self.getStr('SourcePath'),rje.baseFile(self.getStr('ELMClass'),strip_path=True))}
+            motif_file = {'reduced':'%s%s.reduced.motifs' % (self.getStr('GenPath'),rje.baseFile(self.getStr('ELMClass'),strip_path=True)),
+                          'full':'%s%s.motifs' % (self.getStr('SourcePath'),rje.baseFile(self.getStr('ELMClass'),strip_path=True))}
             elmi = db.getTable('ELMInstance')   # mainkeys=['ELMIdentifier','Primary_Acc','Start','End']
             ### ~ [1] ~ Perform SLiMProb ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             for etype in ['full']:  # Cannot do ,'reduced']: as instances do not map!
@@ -1413,7 +1443,7 @@ class SLiMBench(rje_obj.RJE_Object):
                     ssi = sscmd.index('minic=2.0')
                     sscmd[ssi] = 'minic=1.1'  # Change default to 1.1
                     self.debug(sscmd)
-                    ss = slimprob.SLiMProb(self.log,sscmd)  #+['debug=F'])
+                    ss = slimprob.SLiMProb(self.log,sscmd+['mergesplits=F'])  #+['debug=F'])
                     ss.run()
                     self.printLog('#SLIM','SLiMProb run for %s OccBench data.' % (etype))
             ### ~ [2] ~ Rate SLiMProb Occurrences ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -1693,8 +1723,14 @@ class SLiMBench(rje_obj.RJE_Object):
         '''Generates simulated datasets.'''
         try:### ~ [0] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             self.printLog('#~~#','# ~~~~~~~~~~~~~~ RANDOMISE/SIMULATE SETUP ~~~~~~~~~~~~~~~~~~ #')
-            core = rje_slimcore.SLiMCore(self.log,['logmask=T','maskpickle=T','resdir=%s' % self.getStr('GenPath')]+self.cmd_list+['efilter=F','slimbuild=F','walltime=0'])
-            seqcmd = ['gnspacc=T','usecase=T'] + self.cmd_list + ['autoload=T','query=None','autofilter=F','seqin=%s' % self.getStr('RandSource')]
+            if self.getBool('RanDat'):
+                core = rje_slimcore.SLiMCore(self.log,['logmask=T','maskpickle=T','resdir=%s' % self.getStr('GenPath')]+self.cmd_list+['efilter=F','slimbuild=F','walltime=0','seqin=%s' % self.getStr('RandSource')])
+                core.setupSeqIn()
+                randfas = rje.baseFile(self.getStr('RandSource')) + '.fas'
+                seqcmd = ['gnspacc=T','usecase=T'] + self.cmd_list + ['autoload=T','query=None','autofilter=F','seqin=%s' % randfas]
+            else:
+                core = rje_slimcore.SLiMCore(self.log,['logmask=T','maskpickle=T','resdir=%s' % self.getStr('GenPath')]+self.cmd_list+['efilter=F','slimbuild=F','walltime=0'])
+                seqcmd = ['gnspacc=T','usecase=T'] + self.cmd_list + ['autoload=T','query=None','autofilter=F','seqin=%s' % self.getStr('RandSource')]
             randsource = self.obj['SeqList'] = rje_seqlist.SeqList(self.log,seqcmd+['mode=file'])
             core.dict['MotifSeq'] = {}  #{Pattern:File}
             rje.mkDir(self,self.getStr('RanDir'))
@@ -1708,7 +1744,7 @@ class SLiMBench(rje_obj.RJE_Object):
             elmc.dataFormat({'#Instances':'int'})
             ## ~ [0c] Load Reduced Motifs ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             elmbase = '%s%s' % (self.getStr('GenPath'),rje.baseFile(self.getStr('ELMClass'),strip_path=True))
-            reduced = '%s.reduced.motifs.txt' % elmbase
+            reduced = '%s.reduced.motifs' % elmbase
             genpath = rje.makePath('%sSourceMatch/' % self.getStr('GenPath'))
             rje.mkDir(self,genpath)
             sourcebase = rje.baseFile(self.getStr('RandSource'),True)
@@ -1742,11 +1778,16 @@ class SLiMBench(rje_obj.RJE_Object):
                 self.printLog('#~~#','# ~~~~~~~~~~~~~~ SLIMCORE MAPPING MOTIFS TO SEQUENCES ~~~~~~~~~~~~~~~~~~ #')
                 self.printLog('#MSEQ','%d MotifSeq datasets to generate.' % len(core.dict['MotifSeq']))
                 #!# Add log output for progress #!#
-                core.obj['SeqList'] = rje_seq.SeqList(self.log,seqcmd)
+                if self.getBool('RanDat'): #i# Should already have DAT loaded
+                    coreuni = core.obj['SeqList'].obj['UniProt']
+                    #i# This should match the sequences in the seqcmd fasta file, so masking should work fine
+                    #!# Might need to do some kind of check.
+                else:
+                    core.obj['SeqList'] = rje_seq.SeqList(self.log,seqcmd)
                 core.setupBasefile()
                 core.setNum({'StartTime':time.time()})
                 core.maskInput()      ## Mask Input Data - makes info['PreMask'] and info['MaskSeq']
-                if core.getBool('Masked'): core.obj['SeqList'].saveFasta(seqfile='%s.%s.masked.fas' % (core.basefile(),core.maskText()))
+                if core.getBool('Masked'): core.obj['SeqList'].saveFasta(seqfile='%s%s.%s.masked.fas' % (genpath,core.basefile(),core.maskText()))
                 core.motifSeq()
             ### ~ [2] Run SLiMProb on MotifSeq files ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             self.printLog('#~~#','# ~~~~~~~~~~~~~~ SLIMPROB MAPPING MOTIFS TO SEQUENCES ~~~~~~~~~~~~~~~~~~ #')
@@ -1763,7 +1804,7 @@ class SLiMBench(rje_obj.RJE_Object):
                     slimfas = '%s%s.%s.fas' % (genpath,slim.getStr('Name'),sourcebase)
                     if not rje.exists(slimfas) or open(slimfas,'r').read()[:1] != '>': continue
                     sscmd = ['extras=0','maxsize=0','maxupc=0','maxseq=1000']+self.cmd_list+['resfile=%s' % ssfile,'append=T','motifs=','seqin=%s' % slimfas,'resdir=%sSLiMProb/' % searchdir,'occupc=T']
-                    ss = slimprob.SLiMProb(self.log,sscmd+['debug=F'])
+                    ss = slimprob.SLiMProb(self.log,sscmd+['debug=F','mergesplits=F'])
                     ss.setStr({'Basefile':''})
                     ss.obj['SlimList'].list['Motif'] = [slim]
                     ss.run()
@@ -1890,12 +1931,12 @@ class SLiMBench(rje_obj.RJE_Object):
                 for spec in self.list['PPISpec']:
                     #if pfamdb: self.db().mergeTables(pfamdb,self.db().addTable('%sslimbench.Pfam.%s.tdt' % (self.getStr('GenPath'),spec),mainkeys=['Uniprot'],expect=True,name=spec))
                     #else: pfamdb = self.db().addTable('%sslimbench.Pfam.%s.tdt' % (self.getStr('GenPath'),spec),mainkeys=['Uniprot'],expect=True,name='Pfam')
-                    self.db().addTable('%sslimbench.Pfam.%s.tdt' % (self.getStr('GenPath'),spec),mainkeys=['Uniprot'],expect=True,name='Pfam.%s' % spec)
+                    self.db().addTable('%sslimbench.Pfam.%s.tdt' % (self.getStr('SourcePath'),spec),mainkeys=['Uniprot'],expect=True,name='Pfam.%s' % spec)
             #i# See setupSourceData() method if UniProt mapping data is needed.
             ### ~ [2] Load ELM motif file for comparison ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             ## ~ [2a] Establish file ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             elmbase = '%s%s' % (self.getStr('GenPath'),rje.baseFile(self.sourceDataFile('ELMClass',force=False),strip_path=True))
-            if self.getStr('DataType') not in ['occ','ppi'] and not rje.checkForFile(self.getStr('CompDB')): self.str['CompDB'] = '%s.reduced.motifs.txt' % elmbase
+            if self.getStr('DataType') not in ['occ','ppi'] and not rje.checkForFile(self.getStr('CompDB')): self.str['CompDB'] = '%s.reduced.motifs' % elmbase
             if not rje.checkForFile(self.getStr('CompDB')): self.str['CompDB'] = self.getStr('ELMClass')
             if not rje.checkForFile(self.getStr('CompDB')): self.printLog('#MOTIF','CompDB motif input file (and ELM class file) not found'); raise IOError
             ## ~ [2b] Load Motifs ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
@@ -1921,6 +1962,7 @@ class SLiMBench(rje_obj.RJE_Object):
             ### ~ [1] Load Data ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             self.printLog('#~~#','# ~~~~~~~~~~~~~~~~~~~~~~~ LOAD PREDICTIONS ~~~~~~~~~~~~~~~~~ #')
             db = self.obj['DB']
+            db.setBool({'TupleKeys':True})
             db.setStr({'Delimit':self.getStr('Delimit')})
             rfile = '%s.results.%s' % (db.baseFile(),rje.delimitExt(db.getStr('Delimit')))
             if not self.force() and os.path.exists('%s.ratings.tdt' % db.baseFile()) and self.getBool('MemSaver'):
@@ -1935,22 +1977,70 @@ class SLiMBench(rje_obj.RJE_Object):
             for file in self.list['ResFiles']:
                 if not resdb: resdb = db.addTable(file,mainkeys=['Dataset','RunID','Pattern'],datakeys='All',name='results')
                 else: db.mergeTables(resdb,db.addTable(file,mainkeys=['Dataset','RunID','Pattern'],datakeys='All',name=file))
-            resdb.dropEntriesDirect('Pattern',['<'])    # Consider adding > and ! : Why keep them?!
+            resdb.dropEntriesDirect('Pattern',['<','>','!'])    # Consider adding > and ! : Why keep them?!
             resdb.setStr({'Delimit':self.getStr('Delimit')})
-            ## ~ [1b] Add Motif-Dataset links for PPIBench ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            ## ~ [1b] Check all Datasets present for all RunIDs ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            if self.getStr('DataType')[:3] == 'sim':
+                dcheck = 'DCheck'
+                checkfield = 'RCheck'
+                resdb.addFields([dcheck,checkfield])
+                for entry in resdb.entries():
+                    entry['DCheck'] = string.split(entry['Dataset'],'.')
+                    entry['RCheck'] = '%s|%s' % (entry['RunID'],entry['DCheck'][1])
+                    entry['DCheck'] = string.join(entry['DCheck'][:1]+entry['DCheck'][2:],'.')
+            else:
+                dcheck = 'Dataset'
+                checkfield = 'RunID'
+            runidlist = resdb.indexKeys(checkfield)
+            dsetlist =  resdb.indexKeys(dcheck)
+            incomplete = []
+            missdx = 0
+            for runid in runidlist:
+                rundsets = resdb.indexDataList(checkfield,runid,dcheck)
+                missing = rje.listDifference(dsetlist,rundsets) # Returns the elements of list1 that are not found in list 2.
+                if missing:
+                    missdx += 1
+                    self.warnLog('RunID "%s" has %s of %s datasets missing.' % (runid,rje.iLen(missing),rje.iLen(dsetlist)),warntype='Missing Data',quitchoice=False,suppress=False,dev=False,screen=True)
+                    incomplete = rje.listUnion(incomplete,missing)
+            if incomplete:
+                self.warnLog('%s of %s RunIDs have datasets missing: %s of %s datasets have missing data' % (rje.iStr(missdx),rje.iLen(runidlist),rje.iLen(incomplete),rje.iLen(dsetlist)),warntype='Missing Data',quitchoice=self.getBool('Balanced'))
+                if self.getBool('Balanced'):
+                    self.printLog('#DATA','Balanced=T: incomplete datasets will be removed.')
+                    resdb.dropEntriesDirect(dcheck,incomplete)
+                    self.printLog('#DATA','Results for %s of %s detected datasets loaded for all %s RunID' % (rje.iLen(resdb.indexKeys(dcheck)),rje.iLen(dsetlist),rje.iLen(runidlist)))
+                else:
+                    self.warnLog('Balanced=F: incomplete datasets may result in unfair methods comparisons.')
+            else: self.printLog('#DATA','Results for all %s detected datasets loaded for all %s RunID' % (rje.iLen(dsetlist),rje.iLen(runidlist)))
+            if self.getStr('DataType')[:3] == 'sim':
+                resdb.dropField(dcheck)
+                resdb.dropField(checkfield)
+            self.debug(resdb.fields())
+            ## ~ [1c] Add Motif-Dataset links for PPIBench ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             if self.getStr('DataType') == 'ppi':
                 resdb.addField('Motif',evalue='PPI')
+                resdb.newKey(['Dataset','Motif','RunID','Pattern'])
                 for ekey in resdb.dataKeys():
                     entry = resdb.data(ekey)
                     if '.' not in entry['Dataset']:
                         if entry['Dataset'].startswith('PF'): entry['Dataset'] = '%s.domppi' % entry['Dataset']
                         else: entry['Dataset'] = '%s.ppi' % entry['Dataset']
-                    entry['Motif'] = string.split(entry['Dataset'],'.')[0]  # Hub
-            ## ~ [1c] Split on RunID and report stats ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+                    hub = string.split(entry['Dataset'],'.')[0]
+                    motifs = self.hub2elm(hub)
+                    if not motifs:
+                        self.warnLog('No ELMs mapped to %s via Pfam domains!' % hub)
+                        entry['Motif'] = '!na!'
+                    else:
+                        entry['Motif'] = motifs[0]
+                        self.debug(entry)
+                        for motif in motifs[1:]:
+                            self.debug(motif)
+                            resdb.addEntry(rje.combineDict({'Motif':motif},entry,overwrite=False))
+            ## ~ [1d] Split on RunID and report stats ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             ex = 0.0; etot = resdb.entryNum()
             resdb.list['Fields'] = dsethead + self.list['RunID'] + resdb.list['Fields']
             newkeys = dsethead + self.list['RunID'] + ['Pattern']
             if self.getStr('DataType')[:3] == 'sim': newkeys += ['SeqNum']; dsethead.insert(4,'SeqNum')
+            if self.getStr('DataType') == 'ppi': newkeys.insert(2,'Motif')
             self.printLog('#SPLIT','Dataset => %s' % string.join(dsethead))
             self.printLog('#SPLIT','RunID => %s' % string.join(self.list['RunID']))
             for entry in resdb.entries():
@@ -2090,7 +2180,8 @@ class SLiMBench(rje_obj.RJE_Object):
             ex = 0.0; etot = rdb.entryNum()
             for entry in rdb.entries():
                 self.progLog('\r#RATE','Rating SLiM Predictions: %.1f%%' % (ex/etot)); ex += 100.0
-                tkey= '%s\t%s\t%s' % (entry['Motif'],entry['Pattern'],entry['Motif'])
+                #tkey= '%s\t%s\t%s' % (entry['Motif'],entry['Pattern'],entry['Motif'])
+                tkey= tdb.makeKey({'Motif':entry['Motif'],'Pattern':entry['Pattern'],'CMHit':entry['Motif']})
                 if self.getStr('DataType') == 'ran' or (self.getStr('DataType') == 'sim' and entry['RType'] == 'ran'):
                     if tkey in tdb.data(): entry['Rating'] = 'OT'
                     elif entry['Pattern'] in tdb.index('Pattern'): entry['Rating'] = 'OT'
@@ -2224,7 +2315,7 @@ class SLiMBench(rje_obj.RJE_Object):
                         else: match[field] = entry[field]
                         #self.deBug(entry); self.deBug(match)
                         tp = False
-                        if self.getStr('DataType') == 'ppi': tp = self.hub2elm(match['Motif'],match['CMHit'])
+                        #if self.getStr('DataType') == 'ppi': tp = self.hub2elm(match['Motif'],match['CMHit'])
                             #if match['Motif'] in pfam2elm:  # Pfam domain hub
                             #    if match['Name2'] in pfam2elm[match['Motif']]: tp = True
                             #else:
@@ -2233,7 +2324,8 @@ class SLiMBench(rje_obj.RJE_Object):
                             #        for domain in string.split(pentry['Pfam'],'|'):
                             #            if domain in pfam2elm and match['CMHit'] in pfam2elm[domain]: tp = True
                             #    else: self.warnLog('Cannot find hub "%s" in Pfam-ELM links!' % match['Motif'])
-                        elif match['Motif'] == match['CMHit']: tp = True
+                        #el
+                        if match['Motif'] == match['CMHit']: tp = True
                         if tp: tdb.addEntry(rje.combineDict({'Motif':entry['Motif'],'Rating':'TP'},cdata),warn=False); tpx += 1
                         else:
                             ## Second, stronger filter for the OT motifs? 
@@ -2255,7 +2347,8 @@ class SLiMBench(rje_obj.RJE_Object):
             ex = 0.0; etot = rdb.entryNum()
             for entry in rdb.entries():
                 self.progLog('\r#RATE','Rating SLiM Predictions: %.1f%%' % (ex/etot)); ex += 100.0
-                tkey= '%s\t%s\t%s' % (entry['Motif'],entry['Pattern'],entry['Motif'])
+                #tkey= '%s\t%s\t%s' % (entry['Motif'],entry['Pattern'],entry['Motif'])
+                tkey= tdb.makeKey({'Motif':entry['Motif'],'Pattern':entry['Pattern'],'CMHit':entry['Motif']})
                 if self.getStr('DataType') == 'ran' or (self.getStr('DataType') == 'sim' and entry['RType'] == 'ran'):
                     if tkey in tdb.data(): entry['Rating'] = tdb.data(tkey)['Rating']   #'OT'
                     elif entry['Pattern'] in tdb.index('Pattern'): entry['Rating'] = 'OT'
@@ -2329,7 +2422,7 @@ class SLiMBench(rje_obj.RJE_Object):
             if not self.force() and rje.exists(sfile): return self.printLog('#SUMM','Summary table %s found (force=F)' % sfile)
             # Motif	Query	Region	Program	Masking	Pattern	Build	SeqNum	Rank	Sig	IC	Support	Coverage	Enrichment	Cloud	CloudCoverage	IUP_mean	SA_mean	Rating
             elmbase = '%s%s' % (self.getStr('GenPath'),rje.baseFile(self.getStr('ELMClass'),strip_path=True))
-            reduced = '%s.reduced.motifs.txt' % elmbase
+            reduced = '%s.reduced.motifs' % elmbase
             slimlist = rje_slimlist.SLiMList(self.log,self.cmd_list+['force=F'])
             slimlist.loadMotifs(reduced)    # Will automatically apply minic filter
             edb = self.db('ELMClass')
@@ -2662,7 +2755,7 @@ class SLiMBench(rje_obj.RJE_Object):
                 normsum = float(sum([entry['TP'],entry['OT'],entry['FP']]))                     # Removed FN
                 if normsum:
                     for rating in ['TP','OT','FP']: entry[rating] = entry[rating] / normsum     # Removed FN
-                elif not entry['FN']: self.printLog('#ERR','Rating error for: %s' % entry); raise ValueError    # Something has gone v. wrong
+                elif not entry['FN']: self.printLog('#ERR','Rating error for: %s - TP+OT+FP+FN=0!' % entry); raise ValueError    # Something has gone v. wrong
                 entry['DsetNum'] = entry['N']
                 entry['N'] = 1
             if test: adb.saveToFile('test.motifs.tdt')
@@ -2846,19 +2939,20 @@ class SLiMBench(rje_obj.RJE_Object):
             rdb.compress(bkeys+['Seq'],rules={},default='sum',best=[])  #!# Make default='mean' to normalise by sequence
             rdb.compress(bkeys,rules={},default='sum',best=[])
             rdb.dropFields(['Seq','Start_Pos','End_Pos'])
-            for field in ['SN','FPR','PPV']: rdb.addField(field)
+            for field in ['SN','FPR','PPV','wPPV']: rdb.addField(field)
             for entry in rdb.entries():
                 try:
                     entry['SN'] = float(entry['TP']) / (float(entry['TP']) + float(entry['FN']))
                     entry['FPR'] = float(entry['FP']) / (float(entry['FP']) + float(entry['TN']))
                     entry['PPV'] = float(entry['TP']) / (float(entry['TP']) + float(entry['FP']))
+                    entry['wPPV'] = float(entry['SN']) / (float(entry['SN']) + float(entry['FPR']))
                 except: pass
                 self.debug(entry)
             rdb.saveToFile(bfile)
 
             ### ~ [3] Compress across motifs ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             rdb.addField('N',evalue=1)
-            rdb.compress(akeys,rules={'SN':'mean','FPR':'mean','PPV':'mean'},default='sum',best=[])
+            rdb.compress(akeys,rules={'SN':'mean','FPR':'mean','PPV':'mean','wPPV':'mean'},default='sum',best=[])
             rdb.deleteField('Motif')
             rdb.saveToFile(afile)
             return True

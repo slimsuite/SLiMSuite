@@ -19,8 +19,8 @@
 """
 Module:       rje_samtools
 Description:  RJE SAMtools parser and processor
-Version:      1.8.1
-Last Edit:    29/08/16
+Version:      1.19.2
+Last Edit:    26/11/17
 Copyright (C) 2013  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -95,6 +95,17 @@ Read Coverage Analysis:
     Alternative `Locus`, `Start` and `End` fields for `checkpos=FILE` can be given with `checkfields=LIST`. NOTE: This is
     case-sensitive and needs all three elements, even if only one or two fields are being changed.
 
+    If `depthplot=T` then read depth will be calculated across each locus and additional depth statistics (MinX, MaxX,
+    MedianX and Coverage) will be added to the coverage file. If `rgraphics=T` (default) and R is installed, plots per
+    locus will be generated. If `readlen=T` then additional outputs will be generated of the maximum read length at each
+    point in the genome.
+
+    If `dirlen=X` > 0 (default=500), the maximum 5' and 3' read linkage will be calculated every `dirlen=X` nucleotides
+    (plus the end position). The examines the reads spanning that position and reports the maximum distance any read
+    extends in the 5' (Len5) or 3' (Len3) direction from that position. This can identify misassemblies resulting in
+    breaks in read coverage. Note that reads in this context are contiguous SAM/pileup hits and so sequencing reads with
+    multiple or split mapping will be treated as multiple reads.
+
 Commandline:
     ### ~ MPileup Parsing Options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     batch=FILELIST  : List of MPileup/SAM files to be parsed and filtered (e.g. *.pileup) []
@@ -103,11 +114,13 @@ Commandline:
     rid=T/F         : Whether to include Read ID (number) lists for each allele [True]
     snponly=T/F     : Whether to restrict parsing output to SNP positions (will use mincut settings below) [False]
     indels=T/F      : Whether to include indels in "SNP" parsing [True]
+    skiploci=LIST   : List of loci to exclude from pileup parsing (e.g. mitochondria) []
+    snptableout=T/F : Output filtered alleles to SNP Table [False]
     ### ~ SNP Frequency Options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     control=FILE    : MPileup or processed TDT file to be used for control SNP frequencies []
     treatment=FILE  : MPileup or processed TDT file to be used for treatment SNP frequencies []
     labels=X,Y      : Optional labels for Control and Treatment fields in output (other file basename used) []
-    mincut=X        : Minimum read count for minor allele (proportion if <1) [3]
+    mincut=X        : Minimum read count for minor allele (proportion if <1) [1]
     absmincut=X     : Absolute minimum read count for minor allele (used if mincut<1) [2]
     biallelic=T/F   : Whether to restrict SNPs to pure biallelic SNPs (two alleles meeting mincut) [False]
     ignoren=T/F     : Whether to exclude "N" calls from alleles [True]
@@ -123,12 +136,20 @@ Commandline:
     snptable=FILE   : Table of SNPs of cross-reference with FDR SNP output []
     snptabkeys=LIST : Fields that make unique key entries for snptable (with Locus, Pos) []
     snptabmap=X,Y   : Optional SNPTable fields to replace for mapping onto FDR Locus,Pos fields (Locus,Pos) []
+    rgraphics=T/F   : Whether to generate snpfreq multichromosome plots [True]
     ### ~ Double Genome Analysis ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     altcontrol=FILE     : MPileup or processed TDT file to be used for control SNP frequencies in Alt genome []
     alttreatment=FILE   : MPileup or processed TDT file to be used for treatment SNP frequencies in Alt genome []
     ### ~ Read Coverage Analysis ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     readcheck=FILE      : SAM/Pileup/RID file with read mappings [None]
     seqin=FASFILE       : Sequence file for loci in MPileup/SAM files (e.g. matching all relevant RID files) [None]
+    depthplot=T/F       : Whether to generate Xdepth plot data for the readcheck FILE. (May be slow!) [False]
+    fullcut=X           : Proportion of read to be mapped to count as full-length [0.9]
+    readlen=T/F         : Include read length data for the readcheck file (if depthplot=T) [True]
+    dirnlen=X           : Include directional read length data at X bp intervals (readlen=T; 0=OFF) [500]
+    depthsmooth=X       : Smooth out any read plateaus < X nucleotides in length [200]
+    peaksmooth=X        : Smooth out Xcoverage peaks < X depth difference to flanks (<1 = %Median) [0.05]
+    rgraphics=T/F       : Whether to generate PNG graphics using R. (Needs R installed and setup) [True]
     checkpos=TDTFILE    : File of Locus, Start, End positions for read coverage checking [None]
     checkfields=LIST    : Fields in checkpos file to give Locus, Start and End for checking [Locus,Start,End]
     checkflanks=LIST    : List of lengths flanking check regions that must also be spanned by reads [0,100,500,1000]
@@ -144,8 +165,9 @@ Other modules needed: None
 ### SECTION I: GENERAL SETUP & PROGRAM DETAILS                                                                          #
 #########################################################################################################################
 import glob, os, string, sys, time
-sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)),'../libraries/'))
-sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)),'../tools/'))
+slimsuitepath = os.path.abspath(os.path.join(os.path.dirname(os.path.realpath(__file__)),'../')) + os.path.sep
+sys.path.append(os.path.join(slimsuitepath,'libraries/'))
+sys.path.append(os.path.join(slimsuitepath,'tools/'))
 ### User modules - remember to add *.__doc__ to cmdHelp() below ###
 import rje, rje_db, rje_obj, rje_seqlist, rje_sequence, rje_zen
 #########################################################################################################################
@@ -165,6 +187,23 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 1.7.0 - Added parsing of *.sam files for generating RID table.
     # 1.8.0 - Added read coverage summary/checks.
     # 1.8.1 - Fixed issue when RID file not generated by pileup parsing. Set RID=True by default to avoid issues.
+    # 1.9.0 - Added depthplot data generation. (Will need to add R function for plot itself.)
+    # 1.9.1 - Changed mincut default to 0.1.
+    # 1.10.0 - Added readlen output, which is like the depth plot but uses max read length (kb) instead of depth.
+    # 1.11.0 - Added dirnlen=X : Include directional read length data at X bp intervals (depthplot=T; 0=OFF) [500]
+    # 1.11.1 - Minor tweaks to try and speed up pileup parsing.
+    # 1.12.0 - Updated the snpfreq run code to make clearer and check for parsing issues. Set mincut=1 default.
+    # 1.13.0 - Added skiploci=LIST - need to screen out mitochondrion from Illumina Pileup parsing!
+    # 1.14.0 - Added forking of pileup parsing for SNPFreq analysis.
+    # 1.14.1 - Fixed SNPFreq rerunning bug.
+    # 1.15.0 - Added rgraphics=T/F   : Whether to generate snpfreq multichromosome plots [True]
+    # 1.16.0 - Add coverage calculation per locus to depth plot table output (depthplot=T).
+    # 1.16.1 - Added reporting of existing files for parsing Pileup.
+    # 1.17.0 - Added parsing of lengths from SAM files to RID file.
+    # 1.18.0 - Updated processing of Treatment and Control without Alt to still limit to SNPTable. Fixed SNPFreq filters.
+    # 1.19.0 - snptableout=T/F    : Output filtered alleles to SNP Table [False]
+    # 1.19.1 - Fixed AltLocus SNP table bug.
+    # 1.19.2 - Updated forker parsing to hopefully fix bug.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -189,11 +228,23 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
     # [ ] : Need to deal with insertions properly as will all be mapped onto same reference position!
     # [ ] : Consider whether to put the QX.N.tdt and rid.tdt files in the pileup/sam file directory.
     # [ ] : Tidy up error handling and messages with rid.tdt file missing.
+    # [ ] : Add checking and resorting of RID file to match sorted BAM file versus raw SAM file.
+    # [ ] : Not sure if above strictly possible, so may need to stick with checking RID versus pileup file.
+    # [ ] : Should there also be DirnDepth plots of different lengths?
+    # [ ] : Add skiploci=LIST - need to screen out mitochondrion from Illumina Pileup parsing!
+    # [ ] : snpsubset=LIST  : List of SNPs to restrict analysis to, based on subsetfield=X (comma separated  []
+    # [ ] : subsetfield=X   : SNPTable field to be used for matching snpsubset list []
+    # [ ] : subsample=X : Option to subsample every X bases for read depth summaries etc.
+    # [ ] : Find out why SAMPhaser parsing skip failed.
+    # [Y] : Add length proportion filters for read depths from SAM files.
+    # [ ] : Add minlength cutoffs for read depth analysis (minrlen and minmlen). [Q. Put in output filename?]
+    # [ ] : Tidy, clarify and document re-use of files and use of strip_path. Set OutDir to overcome?
+    # [ ] : Swap the order of X versus Y - should be Treatment versus Control.
     '''
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copyyear) = ('rje_samtools', '1.8.1', 'August 2016', '2013')
+    (program, version, last_edit, copyyear) = ('rje_samtools', '1.19.2', 'November 2017', '2013')
     description = 'RJE SAMtools parser and processor'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_zen.Zen().wisdom()]
@@ -264,6 +315,7 @@ class SAMtools(rje_obj.RJE_Object):
 
     Bool:boolean
     - Biallelic=T/F   : Whether to restrict SNPs to pure biallelic SNPs (two alleles meeting mincut) [False]
+    - DepthPlot=T/F       : Whether to generate Xdepth plot data for the readcheck FILE. (May be slow!) [False]
     - IgnoreN = Whether to exclude "N" calls for major/minor alleles [True]
     - IgnoreRef=T/F : If False will always keep Reference allele and call fixed change as SNP [False]
     - Indels=T/F      : Whether to include indels in "SNP" parsing [True]
@@ -271,19 +323,27 @@ class SAMtools(rje_obj.RJE_Object):
     - MajFocus=T/F    : Whether the focus is on Major Alleles (True) or Mutant/Reference Alleles (False) [True]
     - MajMut = Whether to restrict output and stats to positions with non-reference Major Allele [True]
     - MajRef = Whether to restrict output and stats to positions with non-reference Major Allele [False]
+    - ReadLen=T/F         : Include read length data for the readcheck file (if depthplot=T) [True]
+    - RGraphics=T/F       : Whether to generate PNG graphics using R. (Needs R installed and setup) [True]
     - RID=T/F         : Whether to include Read ID (number) lists for each allele [False]
+    - SNPFreq=T/F       : Whether this is a snpfreq run: set snponly=F
     - SNPOnly=T/F     : Whether to restrict parsing output to SNP positions (will use mincut settings below) [False]
+    - SNPTableOut=T/F    : Output filtered alleles to SNP Table [False]
 
     Int:integer
     - AbsMinCut=X     : Absolute minimum read count for minor allele (used if mincut<1) [2]
+    - DepthSmooth=X   : Smooth out any read plateaus < X nucleotides in length [20]
+    - DirnLen=X       : Include directional read length data at X bp intervals (depthplot=T; 0=OFF) [500]
     - FDRCut=X        : Additional FDR cutoff for enriched treatment SNPs [1.0]
     - MajCut=X        : Frequency cutoff for Treatment major allele [0.0]
-    - MinCut=X        : Minimum read count for minor allele (proportion if <1) [2]
+    - MinCut=X        : Minimum read count for minor allele (proportion if <1) [1]
     - MinQN = Min. number of reads meeting qcut (QN) for output [10]
+    - PeakSmooth=X        : Smooth out Xcoverage peaks < X depth difference to flanks [5]
     - QCut = Min. quality score for a call to include [30]
     - SigCut=X        : Significance cutoff for enriched treatment SNPs [0.05]
 
     Num:float
+    - FullCut=X           : Proportion of read to be mapped to count as full-length [0.9]
     - MinFreq = Minor allele(s) frequency correction for zero counts (e.g. Sequencing error) [0.01]
     
     List:list
@@ -291,6 +351,7 @@ class SAMtools(rje_obj.RJE_Object):
     - CheckFields=LIST    : Fields in checkpos file to give Locus, Start and End for checking [Locus,Start,End]
     - CheckFlanks=LIST       : List of lengths flanking check regions that must also be spanned by reads [0,100,500,1000]
     - Labels=X,Y      : Optional labels for Control and Treatment fields in output (other file basename used) []
+    - SkipLoci=LIST   : List of loci to exclude from pileup parsing (e.g. mitochondria) []
     - SNPTabKeys=LIST : Fields that make unique key entries for snptable (with Locus, Pos) []
     - SNPTabMap=X,Y   : Optional SNPTable fields to replace for mapping onto FDR Locus,Pos fields (Locus,Pos) []
 
@@ -305,18 +366,21 @@ class SAMtools(rje_obj.RJE_Object):
         '''Sets Attributes of Object.'''
         ### ~ Basics ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         self.strlist = ['AltControl','AltTreatment','CheckPos','Control','ReadCheck','SNPTable','Treatment']
-        self.boollist = ['Biallelic','IgnoreN','IgnoreRef','Indels','MajDif','MajFocus','MajMut','MajRef','RID','SNPOnly']
-        self.intlist = ['AbsMinCut','CheckFlanks','MinQN','QCut']
-        self.numlist = ['FDRCut','MinCut','MinFreq','SigCut']
-        self.listlist = ['Batch','CheckFields','CheckFlanks','Labels','SNPTabKeys','SNPTabMap']
+        self.boollist = ['Biallelic','Child','DepthPlot','ReadLen','RGraphics','IgnoreN','IgnoreRef','Indels','MajDif',
+                         'MajFocus','MajMut','MajRef','RID','SNPOnly','SNPFreq','SNPTableOut']
+        self.intlist = ['AbsMinCut','CheckFlanks','DepthSmooth','DirnLen','MinQN','PeakSmooth','QCut']
+        self.numlist = ['FDRCut','FullCut','MinCut','MinFreq','SigCut']
+        self.listlist = ['Batch','CheckFields','CheckFlanks','Labels','SkipLoci','SNPTabKeys','SNPTabMap']
         self.dictlist = []
         self.objlist = []
         ### ~ Defaults ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         self._setDefaults(str='None',bool=False,int=0,num=0.0,obj=None,setlist=True,setdict=True)
         self.setStr({'RefSeq':''})
-        self.setBool({'Biallelic':False,'IgnoreN':True,'IgnoreRef':False,'Indels':True,'MajDif':False,'MajFocus':True,'MajMut':True,'MajRef':False,'RID':True})
-        self.setInt({'QCut':30,'MinQN':10,'AbsMinCut':2})
-        self.setNum({'MajCut':0.0,'MinFreq':0.001,'MinCut':2.0,'SigCut':0.05,'FDRCut':1.0})
+        self.setBool({'Biallelic':False,'Child':False,'DepthPlot':False,'ReadLen':True,'RGraphics':True,'IgnoreN':True,
+                      'IgnoreRef':False,'Indels':True,'MajDif':False,'MajFocus':True,'MajMut':True,'MajRef':False,
+                      'RID':True,'SNPTableOut':False})
+        self.setInt({'DepthSmooth':200,'DirnLen':500,'PeakSmooth':0.05,'QCut':30,'MinQN':10,'AbsMinCut':2})
+        self.setNum({'FullCut':0.9,'MajCut':0.0,'MinFreq':0.001,'MinCut':1,'SigCut':0.05,'FDRCut':1.0})
         self.list['Batch'] = [] #x# glob.glob('*.pileup')
         self.list['CheckFlanks'] = [0,100,500,1000]
         self.list['CheckFields'] = ['Locus','Start','End']
@@ -338,12 +402,13 @@ class SAMtools(rje_obj.RJE_Object):
                 #self._cmdReadList(cmd,'str',['Att'])   # Normal strings
                 #self._cmdReadList(cmd,'path',['Att'])  # String representing directory path 
                 self._cmdReadList(cmd,'file',['AltControl','AltTreatment','CheckPos','Control','ReadCheck','SNPTable','Treatment'])  # String representing file path
-                self._cmdReadList(cmd,'bool',['Biallelic','IgnoreN','IgnoreRef','Indels','MajDif','MajFocus','MajMut','MajRef','RID','SNPOnly'])  # True/False Booleans
-                self._cmdReadList(cmd,'int',['AbsMinCut','QCut','MinQN'])   # Integers
-                self._cmdReadList(cmd,'float',['MinCut','FDRCut','MajCut','MinFreq','SigCut']) # Floats
+                self._cmdReadList(cmd,'bool',['Biallelic','DepthPlot','IgnoreN','IgnoreRef','Indels','MajDif','MajFocus',
+                                              'MajMut','MajRef','ReadLen','RGraphics','RID','SNPOnly','SNPTableOut'])  # True/False Booleans
+                self._cmdReadList(cmd,'int',['AbsMinCut','DepthSmooth','DirnLen','PeakSmooth','QCut','MinQN'])   # Integers
+                self._cmdReadList(cmd,'float',['FullCut','MinCut','FDRCut','MajCut','MinFreq','SigCut']) # Floats
                 #self._cmdReadList(cmd,'min',['Att'])   # Integer value part of min,max command
                 #self._cmdReadList(cmd,'max',['Att'])   # Integer value part of min,max command
-                self._cmdReadList(cmd,'list',['CheckFields','Labels','SNPTabKeys','SNPTabMap'])  # List of strings (split on commas or file lines)
+                self._cmdReadList(cmd,'list',['CheckFields','Labels','SkipLoci','SNPTabKeys','SNPTabMap'])  # List of strings (split on commas or file lines)
                 self._cmdReadList(cmd,'ilist',['CheckFlanks']) # Comma separated list as integers
                 self._cmdReadList(cmd,'glist',['Batch']) # List of files using wildcards and glob
                 #self._cmdReadList(cmd,'cdict',['Att']) # Splits comma separated X:Y pairs into dictionary
@@ -360,6 +425,8 @@ class SAMtools(rje_obj.RJE_Object):
             self.warnLog('Cannot have majfocus=T without majmut=T or majref=T.')
             self.setBool({'MajFocus':False})
             #!# Add option to change settings
+        # Forking
+        if self.getBool('Win32') or self.getBool('NoForks'): self.setInt({'Forks':1})
 #########################################################################################################################
     ### <2> ### Main Class Backbone                                                                                     #
 #########################################################################################################################
@@ -371,9 +438,13 @@ class SAMtools(rje_obj.RJE_Object):
             if self.getStrLC('Control') and self.getStrLC('Treatment'):
                 if self.getStrLC('AltControl') and self.getStrLC('AltTreatment'):
                     snpfile = self.combinePileUpStats()
-                else: snpfile = self.pileUpStats()
+                else:
+                    snpfile = self.pileUpStats(snpdb=self.db('SNP'))
                 fdrdb = self.rateSNPs(snpfile)
                 self.combineSNPs(fdrdb)
+                if self.getBool('RGraphics'):
+                    self.rScriptGraphics()
+                    self.rScriptGraphics(rargs='fdrplot=T')
             if self.getStrLC('ReadCheck'):
                 ridfile = self.getStr('ReadCheck')
                 ridbase = rje.baseFile(ridfile,strip_path=True)
@@ -382,7 +453,13 @@ class SAMtools(rje_obj.RJE_Object):
                     self.setBool({'RID':True})
                     self.parsePileup(ridfile)
                     ridfile = '%s.rid.tdt' % (ridbase)  #?# Should this strip path? Probably not!
-                self.coverageFromRID(ridfile)
+                self.coverageFromRID(ridfile,depthplot=self.getBool('DepthPlot'))
+                if self.getBool('DepthPlot') and self.getBool('ReadLen'): self.coverageFromRID(ridfile,depthplot=True,readlen=True)
+            #!# Add different rGraphics modes/options - currently in coverageFromRID()
+            #!# Add HTML output linking to graphics
+        except SystemExit:
+            if self.getBool('Child'): sys.exit(0)
+            else: raise ValueError
         except:
             self.errorLog(rje_zen.Zen().wisdom())
             raise   # Delete this if method error not terrible
@@ -399,6 +476,12 @@ class SAMtools(rje_obj.RJE_Object):
                 if self.getStrLC(fstr): self.list['Batch'] = []
             for fstr in ['Control','Treatment','AltControl','AltTreatment']:
                 if self.getStrLC(fstr):
+                    self.setBool({'SNPFreq':True})
+                    snpdb = self.loadSNPTable()
+                    #i# The SNPOnly/SNPFreq mismatch is now handled by file naming and handling.
+                    #if self.getBool('SNPOnly'):
+                    #    self.warnLog('snponly=T is incompatible with SNPFreq analysis. Setting snponly=F. Could be issues if pileup files previously parsed with snponly=T')
+                    #    self.setBool({'SNPOnly':True})
                     fbase = rje.baseFile(self.getStr(fstr),strip_path=True)
                     if addlabels: self.list['Labels'].append(fbase)
                     fcuts = rje.matchExp('\.Q(\d+).(\d+)$',fbase)
@@ -412,8 +495,70 @@ class SAMtools(rje_obj.RJE_Object):
                 self.baseFile('%s.vs.%s' % (rje.baseFile(self.getStr('Control'),strip_path=True),rje.baseFile(self.getStr('Treatment'),strip_path=True)))
             ### ~ [2] Parse Pileup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             self.printLog('#FILES','%d pileup files identified for parsing' % len(self.list['Batch']))
-            for pfile in self.list['Batch']: self.parsePileup(pfile)
+            for locus in self.list['SkipLoci']: self.printLog('#SKIP','Skipping locus: %s' % locus)
+            if self.getInt('Forks') > 1:
+                outfile = self.forkerParsePileUp()
+            else:
+                outfile = {}
+                for pfile in self.list['Batch']:
+                    outfile[pfile] = self.parsePileup(pfile)
+            ### ~ [3] SNPTables ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            #!# Add forking of this too #!#
+            if self.getBool('SNPTableOut'):
+                for pfile in self.list['Batch']:
+                    if not outfile or not outfile[pfile]: continue
+                    self.snpTable(pfile,outfile[pfile])
             return True
+        except SystemExit:
+            if self.getBool('Child'): sys.exit(0)
+            else: raise ValueError
+        except: self.errorLog('Problem during %s setup.' % self); return False  # Setup failed
+#########################################################################################################################
+    def snpTable(self,pfile,snpfile):   ### Generates SNP Table from parsed output file
+        '''
+        Generates SNP Table from parsed output file
+        :param pfile:
+        :param snpfile:
+        :return:
+        '''
+        try:## ~ [2b] Filter based on allele frequency ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            db = self.db()
+            snpdb = db.openTable(snpfile,mainkeys=['Locus','Pos'],name='%s.snp' % pfile,expect=True)
+            snptabdb = db.addEmptyTable('snptable',['Locus','Pos','REF','ALT','N','Freq'],['Locus','Pos','REF','ALT'],log=True)
+            snpx = 0  # Number of SNPs read from SNP table
+            snpend = rje.endPos(snpdb.obj['File'])
+            while snpdb:
+                entry = snpdb.readEntry(add=False,close=True)
+                if not entry: break
+                snpx += 1
+                alleles = {}
+                for aseq in string.split(entry['Seq'],'|'):
+                    [a,n] = string.split(aseq,':')
+                    n = int(n)
+                    #!# Add filtering criteria
+                    #if self.getNum('PhaseCut') < 1.0:
+                    #    if n / float(entry['QN']) < self.getNum('PhaseCut'): continue
+                    #    if n < self.getInt('AbsPhaseCut'): continue
+                    #elif n < self.getInt('PhaseCut'): continue
+                    #if (a[0] == '-' or len(a) > 1) and not self.getBool('PhaseIndels'): continue
+                    #!#
+                    alleles[a] = n
+                #?# Add biallelic toggle?
+                #if len(alleles) != 2: continue   # Not biallelic: Need to filter better!
+                entry['Seq'] = []
+                for a in rje.sortKeys(alleles):
+                    if entry['Ref'] != a:
+                        allentry = {'Locus':entry['Locus'],'Pos':int(entry['Pos']),'REF':entry['Ref'],'ALT':a,'N':alleles[a],
+                                    'Freq':float(alleles[a])/sum(alleles.values())}
+                        snptabdb.addEntry(allentry)
+                self.progLog('#SNP','Parsing SNPs: %.2f%%; %s Pos -> %s SNP alleles.' % (100.0 * snpdb.obj['File'].tell() / snpend,rje.iStr(snpx),rje.iStr(snptabdb.entryNum())))
+            tabfile = '%s.snp.tdt' % rje.baseFile(snpfile,strip_path=True)
+            #!# Add more info on filters?
+            self.printLog('#SNP','%s SNP alleles parsed from %s SNP into %s.' % (rje.iStr(snptabdb.entryNum()),rje.iStr(snpx),tabfile))
+            snptabdb.saveToFile(tabfile)
+
+            db.deleteTable(snpdb)
+            db.deleteTable(snptabdb)
         except: self.errorLog('Problem during %s setup.' % self); return False  # Setup failed
 #########################################################################################################################
     ### <3> ### Pileup parsing Methods                                                                                  #
@@ -425,12 +570,19 @@ class SAMtools(rje_obj.RJE_Object):
         '''
         try:### ~ [1] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             ridfile = '%s.rid.tdt' % (rje.baseFile(filename,strip_path=True))
+            if rje.isYounger(filename,ridfile) == filename:     ### Returns younger file or None if either does not exist
+                self.printLog('#OLDRID','%s found but older than %s!' % (ridfile,filename))
+                rje.backup(self,ridfile)
             if rje.exists(ridfile) and not self.force():
                 self.printLog('#SKIP','%s found! (force=F)' % ridfile)
                 return True
+            if not rje.exists(filename):
+                self.warnLog('SAM file "%s" missing. (May not matter if already parsed.)' % filename)
+                return False
             self.printLog('#~~#','## ~~~~~ Parsing SAM File: %s ~~~~~ ##' % filename)
+            #!# Possible parsing of lengths from read files #!#
             RIDOUT = open(ridfile,'w')
-            rje.writeDelimit(RIDOUT,outlist=['RID','Locus','Start','End'],delimit='\t')
+            rje.writeDelimit(RIDOUT,outlist=['RID','Locus','Start','End','RLen','MLen'],delimit='\t')
             SAM = open(filename,'r')
             rid = 0          # Read counter (ID counter)
             ### ~ [2] Process each entry ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -439,13 +591,21 @@ class SAMtools(rje_obj.RJE_Object):
                 if line.startswith('@'): continue
                 samdata = string.split(line)
                 if len(samdata) < 11: continue
-                self.progLog('\r#PARSE','Parsing %s: %s reads...' % (filename,rje.iStr(rid)),rand=0.01)
+                self.progLog('\r#PARSE','Parsing %s: %s reads...' % (filename,rje.iStr(rid)),rand=0.1)
                 rid += 1
+                rname = samdata[0]
+                zdata = string.split(string.replace(rname,'/',' '))
+                try:
+                    [smrt,zmw,pos] = zdata[:3]
+                    [beg,end] = string.split(pos,'_')
+                    rlen = int(end) - int(beg) + 1
+                except: rlen = 0
                 locus = samdata[2]
                 rpos = int(samdata[3])
                 cigstr = samdata[5]
                 cigdata = parseCigar(cigstr)
-                rje.writeDelimit(RIDOUT,outlist=[rid,locus,rpos,rpos+cigarAlnLen(cigdata)-1],delimit='\t')
+                mlen = len(samdata[9])
+                rje.writeDelimit(RIDOUT,outlist=[rid,locus,rpos,rpos+cigarAlnLen(cigdata)-1,rlen,mlen],delimit='\t')
             self.printLog('#RID','Parsed %s: %s read start/end positions output to %s' % (filename,rje.iStr(rid),ridfile))
             RIDOUT.close()
             return True
@@ -458,17 +618,38 @@ class SAMtools(rje_obj.RJE_Object):
         >> depth:bool [True] = Whether to generate read depth calculation.
         '''
         try:### ~ [1] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            alt = False     # Whether this is an Alt pileup file (else Ref).
             if filename.endswith('.sam'): return self.parseSAM(filename)
-            outfile = '%s.Q%d.%d.tdt' % (rje.baseFile(filename,strip_path=True),self.getInt('QCut'),self.getInt('MinQN'))
+            qtxt = 'Q%d.%d' % (self.getInt('QCut'),self.getInt('MinQN'))
+            outbase = '%s.%s' % (rje.baseFile(filename,strip_path=True),qtxt)
+            if self.getBool('SNPFreq'):
+                outfile = '%s.snpfreq.tdt' % (outbase)
+                snpdb = self.loadSNPTable()
+                if self.getBool('RID'):
+                    self.setBool({'RID':False})
+                    self.printLog('#RID','RID allele output switched off for SNPFreq analysis.')
+            elif self.getBool('SNPOnly'):
+                suffix = 'b%si%s' % (str(self.getBool('Biallelic'))[:1],str(self.getBool('Indels'))[:1])
+                outfile = '%s.snponly.%s.tdt' % (outbase,suffix)
+            else: outfile = '%s.tdt' % (outbase)
             ridfile = '%s.rid.tdt' % (rje.baseFile(filename,strip_path=True))
             for fstr in ['Control','Treatment','AltControl','AltTreatment']:
-                if self.getStr(fstr) == filename: self.setStr({fstr:outfile})
+                if self.getStr(fstr) == filename:
+                    self.setStr({fstr:outfile})
+                    if fstr.startswith('Alt'): alt = True
+            #i# Assess whether the parsing needs to be performed.
+            #i# Independently log whether to remake RID file: should be the same for all runs
             skiprun = not self.force()
-            if self.getBool('RID'):
-                skiprun = skiprun and rje.exists(ridfile)
+            ridout = self.getBool('RID') and not rje.exists(ridfile)  # Always output RID file for safety if RID mapping used
+            ridout = ridout and not self.getBool('SNPFreq')
+            if self.getBool('RID'): self.printLog('#RID','%s: %s' % (ridfile,rje.exists(ridfile)))
+            if self.getBool('RID') and rje.exists(ridfile) and not ridout:
+                self.warnLog('Using existing RID file. If program crashes try deleting *.rid.tdt or run force=T.')
+            skiprun = skiprun and not ridout    #(rje.exists(ridfile) or self.getBool('SNPFreq'))
             skiprun = skiprun and rje.exists(outfile)
+            self.printLog('#OUT','%s: %s' % (outfile,rje.exists(outfile)))
             if skiprun:
-                #!# Should we add something to check integrity/complete? #!#
+                #!# Should we add something to check integrity/completeness? #!#
                 self.printLog('#SKIP','%s found! (force=F)' % outfile)
                 return True
             self.printLog('#~~#','## ~~~~~ Parsing PileUp File: %s ~~~~~ ##' % filename)
@@ -478,8 +659,11 @@ class SAMtools(rje_obj.RJE_Object):
             for line in PILEUP:
                 data = string.split(rje.chomp(line))
                 if not data: break
-                self.progLog('\r#DEPTH','Parsing %s depth: %s pos; %s read bases' % (filename,rje.iStr(px),rje.iStr(rx)),rand=0.01); px += 1
-                rx += int(data[3])
+                if data[0] in self.list['SkipLoci']:
+                    self.progLog('\r#DEPTH','Skipping %s depth: %s pos; %s read bases' % (filename,rje.iStr(px),rje.iStr(rx)),rand=0.001)
+                    continue
+                self.progLog('\r#DEPTH','Parsing %s depth: %s pos; %s read bases.' % (filename,rje.iStr(px),rje.iStr(rx)),rand=0.001)
+                rx += int(data[3]); px += 1
             meandepth = float(rx) / px
             self.printLog('\r#DEPTH','Parsed %s depth: %s pos; %s read bases -> mean = %.1f' % (filename,rje.iStr(px),rje.iStr(rx),meandepth))
             PILEUP.close()
@@ -490,6 +674,7 @@ class SAMtools(rje_obj.RJE_Object):
             RIDOUT = None
             if self.getBool('RID'):
                 outfields.append('RID')
+            if ridout:
                 RIDOUT = open(ridfile,'w')
                 rje.writeDelimit(RIDOUT,outlist=['RID','Locus','Start','End'],delimit='\t')
             PILEUP = open(filename,'r'); px = 0; ex = 0
@@ -500,34 +685,73 @@ class SAMtools(rje_obj.RJE_Object):
             ridlist = []    # List of read IDs
             rdel = {}       # Dictionary of {rid:current deletion}
             rstart = {}     # Dictionary of {rid:start point}
+            slocus = None   # Current SNPTable locus under consideration for SNPFreq skipping
+            sposlist = []   # List of positions for current SNPTable locus for SNPFreq skipping
+            slx = 0
             ### ~ [2] Process each entry ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             for line in PILEUP:
+                prevrid = ridlist[0:]
                 ## ~ [2a] Parse pileup data into dictionary ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+                #self.bugPrint(rje.sortKeys(rstart))
+                #self.bugPrint(ridlist)
+                #self.bugPrint(line)
                 entry = self.parsePileupLine(line,ri,ridlist,rdel,qc)
-                if not entry: break
+                #self.bugPrint(entry)
+                #self.bugPrint(rje.sortKeys(rstart))
+                #self.debug(ridlist)
+                if not entry:
+                    if slocus:
+                        self.printLog('\r#PARSE','Parsing %s: %s pos...' % (filename,rje.iStr(px)),log=False)
+                        if prevrid:
+                            self.warnLog('Reached end of locus %s but %s unfinished reads!' % (slocus,rje.iLen(prevrid)))
+                        if slocus in self.list['SkipLoci']: self.printLog('\r#PARSE','Skipped %s: %s %s SNPs.      ' % (slocus,rje.iStr(slx),qtxt))
+                        else: self.printLog('\r#PARSE','Parsed %s: %s %s SNPs.      ' % (slocus,rje.iStr(slx),qtxt))
+                    break
+                ## ~ [2b] Filter non-SNP positions for SNPFreq ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+                freqskip = entry['Locus'] in self.list['SkipLoci']    # Whether to skip this position for QXX output.
+                if self.getBool('SNPFreq'):
+                    #i# Match entry to SNPTable if snpfreq analysis
+                    if entry['Locus'] != slocus:
+                        if slocus:
+                            self.printLog('\r#PARSE','Parsing %s: %s pos...' % (filename,rje.iStr(px)),log=False)
+                            if prevrid:
+                                self.warnLog('Reached end of locus %s but %s unfinished reads!' % (slocus,rje.iLen(prevrid)))
+                            if slocus in self.list['SkipLoci']: self.printLog('\r#PARSE','Skipped %s: %s %s SNPs.      ' % (slocus,rje.iStr(slx),qtxt))
+                            else: self.printLog('\r#PARSE','Parsed %s: %s %s SNPs.      ' % (slocus,rje.iStr(slx),qtxt))
+                        slocus = entry['Locus']; slx = 0
+                        if alt: sposlist = snpdb.indexDataList('AltLocus',slocus,'AltPos',sortunique=False)
+                        else: sposlist = snpdb.indexDataList('Locus',slocus,'Pos',sortunique=False)
+                    freqskip = entry['Pos'] not in sposlist
+                ## ~ [2c] Update RIDList and output if required ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
                 if ridlist: ri = max(ri,max(ridlist))
                 else: self.debug(entry)
                 self.progLog('\r#PARSE','Parsing %s: %s pos...' % (filename,rje.iStr(px)),rand=0.01); px += 1
                 entry['Dep'] = rje.sf(entry['N']/meandepth)
                 for rid in entry.pop('Start'): rstart[rid] = entry['Pos']
                 for rid in entry.pop('End'):
-                    startpos = rstart.pop(rid)
-                    if self.getBool('RID'):
-                        rje.writeDelimit(RIDOUT,outlist=[rid,entry['Locus'],startpos,entry['Pos']],delimit='\t')
-                ## ~ [2b] Filter low quality ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+                    try:
+                        startpos = rstart.pop(rid)
+                        if ridout:
+                            rje.writeDelimit(RIDOUT,outlist=[rid,entry['Locus'],startpos,entry['Pos']],delimit='\t')
+                    except:
+                        self.errorLog('RID Ending problem! Started: %s; Ending: %s' % (rje.sortKeys(rstart),rid))
+                        self.debug(entry)
+                ## ~ [2d] Filter non-SNP positions for SNPFreq ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+                if freqskip: continue
+                ## ~ [2e] Filter low quality ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
                 # Remove (from back) any reads than do not meet QV cutoff
                 entry['QN'] = len(entry['Reads'])
                 if entry['QN'] < self.getInt('MinQN'): continue     # Not enough data for output
-                ## ~ [2c] Alleles ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+                ## ~ [2f] Alleles ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
                 if not self.pileupAlleles(entry): continue
                 #table.addEntry(entry)
                 outlist = []
                 for field in outfields: outlist.append(entry[field])
-                rje.writeDelimit(PILEOUT,outlist,delimit='\t'); ex += 1
+                rje.writeDelimit(PILEOUT,outlist,delimit='\t'); ex += 1; slx += 1
             self.printLog('\r#PARSE','Parsed %s: %s entries from %s lines: %s reads.' % (filename,rje.iStr(ex),rje.iStr(px),rje.iStr(ri)))
             PILEOUT.close()
             PILEUP.close()
-            if self.getBool('RID'):
+            if ridout:
                 self.printLog('#RID','%s read start/end positions output to %s' % (rje.iStr(ri),ridfile))
                 RIDOUT.close()
             ### ~ [3] Save QC ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -541,7 +765,7 @@ class SAMtools(rje_obj.RJE_Object):
                     except: self.errorLog('!')
                 QC.close()
                 self.printLog('#QC','Quality score counts output to: %s' % qfile)
-            return True
+            return outfile
         except: self.errorLog('%s.parsePileup() error' % (self.prog())); return False
 #########################################################################################################################
     def pileupAlleles(self,entry):  ### Parses allele data from pileup data dictionary
@@ -553,32 +777,62 @@ class SAMtools(rje_obj.RJE_Object):
             qread = entry['Reads']  # Dictionary of {rid:allele} passing qscore
             alleles = {}            # Dictionary of {nt:count}
             allrid = {}             # Dictionary of {nt:[ridlist]}
-            if self.getBool('SNPOnly'):         # Parsing allele mincut values for comparison
+            #i# SNPOnly=T filtering should NOT be applied if performing snpfreq analysis
+            snponly = self.getBool('SNPOnly') and not self.getBool('SNPFreq')
+            self.bugPrint('%s: %s' % (entry,snponly))
+            if snponly:             # Parsing allele mincut values for comparison; quick bypass of non-SNP sites.
+                aset = set(qread.values())
+                self.bugPrint('%s' % aset)
+                if len(aset) < 1: return False  # No reads?!
+                elif len(aset) < 2:
+                    if self.getBool('IgnoreRef') or entry['Ref'] in aset:
+                        return False   # All reads identical
+                elif len(aset) == 2:
+                    if not self.getBool('Indels') and '-' in aset: return False   # All non-gap reads identical
+                    elif self.getBool('IgnoreN') and 'N' in aset: return False   # All non-N reads identical
+                elif len(aset) == 3:
+                    if not self.getBool('Indels') and '-' in aset and self.getBool('IgnoreN') and 'N' in aset: return False   # All non-gap/N reads identical
                 acut = self.getNum('MinCut')    # Minimum allele count allowed
                 if acut < 1: acut = max(self.getInt('AbsMinCut'),len(qread)*acut)
-            else: acut = 0
+            elif self.getBool('SNPFreq'):
+                for allele in [entry['Ref']] + entry['ALT']:
+                    alleles[allele] = 0
+                    allrid[allele] = []
+                acut = 0
             ### ~ [1] Parse Alleles (and corresponding Read IDs) from entry ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             for rid in rje.sortKeys(qread):
                 read = qread[rid]
                 if read in alleles: alleles[read] += 1; allrid[read].append(str(rid))
                 else: alleles[read] = 1; allrid[read] = [str(rid)]
             asort = []  # List of tuples for sorting
-            for allele in alleles: asort.append((alleles[allele],allele))
-            asort.sort()
-            asort.reverse()     # This should now be in order of allele frequency
+            if self.getBool('SNPFreq'):
+                for allele in entry['ALT']: asort.append((alleles[allele],allele))
+                asort.sort()
+                asort.reverse()     # This should now be in order of allele frequency
+                allele = entry['Ref']
+                asort.append((alleles[allele],allele))
+            else:
+                for allele in alleles: asort.append((alleles[allele],allele))
+                asort.sort()
+                asort.reverse()     # This should now be in order of allele frequency
             acheckx = 0         # Count check
             aseq = []           # List of (filtered?) alleles and counts
             akept = []          # List of kept alleles
+            self.bugPrint(asort)
             for i in range(len(asort)):
                 acheckx += asort[i][0]
-                if asort[i][1] == 'N' and self.getBool('SNPOnly') and self.getBool('IgnoreN'): continue
-                if (asort[i][1] == '-' or len(asort[i][1]) > 1) and self.getBool('SNPOnly') and not self.getBool('Indels'): continue
+                if asort[i][1] == 'N' and snponly and self.getBool('IgnoreN'): continue
+                # asort = [(allele count, allele)]
+                # asort[i][0] = count
+                # asort[i][1] = allele: '-' = deletion; len > 1 = insertion
+                if (asort[i][1] == '-' or len(asort[i][1]) > 1) and self.getBool('SNPOnly') and not self.getBool('SNPFreq') and not self.getBool('Indels'): continue
                 if asort[i][0] >= acut:
                     aseq.append('%s:%d' % (asort[i][1],asort[i][0]))
                     akept.append(asort[i][1])
             if not aseq: return False   # No alleles kept
-            if self.getBool('SNPOnly'):
-                if len(aseq) == 1: return False         # Not a SNP
+            if snponly:
+                if len(aseq) == 1:
+                    if self.getBool('IgnoreRef') or aseq[0][0] == entry['Ref']: return False         # Not a SNP
                 elif self.getBool('Biallelic') and len(aseq) > 2: return False     # Not a biallelic SNP
             entry['Seq'] = string.join(aseq,'|')
             entry['RID'] = []
@@ -588,6 +842,7 @@ class SAMtools(rje_obj.RJE_Object):
             entry['RID'] = string.join(entry['RID'],'|')
             if acheckx != entry['QN']:  #!# Convert these to test statements?
                 self.errorLog('Allele versus Quality count mismatch for %s Pos %s' % (entry['Locus'],entry['Pos']),printerror=False)
+            self.deBug(entry)
             return True
         except: self.errorLog('%s.pileupAlleles(%s) error' % (self.prog(),entry)); return False
 #########################################################################################################################
@@ -605,6 +860,9 @@ class SAMtools(rje_obj.RJE_Object):
             if not data: return False
             ### ~ [1] Extract Read Data ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             entry = {'Locus':data[0],'Pos':int(data[1]),'Ref':data[2].upper(),'N':int(data[3]),'QN':0}
+            #i# Skipping loci in skiploci list: no need to parse reads as should be no reads spanning loci
+            if data[0] in self.list['SkipLoci']: return entry
+            #i# NOTE: entry['Pos'] can be used with self.db('SNP') to bypass irrelevant positions for SNPFreq
             if ri > -1: entry['Start'] = []; entry['End'] = []
             rseq = data[4]  # Read sequences from pileup
             reads = []      # List of read alleles, extracted from rseq
@@ -626,7 +884,7 @@ class SAMtools(rje_obj.RJE_Object):
                             if not rdel[rid]: rdel.pop(rid) # End of deletion
                         reads.append('-'); rseq = rseq[1:]
                     elif rseq[:1] == '^':
-                        rseq = rseq[2:]   # Indicates a new read
+                        rseq = rseq[2:]   # Indicates a new read; skip the quality score
                         if ri > -1:
                             ri += 1; ridlist.insert(len(reads),ri)
                             entry['Start'].append(ri)
@@ -658,24 +916,24 @@ class SAMtools(rje_obj.RJE_Object):
                     self.errorLog('!')
                     self.deBug(rseq)
                     raise ValueError
-            self.bugPrint('%s:%s : %s'% (entry['Locus'],entry['Pos'],ridlist))
+            #self.bugPrint('%s:%s : %s'% (entry['Locus'],entry['Pos'],ridlist))
             ## ~ [1a] Check data integrity ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             if ri > -1 and len(reads) != len(ridlist):
-                raise ValueError('Read allele versus Read ID count mismatch for %s Pos %s' % (entry['Locus'],entry['Pos']))
+                raise ValueError('Read allele versus Read ID count mismatch for %s Pos %s: %s vs %s' % (entry['Locus'],entry['Pos'],reads,ridlist))
             if len(reads) != entry['N']:    # Formerly erroenous: (entry['N'] + delx):
                 self.deBug('%s = %d' % (data[4],entry['N']))
                 self.deBug('%s = %d' % (reads,len(reads)))
-                self.errorLog('Read versus Read Count mismatch for %s Pos %s' % (entry['Locus'],entry['Pos']),printerror=False)
+                self.errorLog('Read versus Read Count mismatch for %s Pos %s: %s vs %s' % (entry['Locus'],entry['Pos'],reads,entry['N']),printerror=False)
                 raise ValueError
             ### ~ [2] Assess Quality Scores and generate alleles ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            qread = {}    # Dictionary of {rid:allele} passing qscore
             qual = data[5]
             if len(reads) != len(qual):
                 self.deBug('%s = %d' % (reads,len(reads)))
                 self.deBug('%s = %d' % (qual,len(qual)))
                 self.deBug(data)
-                self.errorLog('Read versus Quality length mismatch for %s Pos %s' % (entry['Locus'],entry['Pos']),printerror=False)
+                self.errorLog('Read versus Quality length mismatch for %s Pos %s: %s vs %s' % (entry['Locus'],entry['Pos'],reads,qual),printerror=False)
                 raise ValueError
-            qread = {}    # Dictionary of {rid:allele} passing qscore
             for r in range(len(qual)):
                 qrid = ridlist[r]
                 q = ord(qual[r]) - 33
@@ -685,393 +943,359 @@ class SAMtools(rje_obj.RJE_Object):
             while ridend: ridlist.remove(ridend.pop(0))     # Remove ended reads
             entry['Reads'] = qread
             return entry
-        except: self.errorLog('%s.parsePileupLine() error' % (self.prog())); return False
+        except:
+            self.errorLog('%s.parsePileupLine() error' % (self.prog()));
+            raise
 #########################################################################################################################
-    def NEWparsePileup(self,filename,depth=True):  ### Extracts, filters and processes PileUp data
+    def forkerParsePileUp(self,depth=True):  ### Extracts, filters and processes PileUp data
         '''
         Extracts, filters and processes PileUp data.
-        >> filename:str = Pileup file name
         >> depth:bool [True] = Whether to generate read depth calculation.
         '''
         try:### ~ [1] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            outfile = '%s.Q%d.%d.tdt' % (rje.baseFile(filename,strip_path=True),self.getInt('QCut'),self.getInt('MinQN'))
-            for fstr in ['Control','Treatment','AltControl','AltTreatment']:
-                if self.getStr(fstr) == filename: self.setStr({fstr:outfile})
-            if rje.exists(outfile) and not self.force():
-                #!# Should we add something to check integrity/complete? #!#
-                self.printLog('#SKIP','%s found! (force=F)' % outfile)
-                return True
-            self.printLog('#~~#','## ~~~~~ Parsing PileUp File: %s ~~~~~ ##' % filename)
-            ## ~ [1a] Calculate mean read depth ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-            # Currently this is based on unfiltered 'N' values.
-            PILEUP = open(filename,'r'); px = 0; rx = 0
-            for line in PILEUP:
-                data = string.split(rje.chomp(line))
-                if not data: break
-                self.progLog('\r#DEPTH','Parsing %s depth: %s pos; %s read bases' % (filename,rje.iStr(px),rje.iStr(rx)),rand=0.01); px += 1
-                rx += int(data[3])
-            meandepth = float(rx) / px
-            self.printLog('\r#DEPTH','Parsed %s depth: %s pos; %s read bases -> mean = %.1f' % (filename,rje.iStr(px),rje.iStr(rx),meandepth))
-            PILEUP.close()
-            ## ~ [1b] Setup files for main processing ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-            rje.backup(self,outfile)
+            ## ~ [1a] Forking Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            self.setBool({'Child':False})   # Whether this is a child process
+            forkx = self.getInt('Forks')    # Number of forks to have running at one time
+            forks = []                      # List of active fork PIDs
+            tofork = []                     # List of pileup forking dictionaries
+            #i# Each locus for each file will be forked off separately. The first pass that calculates read depths will
+            #i# also generate these forking dictionaries:
+            #i# - File: pileup file name
+            #i# - Alt: Whether this is a Ref (False) or Alt (True) file
+            #i# - Locus: Locus to be parsed in fork
+            #i# - FPos: Position in file that starts locus
+            #i# - Dep: Mean depth of locus
+            #i# - RIDStart: RID for first locus read
+            #i# - PID: PID of fork once started
+            forked = {}                             # Dictionary of PID:fork dictionary
+            killforks = self.getInt('KillForks')    # Time in seconds to wait after main thread has apparently finished
+            killtime = time.time()                  # Baseline time for killtime assessment
+            ## ~ [1b] General settings update ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            outbase = {}    # Dictionary of {filename:outbase}
+            outfile = {}    # Dictionary of {filename:outfile}
+            ridfile = {}    # Dictionary of {filename:ridfile} - None if ridout=False
+            qtxt = 'Q%d.%d' % (self.getInt('QCut'),self.getInt('MinQN'))
+            suffix = 'b%si%s' % (str(self.getBool('Biallelic'))[:1],str(self.getBool('Indels'))[:1])
+            if self.getBool('SNPFreq'):
+                snpdb = self.loadSNPTable()
+                if self.getBool('RID'):
+                    self.setBool({'RID':False})
+                    self.printLog('#RID','RID allele output switched off for SNPFreq analysis.')
+            ## ~ [1c] Output file update ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             outfields = ['Locus','Pos','Ref','N','QN','Seq']    # Fields for output file
             if depth: outfields.append('Dep')
-            PILEUP = open(filename,'r'); px = 0; ex = 0
-            PILEOUT = open(outfile,'w')
-            rje.writeDelimit(PILEOUT,outlist=outfields,delimit='\t')
-            qc = [] # List of counts at different quality scores
-            ri = 0      # Read counter (ID counter)
-            ridlist = []    # List of read IDs
-            rdel = {}   # Dictionary of {rid:current deletion}
-            ### ~ [2] Process each entry ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            #!# Replace this with a method to parse a single line and return data or entry
-            for line in PILEUP:
-                # Split line up into data. Should be: locus, position, reference, no. reads, read data, qualscores
-                data = string.split(rje.chomp(line))
-                if not data: break
-                self.progLog('\r#PARSE','Parsing %s: %s pos...' % (filename,rje.iStr(px)),rand=0.01); px += 1
-                ## ~ [2a] Extract Read Data ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-                entry = {'Locus':data[0],'Pos':int(data[1]),'Ref':data[2].upper(),'N':int(data[3]),'QN':0}
-                entry['Dep'] = rje.sf(entry['N']/meandepth)
-                rseq = data[4]  # Read sequences from pileup
-                reads = []      # List of read alleles, extracted from rseq
-                delx = 0        # Number of deletions: these are not in the count depth (N) nor have a QV
-                #!# How should/do people cope with deletions? #!#
-                #!# Make it a toggle to include/exclude? #!#
-                # Note that ends of reads are [element]$
-                # Beginning of reads are ^[QV][element]
-                rid = -1
-                #while '$' in ridlist: ridlist.remove('$')   # Get rid of reads that ended in previous row.
-                ridend = []     # List of reads ending in this row
-                while rseq:
-                    try:
-                        # Establish current read ID (Needed for deletions)
-                        if rseq[:1] not in '^-+$' and ridlist: rid = ridlist[len(reads)]
-                        # Update read data
-                        if rseq[:1] in ['.',',']:   # Matches reference (+/- strand)
-                            reads.append(entry['Ref']); rseq = rseq[1:]   # Matches reference
-                        elif rseq[:1] == '*':   # Check for existing deletions
-                            #x#if rid in rdel:
-                            if rdel[rid][:1] != entry['Ref']: self.warnLog('Deletion sequence mismatch @ %s:%s (%s vs %s)' % (data[0],data[1],rdel[rid][:1],entry['Ref']),warntype='del_mismatch',quitchoice=True,suppress=True,dev=True)
-                            rdel[rid] = rdel[rid][1:]
-                            if not rdel[rid]: rdel.pop(rid) # End of deletion
-                            reads.append('-'); rseq = rseq[1:]
-                        elif rseq[:1] == '^':
-                            rseq = rseq[2:]   # Indicates a new read
-                            ri += 1; ridlist.insert(len(reads),ri)
-                            self.bugPrint('Read %d start @ %s:%s' % (ri,data[0],data[1]))
-                        elif rseq[:1] in ['-','+']:
-                            ilen = string.atoi(rje.matchExp('^(\d+)',rseq[1:])[0])
-                            indel = rseq[len('%s' % ilen)+1:][:ilen]    # Just the indel sequences
-                            if rseq[:1] == '-':     # Deletion
-                                delx += 1           # These do not have QV scores
-                                #X wrong! X# reads.append(rseq[:len('%s' % ilen)+ilen+1].upper())    # Deletion includes -n part.
-                                rid = ridlist[len(reads)-1]
-                                if rid in rdel: self.warnLog('Conflicting deletions for RID %s @ %s:%s' % (rid,data[0],data[1]))
-                                rdel[rid] = indel.upper()
-                                self.debug(rdel)
-                            else:   # Insertion
-                                reads[-1] += indel.upper()  # Insertion just has whole sequence AFTER the position
-                            rseq = rseq[len('%s' % ilen)+ilen+1:]
-                        elif rseq[:1] in ['$']:
-                            rseq = rseq[1:]     # Indicated end of a read
-                            #rfin = ridlist[len(reads)-1]
-                            #ridlist[len(reads)-1] = '$'
-                            ridend.append(rid)
-                            self.deBug('Read %d end @ %s:%s' % (rid,data[0],data[1]))
+            if self.getBool('RID'):
+                outfields.append('RID')
+            for pfile in self.list['Batch']:
+                outbase[pfile] = '%s.%s' % (rje.baseFile(pfile,strip_path=True),qtxt)
+                if self.getBool('SNPFreq'): outfile[pfile] = '%s.snpfreq.tdt' % (outbase[pfile])
+                elif self.getBool('SNPOnly'): outfile[pfile] = '%s.snponly.%s.tdt' % (outbase[pfile],suffix)
+                else: outfile[pfile] = '%s.tdt' % (outbase[pfile])
+
+            ### ~ [2] Setup the forking dictionaries ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            self.printLog('#~~#','## ~~~~~ Setup Forked Parsing of PileUp Files ##')
+            for filename in self.list['Batch']:
+                ridfile[filename] = '%s.rid.tdt' % (rje.baseFile(filename,strip_path=True))
+                alt = False     # Whether this is an Alt pileup file (else Ref)
+                for fstr in ['Control','Treatment','AltControl','AltTreatment']:
+                    if self.getStr(fstr) == filename:
+                        self.setStr({fstr:outfile[filename]})     # Also update the filename for later parsing
+                        if fstr.startswith('Alt'): alt = True
+                ## ~ [2a] Assess whether the parsing needs to be performed ~~~~~~~~~~~~~~~~~~~~~~~~ ##
+                #i# Independently log whether to remake RID file: should be the same for all runs
+                skiprun = not self.force()
+                ridout = self.getBool('RID') or not rje.exists(ridfile[filename])  # Always output RID file for safety if RID mapping used
+                ridout = ridout and not self.getBool('SNPFreq')
+                if not ridout: ridfile[filename] = None
+                skiprun = skiprun and not ridout    #(rje.exists(ridfile) or self.getBool('SNPFreq'))
+                skiprun = skiprun and rje.exists(outfile[filename])
+                if skiprun:
+                    #!# Should we add something to check integrity/completeness? #!#
+                    self.printLog('#SKIP','%s found! (force=F)' % outfile[filename])
+                    continue
+                ## ~ [2b] Parse depth and generate forking dictionaries ~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+                # Currently this is based on unfiltered 'N' values.
+                PILEUP = open(filename,'r'); px = 0; rx = 0; bx = 0
+                prex = 0        # Number of reads preceding current locus
+                prep = 0        # Number of positions preceding current locus
+                locus = None    # Previous locus
+                fpos = 0        # File position at start of locus
+                linepos = 0     # This will be the position of the start of the current line
+                line = 'Parsing'# Contents of last line
+                while line:
+                    line = PILEUP.readline()
+                    data = string.split(rje.chomp(line))
+                    if locus and (not data or data[0] != locus):    # Forking entry for previous locus
+                        forkdict = {'File':filename,'Locus':locus,'Alt':alt,'FPos':fpos,'RIDStart':prex+1,'Pos':px-prep,
+                                    'Out':'%s.%s.tdt' % (outbase[filename],locus),
+                                    'RID':'%s.%s.rid.tdt' % (outbase[filename],locus),
+                                    'Size':linepos-fpos,'Reads':rx-prex}
+                        if not ridfile[filename]: forkdict['RID'] = None
+                        #!# Could use Size or Reads to sort from big to small
+                        if locus not in self.list['SkipLoci']:
+                            tofork.append(forkdict)
+                            self.printLog('\r#PARSE','Queued %s %s for forking: %s pos; %s reads.' % (filename,locus,rje.iStr(forkdict['Pos']),rje.iStr(forkdict['Reads'])))
                         else:
-                            if rseq[0].upper() not in 'ATGCN': print ' ???', rseq[0].upper(), '???'
-                            # NB. * = single bp deletion, handled below
-                            reads.append(rseq[0].upper()); rseq = rseq[1:]
-                    except:
-                        self.bugPrint(reads)
-                        self.bugPrint(ridlist)
-                        self.errorLog('!')
-                        self.deBug(rseq)
-                        raise ValueError
-                self.bugPrint('%s:%s : %s'% (entry['Locus'],entry['Pos'],ridlist))
-                if len(reads) != len(ridlist):
-                    raise ValueError('Read allele versus Read ID count mismatch for %s Pos %s' % (entry['Locus'],entry['Pos']))
-                if len(reads) != entry['N']:    # Formerly erroenous: (entry['N'] + delx):
-                    self.deBug('%s = %d' % (data[4],entry['N']))
-                    self.deBug('%s = %d' % (reads,len(reads)))
-                    self.errorLog('Read versus Read Count mismatch for %s Pos %s' % (entry['Locus'],entry['Pos']),printerror=False)
-                    raise ValueError
-                #!# Need to replace reads and qual with dictionaries of {rid:value} ?
-                #!# Or convert the finished rid to $ in ridlist AFTER processing of alleles #!# - THIS #!#
-                ## ~ [2b] Assess Quality Scores and generate alleles ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-                qual = data[5]
-                if len(reads) != len(qual):
-                    self.deBug('%s = %d' % (reads,len(reads)))
-                    self.deBug('%s = %d' % (qual,len(qual)))
-                    self.deBug(data)
-                    self.errorLog('Read versus Quality length mismatch for %s Pos %s' % (entry['Locus'],entry['Pos']),printerror=False)
-                    raise ValueError
-                qread = {}    # Dictionary of {rid:allele} passing qscore
-                for r in range(len(qual)):
-                    qrid = ridlist[r]
-                    q = ord(qual[r]) - 33
-                    qc += [0] * (q - len(qc)); qc[q-1] += 1
-                    if q >= self.getInt('QCut'): qread[qrid] = reads[r]
-                while ridend: ridlist.remove(ridend.pop(0)) # Remove ended reads
-                #while len(qual) < len(reads) and reads[len(qual)][0] == '-': qual.append(self.getInt('QCut'))
-                #while '*' in reads: reads[reads.index('*')] = '-'   #'-1%s' % entry['Seq'].upper()
-                ## ~ [2c] Filter low quality ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-                #if entry['Pos'] in [190359]:    #100,98901,183697,169284,
-                #    self.deBug(qual)
-                #    self.deBug(reads)
-                #    self.deBug(qc)
-                # Remove (from back) any reads than do not meet QV cutoff
-                entry['QN'] = len(qread)
-                if entry['QN'] < self.getInt('MinQN'): continue     # Not enough data for output
-                ## ~ [2d] Alleles ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-                alleles = {}    # Dictionary of {nt:count}
-                for read in qread.values():
-                    if read in alleles: alleles[read] += 1
-                    else: alleles[read] = 1
-                asort = []  # List of tuples for sorting
-                for allele in alleles: asort.append((alleles[allele],allele))
-                asort.sort()
-                asort.reverse()     # This should now be in order of allele frequency
-                acheckx = 0         # Count check
-                for i in range(len(asort)):
-                    acheckx += asort[i][0]
-                    asort[i] = '%s:%d' % (asort[i][1],asort[i][0])
-                entry['Seq'] = string.join(asort,'|')
-                #if entry['Pos'] in [190359]:    #100,98901,183697,169284,
-                #    self.deBug(qual)
-                #    self.deBug(reads)
-                #    self.deBug(alleles)
-                #    self.deBug(entry)
-                #    self.deBug(line)
-                if acheckx != entry['QN']:  #!# Convert these to test statements?
-                    self.errorLog('Allele versus Quality count mismatch for %s Pos %s' % (entry['Locus'],entry['Pos']),printerror=False)
-                #table.addEntry(entry)
-                outlist = []
-                for field in outfields: outlist.append(entry[field])
-                rje.writeDelimit(PILEOUT,outlist,delimit='\t'); ex += 1
-            self.printLog('\r#PARSE','Parsed %s: %s entries from %s lines: %s reads.' % (filename,rje.iStr(ex),rje.iStr(px),rje.iStr(ri)))
-            PILEOUT.close()
-            PILEUP.close()
-            ### ~ [3] Save QC ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            qfile = '%s.QC.tdt' % rje.baseFile(filename,strip_path=True)
-            if rje.exists(qfile) and not self.force(): self.printLog('#QC','%s already exists (force=F).' % qfile)
+                            self.printLog('\r#DEPTH','Skipped %s %s depth (%s pos; %s reads parsed).' % (filename,locus,rje.iStr(forkdict['Pos']),rje.iStr(forkdict['Reads'])))
+                            if self.dev(): self.printLog('#DEV','%s' % forkdict)
+                        prex = rx; prep = px
+                        fpos = linepos
+                    if not data: break
+                    locus = data[0]
+                    linepos = PILEUP.tell()
+                    if data[0] in self.list['SkipLoci']:
+                        self.progLog('\r#DEPTH','Skipping %s depth: %s pos; %s reads; %s bases' % (filename,rje.iStr(px),rje.iStr(rx),rje.iStr(bx)),rand=0.001)
+                        continue
+                    self.progLog('\r#DEPTH','Parsing %s depth: %s pos; %s reads; %s bases.' % (filename,rje.iStr(px),rje.iStr(rx),rje.iStr(bx)),rand=0.001)
+                    bx += int(data[3]); px += 1
+                    rx += data[4].count('^')
+                meandepth = float(bx) / px
+                self.printLog('\r#DEPTH','Parsed %s depth: %s pos; %s reads; %s bases -> mean depth = %.1f' % (filename,rje.iStr(px),rje.iStr(rx),rje.iStr(bx),meandepth))
+                PILEUP.close()
+                ## ~ [2c] Fill in mean depth values ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+                for forkdict in tofork:
+                    if 'Dep' not in forkdict: forkdict['Dep'] = meandepth
+                ## ~ [2d] Setup files for main processing ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+                rje.backup(self,outfile[filename])
+                PILEOUT = open(outfile[filename],'w')
+                rje.writeDelimit(PILEOUT,outlist=outfields,delimit='\t')
+                PILEOUT.close()
+                if ridout:
+                    RIDOUT = open(ridfile[filename],'w')
+                    rje.writeDelimit(RIDOUT,outlist=['RID','Locus','Start','End'],delimit='\t')
+                    RIDOUT.close()
+                else: ridfile[filename] = None
+            ## ~ [2d] Sort by size ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            sortfork = []
+            for fork in tofork: sortfork.append((fork['Size'],fork))
+            sortfork.sort()
+            sortfork.reverse()  #i# Sort the list of forks from big to small: run largest first!
+            tofork = []
+            for (size,fork) in sortfork: tofork.append(fork)
+            self.printLog('#FORK','%d loci to fork for pileup processing; sorted by size (big to small).' % len(tofork))
+
+            ### ~ [3] Fork through pileup parsing ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            preforktime = time.time()   # Time at start of forking: used to estimate max time remaining.
+            estend = preforktime        # Estimated maximum end time
+            complete = 0                # Number of complete forks
+            while tofork or forks:
+                if complete:
+                    #secs = float((len(tofork) + len(forks))) * (time.time() - preforktime) / float(complete)
+                    secs = estend - time.time()
+                    self.progLog('\r#FORK','%d of %d loci to fork; %d running (est %s)...' % (len(tofork),len(sortfork),len(forks),rje.hhmmss(secs)))
+                else: self.progLog('\r#FORK','%d of %d loci to fork; %d running...' % (len(tofork),len(sortfork),len(forks)))
+                ## ~ [3a] Set next fork going ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+                while tofork and len(forks) < forkx:
+                    killtime = time.time()      # Reset killtime - still doing stuff
+                    nextfork = tofork.pop(0)     # Forking dictionary to process
+                    newpid = os.fork()
+                    if newpid == 0: # child
+                        self.setBool({'Child':True})
+                        self.parsePileUpFork(nextfork,outfields)
+                        sys.exit()    # Exit process
+                    elif newpid == -1: self.errorLog('Problem forking %s:%s.' % (rje.baseFile(nextfork['File']),nextfork['Locus']),printerror=False)  # Error!
+                    else:
+                        self.printLog('\r#FORK','Forking %s:%s -> PID:%s' % (rje.baseFile(nextfork['File']),nextfork['Locus'],newpid))
+                        nextfork['PID'] = newpid
+                        forked[newpid] = nextfork
+                        forks.append(newpid)    # Add fork to list
+
+                ## ~ [3b] Monitor and remove finished forks ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+                time.sleep(1)       # Sleep for 1s
+                forklist = self._activeForks(forks)
+                if len(forklist) != len(forks):
+                    self.verbose(1,2,' => %d of %d forks finished!' % (len(forks) - len(forklist),len(forks)),1)
+                    forks = forklist[0:]        # Reduce the list of active fork PIDs
+                    for pid in forked.keys():   # Go through current forks
+                        if pid not in forks:
+                            fork = forked.pop(pid)
+                            self.printLog('\r#FORK','Fork %s:%s finished.' % (rje.baseFile(fork['File']),fork['Locus']))
+                            filename = fork['File']
+                            if ridfile[filename]:
+                                rje.fileTransfer(fromfile=fork['RID'],tofile=ridfile[filename],deletefrom=not self.dev(),append=True)
+                                self.printLog('#RID','%s -> %s transfer complete.' % (fork['RID'],ridfile[filename]))
+                            rje.fileTransfer(fromfile=fork['Out'],tofile=outfile[filename],deletefrom=not self.dev(),append=True)
+                            self.printLog('#OUT','%s -> %s transfer complete.' % (fork['Out'],outfile[filename]))
+                            killtime = time.time()  # Reset killtime - still doing stuff
+                    forking = len(tofork) + len(forks)
+                    complete = len(sortfork) - forking
+                    estend = time.time() + (float(forking) * (time.time() - preforktime) / float(complete))
+
+                ## ~ [3c] Look for eternal hanging of threads ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+                if (time.time() - killtime) > killforks:
+                    self.warnLog('%d seconds of main thread inactivity. %d forks still active!' % (killforks,len(forks)))
+                    for fork in forks:
+                        self.warnLog('Fork %s, PID %d still Active!' % (forked[fork],fork))
+                    if self.i() < 0 or rje.yesNo('Kill Main Thread?'): break   #!# killing options
+                    elif rje.yesNo('Kill hanging forks?'):
+                        for fork in forks:
+                            self.printLog('\r#KILL','Killing Fork %s, PID %d.' % (forked[fork],fork))
+                            os.system('kill %d' % fork)
+                    else: killtime = time.time()    # Rest killtime
+
+            ### ~ [4] End of forker tidy ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            self.printLog('\r#FORK','Forked pileup parsing complete.')
+            self.printLog('#QC','NOTE: No QC summary output for forked parsing.')
+            #!# In future, combine QC scores #!#
+            return outfile
+
+        except SystemExit:
+            if self.getBool('Child'): sys.exit(0)
             else:
-                QC = open(qfile,'w')
-                QC.write('Qual\tCount\n')
-                for q in range(len(qc)):
-                    try: QC.write('%d\t%d\n' % (q+1,qc[q]))
-                    except: self.errorLog('!')
-                QC.close()
-                self.printLog('#QC','Quality score counts output to: %s' % qfile)
-            return True
-        except: self.errorLog('%s.parsePileupLine() error' % (self.prog())); return False
+                self.errorLog('Error in forkerParsePileUp()')
+                raise ValueError('Parent forker raised SystemExit!')
+        except:
+            if self.getBool('Child'): sys.exit(1)
+            self.errorLog('Error in forkerParsePileUp()'); raise
 #########################################################################################################################
-    def OLDparsePileup(self,filename,depth=True):  ### Extracts, filters and processes PileUp data
+    def parsePileUpFork(self,fork,outfields): ### Extracts, filters and processes PileUp data for forked locus
         '''
-        Extracts, filters and processes PileUp data.
-        >> filename:str = Pileup file name
-        >> depth:bool [True] = Whether to generate read depth calculation.
+        Extracts, filters and processes PileUp data for forked locus.
+        >> fork:dict = Forked dictionary.
+        >> outfields:list = Main output fields.
         '''
         try:### ~ [1] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            outfile = '%s.Q%d.%d.tdt' % (rje.baseFile(filename,strip_path=True),self.getInt('QCut'),self.getInt('MinQN'))
-            for fstr in ['Control','Treatment','AltControl','AltTreatment']:
-                if self.getStr(fstr) == filename: self.setStr({fstr:outfile})
-            if rje.exists(outfile) and not self.force():
-                #!# Should we add something to check integrity/complete? #!#
-                self.printLog('#SKIP','%s found! (force=F)' % outfile)
-                return True
-            self.printLog('#~~#','## ~~~~~ Parsing PileUp File: %s ~~~~~ ##' % filename)
-            ## ~ [1a] Calculate mean read depth ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-            # Currently this is based on unfiltered 'N' values.
-            PILEUP = open(filename,'r'); px = 0; rx = 0
-            for line in PILEUP:
-                data = string.split(rje.chomp(line))
-                if not data: break
-                self.progLog('\r#DEPTH','Parsing %s depth: %s pos; %s read bases' % (filename,rje.iStr(px),rje.iStr(rx)),rand=0.01); px += 1
-                rx += int(data[3])
-            meandepth = float(rx) / px
-            self.printLog('\r#DEPTH','Parsed %s depth: %s pos; %s read bases -> mean = %.1f' % (filename,rje.iStr(px),rje.iStr(rx),meandepth))
-            PILEUP.close()
-            ## ~ [1b] Setup files for main processing ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-            rje.backup(self,outfile)
-            outfields = ['Locus','Pos','Ref','N','QN','Seq']    # Fields for output file
-            if depth: outfields.append('Dep')
-            PILEUP = open(filename,'r'); px = 0; ex = 0
-            PILEOUT = open(outfile,'w')
-            rje.writeDelimit(PILEOUT,outlist=outfields,delimit='\t')
-            qc = [] # List of counts at different quality scores
-            ri = 0      # Read counter (ID counter)
+            #i# Each locus for each file will be forked off separately. The first pass that calculates read depths will
+            #i# also generate these forking dictionaries:
+            #i# - File: pileup file name
+            #i# - Alt: Whether this is a Ref (False) or Alt (True) file
+            #i# - Locus: Locus to be parsed in fork
+            #i# - FPos: Position in file that starts locus
+            #i# - Dep: Mean depth of locus
+            #i# - RIDStart: RID for first locus read
+            #i# - PID: PID of fork once started
+            #i# - Out: output file name (temporary)
+            #i# - RID: RID output file name (temporary) - None if no RID output
+            snpdb = self.db('SNP')
+            ## ~ [1a] Setup files for main processing ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            RIDOUT = None
+            if fork['RID']: RIDOUT = open(fork['RID'],'w')
+            PILEOUT = open(fork['Out'],'w')
+            PILEUP = open(fork['File'],'r')
+            PILEUP.seek(fork['FPos'])
+            qtxt = 'Q%d.%d' % (self.getInt('QCut'),self.getInt('MinQN'))
+            ## ~ [1b] Setup counters and lists for processing ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            px = 0          # Position counter for parsed file
+            ex = 0          # Output entry counter for parsed file
+            qc = [0]        # List of counts at different quality scores
+            ri = fork['RIDStart']   # Read counter (ID counter)
             ridlist = []    # List of read IDs
-            rdel = {}   # Dictionary of {rid:current deletion}
+            rdel = {}       # Dictionary of {rid:current deletion}
+            rstart = {}     # Dictionary of {rid:start point}
+            slocus = fork['Locus']  # Current SNPTable locus under consideration for SNPFreq skipping
+            sposlist = []           # List of positions for current SNPTable locus for SNPFreq skipping
+            if snpdb:
+                if fork['Alt']: sposlist = snpdb.indexDataList('AltLocus',slocus,'AltPos',sortunique=False)
+                else: sposlist = snpdb.indexDataList('Locus',slocus,'Pos',sortunique=False)
+                if not sposlist: self.printLog('#SNP','No loaded SNPs for %s:%s!' % (fork['File'],fork['Locus']))
+                altalleles = {}
+                for entry in snpdb.indexEntries('Locus',slocus):
+                    ekey = (entry['Locus'],entry['Pos'])
+                    if ekey not in altalleles: altalleles[ekey] = []
+                    altalleles[ekey].append(entry['ALT'])
+            else: sposlist = '*'
+            slx = 0         # SNP counter. Should match ex for forked locus!
             ### ~ [2] Process each entry ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            #!# Replace this with a method to parse a single line and return data or entry
-            for line in PILEUP:
-                # Split line up into data. Should be: locus, position, reference, no. reads, read data, qualscores
-                data = string.split(rje.chomp(line))
-                if not data: break
-                self.progLog('\r#PARSE','Parsing %s: %s pos...' % (filename,rje.iStr(px)),rand=0.01); px += 1
-                ## ~ [2a] Extract Read Data ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-                entry = {'Locus':data[0],'Pos':int(data[1]),'Ref':data[2],'N':int(data[3]),'QN':0}
-                entry['Dep'] = rje.sf(entry['N']/meandepth)
-                rseq = data[4]  # Read sequences from pileup
-                reads = []      # List of read alleles, extracted from rseq
-                delx = 0        # Number of deletions: these are not in the count depth (N) nor have a QV
-                #!# How should/do people cope with deletions? #!#
-                #!# Make it a toggle to include/exclude? #!#
-                # Note that ends of reads are [element]$
-                # Beginning of reads are ^[QV][element]
-                rid = -1
-                while '$' in ridlist: ridlist.remove('$')   # Get rid of reads that ended in previous row.
-                while rseq:
+            while sposlist:
+                ## ~ [2a] Check next locus and end if move on ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+                line = PILEUP.readline()
+                if line: nextlocus = string.split(line)[0]
+                else: nextlocus = None
+                if not nextlocus or nextlocus != slocus:   # Reached end of locus
+                    if ridlist: self.warnLog('Reached end of locus %s but %s unfinished reads!' % (slocus,rje.iLen(ridlist)))
+                    #self.printLog('\r#PARSE','Parsed %s:%s: %s %s positions.      ' % (fork['File'],slocus,rje.iStr(slx),qtxt))
+                    break
+                ## ~ [2b] Parse pileup data into dictionary ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+                self.bugPrint(rje.sortKeys(rstart))
+                self.bugPrint(ridlist)
+                self.bugPrint(line)
+                entry = self.parsePileupLine(line,ri,ridlist,rdel,qc)
+                self.bugPrint(entry)
+                self.bugPrint(rje.sortKeys(rstart))
+                self.debug(ridlist)
+                ## ~ [2c] Filter non-SNP positions for SNPFreq ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+                freqskip = False    # Whether to skip this position for QXX output.
+                if self.getBool('SNPFreq'):
+                    #i# Match entry to SNPTable if snpfreq analysis
+                    freqskip = entry['Pos'] not in sposlist
+                ## ~ [2d] Update RIDList and output if required ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+                if ridlist: ri = max(ri,max(ridlist))
+                else: self.debug(entry)
+                entry['Dep'] = rje.sf(entry['N']/fork['Dep'])
+                for rid in entry.pop('Start'): rstart[rid] = entry['Pos']
+                for rid in entry.pop('End'):
                     try:
-                        # Establish current read ID (Needed for deletions)
-                        if rseq[:1] not in '^-+$' and ridlist: rid = ridlist[len(reads)]
-                        # Update read data
-                        if rseq[:1] in ['.',',']:   # Matches reference (+/- strand)
-                            reads.append(entry['Ref']); rseq = rseq[1:]   # Matches reference
-                        elif rseq[:1] == '*':   # Check for existing deletions
-                            #x#if rid in rdel:
-                            if rdel[rid][:1] != entry['Ref']: self.warnLog('Deletion sequence mismatch @ %s:%s' % (data[0],data[1]))
-                            rdel[rid] = rdel[rid][1:]
-                            if not rdel[rid]: rdel.pop(rid) # End of deletion
-                            reads.append('-'); rseq = rseq[1:]
-                        elif rseq[:1] == '^':
-                            rseq = rseq[2:]   # Indicates a new read
-                            ri += 1; ridlist.insert(len(reads),ri)
-                            self.bugPrint('Read %d start @ %s:%s' % (ri,data[0],data[1]))
-                        elif rseq[:1] in ['-','+']:
-                            ilen = string.atoi(rje.matchExp('^(\d+)',rseq[1:])[0])
-                            indel = rseq[len('%s' % ilen)+1:][:ilen]    # Just the indel sequences
-                            if rseq[:1] == '-':     # Deletion
-                                delx += 1           # These do not have QV scores
-                                #X wrong! X# reads.append(rseq[:len('%s' % ilen)+ilen+1].upper())    # Deletion includes -n part.
-                                rid = ridlist[len(reads)-1]
-                                if rid in rdel: self.warnLog('Conflicting deletions for RID %s @ %s:%s' % (rid,data[0],data[1]))
-                                rdel[rid] = indel.upper()
-                                self.debug(rdel)
-                            else:   # Insertion
-                                reads[-1] += indel.upper()  # Insertion just has whole sequence AFTER the position
-                            rseq = rseq[len('%s' % ilen)+ilen+1:]
-                        elif rseq[:1] in ['$']:
-                            rseq = rseq[1:]     # Indicated end of a read
-                            rfin = ridlist[len(reads)-1]
-                            ridlist[len(reads)-1] = '$'
-                            self.deBug('Read %d end @ %s:%s' % (rfin,data[0],data[1]))
-                        else:
-                            if rseq[0].upper() not in 'ATGCN': print ' ???', rseq[0].upper(), '???'
-                            # NB. * = single bp deletion, handled below
-                            reads.append(rseq[0].upper()); rseq = rseq[1:]
+                        startpos = rstart.pop(rid)
+                        if RIDOUT:
+                            rje.writeDelimit(RIDOUT,outlist=[rid,entry['Locus'],startpos,entry['Pos']],delimit='\t')
                     except:
-                        self.bugPrint(reads)
-                        self.bugPrint(ridlist)
-                        self.errorLog('!')
-                        self.deBug(rseq)
-                        raise ValueError
-                self.bugPrint('%s:%s : %s'% (entry['Locus'],entry['Pos'],ridlist))
-                if len(reads) != len(ridlist):
-                    raise ValueError('Read allele versus Read ID count mismatch for %s Pos %s' % (entry['Locus'],entry['Pos']))
-                if len(reads) != entry['N']:    # Formerly erroenous: (entry['N'] + delx):
-                    self.deBug('%s = %d' % (data[4],entry['N']))
-                    self.deBug('%s = %d' % (reads,len(reads)))
-                    self.errorLog('Read versus Read Count mismatch for %s Pos %s' % (entry['Locus'],entry['Pos']),printerror=False)
-                    raise ValueError
-                ## ~ [2b] Convert Quality Scores ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-                qual = []
-                for q in data[5]:
-                    # Gaps do not have a quality score, so fill these in first - Actually, they do! They are from the row(s) above
-                    #!# Make inclusion of gaps optional? Currently assuming quality is good enough.
-                    #X# WRONG: #X# while len(qual) < len(reads) and reads[len(qual)][0] == '-': qual.append(self.getInt('QCut'))
-                    # Then append actual qv
-                    qual.append(ord(q) - 33)
-                    qc += [0] * (qual[-1] - len(qc)); qc[qual[-1]-1] += 1
-                #while len(qual) < len(reads) and reads[len(qual)][0] == '-': qual.append(self.getInt('QCut'))
-                #while '*' in reads: reads[reads.index('*')] = '-'   #'-1%s' % entry['Seq'].upper()
-                if len(reads) != len(qual):
-                    self.deBug('%s = %d' % (reads,len(reads)))
-                    self.deBug('%s = %d' % (qual,len(qual)))
-                    self.deBug(data)
-                    self.errorLog('Read versus Quality length mismatch for %s Pos %s' % (entry['Locus'],entry['Pos']),printerror=False)
-                    raise ValueError
-                ## ~ [2c] Filter low quality ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-                #if entry['Pos'] in [190359]:    #100,98901,183697,169284,
-                #    self.deBug(qual)
-                #    self.deBug(reads)
-                #    self.deBug(qc)
+                        self.errorLog('RID Ending problem! Started: %s; Ending: %s' % (rje.sortKeys(rstart),rid))
+                        self.debug(entry)
+                ## ~ [2e] Filter non-SNP positions for SNPFreq ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+                if freqskip: continue
+                ## ~ [2f] Filter low quality ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
                 # Remove (from back) any reads than do not meet QV cutoff
-                for r in range(len(qual)-1,-1,-1):
-                    if qual[r] < self.getInt('QCut'): qual.pop(r); reads.pop(r)
-                entry['QN'] = len(reads)
+                entry['QN'] = len(entry['Reads'])
                 if entry['QN'] < self.getInt('MinQN'): continue     # Not enough data for output
-                ## ~ [2d] Alleles ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-                alleles = {}    # Dictionary of {nt:count}
-                for read in reads:
-                    if read in alleles: alleles[read] += 1
-                    else: alleles[read] = 1
-                asort = []  # List of tuples for sorting
-                for allele in alleles: asort.append((alleles[allele],allele))
-                asort.sort()
-                asort.reverse()     # This should now be in order of allele frequency
-                acheckx = 0         # Count check
-                for i in range(len(asort)):
-                    acheckx += asort[i][0]
-                    asort[i] = '%s:%d' % (asort[i][1],asort[i][0])
-                entry['Seq'] = string.join(asort,'|')
-                #if entry['Pos'] in [190359]:    #100,98901,183697,169284,
-                #    self.deBug(qual)
-                #    self.deBug(reads)
-                #    self.deBug(alleles)
-                #    self.deBug(entry)
-                #    self.deBug(line)
-                if acheckx != entry['QN']:  #!# Convert these to test statements?
-                    self.errorLog('Allele versus Quality count mismatch for %s Pos %s' % (entry['Locus'],entry['Pos']),printerror=False)
+                ## ~ [2g] Alleles ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+                entry['ALT'] = []
+                if snpdb:
+                    ekey = (entry['Locus'],entry['Pos'])
+                    entry['ALT'] = altalleles[ekey]
+                if not self.pileupAlleles(entry): continue
                 #table.addEntry(entry)
                 outlist = []
                 for field in outfields: outlist.append(entry[field])
-                rje.writeDelimit(PILEOUT,outlist,delimit='\t'); ex += 1
-            self.printLog('\r#PARSE','Parsed %s: %s entries from %s lines: %s reads.' % (filename,rje.iStr(ex),rje.iStr(px),rje.iStr(ri)))
+                rje.writeDelimit(PILEOUT,outlist,delimit='\t'); ex += 1; slx += 1
+            self.printLog('\r#PARSE','Parsed %s:%s: %s %s entries from %s lines.' % (fork['File'],slocus,rje.iStr(ex),qtxt,rje.iStr(px)))
             PILEOUT.close()
             PILEUP.close()
-            ### ~ [3] Save QC ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            qfile = '%s.QC.tdt' % rje.baseFile(filename,strip_path=True)
-            if rje.exists(qfile) and not self.force(): self.printLog('#QC','%s already exists (force=F).' % qfile)
-            else:
-                QC = open(qfile,'w')
-                QC.write('Qual\tCount\n')
-                for q in range(len(qc)):
-                    try: QC.write('%d\t%d\n' % (q+1,qc[q]))
-                    except: self.errorLog('!')
-                QC.close()
-                self.printLog('#QC','Quality score counts output to: %s' % qfile)
+            if RIDOUT:
+                self.printLog('#RID','%s read start/end positions output to %s' % (rje.iStr(ri),fork['RID']))
+                RIDOUT.close()
             return True
-        except: self.errorLog('%s.parsePileup(%s) error' % (self,filename)); return False
+        except: self.errorLog('Error in parsePileUpFork()'); raise
 #########################################################################################################################
     ### <4> ### Pileup SNP stats methods                                                                                #
 #########################################################################################################################
     def pileUpStats(self,snpdb=None,alt=False,locfmt='full'):  ### Calculates statistics of genetic differences from parsed PileUp Tables
-        '''Calculates statistics of genetic differences from parsed PileUp Tables.'''
+        '''
+        Calculates statistics of genetic differences from parsed PileUp Tables.
+        >> snpdb:Table [None] = Loaded SNP Table. If found, will restrict analysis to SNPTable positions and alleles
+        >> alt:Bool [False] = Whether to use AltLocus and AltPos as keys.
+        >> locfmt:str ['full'] = Locus format for mapping Pileup-parsed loci onto SNPdb.
+        '''
         try:### ~ [0] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            ## ~ [0a] Print details to log ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             if alt:
                 self.printLog('#~~#','## ~~~~~ Parsing & Combining Alt PileUp Tables (%s format) ~~~~~ ##' % locfmt)
                 self.printLog('#ALT','AltControl and AltTreatment')
             else:
                 self.printLog('#~~#','## ~~~~~ Parsing & Combining PileUp Tables (%s format) ~~~~~ ##' % locfmt)
                 self.printLog('#BASE','Output basefile: %s' % self.baseFile())
+            ## ~ [0b] Set output file name and return/backup if found  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            outfile = '%s.snp.tdt' % self.baseFile()
+            snpindex = '#Locus#|#Pos#'
             if snpdb:
-                if alt: outfile = '%s.altcomb.tdt' % self.baseFile()
-                else: outfile = '%s.snpcomb.tdt' % self.baseFile()
-            else: outfile = '%s.snp.tdt' % self.baseFile()
+                if alt:
+                    outfile = '%s.altcomb.tdt' % self.baseFile()
+                    snpindex = '#AltLocus#|#AltPos#'
+                else:
+                    outfile = '%s.snpcomb.tdt' % self.baseFile()
+                    snpindex = '#Locus#|#Pos#'
+                snpdb.index(snpindex,make=True)
             if not self.force() and os.path.exists(outfile):
                 self.printLog('#SKIP','%s found! (force=F)' % outfile)
                 return outfile
             rje.backup(self,outfile)
+            ## ~ [0c] Set output fields ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            #i# These are relative to the reference used for the fasta, e.g. Ref for ALt analysis will be the Alt Genome
             outfields = ['Locus','Pos','Ref']
             for fstr in self.list['Labels']:
                 for field in ['N','Dep','QN','AN','Seq']:
                     outfields.append('%s|%s' % (field,fstr))
             outfields += ['MajFreq','MajDiff','MajProb']
-            ## ~ [0a] Open file handles ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            ## ~ [0d] Open file handles ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             infields = ['Locus','Pos','Ref','N','QN','Seq','Dep']
             if alt: self.file['Control'] = open(self.getStr('AltControl'),'r')
             else: self.file['Control'] = open(self.getStr('Control'),'r')
@@ -1085,11 +1309,14 @@ class SAMtools(rje_obj.RJE_Object):
             rje.writeDelimit(OUTFILE,outlist=outfields,delimit='\t')
 
             ### ~ [1] Cycle through data ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            #i# NOTE: if snpdb then both files should have parsed (and contain) the same positions
+            #i# If a position is found in only one file, this should indicate a lack of reads mapping in one of the
+            #i# pileup files.
             locus = None
             cdata = self.readDelimit('Control'); cx = 1
             tdata = None; tx = 0
-            bx = 0  # Covered by both
-            sx = 0  # SNPs covered by both
+            bx = 0      # Positions covered by both Control and Treatment
+            sx = 0      # SNPs covered by both
             cutx = 0    # Alleles dropped due to low frequency
             difx = 0    # Fixed difference from reference
             refx = 0    # Fixed reference sequence
@@ -1126,15 +1353,18 @@ class SAMtools(rje_obj.RJE_Object):
                 if int(cdata[1]) < int(tdata[1]): cdata = self.readDelimit('Control'); cx += 1; continue
                 if int(cdata[1]) > int(tdata[1]): tdata = self.readDelimit('Treatment'); tx += 1; continue
                 bx += 1
-                # Check against SNPDB
+                # Check against SNPDB if given. Should be present.
                 if snpdb:
                     acc = self.mapLocus(locus,locfmt)
                     pos = int(cdata[1])
                     ikey = '%s|%d' % (acc,pos)
                     self.debug(ikey)
                     #?# Add warning for multiple alleles in Pileup data #?#
-                    if alt and ikey not in snpdb.index('#AltLocus#|#AltPos#'):  cdata = self.readDelimit('Control'); cx += 1; nosnpx += 1; continue
-                    if not alt and ikey not in snpdb.index('#Locus#|#Pos#'):  cdata = self.readDelimit('Control'); cx += 1; nosnpx += 1; continue
+                    if alt: snpfound = ikey in snpdb.index(snpindex)
+                    else: snpfound = ikey in snpdb.index(snpindex)
+                    if not snpfound:
+                        self.warnLog('%s found in Control and Treatment but not SNPTable. Changed SNPTable?' % ikey,warntype='ChangedSNPTable',quitchoice=True,suppress=True)
+                        cdata = self.readDelimit('Control'); cx += 1; nosnpx += 1; continue
                 # Convert to dictionaries
                 # infields = ['Locus','Pos','Ref','N','QN','Seq','Dep']
                 #self.bugPrint('C: %s' % cdata)
@@ -1143,20 +1373,40 @@ class SAMtools(rje_obj.RJE_Object):
                 tdict = rje.list2dict(tdata,infields)
                 #self.bugPrint('C: %s' % cdict)
                 #self.bugPrint('T: %s' % tdict)
-                # Combine and assess
-                refseq = cdict['Ref']
-                totx = 0.0
-                alleles = {}
-                if not self.getBool('IgnoreRef'): alleles[refseq] = 0
+                ## ~ [1b] Combine and assess alleles ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+                totx = 0.0      # Total allele count
+                alleles = {}    # Dictionary of {allele:count}
+                refseq = cdict['Ref']   # This is the "Reference" allele for this
+                #i# If snpdb is given, alleles will be restricted to the REF and ALT alleles for this position.
+                #i# These can be extracted from snpdb.index(snpindex).
+                #i# Due to one-to-many mapping, there might be multiple alleles. Not all may have counts.
+                if snpdb:
+                    alleles[refseq] = 0
+                    for allele in snpdb.indexDataList(snpindex,ikey,'REF') + snpdb.indexDataList(snpindex,ikey,'ALT'):
+                        if not self.getBool('Indels') and (allele == '-' or len(allele) > 1): indx += 1; continue
+                        elif self.getBool('IgnoreN') and allele == 'N': continue
+                        alleles[allele] = 0
+                    #i# Biallelic=T now restricts analysis to biallelic SNPs in SNPTable
+                    #!# Added additional filter for multiple loci matching, also filtered by "biallelic=T" filter.
+                    if self.getBool('Biallelic') and (len(alleles) != 2 or len(snpdb.index(snpindex)[ikey]) > 1):
+                        notbix += 1
+                        cdata = self.readDelimit('Control')
+                        cx += 1
+                        continue
+                #i# If no SNPDB, build completely from data
+                elif not self.getBool('IgnoreRef'): alleles[refseq] = 0
                 for allele in string.split('%s|%s' % (cdict['Seq'],tdict['Seq']),'|'):
                     adata = string.split(allele,':')
                     if self.getBool('IgnoreN') and adata[0] == 'N': continue    # Skip N alleles
                     ax = int(adata[1])
+                    if adata[0] not in alleles:
+                        if snpdb: continue   #i# Only use snpdb alleles
+                        alleles[adata[0]] = 0
                     totx += ax
-                    if adata[0] not in alleles: alleles[adata[0]] = 0
                     alleles[adata[0]] += ax
                 #self.debug(alleles)
                 # Check min allele frequency
+                #?# Will we want to handle this differently for snpdb #?#
                 acut = self.getNum('MinCut')
                 if acut < 1: acut = max(self.getInt('AbsMinCut'),totx*acut)
                 for aseq in rje.sortKeys(alleles):
@@ -1166,14 +1416,20 @@ class SAMtools(rje_obj.RJE_Object):
                         alleles.pop(aseq)
                 if not alleles: raise ValueError('No alleles survived mincut!')
                 # Check for SNP
-                if len(alleles) == 1:
-                    if refseq not in alleles: difx += 1 # Fixed difference from reference
-                    else: refx += 1
-                    cdata = self.readDelimit('Control'); cx += 1
-                    if not snpdb: cdata = self.readDelimit('Control'); cx += 1; continue  # Not a SNP!
-                elif len(alleles) == 2 and refseq in alleles and not alleles[refseq]: difx += 1
-                elif self.getBool('Biallelic') and len(alleles) != 2: notbix += 1; cdata = self.readDelimit('Control'); cx += 1; continue
-                elif '-' in alleles and not self.getBool('Indels'): indx += 1; cdata = self.readDelimit('Control'); cx += 1; continue
+                if snpdb:
+                    if not totx:
+                        self.warnLog('No reads with SNPTable or Ref Alleles map to %s' % ikey)
+                        cdata = self.readDelimit('Control'); cx += 1; continue
+                    if len(alleles) == 2 and refseq in alleles and not alleles[refseq]: difx += 1
+                else:
+                    if len(alleles) == 1:
+                        if refseq not in alleles: difx += 1 # Fixed difference from reference
+                        else: refx += 1
+                        cdata = self.readDelimit('Control'); cx += 1
+                        continue  # Not a SNP!
+                    elif len(alleles) == 2 and refseq in alleles and not alleles[refseq]: difx += 1
+                    elif self.getBool('Biallelic') and len(alleles) != 2: notbix += 1; cdata = self.readDelimit('Control'); cx += 1; continue
+                    elif '-' in alleles and not self.getBool('Indels'): indx += 1; cdata = self.readDelimit('Control'); cx += 1; continue
                 sx += 1
                 # Basic Output data with new allele frequencies
                 #!# Need to fix this for depth! (Make more versatile)
@@ -1201,8 +1457,14 @@ class SAMtools(rje_obj.RJE_Object):
                 odata[-1] = string.join(odata[-1],'|')
                 odata[-2] = ttot
                 # Allele frequencies
+                if not ctot:
+                    if snpdb: self.warnLog('No SNPTable allele read counts for Control %s' % ikey,warntype='Allele Zero Count',quitchoice=False,suppress=True)
+                    cdata = self.readDelimit('Control'); cx += 1; continue
                 cfreq /= ctot
                 majx = int(tfreq)
+                if not ttot:
+                    if snpdb: self.warnLog('No SNPTable allele read counts for Treatment %s' % ikey,warntype='Allele Zero Count',quitchoice=False,suppress=True)
+                    cdata = self.readDelimit('Control'); cx += 1; continue
                 tfreq /= ttot
                 odata += [rje.dp(tfreq,3),rje.dp(tfreq-cfreq,3)]
                 if cfreq == 0.0: cfreq = 1.0 / (ctot + 1)   # Assume next read would be Treatment allele
@@ -1274,9 +1536,13 @@ class SAMtools(rje_obj.RJE_Object):
             return snpdb
         except: self.errorLog('%s.pileUpFDR() error' % (self)); return None
 #########################################################################################################################
-    def loadSNPTable(self,name='SNP'):     ### Loads and returns a SNP table for the genome(s) being analysed
-        '''Loads and returns a SNP table for the genome(s) being analysed.'''
+    def loadSNPTable(self,name='SNP',indels=True):     ### Loads and returns a SNP table for the genome(s) being analysed
+        '''
+        Loads and returns a SNP table for the genome(s) being analysed.
+        >> indels:bool [False] = Whether to keep indels (True) or use self.getBool('Indels') (False)
+        '''
         try:### ~ [0] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            if self.db(name): return self.db(name)
             if not self.getStrLC('SNPTable'): self.printLog('\r#SNP','No SNP table to add.'); return None
             snptable = self.getStr('SNPTable')
             snpkeys = self.list['SNPTabKeys']
@@ -1284,17 +1550,28 @@ class SAMtools(rje_obj.RJE_Object):
                 if field in snpkeys: snpkeys.remove(field)
                 snpkeys.insert(0,field)
             self.printLog('#KEYS','Loading %s with keys: %s' % (snptable,string.join(snpkeys,'; ')))
+            ### ~ [1] Load SNP Table ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             snpdb = self.db().addTable(snptable,name=name,expect=True,mainkeys=snpkeys)
+            ## ~ [1a] Reformat data ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             snpdb.dataFormat({'Pos':'int','AltPos':'int'})
-            if not self.getBool('Indels'):
+            snpdb.indexReport('Locus')
+            if 'AltLocus' in snpdb.fields(): snpdb.indexReport('AltLocus')
+            ## ~ [1b] Sort out fields ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            if 'REF' not in snpdb.fields():
+                if 'Ref' in snpdb.fields(): snpdb.renameField('Ref','REF')
+                else: raise ValueError('SNP Table needs Ref or REF field.')
+            if 'ALT' not in snpdb.fields():
+                if 'Alt' in snpdb.fields(): snpdb.renameField('Alt','ALT')
+                else: raise ValueError('SNP Table needs Alt or ALT field.')
+            ## ~ [1c] Reduce data if no indels ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            if indels and not self.getBool('Indels'):
                 indx = snpdb.entryNum()
-                if 'REF' in snpdb.fields(): snpdb.dropEntriesDirect('REF',['-'])
-                else: snpdb.dropEntriesDirect('Ref',['-'])
-                if 'ALT' in snpdb.fields(): snpdb.dropEntriesDirect('ALT',['-'])
-                else: snpdb.dropEntriesDirect('Alt',['-'])
+                snpdb.dropEntriesDirect('REF',['-'])
+                snpdb.dropEntriesDirect('ALT',['-'])
                 indx -= snpdb.entryNum()
                 self.printLog('#INDEL','%s Indels dropped (indels=F).' % rje.iStr(indx))
             return snpdb
+        except ValueError: self.errorLog('%s.loadSNPTable() error' % (self)); raise
         except: self.errorLog('%s.loadSNPTable() error' % (self)); return None
 #########################################################################################################################
     def mapLocus(self,locus,locformat='full'):   ### Reduce locus to accession number for mapping
@@ -1326,7 +1603,8 @@ class SAMtools(rje_obj.RJE_Object):
             for field in ['Pos','Locus']:
                 if field in snpkeys: snpkeys.remove(field)
                 snpkeys.insert(0,field)
-            snpdb = self.db().addTable(snptable,name='SNP',expect=True,mainkeys=snpkeys)
+            #snpdb = self.db().addTable(snptable,name='SNP',expect=True,mainkeys=snpkeys)
+            snpdb = self.loadSNPTable()
             if not fdb: fdb = self.db().addTable(name='fdr',expect=True,mainkeys=['Locus','Pos'])
             fdb.remakeKeys()   #!# Delete once tuple thing OK
             fdbkeys = fdb.dataKeys()
@@ -1343,9 +1621,9 @@ class SAMtools(rje_obj.RJE_Object):
             shared = rje.listIntersect(fdb.indexKeys('Locus'),snpdb.indexKeys(snpjoin[0]))
             self.printLog('#LOCUS','%s shared FDR and SNP Table loci.' % rje.iLen(shared))
             if shared:
-                fdb.makeField('#Locus#|#Pos#')
+                fdb.makeField('#Locus#|#Pos#',warn=False)
                 snpjoinfield = '#%s#|#%s#' % (snpjoin[0],snpjoin[1])
-                snpdb.makeField(snpjoinfield)
+                snpdb.makeField(snpjoinfield,warn=False)
                 if snpjoinfield != '#Locus#|#Pos#': snpdb.renameField(snpjoinfield,'#Locus#|#Pos#')
             else:
                 self.printLog('#LOCUS','Will try pulling out accession numbers for matching.')
@@ -1372,7 +1650,7 @@ class SAMtools(rje_obj.RJE_Object):
                 if field not in newsnpkeys: joindb.dropField(field)
             joindb.saveToFile()
             return joindb
-        except: self.errorLog('%s.pileUpStats() error' % (self)); return None
+        except: self.errorLog('%s.combineSNPs() error' % (self)); return None
 #########################################################################################################################
     ### <5> ### Combined Pileup SNP stats methods                                                                       #
 #########################################################################################################################
@@ -1384,15 +1662,17 @@ class SAMtools(rje_obj.RJE_Object):
             revcomp = {'A':'T','C':'G','G':'C','T':'A','-':'-'}
             revx = 0    # Number of sites reverse complemented
             ## ~ [0a] Load SNP Mapping table ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-            snpdb = self.loadSNPTable('combined')
+            snpdb = self.loadSNPTable('combined')   #X# ,indels=False) - Use existing SNP Table if loaded
             if not snpdb: raise IOError('Cannot perform AltControl/AltTreatment analysis without SNPTable.')
             self.debug(snpdb.keys())
             mapfields = ['Locus','Pos','AltLocus','AltPos','#Locus#|#Pos#','#AltLocus#|#AltPos#']
             for field in mapfields[0:4]:
                 if field not in snpdb.fields(): raise ValueError('Cannot perform AltControl/AltTreatment analysis without SNPTable field "%s".' % field)
             ## ~ [0b] Drop Indels: cannot match positions via short reads ~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-            snpdb.dropEntriesDirect('REF',['-'])
-            snpdb.dropEntriesDirect('ALT',['-'])
+            #i# Default for SNPFreq analysis should be indels=F Not sure how/if it will work with indels=T!
+            if not self.getBool('Indels'):
+                snpdb.dropEntriesDirect('REF',['-'])
+                snpdb.dropEntriesDirect('ALT',['-'])
             ## ~ [0c] Sort out keys and locus mapping ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             snpdb.addField('#Locus#|#Pos#')
             snpdb.addField('#AltLocus#|#AltPos#')
@@ -1422,7 +1702,7 @@ class SAMtools(rje_obj.RJE_Object):
             ### ~ [2] Combine SNP tables ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             self.printLog('#~~#','## ~~~~~ Combining SNP Tables ~~~~~ ##')
             if not self.getBool('MajFocus') and self.getBool('MajMut'): self.printLog('#ALTSNP','Generating output for all Alt ("Mutant") alleles.')
-            if not self.getBool('MajFocus') and self.getBool('MajRef'): self.printLog('#REFSNP','Generating output for all Alt ("Mutant") alleles.')
+            elif not self.getBool('MajFocus') and self.getBool('MajRef'): self.printLog('#REFSNP','Generating output for all Ref ("Reference") alleles.')
             clabel = self.list['Labels'][0]
             tlabel = self.list['Labels'][1]
             combfields = ['Locus','Pos','AltLocus','AltPos','Ref','Alt','AN|%s' % clabel,'Seq|%s' % clabel,'AN|%s' % tlabel,'Seq|%s' % tlabel,'MajFreq','MajDiff','MajProb']
@@ -1580,13 +1860,34 @@ class SAMtools(rje_obj.RJE_Object):
 #########################################################################################################################
     ### <6> ### Read coverage methods                                                                                   #
 #########################################################################################################################
-    def coverageFromRID(self,ridfile=None):  ### Extracts read data from RID file and summarises read coverage
+    def coverageFromRID(self,ridfile=None,depthplot=False,readlen=False):  ### Extracts read data from RID file and summarises read coverage
         '''
         Extracts read data from SAM file.
-        >> filename:str = Pileup file name
+        >> ridfile:str [None] = RID file name to use. (Will use RID table if None)
+        >> depthplot:bool [False] = Whether to calculate and output full read depth table.
+        >> readlen:bool [False] = Whether to generate read length rather than read depth data.
         '''
         try:### ~ [1] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             db = self.db()
+            dirfile = None; dirstep = 0
+            if readlen:
+                covfile = '%s.readlen.tdt' % db.baseFile()
+                depfile = '%s.readlenplot.tdt' % db.baseFile()
+                if self.getInt('DirnLen') > 0:
+                    dirstep = self.getInt('DirnLen')
+                    dirfile = '%s.dirnlenplot.tdt' % db.baseFile()
+            else:
+                covfile = '%s.coverage.tdt' % db.baseFile()
+                depfile = '%s.depthplot.tdt' % db.baseFile()
+            makedep = self.force() or not rje.exists(covfile)
+            if depthplot:
+                makedep = makedep or not rje.exists(depfile)
+                if not makedep:
+                    if self.getStrLC('CheckPos'): self.warnLog('No new checkpos output: depthplot data found and force=F')
+                    return self.printLog('#DEPTH','%s and %s found (force=F)' % (covfile,depfile))
+            elif not makedep:
+                if self.getStrLC('CheckPos'): self.warnLog('No new checkpos output: coverage data found and force=F')
+                return self.printLog('#COV','%s found (force=F)' % (covfile))
             covflanks = self.list['CheckFlanks']
             if not len(self.list['CheckFields']) == 3:
                 raise ValueError('checkfields=LIST must have exactly 3 elements: Locus, Start, End. %d found!' % len(self.list['CheckFields']))
@@ -1597,13 +1898,16 @@ class SAMtools(rje_obj.RJE_Object):
             if ridfile: rdb = db.addTable(ridfile,mainkeys=['RID'],name='rid',expect=True)
             else: rdb = self.db('rid',add=True,mainkeys=['RID'])
             if not rdb: raise ValueError('Cannot perform coverage analysis without RID table')
-            rdb.dataFormat({'Start':'int','End':'int'})
-            self.printLog('#~~#','## ~~~~~ Calculating read coverage ~~~~~ ##')
+            rdb.dataFormat({'Start':'int','End':'int','RLen':'int','MLen':'int'})
+            if dirfile: rdb.newKey(['Locus','Start','RID'])
+            if readlen: self.printLog('#~~#','## ~~~~~ Calculating read length coverage ~~~~~ ##')
+            else: self.printLog('#~~#','## ~~~~~ Calculating read depth coverage ~~~~~ ##')
             ## ~ [1b] Setup Check Table ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             # This is self.getStr('CheckPos')
-            if self.getStrLC('CheckPos'):
+            if self.getStrLC('CheckPos') and not readlen:
                 cdb = db.addTable(self.getStr('CheckPos'),mainkeys=self.list['CheckFields'],name='check',expect=True)
                 cdb.dataFormat({'Start':'int','End':'int'})
+                cdb.setStr({'Delimit':'\t'})
                 for covx in covflanks: cdb.addField('Span%d' % covx,evalue=0)
                 cdb.addField('MeanX',evalue=0.0)
                 shared = rje.listIntersect(rdb.indexKeys('Locus'),cdb.indexKeys(locusfield))
@@ -1625,19 +1929,76 @@ class SAMtools(rje_obj.RJE_Object):
             #else:
             seqdict = {}
             #calculate mean depth for check table too so could give start/end positions here if desired
+            if self.dev():
+                rdb.indexReport('Locus')
+                #self.debug('>>>')
 
             ### ~ [2] Calculate read coverage ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            covdb = db.addEmptyTable('coverage',['Locus','Length','MeanX'],['Locus'])
+            fullcalc = depthplot and 'RLen' in rdb.fields() and 'MLen' in rdb.fields()
+            self.debug(self.getNum('FullCut'))
+            dirdb = None    # DirnlenPlot data
+            if readlen: covdb = db.addEmptyTable('readlen',['Locus','Length','MeanX'],['Locus'])
+            else: covdb = db.addEmptyTable('coverage',['Locus','Length','MeanX'],['Locus'])
             rx = 0.0; rtot = rdb.entryNum(); lx = 0; ltot = len(rdb.index('Locus'))
+            depth = {}    # Dictionary of locus:[depth per site]; Only used if depthplot=True
+            depsmooth = self.getInt('DepthSmooth')  # Smooth out any read plateaus < depsmooth nucleotides in length
+            maxsmooth = self.getNum('PeakSmooth')   # Max X coverage difference to smooth out for Xcoverage peaks
+            depfields = ['Locus','Pos','X']
+            if fullcalc:
+                depfields += ['FullX','PartX']
+            DEPFILE = None
+            if depthplot:
+                covdb.addFields(['MinX','MaxX','MedianX','Coverage'])
+                rje.backup(self,depfile)
+                DEPFILE = open(depfile,'w')
+                DEPFILE.write('%s\n' % string.join(depfields,'\t'))
+                if readlen and dirfile: dirdb = db.addEmptyTable('dirnlenplot',['Locus','Pos','Len5','Len3'],['Locus','Pos'])
             for locus in rdb.indexKeys('Locus'):
                 lx += 1
-                self.progLog('\r#COV','Calculating read coverage: %.2f%% (Locus %d of %d)' % (rx/rtot,lx,ltot),rand=0.01); rx +=1
+                self.progLog('\r#COV','Calculating read coverage: %.2f%% (Locus %d of %d)' % (rx/rtot,lx,ltot),rand=0.01)
                 centry = {'Locus':locus,'Length':0,'MeanX':0.0}
                 if locus in seqdict: centry['Length'] = seqlist.seqLen(seqdict[locus])
                 else: centry['Length'] = max(rdb.indexDataList('Locus',locus,'End',sortunique=False))
+                if depthplot: depth[locus] = [0] * centry['Length']
+                dirpos = [] # DirnLen assay points
+                if dirdb:
+                    di = 0; dirpos = [1]
+                    # Each dirdb entry stores the longest 5' and 3' distances to ends of reads.
+                    dirdb.addEntry({'Locus':locus,'Pos':1,'Len5':0,'Len3':0})
+                    while di < centry['Length']:
+                        di += dirstep; dirpos.append(di)
+                        dirdb.addEntry({'Locus':locus,'Pos':di,'Len5':0,'Len3':0})
+                    dirdb.addEntry({'Locus':locus,'Pos':centry['Length'],'Len5':0,'Len3':0})
+                    dirpos.append(centry['Length'])
+                    self.debug('%s: %s' % (locus,dirpos))
+                fullpos = [[],[]]   # [Start,End] of RID with MLen/RLen meeting the 'FullCut' threshold (1-L)
+                partpos = [[],[]]   # [Start,End] of RID with MLen/RLen failing the 'FullCut' threshold (1-L)
                 for rentry in rdb.indexEntries('Locus',locus):
-                    self.progLog('\r#COV','Calculating read coverage: %.2f%% (Locus %d of %d)' % (rx/rtot,lx,ltot),rand=0.01); rx +=1
-                    centry['MeanX'] += rentry['End'] - rentry['Start'] + 1
+                    self.progLog('\r#COV','Calculating read coverage: %.2f%% (Locus %d of %d)' % (rx/rtot,lx,ltot),rand=0.01); rx += 100
+                    rlen = rentry['End'] - rentry['Start'] + 1
+                    centry['MeanX'] += rlen
+                    if fullcalc:
+                        if float(rentry['MLen']) / rentry['RLen'] >= self.getNum('FullCut'):
+                            fullpos[0].append(rentry['Start'])
+                            fullpos[1].append(rentry['End'])
+                        else:
+                            partpos[0].append(rentry['Start'])
+                            partpos[1].append(rentry['End'])
+                    # Directional read length data
+                    if dirdb:
+                        self.debug(rentry)
+                        #x#if dirpos[0] > rentry['Start']: dirdb.addEntry({'Locus':locus,'Pos':rentry['Start'],'Len5':0,'Len3':rlen-1})
+                        #x#if dirpos[0] > rentry['End']: dirdb.addEntry({'Locus':locus,'Pos':rentry['End'],'Len5':rlen-1,'Len3':0})
+                        for pos in dirpos[0:]:
+                            if pos < rentry['Start']: dirpos.remove(pos)
+                            elif pos <= rentry['End']:
+                                dentry = dirdb.data((locus,pos))
+                                dentry['Len5'] = max(dentry['Len5'],pos-rentry['Start'])
+                                dentry['Len3'] = max(dentry['Len3'],rentry['End']-pos)
+                                self.debug(dentry)
+                            else: break
+                        self.debug('%s: %s' % (locus,dirpos))
+                    # Position check data
                     if locus in cdict:
                         # Cycle through CheckPos entries
                         for lentry in cdict[locus]:
@@ -1651,15 +2012,169 @@ class SAMtools(rje_obj.RJE_Object):
                             spany = min(rentry['End'],lentry[endfield])
                             spanx = max(rentry['Start'],lentry[startfield])
                             lentry['MeanX'] += (spany - spanx + 1.0) / (lentry[endfield] - lentry[startfield] + 1.0)
-                centry['MeanX'] /= centry['Length']
+                    #!# NOTE: This is not very efficient. Could be done much better by making depdata (pos,depth) list
+                    #!# directly by walking through Start and End positions in order. Would make median calculation more
+                    #!# of a challenge but not impossible. (Could regenerate depth list from depdata!)
+                    #!# >> convert depdata into a list of [(depth,length)], sort, and walk through till sum(length) >= half centry['Length'].
+                    #!# Job for another day!
+                    #!# NOTE: Updating like this would make the readlen=TRUE calculations harder!
+                    rlen = rje.dp(rlen/1000.0,1)    # Convert read length to kb (1 d.p.)
+                    if depthplot:
+                        for i in range(rentry['Start']-1,rentry['End']):
+                            if readlen: depth[locus][i] = max(depth[locus][i],rlen)
+                            else: depth[locus][i] += 1
+                if readlen:
+                    centry['MeanX'] = sum(depth[locus]) / centry['Length']
+                else:
+                    centry['MeanX'] /= centry['Length']
+                if depthplot:
+                    # Calculate Median
+                    centry['MaxX'] = max(depth[locus])
+                    centry['MinX'] = min(depth[locus])
+                    centry['Coverage'] = len(depth[locus]) - depth[locus].count(0)
+                    median = depth[locus][0:]
+                    median.sort()
+                    medlen = len(median)
+                    #self.debug('%s >> %d' % (locus,medlen))
+                    if medlen:
+                        if rje.isOdd(medlen): centry['MedianX'] = median[medlen/2]
+                        else: centry['MedianX'] = (median[medlen/2] + median[(medlen-1)/2]) / 2.0
+                    else: centry['MedianX'] = 0.0
+                    peakx = maxsmooth
+                    if peakx < 1: peakx *= centry['MedianX']
+                    # Compress depth[locus] and output boundaries
+                    depdata = []    # (Pos,X) tuples
+                    for i in range(len(depth[locus])):
+                        if i in [0,len(depth[locus])-1]:
+                            depdata.append((i+1,depth[locus][i]))
+                        elif depth[locus][i] != depth[locus][i+1] or depth[locus][i] != depth[locus][i-1]:
+                            depdata.append((i+1,depth[locus][i]))
+                    # Reduce depdata to "peaks"
+                    i = 1   # This is the position being considered for removal
+                    while i < (len(depdata) - 1):
+                        # Need to account for -/--/ vs -/--\ vs -/--------/ patterns
+                        if depdata[i][1] == depdata[i+1][1] and depdata[i+1][0]-depdata[i][0] >= depsmooth:
+                            i += 2; continue    # long enough plateau to keep both ends
+                        elif depdata[i][1] == depdata[i+1][1]:
+                            if i >= (len(depdata) - 2): break   # Reached end, so keep
+                            # Only keep if a peak, otherwise remove both
+                            up5 = depdata[i][1] > depdata[i-1][1]
+                            up3 = depdata[i+1][1] > depdata[i+2][1]
+                            if up5 == up3:  # Peak!
+                                i += 2; continue
+                            else: depdata.pop(i); depdata.pop(i)
+                        else:   # Only keep if a peak, otherwise remove i
+                            up5 = depdata[i][1] > depdata[i-1][1]
+                            up3 = depdata[i][1] > depdata[i+1][1]
+                            if up5 == up3:  # Peak!
+                                i += 1; continue
+                            else: depdata.pop(i)
+                    # Next remove small deviations
+                    for x in range(1,depsmooth):
+                        # Remove any peaks of size x within peakx X coverage of flanking values
+                        i = 1
+                        while i < (len(depdata) - 1):
+                            if i >= (len(depdata) - 2): break   # Reached end, so keep
+                            if depdata[i][1] != depdata[i+1][1]: i += 1; continue       # Not a peak
+                            if depdata[i+1][0] - depdata[i][0] != x: i += 1; continue   # Wrong size
+                            if max(rje.modulus(depdata[i][1] - depdata[i-1][1]), rje.modulus(depdata[i+1][1] - depdata[i+2][1])) > peakx:
+                                i += 1; continue
+                            depdata.pop(i); depdata.pop(i)
+                            while i < (len(depdata) - 1) and depdata[i-1][1] == depdata[i][1] == depdata[i+1][1]:
+                                depdata.pop(i); depdata.pop(i-1)
+                    # FullCut
+                    if fullcalc:
+                        fullpos[0].sort()
+                        fullpos[1].sort()
+                        fullx = 0
+                        partpos[0].sort()
+                        partpos[1].sort()
+                        partx = 0
+                        self.debug(fullpos[0])
+                        self.debug(fullpos[1])
+                        self.debug(partpos[0])
+                        self.debug(partpos[1])
+                    # Output
+                    for (pos,x) in depdata:
+                        posdata = [locus,str(pos),str(x)]
+                        if fullcalc:
+                            #self.bugPrint('%d <= %d: %s %s' % (fullpos[0],pos,fullpos[0] <= pos,fullpos[0] <= int(pos)))
+                            while fullpos[0] and fullpos[0][0] <= pos: fullx += 1; fullpos[0].pop(0)
+                            while fullpos[1] and fullpos[1][0] <= pos: fullx -= 1; fullpos[1].pop(0)
+                            while partpos[0] and partpos[0][0] <= pos: partx += 1; partpos[0].pop(0)
+                            while partpos[1] and partpos[1][0] <= pos: partx -= 1; partpos[1].pop(0)
+                            posdata += [str(fullx),str(partx)]
+                            self.debug('%s: %s -> %s | %s -> %s' % (pos,fullpos[0][:10],fullpos[1][:10],partpos[0][:10],partpos[1][:10]))
+                        DEPFILE.write('%s\n' % string.join(posdata,'\t'))
                 covdb.addEntry(centry)
             self.printLog('\r#COV','Calculating read coverage: complete (%d of %d loci)' % (lx,ltot))
-            if cdb:
-                #!# Remerge the cdict tables for output!
-                cdb.saveToFile()
-            covdb.saveToFile()
+            if depthplot:
+                DEPFILE.close()
+                self.printLog('\r#DEPTH','XCoverage depth plot data (depthsmooth=%d; peaksmooth=%.2f) output to %s.' % (depsmooth,maxsmooth,depfile))
+            if dirdb: dirdb.saveToFile()
+            if cdb: cdb.saveToFile(sfdict={'MeanX':3})
+            covdb.saveToFile(sfdict={'MeanX':3})
+            if depthplot and self.getBool('RGraphics'):
+                if readlen: self.rGraphics('samreadlen')
+                else: self.rGraphics('samdepth')
             return True
         except: self.errorLog('%s.coverageFromRID() error' % (self.prog())); return False
+#########################################################################################################################
+    def rGraphics(self,rtype='samtools',rargs=''):    ### Generates SAMTools R Graphics
+        '''Generates SAMTools R Graphics.'''
+        try:### ~ [0] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            #!# See pagsat.PAGSAT.rGraphics() for additional steps, such as file checking and adding options.
+            #?# Do we want to generate a summary plot of coverage (e.g. histogram?)
+            self.printLog('#~~#','## ~~~~~ SAMTools R Graphics ~~~~~ ##')
+            basename = self.baseFile(strip_path=True)
+            rcmd = '%s --no-restore --no-save --args "%s" "%s"' % (self.getStr('RPath'),rtype,self.baseFile())
+            rdir = '%slibraries/r/' % slimsuitepath
+            rtmp = '%s.r.tmp.txt' % self.baseFile()
+            if rargs: rcmd += ' %s' % rargs
+            rcmd += ' "rdir=%s" < "%srje.r" > "%s"' % (rdir,rdir,rtmp)
+            self.printLog('#RPNG',rcmd)
+            problems = os.popen(rcmd).read()
+            if problems:
+                for ptxt in problems: self.warnLog(ptxt)
+            elif rje.exists(rtmp) and not self.dev() and not self.debugging(): os.unlink(rtmp)
+            if not problems: self.printLog('#RPNG','R Graphics generated.')
+            return not problems
+        except: self.errorLog('%s.rGraphics error' % self.prog()); return False
+#########################################################################################################################
+    def rScriptGraphics(self,rtype='snpfreq',rargs=''):    ### Generates SAMTools R Graphics
+        '''Generates SAMTools R Graphics.'''
+        try:### ~ [0] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            self.printLog('#~~#','## ~~~~~ SAMTools R Graphics ~~~~~ ##')
+            basename = self.baseFile(strip_path=True)
+            rdir = '%slibraries/r/' % slimsuitepath
+            rcmd = 'Rscript "%srje.r" "%s" "%s"' % (rdir,rtype,basename)
+            rtmp = '%s.r.tmp.txt' % self.baseFile()
+            if rtype == 'snpfreq':
+                rcmd += ' freqpath=./ freqcomp=%s multiplot=T' % basename
+                snapbase = self.getStr('SNPTable') # *.snpmap.tdt
+                snapbase = string.join(string.split(snapbase,'.')[:-2],'.')
+                rcmd += ' snapbase=%s' % snapbase
+            if rargs: rcmd += ' %s' % rargs
+            rcmd += ' "rdir=%s"' % rdir
+            #rcmd += ' "rdir=%s" > "%s"' % (rdir,rtmp)
+            self.printLog('#RPNG',rcmd)
+            #!# Improve handling of R output and progress! #!#
+            problems = False
+            if self.dev():
+                problems = os.popen(rcmd).read()
+                if problems:
+                    for ptxt in problems: self.warnLog(ptxt)
+                elif rje.exists(rtmp) and not self.dev() and not self.debugging(): os.unlink(rtmp)
+            else:
+                RCMD = os.popen(rcmd)
+                rline = True
+                while rline:
+                    rline = RCMD.readline()
+                    if rline: self.vPrint(rje.chomp(rline))
+                RCMD.close()
+            if not problems: self.printLog('#RPNG','R Graphics generated.')
+            return not problems
+        except: self.errorLog('%s.rGraphics error' % self.prog()); return False
 #########################################################################################################################
 ### End of SECTION II: SAMtools Class                                                                                   #
 #########################################################################################################################

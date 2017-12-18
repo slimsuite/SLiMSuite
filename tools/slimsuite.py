@@ -19,8 +19,8 @@
 """
 Module:       SLiMSuite
 Description:  Short Linear Motif analysis Suite
-Version:      1.6.0
-Last Edit:    19/01/16
+Version:      1.7.0
+Last Edit:    16/02/17
 Citation:     Edwards RJ & Palopoli N (2015): Methods Mol Biol. 1268:89-141. [PMID: 25555723]
 Copyright (C) 2014  Richard J. Edwards - See source code for GNU License Notice
 
@@ -76,6 +76,9 @@ slimsuitepath = os.path.abspath(os.path.join(os.path.dirname(os.path.realpath(__
 sys.path.append(os.path.join(slimsuitepath,'extras/'))
 sys.path.append(os.path.join(slimsuitepath,'libraries/'))
 sys.path.append(os.path.join(slimsuitepath,'tools/'))
+sys.path.append(os.path.join(slimsuitepath,'slimsuite/extras/'))
+sys.path.append(os.path.join(slimsuitepath,'slimsuite/libraries/'))
+sys.path.append(os.path.join(slimsuitepath,'slimsuite/tools/'))
 ### User modules - remember to add *.__doc__ to cmdHelp() below ###
 import rje, rje_obj, rje_slimcore, rje_slimlist
 import comparimotif_V3 as comparimotif
@@ -98,6 +101,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 1.5.1 - Changed disorder to iuscore to avoid module conflict.
     # 1.5.2 - Updated XRef REST call.
     # 1.6.0 - Removed SLiMCore as default. Default will now show help.
+    # 1.7.0 - Updated to work with symbolic link in main slimsuite/ path.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -112,7 +116,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copy_right) = ('SLiMSuite', '1.6.0', 'January 2016', '2014')
+    (program, version, last_edit, copy_right) = ('SLiMSuite', '1.7.0', 'February 2017', '2014')
     description = 'Short Linear Motif analysis Suite'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',

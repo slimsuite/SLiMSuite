@@ -153,6 +153,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 0.8.1 - Fixed virus genbank from ID file bug. (Need to re-check REST server.)
     # 0.9.0 - Major reworking of Alias generation/use. Deletion of some OLD methods.
     # 0.9.1 - Fixed up a few bugs and outputs. Ready for REST testing.
+    # 0.9.2 - Added gablamfrag=100 default to GABLAM object call to hopefully counter GABLAM default switch to 1.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -188,11 +189,12 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
     # [ ] : Should we consider making a DNA-based mode, rather than protein-based? (Will people criticise the protein aspect)
     # [ ] : Reorganise and tidy.
     # [ ] : Update Docs.
+    # [ ] : Check gablamfrag, fragmerge and addflanks in the light of GABLAM updates.
     '''
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copy_right) = ('REVERT', '0.9.1', 'September 2016', '2014')
+    (program, version, last_edit, copy_right) = ('REVERT', '0.9.2', 'February 2017', '2014')
     description = 'Retrovirus and Endogenous Viral Element Reconstruction Tool'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_obj.zen()]
@@ -895,7 +897,7 @@ class REVERT(rje_obj.RJE_Object):
                 return not runcmd
             ## ~ [1b] Setup GABLAM run ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             # GablamCut is not being used. Should be taken care of by the QC filter later
-            bcmd = ['blaste=1e-10','keepblast=T','fullblast=T','outstats=GABLAMO']
+            bcmd = ['blaste=1e-10','keepblast=T','fullblast=T','outstats=GABLAMO','gablamfrag=100']
             gcmd = ['fasout=F','fragfas=F','combinedfas=F',     # Obsolete with qassemble=T - Time and Space guzzler.
                     'seqin=%s' % vfile,'searchdb=%s' % gfile,'blastp=tblastn',
                     'local=T','dismat=F','blastf=T','blastcf=T','qryacc=T','blastdir=%s' % self.getStr('RevertBlastDir'),

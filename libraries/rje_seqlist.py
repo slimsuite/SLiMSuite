@@ -19,8 +19,8 @@
 """
 Module:       rje_seqlist
 Description:  RJE Nucleotide and Protein Sequence List Object (Revised)
-Version:      1.20.1
-Last Edit:    16/08/16
+Version:      1.25.0
+Last Edit:    08/05/17
 Copyright (C) 2011  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -71,10 +71,14 @@ Edit:
     avoid position conflicts and overlapping edits should be avoided. WARNING: These will not be checked for! An optional
     Notes field will be used if present for annotating changes in the log file.
 
+    From Version 1.22, a delimited file can be given in place of Start,End for region=X. This file should contain Locus,
+    Start, End and NewAcc fields. If No NewAcc field is present, the new accession number will be the previous accnum
+    (extracted from the sequence name) with '.X-Y' appended.
+
 Commandline:
     ### ~ INPUT OPTIONS ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     seqin=FILE      : Sequence input file name. [None]
-    seqmode=X       : Sequence mode, determining method of sequence storage (full/list/file/index/db). [file]
+    seqmode=X       : Sequence mode, determining method of sequence storage (full/list/file/index/db/filedb). [file]
     seqdb=FILE      : Sequence file from which to extract sequences (fastacmd/index formats) [None]
     seqindex=T/F    : Whether to save (and load) sequence index file in file mode. [True]
     seqformat=X     : Expected format of sequence file [None]
@@ -171,6 +175,12 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 1.19.0 - Added option log description for deleting sequence during edit.
     # 1.20.0 - Added option to give a file of changes for edit mode.
     # 1.20.1 - Fixed edit=FILE deletion bug.
+    # 1.21.0 - Added capacity to add/update database object from self.summarise() even if not seqmode=db. Added filedb mode.
+    # 1.22.0 - Added geneDic() method.
+    # 1.23.0 - Added seqSequence() method.
+    # 1.24.0 - Add NNN gaps option and "delete rest of sequences" to edit().
+    # 1.24.1 - Minor edit bug fix and DNA toggle option.
+    # 1.25.0 - Added loading of FASTQ files in seqmode=file mode.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -191,7 +201,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copy_right) = ('SeqList', '1.20.1', 'August 2016', '2011')
+    (program, version, last_edit, copy_right) = ('SeqList', '1.25.0', 'May 2017', '2011')
     description = 'RJE Nucleotide and Protein Sequence List Object (Revised)'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_zen.Zen().wisdom()]
@@ -299,6 +309,7 @@ class SeqList(rje_obj.RJE_Object):
     Num:float
     
     List:list
+    - Edit = Stores edits made during self.edit() as (Type,AccNum,Details) tuples. (Enables extraction of edits made.)
     - Sampler = N(,X) = Generate (X) file(s) sampling a random N sequences from input into seqout.N.X.fas [0]
     - Seq = List of sequences - nature depends on SeqMode []
 
@@ -325,7 +336,7 @@ class SeqList(rje_obj.RJE_Object):
                          'SeqIndex','SeqShuffle','Summarise','UseCase']
         self.intlist = ['MinLen','MaxLen','MinORF','RFTran','TerMinORF']
         self.numlist = []
-        self.listlist = ['Sampler','Seq']
+        self.listlist = ['Edit','Sampler','Seq']
         self.dictlist = ['Filter','SeqDict']
         self.objlist = ['Current','CurrSeq','DB','SEQFILE','INDEX']
         ### ~ Defaults ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -545,6 +556,20 @@ class SeqList(rje_obj.RJE_Object):
         if self.dict['SeqDict']: return self.dict['SeqDict']
         else: return self.makeSeqNameDic()
 #########################################################################################################################
+    def geneDic(self):  ### Returns a dictionary of {gene:[seqs]} (rather than one-to-one mapping of seqNameDic())
+        '''Returns a dictionary of {gene:[seqs]} (rather than one-to-one mapping of seqNameDic()).'''
+        try:### ~ [0] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            genedic = {}
+            ### ~ [1] Make dictionary ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            for seq in self.seqs():
+                gene = self.seqGene(seq)
+                if gene not in genedic: genedic[gene] = []
+                genedic[gene].append(seq)
+            return genedic
+        except:
+            self.errorLog('geneDic problem')
+            raise ValueError
+#########################################################################################################################
     def makeSeqNameDic(self,keytype=None,clear=True,warnings=True):  ### Make SeqDict sequence name dictionary.
         '''
         >> keytype:str [None] = Type of data to use as key for dictionary (accnum/short/name/max)
@@ -567,9 +592,13 @@ class SeqList(rje_obj.RJE_Object):
                 if keytype in ['acc','accnum','full','max']: skeys.append(string.split(string.split(name)[0],'__')[-1])
                 if keytype in ['id','full','max']: skeys.append(string.split(string.split(name)[0],'__')[0])
                 skeys = rje.sortUnique(skeys)
+                #self.bugPrint('%s >> %s' % (name,skeys))
                 for skey in skeys:
-                    if warnings and skey in self.dict['SeqDict']: self.warnLog('Sequence "%s" already in SeqDict.' % skey,suppress=True)
+                    if warnings and skey in self.dict['SeqDict']:
+                        self.warnLog('Sequence "%s" already in SeqDict.' % skey,suppress=True)
+                        self.debug('???')
                     self.dict['SeqDict'][skey] = seq
+            #self.debug('%s: %d seq -> %d seqdict' % (keytype,self.seqNum(),len(self.dict['SeqDict'])))
             return  self.dict['SeqDict']
         except:
             self.errorLog('SeqNameDic problem')
@@ -609,6 +638,10 @@ class SeqList(rje_obj.RJE_Object):
     def seqName(self,seq=None):
         if seq == None: seq = self.obj['Current']
         return self.getSeq(seq,'tuple')[0]
+#########################################################################################################################
+    def seqSequence(self,seq=None):
+        if seq == None: seq = self.obj['Current']
+        return self.getSeq(seq,'tuple')[1]
 #########################################################################################################################
     def seqDesc(self,seq=None): return string.join(string.split(self.seqName(seq))[1:])
 #########################################################################################################################
@@ -683,19 +716,28 @@ class SeqList(rje_obj.RJE_Object):
                     else: return (name,sequence.upper())
                 elif format == 'short': return string.split(name)[0]
                 else: return seq
+            elif mode == 'filedb':       # Store sequence data in database object.
+                return self.getSeq(seq['FPos'],format,'file',case)
             elif mode == 'file':     # List of file positions.
                 SEQFILE = self.SEQFILE()
                 SEQFILE.seek(seq)
                 name = rje.chomp(SEQFILE.readline())
-                if name[:1] != '>':
+                if name[:1] == '@': # FASTQ
+                    name = name[1:]
+                    sequence = ''; line = rje.chomp(SEQFILE.readline())
+                    while line and line[:1] != '+':
+                        sequence += line
+                        line = rje.chomp(SEQFILE.readline())
+                elif name[:1] == '>':
+                    name = name[1:]
+                    sequence = ''; line = rje.chomp(SEQFILE.readline())
+                    while line and line[:1] != '>':
+                        sequence += line
+                        line = rje.chomp(SEQFILE.readline())
+                else:
                     self.deBug(name)
                     self.errorLog('Given file position that is not name line. May have SeqList objects mixed up?',printerror=False)
-                    raise ValueError    # Must be Fasta!
-                name = name[1:]
-                sequence = ''; line = rje.chomp(SEQFILE.readline())
-                while line and line[:1] != '>':
-                    sequence += line
-                    line = rje.chomp(SEQFILE.readline())
+                    raise ValueError    # Must be Fasta or Fastq!
                 if format == 'obj': return self.getSeqObj(name,sequence)
                 elif format == 'entry': 
                     if case: return {'Name':name,'Sequence':sequence}
@@ -734,6 +776,7 @@ class SeqList(rje_obj.RJE_Object):
             if fragend <= 0 or fragend > seqlen: fragend = seqlen
             seqname = string.split(seqname)
             #i# Note that positions are 1 to L and not 0 to (L-1)
+            #!# Find out if any programs use this code, then change to .X-Y not -X.Y
             seqname[0] = '%s-%s.%s' % (seqname[0],rje.preZero(fragstart,seqlen),rje.preZero(fragend,seqlen))
             seqname.insert(1,'(Pos %s - %s)' % (rje.iStr(fragstart),rje.iStr(fragend)))
             #seqname.insert(1,'GABLAM Fragment %d of %d (%s - %s)' % (fx+1,ftot,rje.iStr(fragstart+1),rje.iStr(fragend+1)))
@@ -824,14 +867,15 @@ class SeqList(rje_obj.RJE_Object):
             return True
         except: self.errorLog('Problem during %s tidy.' % self); return False   # Tidy failed
 #########################################################################################################################
-    def summarise(self,seqs=None,basename=None):    ### Generates summary statistics for sequences
+    def summarise(self,seqs=None,basename=None,sumdb=False,save=True):    ### Generates summary statistics for sequences
         '''Generates summary statistics for sequences.'''
         try:### ~ [0] ~ Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             seqbase = rje.baseFile(self.getStr('SeqIn'),strip_path=True)
             if not self.getStrLC('SeqIn'): seqbase = self.getStr('Basefile')
             if not basename: basename = seqbase
             seqdata = {}    # SeqNum, TotLength, MinLength, MaxLength, MeanLength, MedLength, N50Length
-            if self.mode() == 'db': # {'Name':name,'Sequence':sequence,'FPos':fpos}
+            if sumdb or self.mode().endswith('db'): # {'Name':name,'Sequence':sequence,'FPos':fpos}
+                if not self.obj['DB']: self.obj['DB'] = rje_db.Database(self.log,self.cmd_list+['tuplekeys=T'])
                 db = self.db()
                 sdb = db.addEmptyTable('sequences',['name','desc','gene','spec','accnum','length'],['name'])
                 if self.dna(): sdb.addField('gc')
@@ -842,7 +886,7 @@ class SeqList(rje_obj.RJE_Object):
             for seq in seqs:
                 self.progLog('\r#SUM','Total number of sequences: %s' % rje.iLen(seqlen),rand=0.01)
                 seqlen.append(self.seqLen(seq))
-                if self.mode() == 'db':
+                if self.mode().endswith('db'):
                     entry = {'name':self.shortName(seq),'desc':self.seqDesc(seq),'gene':self.seqGene(seq),
                              'spec':self.seqSpec(seq),'accnum':self.seqAcc(seq),'length':self.seqLen(seq)}
                     if self.dna():
@@ -851,7 +895,7 @@ class SeqList(rje_obj.RJE_Object):
                     sdb.addEntry(entry)
             self.printLog('#SUM','Total number of sequences: %s' % rje.iLen(seqlen))
             if not seqs: return {}
-            if self.mode() == 'db': sdb.saveToFile('%s.sequences.tdt' % seqbase)
+            if self.mode().endswith('db') and save: sdb.saveToFile('%s.sequences.tdt' % seqbase)
             # Total sequence length
             sumlen = sum(seqlen)
             self.printLog('#SUM','Total length of sequences: %s' % rje.iStr(sumlen))
@@ -1366,8 +1410,11 @@ class SeqList(rje_obj.RJE_Object):
             ## ~ [0d] ~ Database object and Table ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             self.setStr({'Name':rje.baseFile(seqfile)})
             if mode == 'db':
-                if not self.obj['DB']: self.obj['DB'] = rje_db.Database(self.log,self.cmd_list)
+                if not self.obj['DB']: self.obj['DB'] = rje_db.Database(self.log,self.cmd_list+['tuplekeys=T'])
                 self.obj['DB'].addEmptyTable(self.getStr('Name'),['Name','Sequence','FPos'],['Name'])
+            elif mode == 'filedb':
+                if not self.obj['DB']: self.obj['DB'] = rje_db.Database(self.log,self.cmd_list+['tuplekeys=T'])
+                self.obj['DB'].addEmptyTable(self.getStr('Name'),['Name','FPos'],['Name'])
 
             ### ~ [1] ~ Load sequences into self.list['Seq'] ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             SEQ = open(seqfile,'r'); fpos = 0; SEQ.seek(0,2); fend = SEQ.tell(); SEQ.seek(0); sx = 0
@@ -1402,6 +1449,22 @@ class SeqList(rje_obj.RJE_Object):
                     self.list['Seq'].sort()
                     SEQ.close(); self.obj['INDEX'] = None
                     self.obj['SEQFILE'] = open(self.getStr('SeqDB'),'r')
+            ## ~ [1c] ~ Fastq format ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            if filetype == 'fastq':
+                sequence = None; name = None; fprev = 0
+                if mode == 'index' and not makeindex: fpos = fend
+                while fpos < fend:
+                    self.progLog('\r#SEQ','Loading seq from %s: %.2f%%' % (logseqfile,(100.0*fpos/fend)),rand=0.2,screen=screen)
+                    line = rje.chomp(SEQ.readline())
+                    if line.find('@') == 0:                                     # New Sequence
+                        if sequence and name: self._addSeq(name,sequence,fprev,makeindex,nodup=nodup)  # Previous Sequence to Add
+                        name = line[1:]
+                        sequence = rje.chomp(SEQ.readline())
+                        SEQ.readline()  # +
+                        SEQ.readline()  # Quality scores
+                        fprev = fpos; sx += 1
+                    elif line: raise ValueError('Unexpected fastq line where shoud be sequence name: "%s"' % line)
+                    fpos = SEQ.tell()
             ##  ~ [2b] ~ Phylip Format ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             elif filetype == 'phy':
                 self.printLog('#SEQ','Phylip format not currently supported. Please use rje_seq to reformat first.')
@@ -1451,6 +1514,7 @@ class SeqList(rje_obj.RJE_Object):
             if not rje.checkForFile(seqfile): raise IOError
             if filetype and filetype.lower() in ['','none','unknown']: filetype = None
             type_re = [('fas','^>(\S+)'),               # Fasta format
+                       ('fastq','^@(\S+)'),             # Fastq format
                        ('phy','^\s+(\d+)\s+(\d+)'),     # Phylip
                        ('aln','^(CLUSTAL)'),            # ClustalW alignment
                        ('uniprot','^ID\s+(\S+)'),       # UniProt
@@ -1534,7 +1598,12 @@ class SeqList(rje_obj.RJE_Object):
                 entry = {'Name':name,'Sequence':sequence,'FPos':fpos}
                 db.addEntry(entry)  #!# Later, add method to expand/extract data
                 self.list['Seq'].append(entry)
-        except: self.errorLog('%s._addSeq error (%s)' % (self,name))            
+            elif self.mode() == 'filedb':       # Store sequence data in database object.
+                db = self.db(self.getStr('Name'))
+                entry = {'Name':name,'FPos':fpos}
+                db.addEntry(entry)  #!# Later, add method to expand/extract data
+                self.list['Seq'].append(entry)
+        except: self.errorLog('%s._addSeq error (%s)' % (self,name))
 #########################################################################################################################
     def OLD_addSeq(self,name,sequence):    ### Adds a new Sequence Object to list                               !TEMP!
         '''
@@ -1624,7 +1693,7 @@ class SeqList(rje_obj.RJE_Object):
             if simplefilter:
                 sx = 0.0; stot = len(self.dict['SeqDict'])
                 for name in self.dict['SeqDict'].keys()[0:]:
-                    if screen: self.progLog('\r#FILT','Filtering sequences %.2f%%' % (sx/stot)); sx += 100
+                    if screen: self.progLog('\r#FILT','Filtering sequences %.2f%%' % (sx/stot),rand=0.01); sx += 100
                     ok = True
                     if self.list['GoodSeq'] and string.split(name)[0] not in self.list['GoodSeq']: self.dict['Filter']['GoodSeq'] += 1; ok = False
                     if ok and self.list['BadSeq'] and string.split(name)[0] in self.list['BadSeq']: self.dict['Filter']['BadSeq'] += 1; ok = False
@@ -1658,7 +1727,7 @@ class SeqList(rje_obj.RJE_Object):
             else:
                 sx = 0.0; stot = len(self.seqs())
                 for seq in self.seqs():
-                    if screen: self.progLog('\r#FILT','Filtering sequences %.2f%%' % (sx/stot)); sx += 100
+                    if screen: self.progLog('\r#FILT','Filtering sequences %.2f%%' % (sx/stot),rand=0.01); sx += 100
                     (name,sequence) = self.getSeq(seq,format='tuple')
                     ok = False
                     if minlen and len(sequence) < minlen: self.dict['Filter']['MinLen'] += 1
@@ -1697,6 +1766,63 @@ class SeqList(rje_obj.RJE_Object):
 #########################################################################################################################
      ### <5> ### Class Saving Methods                                                                                   #
 #########################################################################################################################
+    def saveRegions(self,seqs=None,seqfile=None,append=None,log=True,screen=None,backup=True):
+        '''
+        Saves sequences in SeqList object in fasta format
+        >> seqs:list of Sequence Objects (if none, use self.seq)
+        >> seqfile:str [self.info['Name'].fas] = filename
+        >> reformat:str = Type of output format (fasta/short/acc/acclist/speclist/peptide/qregion/region)
+        >> append:boolean [None] = append, do not overwrite, file. Use self.getBool('Append') if None
+        >> log:boolean [True] = Whether to log output
+        >> screen:bool [None] = Whether to print log output to screen (None will use log setting)
+        >> backup:bool [True] = Whether to ask about backing up existing file.
+        >> seqtuples:bool [False] = Whether given sequences are tuples to be used directly (otherwise will fetch from self.seq)
+        '''
+        try:### ~ [0] ~ Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            if seqs is None: seqs = self.seqs()
+            seqdict = self.makeSeqNameDic('max')
+            if not seqfile: seqfile = self.getStr('SeqOut')
+            if screen == None: screen = log
+            if append == None: append = self.getBool('Append')
+            # Make region database Table if not existing
+            if not self.obj['DB']: self.obj['DB'] = rje_db.Database(self.log,self.cmd_list+['tuplekeys=T'])
+            db = self.db()
+            regdb = self.db('region')
+            if not regdb: regdb = db.addTable(filename=self.getStr('Region'),mainkeys='auto',name='region',expect=True)
+            if 'NewAcc' in regdb.fields(): regdb.newKey(['NewAcc'])
+            else:
+                self.warnLog('NewAcc not in Region file fields: will use unique Locus,Start.End combos.')
+                regdb.newKey(['Locus','Start','End'])
+            regdb.dataFormat({'Start':'int','End':'int'})
+            # add findField() method to look for field and ask if missing and i>=0
+            ### ~ [1] ~ Generate Sequence file ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            # Use regiondb to make new sequence and output
+            if backup and not append: rje.backup(self,seqfile)
+            if append: SEQOUT = open(seqfile,'a')
+            else: SEQOUT = open(seqfile,'w')
+            fasx = 0
+            loci = rje.listIntersect(regdb.indexKeys('Locus'),seqdict.keys())
+            self.printLog('#REGLOC','%s of %s region loci mapped to sequences' % (rje.iLen(loci),rje.iLen(regdb.index('Locus'))),log=log,screen=screen)
+            for rkey in regdb.dataKeys():
+                entry = regdb.data(rkey)
+                if entry['Locus'] not in loci: continue
+                seq = seqdict[entry['Locus']]
+                if seq not in seqs: continue
+                (name,sequence) = self.getSeq(seq)
+                seqlen = len(sequence)
+                begx = entry['Start']
+                if begx < 0: begx = max(1,seqlen-begx+1)
+                endx = entry['End']
+                if endx < 0: endx = min(seqlen,endx)
+                if 'NewAcc' in regdb.fields(): newacc = entry['NewAcc']
+                else: newacc = '%s.%s-%s' % (self.seqAcc(seq),rje.preZero(begx,seqlen),rje.preZero(endx,seqlen))
+                newname = '%s_%s__%s %s Region %s-%s; %s' % (self.seqGene(seq),self.seqSpec(seq),newacc,self.seqAcc(seq),rje.iStr(begx),rje.iStr(endx),self.seqDesc(seq))
+                SEQOUT.write('>%s\n%s\n' % (newname,sequence[begx-1:endx]))
+                fasx += 1
+            SEQOUT.close()
+            self.printLog('\r#OUT','%s regions (%s loci) output to %s' % (rje.iStr(fasx),rje.iLen(loci),seqfile),log=log,screen=screen)
+        except: self.errorLog('Major error during saveRegions()')
+#########################################################################################################################
     def saveSeq(self,seqs=None,seqfile=None,reformat=None,append=None,log=True,screen=None,backup=True,seqtuples=False):  ### Saves sequences in fasta format
         '''
         Saves sequences in SeqList object in fasta format
@@ -1730,6 +1856,8 @@ class SeqList(rje_obj.RJE_Object):
             if rje.exists(ifile):
                 self.warnLog('%s deleted.' % ifile)
                 os.unlink(ifile)
+            if self.getStrLC('Region') and rje.exists(rje.makePath(self.getStr('Region'),wholepath=True)):
+                return self.saveRegions(seqs,seqfile,append,log,screen,backup)
             ## ~ [0a] ~ Setup QRegion ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             qregion = False
             qstart = 0; qend = -1
@@ -1992,7 +2120,7 @@ class SeqList(rje_obj.RJE_Object):
 #########################################################################################################################
      ### <6> ### Menu-based Sequence Editing                                                                            #
 #########################################################################################################################
-    def edit(self): ### Gives menu-based sequence editing options. Saves to *.edit.fas by default.
+    def edit(self,save=True): ### Gives menu-based sequence editing options. Saves to *.edit.fas by default.
         '''Gives menu-based sequence editing options. Saves to *.edit.fas by default.'''
         try:### ~ [0] ~ Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if self.getStrLC('Edit') and rje.exists(self.getStr('Edit')):
@@ -2004,7 +2132,7 @@ class SeqList(rje_obj.RJE_Object):
             # List of menu item tuples (edit code,description,optiontype,optionkey)
             if self.dna(): dna_menu = [('R','<R>everse complement','return','R'),
                                        ('T','<T>ranslate','return','T')]
-            else: dna_menu = []
+            else: dna_menu = ['DNA','Switch to <DNA> mode','DNA']
             menulist = [('','# ~ NAME/DESCRIPTION ~ #','',''),
                         ('G','Edit <G>ene','return','G'),
                         ('S','Edit <S>pecies','return','S'),
@@ -2021,6 +2149,7 @@ class SeqList(rje_obj.RJE_Object):
                          ('<<','Move to start of sequence list','return','<<'),
                          ('>>','Move to end of sequence list','return','>>'),
                          ('-','Remove sequence from list','return','-'),
+                         ('--','Remove this and following sequences from list','return','--'),
                          ('+','Add sequences from file','return','+'),
                          ('++','Duplicate sequence','return','++'),
                          ('&','Append (and remove) following sequence(s)','return','&'),
@@ -2036,10 +2165,11 @@ class SeqList(rje_obj.RJE_Object):
                          ('Q','<Q>uit edit menu','return','Q')]
             ### ~ [1] ~ Cycle through menu ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             ei = 0      # Sequence index position
-            while True:
+            while True and self.list['Seq']:
                 ## ~ [1a] Setup sequence ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
                 self.obj['Current'] = self.list['Seq'][ei]
                 (seqname,sequence) = self.current()
+                seqacc = self.seqAcc()
                 #!# Add wrapping of seqDesc
                 edesc = '\n\n%d of %d: %s (%s %s)\n%s\n' % (ei+1,self.seqNum(),self.shortName(),self.seqLen(),self.units(),self.screenWrap(self.seqDesc(),prefix='    '))
                 choice = rje_menu.menu(self,headtext+edesc,menulist,choicetext='Please select:',changecase=True,default='N')
@@ -2049,22 +2179,26 @@ class SeqList(rje_obj.RJE_Object):
                     newgene = string.join(string.split(newgene),'')
                     newshort = '%s_%s__%s' % (newgene,self.seqSpec(),self.seqAcc())
                     self.printLog('#EDIT','%s -> %s' % (self.shortName(),newshort))
+                    self.list['Edit'].append(('Gene',seqacc,'%s -> %s' % (self.shortName(),newshort)))
                     self.list['Seq'][ei] = ('%s %s' % (newshort,self.seqDesc()),sequence)
                 elif choice == 'S':
                     spcode = rje.choice('New species code (no spaces) for %s?' % self.shortName(),default=self.seqSpec())
                     spcode = string.join(string.split(spcode),'').upper()
                     newshort = '%s_%s__%s' % (self.seqGene(),spcode,self.seqAcc())
                     self.printLog('#EDIT','%s -> %s' % (self.shortName(),newshort))
+                    self.list['Edit'].append(('Species',seqacc,'%s -> %s' % (self.shortName(),newshort)))
                     self.list['Seq'][ei] = ('%s %s' % (newshort,self.seqDesc()),sequence)
                 elif choice == 'A':
                     newacc = rje.choice('New accession (no spaces) for %s?' % self.shortName(),default=self.seqAcc())
                     newacc = string.join(string.split(newacc),'')
                     newshort = '%s_%s__%s' % (self.seqGene(),self.seqSpec(),newacc)
                     self.printLog('#EDIT','%s -> %s' % (self.shortName(),newshort))
+                    self.list['Edit'].append(('AccNum',seqacc,'%s -> %s' % (self.shortName(),newshort)))
                     self.list['Seq'][ei] = ('%s %s' % (newshort,self.seqDesc()),sequence)
                 elif choice == 'D':
                     newdesc = rje.choice('New description for %s?' % self.shortName(),default=self.seqDesc())
                     self.printLog('#EDIT','"%s" -> "%s"' % (self.seqDesc(),newdesc))
+                    self.list['Edit'].append(('Desc',seqacc,'"%s" -> "%s"' % (self.seqDesc(),newdesc)))
                     self.list['Seq'][ei] = ('%s %s' % (self.shortName(),newdesc),sequence)
                 ## ~ [1c] Sequence ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
                 elif choice == 'U':
@@ -2073,6 +2207,7 @@ class SeqList(rje_obj.RJE_Object):
                     else:
                         self.list['Seq'][ei] = (seqname,sequence.replace('-',''))
                         self.printLog('#EDIT','%s gaps removed from %s' % (gapx,self.shortName()))
+                        self.list['Edit'].append(('Ungap',seqacc,'%s gaps removed from %s' % (gapx,self.shortName())))
                 elif choice == 'X':
                     x = rje.getInt('New start position (1-L)?',default=1)
                     y = rje.getInt('New end position (1-L)?',default=len(sequence))
@@ -2080,28 +2215,38 @@ class SeqList(rje_obj.RJE_Object):
                     if not rje.yesNo('Extract subsequence %d to %d (=%d %s)?)' % (x,y,len(newseq),self.units())): continue
                     seqname = '%s (Region %d to %d)' % (seqname,x,y)
                     self.printLog('#EDIT','%s -> Region %d to %d.' % (seqname,x,y))
+                    self.list['Edit'].append(('Subsequence',seqacc,'%s -> Region %d to %d.' % (seqname,x,y)))
                     self.list['Seq'][ei] = (seqname,newseq)
                 elif choice == '/':
-                    divi = rje.getInt('Start position for new sequence (1-L)?',default=1)
-                    newseq = sequence[:divi-1]
-                    addseq = sequence[divi-1:]
+                    divc = rje.getInt('Start position for  new sequence (1-L)?',default=1)
+                    if divc > 0: divi = divc - 1
+                    else: divi = divc
+                    newseq = sequence[:divi]
+                    addseq = sequence[divi:]
                     if newseq and addseq:
                         divi = len(newseq)
                         if rje.yesNo('Split %s into %d and %d %s sequences?' % (self.shortName(),len(newseq),len(addseq),self.units())):
-                            newacc = rje.choice('New accession (no spaces) for %s %d+?' % (self.shortName(),divi),default='%s.%d' % (self.seqAcc(),divi))
+                            newacc = rje.choice('New accession (no spaces) for %s %d+?' % (self.shortName(),divi),default='%s.%d' % (self.seqAcc(),divi+1))
                             newacc = string.join(string.split(newacc),'')
                             newshort = '%s_%s__%s' % (self.seqGene(),self.seqSpec(),newacc)
                             self.printLog('#EDIT','Split %s at %d -> %s' % (self.shortName(),divi,newshort))
+                            self.list['Edit'].append(('Divide',seqacc,'Split %s at %d -> %s' % (self.shortName(),divi,newshort)))
                             self.list['Seq'] = self.list['Seq'][:ei] + [('%s (Region 1 to %d)' % (seqname,divi),newseq), ('%s %s (Region %d to %d)' % (newshort,self.seqDesc(),divi+1,len(sequence)),addseq)] + self.list['Seq'][ei+1:]
                         else: self.vPrint('Split aborted.')
-                    else: self.verbose(0,0,'Cannot split %s at %d: produces empty sequence.' % (self.shortName(),divi))
+                    else: self.verbose(0,0,'Cannot split %s at %d: produces empty sequence.' % (self.shortName(),divc))
                 elif choice == 'R':
                     self.printLog('#EDIT','RevComp %s' % self.shortName())
+                    self.list['Edit'].append(('RevComp',seqacc,'RevComp %s' % self.shortName()))
                     sequence = rje_sequence.reverseComplement(sequence,rna=self.rna())
-                    if string.split(self.seqDesc())[0] == 'RevComp': newdesc = string.join(string.split(self.seqDesc())[1:])
+                    if self.seqDesc() and string.split(self.seqDesc())[0] == 'RevComp':
+                        if len(string.split(self.seqDesc())) > 1: newdesc = string.join(string.split(self.seqDesc())[1:])
+                        else: newdesc = ''
                     else: newdesc = 'RevComp %s' % self.seqDesc()
                     self.list['Seq'][ei] = ('%s %s' % (self.shortName(),newdesc),sequence)
                 elif choice == 'T': print 'Not yet implemented!'
+                elif choice == 'DNA':
+                    self.setStr({'SeqType':'dna'})
+                    self.setBool({'DNA':True})
                 elif choice == 'M':
                     seqx = len(sequence)
                     mutx = rje.getFloat('Number of mutations? (<1 for proportion)',default=0.01,confirm=True)
@@ -2116,6 +2261,8 @@ class SeqList(rje_obj.RJE_Object):
                             else: new = random.choice('ACDEFGHKLMNPQRSTVWY')
                         sequence = sequence[:m] + new + sequence[m+1:]
                     if seqx != len(sequence): raise ValueError
+                    self.printLog('#EDIT','%s mutations added to %s' % (mutx,self.shortName()))
+                    self.list['Edit'].append(('Mutate',seqacc,'%s mutations added to %s' % (mutx,self.shortName())))
                 ## ~ [1d] Sequence ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
                 elif choice == '<':
                     if ei:
@@ -2142,13 +2289,30 @@ class SeqList(rje_obj.RJE_Object):
                     logtxt = rje.choice('Note for log file (optional)?:',default='',confirm=True)
                     if logtxt: self.printLog('#EDIT','Removed %s - %s' % (seqname,logtxt))
                     else: self.printLog('#EDIT','Removed %s' % seqname)
+                    self.list['Edit'].append(('Remove',seqacc,'Removed %s' % seqname))
                     self.list['Seq'].pop(ei)
                     ei = min(ei,self.seqNum()-1)
+                elif choice == '--':
+                    # Select sequences
+                    cseqx = min(rje.getInt('Number of sequences to delete?',default=self.seqNum()-ei),self.seqNum()-ei)
+                    cseq = self.list['Seq'][ei:ei+cseqx]
+                    cnames = self.names(seqs=cseq)
+                    if not rje.yesNo('Delete %s sequences: %s?' % (cseqx,string.join(cnames,', '))):
+                        self.vPrint('Deletion aborted.')
+                        continue
+                    logtxt = rje.choice('Note for log file (optional)?:',default='',confirm=True)
+                    for (seqname,sseq) in cseq:
+                        if logtxt: self.printLog('#EDIT','Removed %s - %s' % (seqname,logtxt))
+                        else: self.printLog('#EDIT','Removed %s' % seqname)
+                        self.list['Edit'].append(('Remove',seqacc,'Removed %s' % seqname))
+                    self.list['Seq'] = self.list['Seq'][:ei] + self.list['Seq'][ei+cseqx:]
+                    ei -= 1
                 elif choice == '++' and rje.yesNo('Duplicate %s?' % self.shortName()):
                     newacc = rje.choice('New accession (no spaces) for duplicate %s?' % self.shortName(),default='%s.1' % self.seqAcc())
                     newacc = string.join(string.split(newacc),'')
                     newshort = '%s_%s__%s' % (self.seqGene(),self.seqSpec(),newacc)
                     self.printLog('#EDIT','%s +> %s' % (self.shortName(),newshort))
+                    self.list['Edit'].append(('Duplicate',seqacc,'%s +> %s' % (self.shortName(),newshort)))
                     self.list['Seq'].insert(ei+1,('%s %s' % (newshort,self.seqDesc()),sequence))
                     ei += 1
                 elif choice == '+':
@@ -2185,11 +2349,15 @@ class SeqList(rje_obj.RJE_Object):
                     if not rje.yesNo('Concatenate %s with %s sequences: %s?' % (self.shortName(),cseqx,string.join(cnames,', '))):
                         self.vPrint('Concatenation aborted.')
                         continue
+                    gapx = {True:'N',False:'X'}[self.nt()]
+                    gapn = rje.getInt('Length of "%s" linker' % gapx,blank0=True,default='0',confirm=True)
                     for (sname,sseq) in cseq:
                         sequence += sseq
+                        if gapn > 0: sequence += gapx * gapn
                         seqname += ' & %s' % sname
                     self.list['Seq'][ei] = (seqname,sequence)
                     self.printLog('#EDIT','Joined %s' % seqname)
+                    self.list['Edit'].append(('Join',seqacc,'Joined %s' % seqname))
                     self.list['Seq'] = self.list['Seq'][:ei+1] + self.list['Seq'][ei+1+cseqx:]
                 elif choice == 'C':
                     # Select sequences
@@ -2219,6 +2387,7 @@ class SeqList(rje_obj.RJE_Object):
                         newdesc = 'Consensus (%s + %s) %s' % (self.shortName(),string.join(cnames,','),self.seqDesc())
                         self.list['Seq'][ei] = ('%s %s' % (self.shortName(),newdesc),newseq)
                         self.printLog('#EDIT',newdesc)
+                        self.list['Edit'].append(('Combine',seqacc,newdesc))
                         self.list['Seq'] = self.list['Seq'][:ei+1] + self.list['Seq'][ei+1+cseqx:]
                     except KeyboardInterrupt:
                         self.printLog('#EDIT','Consensus generation from unaligned sequences aborted!')
@@ -2240,13 +2409,15 @@ class SeqList(rje_obj.RJE_Object):
                     self.saveSeq(seqfile=self.getStr('EditFile'))
                     self.setStr({'SeqIn':self.getStr('EditFile')})
                 elif choice == 'Q' or not choice:    # Cancel/quit
-                    if rje.yesNo('Save to %s?' % self.getStr('EditFile')):
+                    if save and rje.yesNo('Save to %s?' % self.getStr('EditFile')):
                         self.saveSeq(seqfile=self.getStr('EditFile'))
                         self.setStr({'SeqIn':self.getStr('EditFile')})
                     break
+            if not self.list['Seq']: self.printLog('#EDIT','No sequences for edit!'); return False
             return True
         except KeyboardInterrupt:
             return False
+        except SystemExit: raise
         except: self.errorLog('Problem during %s edit.' % self); return False   # Edit failed
 #########################################################################################################################
     def makeConsensus(self,refseq,subseq,mindepth=1):  ### Makes a consensus sequence from reference and subsequences
@@ -2283,7 +2454,7 @@ class SeqList(rje_obj.RJE_Object):
     def fileEdit(self): ### Makes changes from edit file.
         '''Makes changes from edit file.'''
         try:### ~ [0] ~ Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            self.obj['DB'] = rje_db.Database(self.log,self.cmd_list+['tuplekeys=T'])
+            if not self.obj['DB']: self.obj['DB'] = rje_db.Database(self.log,self.cmd_list+['tuplekeys=T'])
             db = self.db()
             edb = db.addTable(self.getStr('Edit'),mainkeys=['Locus','Pos'],name='edit')
             edb.dataFormat({'Pos':'int'})

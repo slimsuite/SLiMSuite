@@ -474,6 +474,74 @@ def tableToHTML(delimtext,delimit,tabwidth='100%',tdwidths=[],tdalign=[],valign=
     html += '</table>\n\n'
     return html
 #########################################################################################################################
+def dbTableToHTML(table,fields=[],datakeys=[],tabwidth='100%',tdwidths=[],tdalign=[],tdtitles={},valign='center',thead=True,border=1,tabid=''):    # Makes HTML Table
+    '''
+    Converts delimited plain text into an HTML table.
+    >> table:Database.Table object to convert
+    >> fields:list [] = List of fields to output. Will use them all if empty.
+    >> datakeys:list [] = List of entry data keys to output. Will use them all if empty.
+    >> tabwidth:str ['100%'] = width of table
+    >> tdwidths:list [] = Optional list of widths of columns
+    >> tdalign:list [] = Optional list of text alignment for columns
+    >> tdtitles:dict {} = Optional dictionary of {field:title text (for mouseover)}
+    >> valign:str ['center'] = Vertical text alignment for columns
+    >> thead:bool [True] = Whether first row should use th rather than td
+    >> border:int [1] = Table border strength
+    >> tabid:str [''] = Table ID setting (for CSS formatting)
+    '''
+    try:### [0] Setup Table ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+        if tabid: html = '<table width="%s" id="%s">\n' % (tabwidth,tabid)
+        else: html = '<table width="%s" border=%d>\n' % (tabwidth,border)
+        if not fields: fields = table.fields()
+        if not datakeys: datakeys = table.dataKeys()
+        #table.debug(fields)
+        ### [1] Header Row ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+        if thead:
+            html += '<tr>\n'
+            headtext = fields[0:]
+            tw = tdwidths[0:]
+            ta = tdalign[0:]
+            while headtext:
+                tag = 'th'
+                if tw: tag += ' width="%s"' % tw.pop(0)
+                if ta: tag += ' align=%s' % ta.pop(0)
+                if headtext[0] in tdtitles: tag += ' title="%s"' % tdtitles[headtext[0]]
+                html += '<%s>%s</th>\n' % (tag,headtext.pop(0))
+            html += '</tr>\n'
+        ### [2] Main body ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+        for dkey in datakeys:
+            entry = table.data(dkey)
+            tabtext = []
+            for field in fields: tabtext.append(entry[field])
+            html += '<tr>\n'
+            tw = tdwidths[0:]
+            ta = tdalign[0:]
+            while tabtext:
+                tag = 'td valign=%s' % valign
+                if tw: tag += ' width="%s"' % tw.pop(0)
+                if ta: tag += ' align=%s' % ta.pop(0)
+                html += '<%s>%s</td>\n' % (tag,tabtext.pop(0))
+            html += '</tr>\n'
+        ### [3] End table ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+        html += '</table>\n\n'
+        return html
+    except: table.errorLog('Problem with dbTableToHTML(%s)' % table.name())
+#########################################################################################################################
+def progStartHTML(callobj):     ### Returns <code><pre> HTML of start time, argument list and run directory
+    '''Returns <code><pre> HTML of start time, argument list and run directory.'''
+    ### [0] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+    argcmd = rje.longCmd(sys.argv[1:])
+    info = callobj.log.obj['Info']
+    ### ~ [1] ~ Make and return HTML ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+    #html = '<code><pre>'
+    html = '<pre><code>'
+    html += 'Run Report for %s V%s: %s\n' % (info.program,info.version,time.asctime(time.localtime(info.start_time)))
+    html += 'Run from directory: %s\n' % os.path.abspath(os.curdir)
+    html += 'Commandline arguments: %s\n' % string.join(argcmd)
+    #html += '</pre></code>\n\n'
+    html += '</code></pre>\n\n'
+    return html
+#########################################################################################################################
 ### END OF SECTION III: MODULE METHODS                                                                                  #
 #########################################################################################################################
 

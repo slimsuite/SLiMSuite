@@ -19,8 +19,8 @@
 """
 Module:       SNP_Mapper
 Description:  SNP consensus sequence to CDS mapping 
-Version:      1.0.0
-Last Edit:    16/06/16
+Version:      1.2.0
+Last Edit:    23/11/17
 Copyright (C) 2013  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -66,6 +66,7 @@ Commandline:
     ftfile=FILE     : Input feature file (locus,feature,position,start,end) [*.Feature.tdt]
     ftskip=LIST     : List of feature types to exclude from analysis [source]
     ftbest=LIST     : List of features to exclude if earlier feature in list overlaps position [(see above)]
+    snpbyftype=T/F  : Whether to output mapped SNPs by feature type (before FTBest filtering) [False]
     snpfile=FILE    : Input table of SNPs to map and output (should have locus and pos info, see above) []
     snphead=LIST    : List of SNP file headers []
     snpdrop=LIST    : List of SNP fields to drop []
@@ -110,6 +111,9 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 0.8.0 - Added parsing of GFF file from Prokka.
     # 0.8.1 - Corrected "intron" classification for first position of features. Updated FTBest defaults.
     # 1.0.0 - Version that works with Snapper V1.0.0. Not really designed for standalone running any more.
+    # 1.1.0 - Added pNS and modified the "Positive" CDS rating to be pNS < 0.05.
+    # 1.1.1 - Updated pNS calculation to include EXT mutations and substitution frequency.
+    # 1.2.0 - SNPByFType=T/F  : Whether to output mapped SNPs by feature type (before FTBest filtering) [False]
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -136,7 +140,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, cyear) = ('SNP_MAPPER', '1.0.0', 'June 2016', '2015')
+    (program, version, last_edit, cyear) = ('SNP_MAPPER', '1.2.0', 'November 2017', '2015')
     description = 'SNP consensus sequence to CDS mapping'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_zen.Zen().wisdom()]
@@ -203,6 +207,7 @@ class SNPMap(rje_obj.RJE_Object):
     Bool:boolean
     - AltFT=T/F       : Use AltLocus and AltPos for feature mapping (if altpos=T) [False]
     - AltPos=T/F      : Whether SNP file is a single mapping (with AltPos) (False=BCF) [True]
+    - SNPByFType=T/F  : Whether to output mapped SNPs by feature type (before FTBest filtering) [False]
 
     Int:integer
 
@@ -229,7 +234,7 @@ class SNPMap(rje_obj.RJE_Object):
         '''Sets Attributes of Object.'''
         ### ~ Basics ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         self.strlist = ['FTFile','GenBank','SeqIn','SNPFile']
-        self.boollist = ['AltFT','AltPos']
+        self.boollist = ['AltFT','AltPos','SNPByFType']
         self.intlist = []
         self.numlist = []
         self.listlist = ['FTBest','FTSkip','SNPDrop','SNPHead']
@@ -238,7 +243,7 @@ class SNPMap(rje_obj.RJE_Object):
         ### ~ Defaults ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         self._setDefaults(str='None',bool=False,int=0,num=0.0,obj=None,setlist=True,setdict=True)
         self.setStr({})
-        self.setBool({'AltPos':True,'AltFT':False})
+        self.setBool({'AltPos':True,'AltFT':False,'SNPByFType':False})
         self.setInt({})
         self.setNum({})
         self.list['FTSkip'] = ['source']
@@ -264,7 +269,7 @@ class SNPMap(rje_obj.RJE_Object):
                 #self._cmdReadList(cmd,'str',['Att'])   # Normal strings
                 #self._cmdReadList(cmd,'path',['Att'])  # String representing directory path 
                 self._cmdReadList(cmd,'file',['FTFile','GenBase','SeqIn','SNPFile'])  # String representing file path
-                self._cmdReadList(cmd,'bool',['AltFT','AltPos'])  # True/False Booleans
+                self._cmdReadList(cmd,'bool',['AltFT','AltPos','SNPByFType'])  # True/False Booleans
                 #self._cmdReadList(cmd,'int',['Att'])   # Integers
                 #self._cmdReadList(cmd,'float',['Att']) # Floats
                 #self._cmdReadList(cmd,'min',['Att'])   # Integer value part of min,max command
@@ -391,7 +396,7 @@ class SNPMap(rje_obj.RJE_Object):
             if self.getBool('AltPos'):
                 skeys = ['Locus','Pos','AltLocus','AltPos']
             else:
-                skeys = ['Locus','Pos','REF']
+                skeys = ['Locus','Pos','ALT']
             ### ~ [1] Load SNPs ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             snpdb = self.db().addTable(self.getStr('SNPFile'),mainkeys=skeys,headers=self.list['SNPHead'],name='SNP')
             snpdb.dropFields(self.list['SNPDrop'])
@@ -470,6 +475,21 @@ class SNPMap(rje_obj.RJE_Object):
             mapdb = self.db().addEmptyTable('snpmap',snpfields+['Strand','GB']+ftdb.fields()+['SNPType','SNPEffect'],snpdb.keys()+['feature','start','end']) #['feature','start','end','protein_id','details',]
             snpdb.addField('Mapped',evalue=False)
             gb = self.obj['GenBank']
+            #!# Need to improve the fsyn calculation based on mutation frequencies
+            mutdict = {}   #i# (n1,n2):count
+            self.progLog('#SUBDIC','Generating substitution dictionary...')
+            for entry in snpdb.entries():
+                n1 = entry['REF']
+                n2 = entry['ALT']
+                nkey = (n1,n2)
+                if nkey in mutdict: mutdict[nkey] += 1
+                else: mutdict[nkey] = 1
+            self.printLog('\r#SUBDIC','Generation of substitution dictionary complete.')
+            mutations = []
+            for nkey in mutdict:
+                mutations.append((nkey[0],nkey[1],mutdict[nkey]))
+            mutdict = rje_sequence.mutationDict(mutations,gaps=False,nosub=False,callobj=self)   #i# (n1,n2,count)
+            self.deBug(mutdict)
             ### ~ [2] Process one locus at a time ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if self.getBool('AltFT'): snploci = snpdb.indexKeys('AltLocus')
             else: snploci = snpdb.indexKeys('Locus')
@@ -522,6 +542,7 @@ class SNPMap(rje_obj.RJE_Object):
             cdsdb.addField('Ks',evalue=0)
             cdsdb.addField('Ka/Ks',evalue=0.0)
             cdsdb.addField('pSYN',evalue=1.0)
+            cdsdb.addField('pNS',evalue=1.0)
             matchesallowed = False
             for centry  in cdsdb.entries():
                 centry['locus'] = centry['Locus']   # Needed for gb.featureSequence()
@@ -529,18 +550,31 @@ class SNPMap(rje_obj.RJE_Object):
                 # Frequency of synonymous subs
                 ftseq = gb.featureSequence(centry)
                 centry['length'] = len(ftseq)
-                fsyn = rje_sequence.sequenceKs(ftseq,self)
+                fsyn = rje_sequence.sequenceKs(ftseq,self,mutdict=mutdict)
                 Ns = fsyn * len(ftseq)
                 Na = len(ftseq) - Ns
+                self.bugPrint('FTSeq: %s' % ftseq)
+                self.bugPrint('FSyn: %s' % fsyn)
+                self.bugPrint('Ns: %s' % Ns)
+                self.bugPrint('Na: %s' % Na)
                 centry['Ka'] = centry['NS'] / Na
                 centry['Ks'] = centry['SYN'] / Ns
                 if centry['Ks']: centry['Ka/Ks'] = centry['Ka'] / centry['Ks']
                 else: centry['Ka/Ks'] = centry['Ka'] / (0.5 / Ns)
-                if (centry['NS'] + centry['SYN'] + centry['NON']) > 0:
-                    try: centry['pSYN'] = rje.logBinomial(centry['SYN'],centry['NS'] + centry['SYN'] + centry['NON'],fsyn,callobj=self)
+                nonsynx = centry['NS'] + centry['NON'] + centry['EXT']
+                totalx = nonsynx + centry['SYN']
+                if totalx > 0:
+                    try: centry['pSYN'] = rje.logBinomial(centry['SYN'],totalx,fsyn,callobj=self)
                     except:
                         if self.dev(): self.warnLog('%s' % centry)
                         self.errorLog('pSYN Error! %s => pSYN = -1.' % str(cdsdb.makeKey(centry))); centry['pSYN'] = -1
+                    try:
+                        centry['pNS'] = rje.logBinomial(nonsynx, totalx, (1-fsyn),callobj=self)
+                    except:
+                        if self.dev(): self.warnLog('%s' % centry)
+                        self.errorLog('pNS Error! %s => pNS = -1.' % str(cdsdb.makeKey(centry)));
+                        centry['pNS'] = -1
+                self.debug(centry)
             # Add CDS Rating
             cdsdb.addField('Rating')
             cdsdb.addField('Integrity')
@@ -548,9 +582,10 @@ class SNPMap(rje_obj.RJE_Object):
                 if centry['NON']: centry['Rating'] = 'Truncation'
                 elif centry['EXT']: centry['Rating'] = 'Extension'
                 elif not centry['SYN'] and not centry['NS']: centry['Rating'] = 'Perfect'
-                elif centry['NS'] > centry['SYN']: centry['Rating'] = 'Positive'
+                elif 0 <= centry['pNS'] < 0.05: centry['Rating'] = 'Positive'
+                #elif centry['NS'] > centry['SYN']: centry['Rating'] = 'Positive'
                 elif not centry['NS']: centry['Rating'] = 'Conserved'
-                elif centry['pSYN'] < 0.05: centry['Rating'] = 'Constrained'
+                elif 0 <= centry['pSYN'] < 0.05: centry['Rating'] = 'Constrained'
                 else: centry['Rating'] = 'Neutral'
                 if not (centry['INS'] + centry['DEL']):
                     if centry['ID'] == 2 or not matchesallowed: centry['Integrity'] = 'Complete'
@@ -600,6 +635,10 @@ class SNPMap(rje_obj.RJE_Object):
             tkey = sumdb.makeKey(tentry)
             sumdb.saveToFile(append=True,savekeys=[tkey])
             ### ~ [4] Remove gene SNPs mapped to other features ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            if self.getBool('SNPByFType'):
+                for typedb in self.db().splitTable(mapdb,'feature',asdict=False,keepfield=True):
+                    typedb.saveToFile()
+                    self.db().deleteTable(typedb)
             ## ~ [4a] Generate dictionary of mapped SNPs ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             snpft = {}
             for mentry in mapdb.entries():
@@ -644,6 +683,9 @@ class SNPMap(rje_obj.RJE_Object):
             ### ~ [2] Map SNPs ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             fx = 0  # No. failures
             skipx = 0   # No. skipped features
+            if ftlocus not in ftdb.index('locus'):
+                self.warnLog('Locus %s not found in Feature Table' % ftlocus)
+                return False
             for fkey in ftdb.index('locus')[ftlocus]: # These should be in a consistent order: ['locus','start','feature','position']
                 fentry = ftdb.data(fkey)
                 #self.debug(fentry)
@@ -675,7 +717,7 @@ class SNPMap(rje_obj.RJE_Object):
                         mentry = rje.combineDict(mentry,fentry)
                         cseq = gb.featureSequence(fentry)
                         cpos = gb.featurePos(fentry,sentry[posfield])  # Position 1-L
-                        if 'join' in fentry['position']: self.debug(cpos)
+                        #if 'join' in fentry['position']: self.debug(cpos)
                         if not cpos: raise ValueError('Feature outside position data!')
                         cpos -= 1   # Change to 0<L
                         mentry['length'] = len(cseq)

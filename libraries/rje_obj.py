@@ -19,8 +19,8 @@
 """
 Module:       rje_obj
 Description:  Contains revised General Object templates for Rich Edwards scripts and bioinformatics programs
-Version:      2.2.1
-Last Edit:    13/04/16
+Version:      2.2.2
+Last Edit:    19/01/17
 Copyright (C) 2011  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -110,11 +110,13 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 2.1.3 - Modified integer commands to read/convert floats.
     # 2.2.0 - Added screenwrap=X.
     # 2.2.1 - Improved handling of integer parameters when given bad commands.
+    # 2.2.2 - Updated error handling for full REST output.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
     '''
     # [Y] : Get working objects with new str, int, num, bool, dict, list and obj.
+    # [ ] : Add typeCheck() method to cycle through each attribute dictionary and check values are the correct types.
     '''
 #########################################################################################################################
 import glob, os, pickle, random, string, sys, time, traceback
@@ -148,6 +150,8 @@ class RJE_Object(object):     ### Metaclass for inheritance by other classes
         RJE_Object:
         > log:Log = rje.Log object
         > cmd_list:List = List of commandline variables
+        > parent:Object [None] = Optional parent object. Can be used for propagating changes back "up".
+        > newstyle:bool [True] = Whether to use the new-style attribute dictionaries.
 
         On intiation, this object:
         - sets the Log object (can be None)
@@ -230,6 +234,9 @@ class RJE_Object(object):     ### Metaclass for inheritance by other classes
 #########################################################################################################################
     def warnLog(self,message,warntype=None,quitchoice=False,suppress=False,dev=False,screen=True):
         return self.log.warnLog(message,warntype,quitchoice,suppress,dev,screen)
+    def infoLog(self,message):
+        if self.v() < 1 or self.getBool('Silent'): return message
+        return self.log.printLog('#INFO',message)
 #########################################################################################################################
     ### <2> ### General Attribute Get/Set methods                                                                       #
 #########################################################################################################################
@@ -374,13 +381,14 @@ class RJE_Object(object):     ### Metaclass for inheritance by other classes
             return default
         else: return rje.choice(text,default,confirm)
 #########################################################################################################################
-    def db(self,table=None,add=False,forcecheck=True,mainkeys=[]):   ### Return rje_dbase Database object or Table
+    def db(self,table=None,add=False,forcecheck=True,mainkeys=[],uselower=False):   ### Return rje_dbase Database object or Table
         '''
         Return rje_dbase Database object or Table, if one associated with Object.
         >> table:str or Table [None] = Table to look for and return from Database Object 
         >> add:bool [False] = Whether to try and add table with minimal info (first field as key) if missing
         >> forcecheck:bool [True] = Whether to only add missing table if not self.force()
         >> mainkeys:list [] = Keys to use if adding table.
+        >> uselower:bool [False] = Whether to convert headers into lower case.
         '''
         try:### ~ [1] ~ Return Database object if not table given ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             db = self.obj['DB']
@@ -389,9 +397,11 @@ class RJE_Object(object):     ### Metaclass for inheritance by other classes
             tdb = db.getTable(table)
             if tdb or not add: return tdb
             ### ~ [3] ~ Add Table if missing ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            if forcecheck and self.force(): return None
+            if forcecheck and self.force():
+                if rje.exists(db.dbFileName(table)): self.infoLog('Ignoring %s: force=T' % db.dbFileName(table))
+                return None
             #self.printLog('#TAB','Table "%s" not found' % table)
-            return db.addTable(mainkeys=mainkeys,name=table,expect=False)
+            return db.addTable(mainkeys=mainkeys,name=table,expect=False,uselower=uselower)
         except: return None
 #########################################################################################################################
     def data(self,table,strict=False):
@@ -546,9 +556,9 @@ class RJE_Object(object):     ### Metaclass for inheritance by other classes
         elif type in ['info','str']:
             if arg == 'basefile': self.str[att] = rje.baseFile(value,True)
             else: self.str[att] = value
-        elif type == 'path': self.str[att] = rje.makePath(value)
-        elif type == 'abspath': self.str[att] = rje.makePath(os.path.abspath(value))
-        elif type in ['fullpath','file']: self.str[att] = rje.makePath(value,wholepath=True)
+        elif type == 'path': self.str[att] = rje.makePath(os.path.expanduser(value))
+        elif type == 'abspath': self.str[att] = rje.makePath(os.path.abspath(os.path.expanduser(value)))
+        elif type in ['fullpath','file']: self.str[att] = rje.makePath(os.path.expanduser(value),wholepath=True)
         elif type == 'int':
             try: self.int[att] = string.atoi(value)
             except:
@@ -579,6 +589,8 @@ class RJE_Object(object):     ### Metaclass for inheritance by other classes
             self.str[att] = string.join(rje.listFromCommand(value),',')
         elif type == 'glist':   # 'Glob' List - returns a list of files using wildcards & glob
             globlist = string.split(value,',')
+            if len(globlist) == 1 and globlist[0].endswith('.fofn'):  # File of file names
+                globlist = rje.listFromCommand(value)
             self.list[att] = []
             for g in globlist:
                 if not g: continue
@@ -631,6 +643,10 @@ class RJE_Object(object):     ### Metaclass for inheritance by other classes
         return self.log.printLog(id,text,timeout,screen and not self.getBool('Silent'),log and not self.getBool('Silent'),newline,clear=clear)
     def errorLog(self, text='Missing text for errorLog() call!',quitchoice=False,printerror=True,nextline=True,log=True,errorlog=True,warnlist=True):
         return self.log.errorLog(text,quitchoice,printerror,nextline,log,errorlog,warnlist)
+    def devLog(self, lid='#DEV', text='Log Text Missing!', debug=True):
+        if not self.dev(): return
+        self.printLog(lid,text)
+        if debug: self.debug('')
 #########################################################################################################################
     def vPrint(self,text,v=1): return self.verbose(v,text=text)  
 #########################################################################################################################
@@ -694,7 +710,7 @@ class RJE_Object(object):     ### Metaclass for inheritance by other classes
             elif self.getBool('DeBug'): self.verbose(self.v(),self.i()+1,text,1)
         except KeyboardInterrupt:
             if self.yesNo('Interrupt program?'): raise
-            if self.yesNo('Switch off Debugging?'): self.bool['DeBug'] = False
+            if self.yesNo('Switch off Debugging?'): self.bool['DeBug'] = False; self.cmd_list.append('debug=F')
 #########################################################################################################################
     def pickleMe(self,basefile=None,gzip=True,replace=True):   ### Saves self object to pickle and zips
         '''
@@ -1027,8 +1043,18 @@ class RJE_Object(object):     ### Metaclass for inheritance by other classes
 #########################################################################################################################
     def restSetup(self):    ### Sets up self.dict['Output'] and associated output options if appropriate.
         '''
-        Run with &rest=help for general options. Run with &rest=full to get full server output as text or &rest=format
-        for more user-friendly formatted output. Individual outputs can be identified/parsed using &rest=OUTFMT.
+        Run with &rest=docs for program documentation and options. A plain text version is accessed with &rest=help.
+        &rest=OUTFMT can be used to retrieve individual parts of the output, matching the tabs in the default
+        (&rest=format) output. Individual `OUTFMT` elements can also be parsed from the full (&rest=full) server output,
+        which is formatted as follows:
+
+        ###~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~###
+        # OUTFMT:
+        ... contents for OUTFMT section ...
+        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+
+        ### Available REST Outputs:
+        There is currently no specific help available on REST output for this program.
         '''
         try:### ~ [0] ~ Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             for outfmt in self.restOutputOrder(): self.dict['Output'][outfmt] = 'No output generated.'
@@ -1100,29 +1126,31 @@ class RJE_Object(object):     ### Metaclass for inheritance by other classes
                 outtxt += '###~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~###\n'
             ## ~ [1a] Output dictionary contents ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             for outkey in outputs:
-                if outkey in ['help','check']: continue
-                if outkey not in self.dict['Output'] and self.db(outkey):
-                    ext = rje.delimitExt(self.getStr('Delimit'))
-                    dbfile = '%s.%s.%s' % (self.baseFile(runpath=True),outkey,ext)
-                    if not rje.exists(dbfile): self.db(outkey).saveToFile(dbfile)
-                    self.dict['Output'][outkey] = os.path.abspath(dbfile)
-                if outkey not in self.dict['Output']:
-                    outtxt += '# %s:\nNo output generated.\n' % outkey
-                    outtxt += '###~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~###\n'
-                    continue
-                outdata = self.dict['Output'][outkey]
-                keyfile = None
                 try:
-                    if self.getStrLC(outdata) and os.path.exists(self.getStr(outdata)):
-                        keyfile = self.getStr(outdata)
-                        outtxt += '# %s: %s\n' % (outkey,self.getStr(outdata))
-                    elif os.path.exists(outdata):
-                        keyfile = outdata
-                        outtxt += '# %s: %s\n' % (outkey,outdata)
-                    else: outtxt += '# %s:\n' % outkey
-                except: outtxt += '# %s:\n' % outkey
-                if outfile and keyfile: outtxt += '%s\n' % os.path.abspath(keyfile)
-                else: outtxt += self.restOutput(outkey)
+                    if outkey in ['help','check']: continue
+                    if outkey not in self.dict['Output'] and self.db(outkey):
+                        ext = rje.delimitExt(self.getStr('Delimit'))
+                        dbfile = '%s.%s.%s' % (self.baseFile(runpath=True),outkey,ext)
+                        if not rje.exists(dbfile): self.db(outkey).saveToFile(dbfile)
+                        self.dict['Output'][outkey] = os.path.abspath(dbfile)
+                    if outkey not in self.dict['Output']:
+                        outtxt += '# %s:\nNo output generated.\n' % outkey
+                        outtxt += '###~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~###\n'
+                        continue
+                    outdata = self.dict['Output'][outkey]
+                    keyfile = None
+                    try:
+                        if self.getStrLC(outdata) and os.path.exists(self.getStr(outdata)):
+                            keyfile = self.getStr(outdata)
+                            outtxt += '# %s: %s\n' % (outkey,self.getStr(outdata))
+                        elif os.path.exists(outdata):
+                            keyfile = outdata
+                            outtxt += '# %s: %s\n' % (outkey,outdata)
+                        else: outtxt += '# %s:\n' % outkey
+                    except: outtxt += '# %s:\n' % outkey
+                    if outfile and keyfile: outtxt += '%s\n' % os.path.abspath(keyfile)
+                    else: outtxt += self.restOutput(outkey)
+                except: outtxt += 'ERROR: %s\n' % self.errorLog(outkey)
                 outtxt += '###~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~###\n'
             ## ~ [1b] Log output ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             outtxt += '# log: %s\n%s' % (self.log.info['LogFile'],open(self.log.info['LogFile'],'r').read())

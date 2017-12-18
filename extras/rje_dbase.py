@@ -19,8 +19,8 @@
 """
 Module:       rje_dbase
 Description:  RJE Module to Handle Database manipulations and generations
-Version:      2.3
-Last Edit:    09/01/13
+Version:      2.3.1
+Last Edit:    02/02/17
 Copyright (C) 2007 Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -100,6 +100,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 2.1 - Added seqfilter=T/F to speed up TaxaDB manufacture.
     # 2.2 - Added use of rje_seqlist for TaxaDB manufacture.
     # 2.3 - Added construction of EnsEMBL TaxaDB sets during TaxaDB construction.
+    # 2.3.1 - Updated the dbdownload function to recognise individual files and wildcard file lists.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -118,7 +119,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo():     ### Makes Info object
     '''Makes rje.Info object for program.'''
-    (program, version, last_edit, copyright) = ('RJE_DBASE', '2.3', 'January 2013', '2007')
+    (program, version, last_edit, copyright) = ('RJE_DBASE', '2.3.1', 'February 2017', '2007')
     description = 'RJE Database Module'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is under development and may contain bugs!',rje_zen.Zen().wisdom()]
@@ -256,7 +257,8 @@ class DatabaseController(rje.RJE_Object):
                 self._cmdReadList(cmd,'opt',['DatIndex','SpecTable','UseUniprot','UseSprot','UseTrembl','SeqFilter',
                                              'UseEnsembl','UseKnown','UseNovel','UseAbinitio','UseIPI','SpecOnly',
                                              'Force','IgnoreDate','InverseDB','ScreenIPI','ScreenEns','EnsFilter'])
-                self._cmdReadList(cmd,'list',['DBDownload','DBProcess','DBFormat','TaxaList'])
+                self._cmdReadList(cmd,'list',['DBProcess','DBFormat','TaxaList'])
+                self._cmdReadList(cmd,'glist',['DBDownload'])
             except: self.log.errorLog('Problem with cmd:%s' % cmd)
             self.list['DBFormat'] = string.split(string.join(self.list['DBFormat']).lower())
             if 'none' in self.list['DBFormat']: self.list['DBFormat'].remove('none')

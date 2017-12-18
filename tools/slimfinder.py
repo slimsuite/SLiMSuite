@@ -19,8 +19,8 @@
 """
 Program:      SLiMFinder
 Description:  Short Linear Motif Finder
-Version:      5.2.3
-Last Edit:    07/12/15
+Version:      5.3.3
+Last Edit:    06/09/17
 Citation:     Edwards RJ, Davey NE & Shields DC (2007), PLoS ONE 2(10): e967. [PMID: 17912346]
 ConsMask Citation: Davey NE, Shields DC & Edwards RJ (2009), Bioinformatics 25(4): 443-50. [PMID: 19136552]
 SigV/SigPrime Citation: Davey NE, Edwards RJ & Shields DC (2010), BMC Bioinformatics 11: 14. [PMID: 20055997]
@@ -290,6 +290,10 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 5.2.1 - Fixed ambocc<1 and minocc<1 issue. (Using integers rather than floats.) Fixed OccRes Sig output format.
     # 5.2.2 - Added warnings for ambocc and minocc that exceed the absolute minima. Updated docstring.
     # 5.2.3 - Switched feature masking OFF by default to give consistent Uniprot versus FASTA behaviour. Fixed FTMask=T/F bug.
+    # 5.3.0 - Added map and failed outputs for uniprotid=LIST input.
+    # 5.3.1 - Modified placement of disorder masking warning.
+    # 5.3.2 - Tweaked REST output format presentation.
+    # 5.3.3 - Updated resfile to be set by basefile if no resfile=X setting given
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -325,11 +329,13 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
     # [Y] : Add cloudfix=T for restricting output to ambiguous motifs ONLY if the cloud has a significant fixed variant.
     # [Y] : Modify basefile=X to NOT affect the individual results outputs.
     # [ ] : Consolidate and sort out use of basefile and dataset naming across SLiMSuite.
+    # [?] : Add softmask=T: store mask scores as lists and adjust length of UPC by proportion of residues meeting score of lowest motif position.
+    # [ ] : Add TEIRESIAS output to REST
     '''
 #########################################################################################################################
 def makeInfo():     ### Makes Info object
     '''Makes rje.Info object for program.'''
-    (program, version, last_edit, copyyear) = ('SLiMFinder', '5.2.3', 'December 2015', '2007')
+    (program, version, last_edit, copyyear) = ('SLiMFinder', '5.3.3', 'September 2017', '2007')
     description = 'Short Linear Motif Finder'
     author = 'Richard J. Edwards, Norman E. Davey & Denis C. Shields'
     comments = ['Cite: Edwards, Davey & Shields (2007), PLoS ONE 2(10): e967. [PMID: 17912346]',
@@ -555,7 +561,7 @@ class SLiMFinder(rje_slimcore.SLiMCore):
         ### Defaults ###
         self._setDefaults(str='None',bool=True,num=0.0,int=0,obj=None,setlist=True,setdict=True)
         self.coreDefaults()
-        self.setStr({'CompMask':'5,8','ResFile':'slimfinder.csv','ResDir':rje.makePath('SLiMFinder/'),'Input':'',
+        self.setStr({'CompMask':'5,8','ResDir':rje.makePath('SLiMFinder/'),'Input':'',
                       'RanDir':rje.makePath('Random/'),'Randbase':'rand','Basefile':'','SlimCheck':'',
                       'BuildPath':rje.makePath('SLiMFinder/'),'ProbScore':'None','AltUPC':'None','NewUPC':'None'})
         self.setInt({'AbsMin':3,'MaxWild':2,'SlimLen':5,'AbsMinAmb':2,'TopRanks':1000,'MaxSeq':500,
@@ -572,7 +578,7 @@ class SLiMFinder(rje_slimcore.SLiMCore):
         self.dict['MaskPos'] = {2:'A'}
         if self.log.info['Name'] == 'QSLiMFinder':
             self.setStr({'BuildPath':rje.makePath('QSLiMFinder/')})
-            self.setStr({'ResDir': self.getStr('BuildPath'),'ResFile':'qslimfinder.csv'})
+            self.setStr({'ResDir': self.getStr('BuildPath')})
         ### Other Attributes ###
         self.obj['SlimList'] = rje_slimlist.SLiMList(self.log,self.cmd_list)
         self.obj['SlimList'].obj['SLiMCalc'].setupFilters(slimheaders=[],occheaders=[])    ### Sets up SLiM/Occ Filters
@@ -606,7 +612,7 @@ class SLiMFinder(rje_slimcore.SLiMCore):
             except: self.errorLog('Problem with cmd:%s' % cmd)
         ### Special Conversion ###
         self.list['MustHave'] = string.split(string.join(self.list['MustHave']).upper())
-        if self.getStrLC('Basefile'): self.setStr({'ResFile':'%s.csv' % self.baseFile()})
+        #if self.getStrLC('Basefile'): self.setStr({'ResFile':'%s.csv' % self.baseFile()})
         if not self.getBool('CloudFix'): self.warnLog('NOTE: cloudfix=F. Be wary of ambiguity over-predictions.')
         if self.getBool('Pickup'): self.setBool({'Append':True})
         if not self.getStrLC('ProbScore') and self.getBool('AllSig'): self.setStr({'ProbScore':'SigPrimeV'})
@@ -633,9 +639,6 @@ class SLiMFinder(rje_slimcore.SLiMCore):
         if self.getBool('Webserver') and self.getNum('ProbCut') > 0.05 and self.getInt('TopRanks') > 100:
             self.printLog('#TOP','Webserver output limited to top 100 SLiMs. (Reduced from %d)' % self.getInt('TopRanks'))
             self.setInt({'TopRanks':100})
-        if not self.getBool('DisMask'):
-            self.warnLog('No disorder masking. Recommended setting: dismask=T')
-            if self.i() >= 0 and rje.yesNo('Switch on disorder masking?'): self.setBool({'DisMask':True})
 #########################################################################################################################
     ### <2> ### Simple Stats Methods                                                                                    #
 #########################################################################################################################
@@ -695,6 +698,12 @@ class SLiMFinder(rje_slimcore.SLiMCore):
         try:###~PRECHECK~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~###
             ### Randomise Function ###
             if self.getBool('Randomise') and not batch: return self.randomise()
+            ### DisMask ###
+            if not batch and not self.getBool('DisMask'):
+                if self.i() >= 0 and rje.yesNo('Disorder masking is strongly recommended for best results. DisMask=F is only default due to reliance on having IUPred installed. Switch on disorder masking?'):
+                    self.setBool({'DisMask':True})
+                    self.cmd_list.append('dismask=T')
+                self.warnLog('No disorder masking. Recommended setting: dismask=T.')
 
             ###~INPUT~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~###
             #seqcmd = ['gnspacc=T','usecase=T'] + self.cmd_list + ['autoload=T','query=None','autofilter=F']
@@ -813,6 +822,7 @@ class SLiMFinder(rje_slimcore.SLiMCore):
             self.obj['SlimList'].combMotifOccStats()
             self.tidyMotifObjects()     # Temporary solution to problem with unknown cause
             self.makeClouds()           # Identifies "clouds" of motifs - similar patterns that overlap
+            #!# Move cloudConsensi() to cloud output generation? Not used elsewhere and can take a while?
             self.cloudConsensi()        # Generates SLiMMaker consensus motifs
             self.rankScore()            # Converts rankings into Numeric
             self.results()              # Controls SLiMFinder results output
@@ -2967,11 +2977,13 @@ class SLiMFinder(rje_slimcore.SLiMCore):
             extrabase = self.runBase()
             if self.getBool('SlimDisc'): self.obj['SeqList'].info['Name'] = '%s.fasta' % extrabase
             else: self.obj['SeqList'].info['Name'] = '%s.masked.fasta' % extrabase
+            self.dict['Output']['teiresias.fasta'] = self.obj['SeqList'].info['Name']
             for seq in self.obj['SeqList'].seq: seq.info['Sequence'] = seq.info['MaskSeq']
             self.obj['SeqList'].saveFasta()
 
             ## Rank File ##
             outfile = extrabase + '.out'
+            self.dict['Output']['teiresias'] = outfile
             OUT = open(outfile,'w')
             ## Header ##
             OUT.write(string.join(['##########################################################',
@@ -3085,34 +3097,67 @@ class SLiMFinder(rje_slimcore.SLiMCore):
 #########################################################################################################################
     def restSetup(self):    ### Sets up self.dict['Output'] and associated output options if appropriate.
         '''
+        ### SLiMs and SLiMFinder:
+        Short linear motifs (SLiMs) in proteins are functional microdomains of fundamental importance in many biological
+        systems. SLiMs typically consist of a 3 to 10 amino acid stretch of the primary protein sequence, of which as few
+        as two sites may be important for activity. SLiMFinder is a SLiM discovery program building on the principles of
+        the SLiMDisc software for accounting for evolutionary relationships between input proteins. This stops results
+        being dominated by motifs shared for reasons of history, rather than function. SLiMFinder runs in two phases:
+        (1) SLiMBuild constructs the motif search space based on number of defined positions, maximum length of "wildcard
+        spacers" and allowed amino acid ambiguities; (2) SLiMChance assesses the over-representation of all motifs,
+        correcting for the size of the SLiMBuild search space. This gives SLiMFinder high specificity.
+
+        Protein sequences can be masked prior to SLiMBuild. Disorder masking (using IUPred predictions) is highly
+        recommended. Other masking options are described in the manual and/or literature.
+
+        ### Running SLiMFinder:
         The standared REST server call for SLiMFinder is in the form:
-        `slimfinder`&uniprotid=LIST&dismask=T/F&consmask=T/F
+        `slimfinder&uniprotid=LIST&dismask=T/F&consmask=T/F`
 
-        Different sources of input can also be given with:
-        `slimfinder`&seqin=LIST&dismask=T/F&consmask=T/F
+        Run with &rest=docs for program documentation and options. A plain text version is accessed with &rest=help.
+        &rest=OUTFMT can be used to retrieve individual parts of the output, matching the tabs in the default
+        (&rest=format) output. Individual `OUTFMT` elements can also be parsed from the full (&rest=full) server output,
+        which is formatted as follows:
 
-        Run with &rest=help for general options. Run with &rest=full to get full server output as plain text. Otherwise,
-        individual outputs are parsed and presented in different tabs:
+        ###~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~###
+        # OUTFMT:
+        ... contents for OUTFMT section ...
+        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
-        ### Outputs available:
-            main = main results file (extras=-1)
-            seqin = Input file (extras=-1)
-            occ = occurrence file (extras=0)
-            upc = UPC file (extras=0)
-            slimdb = Fasta file used for UPC generation etc. (extras=0)
-            cloud = cloud.txt (extras=1)
-            masked = masked.fas (extras=1)
-            mapping = mapping.fas file (extras=1)
-            motifaln = motif alignments (extras=1)
-            maskaln = masked motif alignments (extras=1)
-            motifs = motifs file for CompariMotif (extras=2)
-            compare = CM compare.tdt file (extras=2)
-            xgmml = XGMML file (extras=2)
-            dismatrix = *.dis.tdt file (extras=3)
-            rank = optional SLiMDisc output (extras=3)
-            dat.rank = optional SLiMDisc output (extras=3)
+        More options are available through the SLiMFinder server: http://www.slimsuite.unsw.edu.au/servers/slimfinder.php
 
-        &rest=OUTFMT can then be used to retrieve individual parts of the output in future.
+        After running, click on the `main` tab to see overall SLiM predictions. If any SLiMS have been predicted, the
+        `occ` tab will have details of which proteins (and where) they occur.
+
+        If no SLiMs are returned: [1] Try altering the masking settings. (Disorder masking is recommended. Conservation
+        masking can sometimes help but it depend on the dataset.) [2] Try relaxing the probability cutoff. Set
+        probcut=1.0 to see the best motifs, regardless of significance. (You may also want to reduce the topranks=X
+        setting.)
+
+        ### Available REST Outputs:
+        main = Main results table of predicted SLiM patterns (if any) [extras=-1]
+        occ = Occurrence table showing individual SLiM occurrences in input proteins [extras=0]
+        upc = List of Unrelated Protein Clusters (UPC) used for evolutionary corrections [extras=0]
+        cloud = Predicted SLiM "cloud" output, which groups overlapping motifs [extras=1]
+        seqin = Input sequence data [extras=-1]
+        slimdb = Parsed input sequences in fasta format, used for UPC generation etc. [extras=0]
+        masked = Masked input sequences (masked residues marked with `X`) [extras=1]
+        mapping = Fasta format with positions of SLiM occurrences aligned [extras=1]
+        motifaln = Fasta format of individual SLiM alignments (unmasked sequences) [extras=1]
+        maskaln = Fasta format of individual SLiM alignments (masked sequences) [extras=1]
+
+        ### Additional REST Outputs [extras>1]:
+        To get additional REST outputs, set `&extras=2` or `&extras=3`. This may increase run times noticeably,
+        depending on the number of SLiMs returned.
+
+        motifs = SLiM predictions reformatted in plain motif format for CompariMotif [extras=2]
+        compare = Results of all-by-all CompariMotif search of predicted SLiMs [extras=2]
+        xgmml = SLiMs, occurrences and motif relationships in a Cytoscape-compatible network [extras=2]
+        dismatrix = Input sequence distance matrix [extras=3]
+        rank = Main table in SLiMDisc output format [extras=3]
+        dat.rank = Occurrence table in SLiMDisc output format [extras=3]
+        teiresias = Motif prediction output in TEIRESIAS format [extras=3 teiresias=T]
+        teiresias.fasta = TEIRESIAS masked fasta output [extras=3 teiresias=T]
         '''
         try:### ~ [0] ~ Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             outfmt = self.getStrLC('Rest')
@@ -3127,10 +3172,14 @@ class SLiMFinder(rje_slimcore.SLiMCore):
     def restOutputOrder(self):
         output = ['csv','seqin']
         if self.extras(0): output = ['main','occ','upc']
-        if self.extras(1): output += ['cloud','masked','mapping','motifaln','maskaln']
+        if self.extras(1): output += ['cloud']
+        if self.extras(0): output += ['seqin','slimdb']
+        if self.extras(1): output += ['masked','mapping','motifaln','maskaln']
         if self.extras(2): output += ['motifs','compare','xgmml']
         if self.extras(3): output += ['dismatrix','rank','dat.rank']
-        if self.extras(0): output += ['slimdb','seqin']
+        if self.extras(3) and self.getBool('Teiresias'): output += ['teiresias','teiresias.fasta']
+        for outfmt in ['map','failed']:
+            if outfmt in self.dict['Output']: output.append(outfmt)
         return output
 #########################################################################################################################
     def restOutputDefault(self): return 'full'

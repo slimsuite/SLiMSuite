@@ -7,8 +7,8 @@
 """
 Module:       rje_sequence
 Description:  DNA/Protein sequence object
-Version:      2.5.3
-Last Edit:    11/04/16
+Version:      2.6.0
+Last Edit:    15/11/17
 Copyright (C) 2006  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -62,6 +62,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 2.5.1 - Modified reverse complement code.
     # 2.5.2 - Tried to speed up dna2prot code.
     # 2.5.3 - Fixed genetic code warning error.
+    # 2.6.0 - Added mutation dictionary to Ks calculation.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -1457,7 +1458,7 @@ def dna2prot(dnaseq,case=False,transl='1',warnobj=None):   ### Returns a protein
             except: prot.append('X')
     return string.join(prot,'')
 #########################################################################################################################
-def codonKs(codon): ### Returns the proportion of substitutions that would be synonymous
+def codonKs(codon,mutdict={}): ### Returns the proportion of substitutions that would be synonymous
     '''
     Returns the proportion of substitutions that would be synonymous.
     '''
@@ -1468,13 +1469,62 @@ def codonKs(codon): ### Returns the proportion of substitutions that would be sy
     for i in range(3):
         for n in 'ACGU':
             if codon[i] == n: continue
-            if genetic_code[codon[:i]+n+codon[i+1:]] == aa: Ks += 1
+            if genetic_code[codon[:i]+n+codon[i+1:]] == aa:
+                if mutdict:
+                    n1 = codon[i]
+                    if n1 == 'U': n1 = 'T'
+                    n2 = n
+                    if n2 == 'U': n2 = 'T'
+                    Ks += mutdict[n1][n2]
+                else:
+                    Ks += 1.0
     return Ks / 9.0
 #########################################################################################################################
-def sequenceKs(sequence,callobj=None,ksdict={}):    ### Returns the proportion of possible synonymous substitutions
+def mutationDict(mutations=[],gaps=False,nosub=False,callobj=None):    ### Generates dictionary of relative mutation frequencies
+    '''
+    Generates dictionary of relative mutation frequencies. These are 1.0 if all mutations are equally likely.
+    >> mutations:list [] = List of (From,To[,Count) mutation tuples
+    >> gaps:bool [False] = Whether to include indels (mutations to/from gaps)
+    >> nosub:bool [False] = Whether to include "mutations" that do not result in a substitution
+    >> callobj:Object [None] = Calling object to control log output
+    '''
+    try:### ~ [0] Setup the dictionary ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+        mutdict = {}
+        for n1 in 'AGCT-':
+            if n1 == '-' and not gaps: continue
+            mutdict[n1] = {}
+            for n2 in 'AGCT-':
+                if n2 == '-' and not gaps: continue
+                if n1 == n2 and not nosub: continue
+                if mutations or n1 == n2: mutdict[n1][n2] = 0.0
+                else: mutdict[n1][n2] = 1.0
+        ### ~ [1] Normalise dictionary ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+        for mut in mutations:
+            n1 = mut[0].upper()
+            n2 = mut[1].upper()
+            if n1 == n2 and not nosub: continue
+            if n1 not in mutdict: continue
+            if n2 not in mutdict: continue
+            nn = 1
+            if len(mut) > 2: nn = mut[2]
+            mutdict[n1][n2] += nn
+        ### ~ [2] Normalise dictionary ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+        for n1 in 'AGCT-':
+            if n1 == '-' and not gaps: continue
+            dsum = float(sum(mutdict[n1].values())) / len(mutdict[n1])
+            for n2 in 'AGCT-':
+                if n2 == '-' and not gaps: continue
+                if n1 == n2 and not nosub: continue
+                mutdict[n1][n2] = mutdict[n1][n2] / dsum
+        return mutdict
+    except:
+        if callobj: callobj.errorLog('mutationFreqDict() error')
+        raise
+#########################################################################################################################
+def sequenceKs(sequence,callobj=None,ksdict={},mutdict={}):    ### Returns the proportion of possible synonymous substitutions
     '''Returns the proportion of possible synonymous substitutions.'''
     if not ksdict and callobj and 'Ks' in callobj.dict: ksdict = callobj.dict['Ks']
-    if not ksdict: ksdict = kSDict(callobj)
+    if not ksdict: ksdict = kSDict(callobj,mutdict)
     ks = 0.0; ki = 0.0
     sequence = string.replace(sequence.upper(),'T','U')
     while sequence:
@@ -1486,10 +1536,10 @@ def sequenceKs(sequence,callobj=None,ksdict={}):    ### Returns the proportion o
         ki += 1
     return ks/ki
 #########################################################################################################################
-def kSDict(callobj=None):   ### Returns the Ks frequency for each codon as a dictionary. Adds to callobj if given.
+def kSDict(callobj=None,mutdict={}):   ### Returns the Ks frequency for each codon as a dictionary. Adds to callobj if given.
     '''Returns the Ks frequency for each codon as a dictionary. Adds to callobj if given.'''
     ksdict = {}
-    for codon in genetic_code: ksdict[codon] = codonKs(codon)
+    for codon in genetic_code: ksdict[codon] = codonKs(codon,mutdict)
     if callobj: callobj.dict['Ks'] = ksdict
     return ksdict
 #########################################################################################################################

@@ -13,11 +13,12 @@ if(useCairo){
 }
 
 ## Setup Path to general R Files
-rdir = "/home/re1u06/researchfiles/SBSBINF/Tools/svn/libraries/r/"
+#rdir = "/home/re1u06/researchfiles/SBSBINF/Tools/svn/libraries/r/"
 #rdir = "/home/bioinf/bioware/Tools/libraries/r/"
 #rdir = "T:\\Tools\\svn\\libraries\\r\\"
 rdir = "/Users/redwards/Dropbox/_Repository_/slimsuite/libraries/r/"
-
+rdir = "/home/z3452659/slimsuite/libraries/r/"
+#!# Fix this!!
 
 rjesource = function(rfile){
     source(paste(rdir,rfile,sep=""))

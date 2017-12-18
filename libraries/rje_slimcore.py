@@ -19,8 +19,8 @@
 """
 Module:       SLiMCore
 Description:  SLiMSuite core module
-Version:      2.7.7
-Last Edit:    07/12/15
+Version:      2.9.0
+Last Edit:    19/10/17
 Copyright (C) 2007  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -178,6 +178,10 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 2.7.5 - Fixed feature masking.
     # 2.7.6 - Added feature masking log info or warning.
     # 2.7.7 - Switched feature masking OFF by default to give consistent Uniprot versus FASTA behaviour.
+    # 2.7.8 - Fixed batch=FILE error for single input files.
+    # 2.8.0 - Added map and failed output to REST servers and standalone uniprotid=LIST input runs.
+    # 2.8.1 - Updated resfile to be set by basefile if no resfile=X setting given
+    # 2.9.0 - Added separate IUPred long suffix for reusing predictions
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -201,7 +205,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo():     ### Makes Info object
     '''Makes rje.Info object for program.'''
-    (program, version, last_edit, copyyear) = ('SLiMCore', '2.7.7', 'December 2015', '2007')
+    (program, version, last_edit, copyyear) = ('SLiMCore', '2.9.0', 'October 2017', '2007')
     description = 'SLiMSuite Core Module'
     author = 'Richard J. Edwards'
     comments = ['Please report bugs to Richard.Edwards@UNSW.edu.au']
@@ -447,7 +451,8 @@ class SLiMCore(rje_obj.RJE_Object):
                 self._cmdRead(cmd,'bool','MaskM','metmask')
                 self._cmdRead(cmd,'bool','MegaGABLAM','megablam')
                 self._cmdRead(cmd,'list','FTMask','featuremask')
-                self._cmdReadList(cmd,'list',['FTMask','IMask','AAMask','Alphabet','Batch','QRegion','PTMList','UniprotID'])
+                self._cmdReadList(cmd,'list',['FTMask','IMask','AAMask','Alphabet','QRegion','PTMList','UniprotID'])
+                self._cmdReadList(cmd,'glist',['Batch'])
                 self._cmdReadList(cmd,'cdict',['MotifSeq','MaskPos'])
                 self._cmdRead(cmd,'cdict','MaskPos','posmask')
             except: self.errorLog('Problem with cmd:%s' % cmd)
@@ -708,7 +713,11 @@ class SLiMCore(rje_obj.RJE_Object):
         else: datfile = '%s%s.dat' % (self.getStr('RunPath'),self.prog().lower())
         if self.list['UniprotID'] and not rje.exists(self.getStr('SeqIn')):
             unicmd = self.cmd_list + ['datout=%s' % datfile]
-            rje_uniprot.UniProt(self.log,unicmd).run()
+            uni = rje_uniprot.UniProt(self.log,unicmd)
+            uni.run()
+            self.dict['Output']['map'] = rje.baseFile(datfile) + '.map.tdt'
+            mfile = rje.baseFile(datfile) + '.missing.acc'
+            if rje.exists(mfile): self.dict['Output']['failed'] = mfile
             self.setStr({'SeqIn':datfile})
             seqcmd += ['seqin=%s' % datfile]
         #!# Add proteome=X input (into buildpath: warn about this output location #!#
@@ -718,7 +727,7 @@ class SLiMCore(rje_obj.RJE_Object):
         if self.getStrLC('MegaSLiM') == 'seqin':
             seqfile = self.getStr('SeqIn')
             if not open(seqfile,'r').readline()[:1] == '>':
-                #self.printLog('#CONV','Convert %s to fasta format...' % seqfile)
+                self.printLog('#CONV','Converting %s to fasta format for MegaSLiM compatibility' % seqfile)
                 newfile = rje.baseFile(seqfile) + '.fas'
                 seqlist.saveFasta(seqfile=newfile)
                 seqfile = newfile
@@ -736,6 +745,7 @@ class SLiMCore(rje_obj.RJE_Object):
         ### ~ [1] ~ Basefile and ResDir ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         if self.seqNum(): rje.mkDir(self,self.getStr('ResDir'))
         if not self.baseFile(): self.baseFile(self.prog().lower())
+        if not self.getStrLC('ResFile'): self.setStr({'ResFile':'%s.csv' % self.baseFile()})
         self.restSetup()
 #########################################################################################################################
     def seqBaseFile(self,resdir='ResDir'):  ### Returns the results directory basefile as specified by sequence alone (for SLiMSearch)
@@ -2353,6 +2363,7 @@ class SLiMCore(rje_obj.RJE_Object):
             ### ~ [1] Disorder Scores ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             disobj = rje_disorder.Disorder(self.log,self.cmd_list)
             dkey = disobj.getStrLC('Disorder'); wkey = '%s-write' % dkey
+            if dkey == 'iupred' and disobj.getStrLC('IUMethod') == 'long': dkey = 'iulong'
             readfile = writefile = '%s.%s.txt' % (basefile,dkey)
             if self.getBool('MegaSLiMFix'):
                 readfile = '%s.%s.fix.txt' % (basefile,dkey)
@@ -2422,6 +2433,7 @@ class SLiMCore(rje_obj.RJE_Object):
             ## ~ [0a] Disorder Object/Scores ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             disobj = rje_disorder.Disorder(self.log,self.cmd_list)
             dkey = disobj.getStrLC('Disorder')
+            if dkey == 'iupred' and disobj.getStrLC('IUMethod') == 'long': dkey = 'iulong'
             dfile = '%s.%s.txt' % (basefile,dkey)
             self.setStr({dkey:dfile})
             ### ~ [1] Scan and update disorder & mask ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -2461,6 +2473,7 @@ class SLiMCore(rje_obj.RJE_Object):
             ## ~ [0a] Disorder Scores ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             disobj = rje_disorder.Disorder(self.log,self.cmd_list)
             dkey = disobj.getStrLC('Disorder')
+            if dkey == 'iupred' and disobj.getStrLC('IUMethod') == 'long': dkey = 'iulong'
             dfile = '%s.%s.txt' % (basefile,dkey)
             self.printLog('#DIS','Disorder score file: %s' % dfile)
             self.setStr({dkey:dfile})

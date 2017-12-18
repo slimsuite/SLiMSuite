@@ -19,8 +19,8 @@
 """
 Module:       PINGU
 Description:  Protein Interaction Network & GO Utility
-Version:      4.8.0
-Last Edit:    17/05/16
+Version:      4.9.0
+Last Edit:    18/01/17
 Copyright (C) 2013  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -40,7 +40,8 @@ Function:
     by running `pingu_V3.py` directly.
 
     PINGU 4.0 is designed to work with HINT interaction data and UniProt sequences. The initial PPI download and
-    compilation is based on `SLiMBench`.
+    compilation is based on `SLiMBench`. This has been updated in 4.9.0 following some changed to HINT downloads
+    (http://hint.yulab.org/download/) - there may be some additional unexpected/unwelcome consequences of these changes.
 
     PINGU 4.1 updated the PPI compilation methods of PINGU 3.x, which can be triggered using `ppicompile=T`. This will
     need a database cross-reference file (`xrefdata=LIST`).
@@ -153,7 +154,8 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 4.6.2 - Added check/filter for multiple SpokeUni pointing to same sequence. (Compilation redundancy mapping failure!)
     # 4.6.3 - Fixed issue with 1:many SpokeUni:Spoke mappings messing up XHub.
     # 4.7.0 - Added ppidbreport=T/F : Summary output for PPI compilation of evidence/PPIType/DB overlaps [True]
-    # 4.8.0 - Fixed report duplication issue and added additional summary output
+    # 4.8.0 - Fixed report duplication issue and added additional summary output.
+    # 4.9.0 - Updated HINT download and parsing details.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -331,11 +333,11 @@ class PINGU(rje_obj.RJE_Object):
              'ELMInteractors':'http://elm.eu.org/infos/interactions_as_tsv',
              'ELMDomains':'http://www.elm.eu.org/infos/browse_elm_interactiondomains.tsv',
              'DMIFile':'http://www.elm.eu.org/infos/browse_elm_interactiondomains.tsv',
-             'HINT.HUMAN':'http://hint.yulab.org/HumanBinaryHQ.txt',
-             'HINT.YEAST':'http://hint.yulab.org/CervBinaryHQ.txt',
-             'HINT.MOUSE':'http://hint.yulab.org/MouseBinaryHQ.txt',
-             'HINT.DROME':'http://hint.yulab.org/FlyBinaryHQ.txt',
-             'HINT.CAEEL':'http://hint.yulab.org/WormBinaryHQ.txt',
+             'HINT.HUMAN':'http://hint.yulab.org/download/HomoSapiens/binary/hq/',
+             'HINT.YEAST':'http://hint.yulab.org/download/SaccharomycesCerevisiaeS288C/binary/hq/',
+             'HINT.MOUSE':'http://hint.yulab.org/download/MusMusculus/binary/hq/',
+             'HINT.DROME':'http://hint.yulab.org/download/DrosophilaMelanogaster/binary/hq/',
+             'HINT.CAEEL':'http://hint.yulab.org/download/CaenorhabditisElegans/binary/hq/',
              'HGNC':'http://www.genenames.org/cgi-bin/download?col=gd_hgnc_id&col=gd_app_sym&col=gd_app_name&col=gd_status&col=gd_prev_sym&col=gd_aliases&col=gd_pub_chrom_map&col=gd_pub_acc_ids&col=gd_pub_eg_id&col=gd_pub_ensembl_id&col=gd_pub_refseq_ids&col=md_mim_id&col=md_prot_id&status=Approved&status_opt=2&where=&order_by=gd_hgnc_id&format=text&limit=&hgnc_dbtag=on&submit=submit',
              'Uniprot.HUMAN':'http://www.uniprot.org/uniprot/?query=organism:9606+AND+reviewed:yes&format=txt',
              'Uniprot.YEAST':'http://www.uniprot.org/uniprot/?query=organism:559292+AND+reviewed:yes&format=txt',
@@ -543,14 +545,22 @@ class PINGU(rje_obj.RJE_Object):
                             acc = entry.acc()
                             if 'FlyBase' in entry.dict['DB']:
                                 for fbg in entry.dict['DB']['FlyBase']:
-                                    for pentry in ppdb.indexEntries('Id_A',fbg): pentry['HubUni'] = acc
-                                    for pentry in ppdb.indexEntries('Id_B',fbg): pentry['SpokeUni'] = acc
+                                    for field in ['Id_A','Gene_A']:
+                                        if field in ppdb.fields():
+                                            for pentry in ppdb.indexEntries(field,fbg): pentry['HubUni'] = acc
+                                    for field in ['Id_B','Gene_B']:
+                                        if field in ppdb.fields():
+                                            for pentry in ppdb.indexEntries(field,fbg): pentry['SpokeUni'] = acc
                             #if spec == 'CAEEL': self.deBug(entry.dict['DB'])
                             if 'WormBase' in entry.dict['DB']:
                                 #self.deBug(entry.dict['DB']['WormBase'])
                                 for fbg in entry.dict['DB']['WormBase']:
-                                    for pentry in ppdb.indexEntries('Id_A',fbg): pentry['HubUni'] = acc
-                                    for pentry in ppdb.indexEntries('Id_B',fbg): pentry['SpokeUni'] = acc
+                                    for field in ['Id_A','Gene_A']:
+                                        if field in ppdb.fields():
+                                            for pentry in ppdb.indexEntries(field,fbg): pentry['HubUni'] = acc
+                                    for field in ['Id_B','Gene_B']:
+                                        if field in ppdb.fields():
+                                            for pentry in ppdb.indexEntries(field,fbg): pentry['SpokeUni'] = acc
                             #if gene in ppdb.index('Hub'):
                             for pentry in ppdb.indexEntries('Hub',gene): pentry['HubUni'] = acc
                             for pentry in ppdb.indexEntries('Spoke',gene): pentry['SpokeUni'] = acc
@@ -1073,14 +1083,22 @@ class PINGU(rje_obj.RJE_Object):
                     acc = entry.acc()
                     if 'FlyBase' in entry.dict['DB']:
                         for fbg in entry.dict['DB']['FlyBase']:
-                            for pentry in ppdb.indexEntries('Id_A',fbg): pentry['HubUni'] = acc
-                            for pentry in ppdb.indexEntries('Id_B',fbg): pentry['SpokeUni'] = acc
+                            for field in ['Id_A','Gene_A']:
+                                if field in ppdb.fields():
+                                    for pentry in ppdb.indexEntries(field,fbg): pentry['HubUni'] = acc
+                            for field in ['Id_B','Gene_B']:
+                                if field in ppdb.fields():
+                                    for pentry in ppdb.indexEntries(field,fbg): pentry['SpokeUni'] = acc
                     #if spec == 'CAEEL': self.deBug(entry.dict['DB'])
                     if 'WormBase' in entry.dict['DB']:
                         #self.deBug(entry.dict['DB']['WormBase'])
                         for fbg in entry.dict['DB']['WormBase']:
-                            for pentry in ppdb.indexEntries('Id_A',fbg): pentry['HubUni'] = acc
-                            for pentry in ppdb.indexEntries('Id_B',fbg): pentry['SpokeUni'] = acc
+                            for field in ['Id_A','Gene_A']:
+                                if field in ppdb.fields():
+                                    for pentry in ppdb.indexEntries(field,fbg): pentry['HubUni'] = acc
+                            for field in ['Id_B','Gene_B']:
+                                if field in ppdb.fields():
+                                    for pentry in ppdb.indexEntries(field,fbg): pentry['SpokeUni'] = acc
                     #if gene in ppdb.index('Hub'):
                     for pentry in ppdb.indexEntries('Hub',gene): pentry['HubUni'] = acc
                     for pentry in ppdb.indexEntries('Spoke',gene): pentry['SpokeUni'] = acc
@@ -1095,8 +1113,13 @@ class PINGU(rje_obj.RJE_Object):
                              #'SpokeUni':xref.xref(pentry['SpokeUni'],xfield=ufield,mapfields=xfields,altfields=[],fullmap=False,unique=True,usedict=True),
                              'SpokeUni':self.getUniXRef(pentry['SpokeUni'],xfields),
                              'HubTaxID':taxid[spec],'SpokeTaxID':taxid[spec],'IType':'hint','Evidence':'hint:hint'}
-                    try: entry['Evidence'] = 'hint:%s' % string.split(pentry['Pubmedid,EvidenceCode,HT'],',')[1]
-                    except: pass
+                    try:
+                        entry['Evidence'] = []
+                        for hintev in string.split(pentry['pmid:method:quality'],'|'):
+                            entry['Evidence'].append('hint:%s' % string.split(hintev,':')[1])
+                            entry['Evidence'].append('hint:%s' % string.split(hintev,':')[2])
+                        entry['Evidence'] = string.join(rje.sortUnique(entry['Evidence']),'|')
+                    except: entry['Evidence'] = 'hint:unparsed'
                     #if 'PCNA' in [pentry['Hub'],pentry['Spoke'],entry['Hub'],entry['Spoke']]: self.bugPrint('%s >> %s' % (pentry,entry))
                     #elif 'BRCA1' in [pentry['Hub'],pentry['Spoke'],entry['Hub'],entry['Spoke']]: self.bugPrint('%s >> %s' % (pentry,entry))
                     #elif self.dev(): continue

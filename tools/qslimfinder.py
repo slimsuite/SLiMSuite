@@ -19,8 +19,8 @@
 """
 Program:      QSLiMFinder
 Description:  Query Short Linear Motif Finder
-Version:      2.1.1
-Last Edit:    07/12/15
+Version:      2.2.0
+Last Edit:    20/01/17
 Citation:     Palopoli N, Lythgow KT & Edwards RJ. Bioinformatics 2015; doi: 10.1093/bioinformatics/btv155 [PMID: 25792551]
 SLiMFinder:   Edwards, Davey & Shields (2007), PLoS ONE 2(10): e967. [PMID: 17912346]
 Copyright (C) 2008  Richard J. Edwards - See source code for GNU License Notice
@@ -180,6 +180,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 2.0 - Converted to use rje_obj.RJE_Object as base. Version 1.9 moved to legacy/.
     # 2.1.0 - Added PTMData and PTMList options.
     # 2.1.1 - Switched feature masking OFF by default to give consistent Uniprot versus FASTA behaviour.
+    # 2.2.0 - Added map and failed outputs for uniprotid=LIST input.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -192,7 +193,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo():     ### Makes Info object
     '''Makes rje.Info object for program.'''
-    (program, version, last_edit, copyyear) = ('QSLiMFinder', '2.1.1', 'December 2015', '2008')
+    (program, version, last_edit, copyyear) = ('QSLiMFinder', '2.2.0', 'January 2017', '2008')
     description = 'Query Short Linear Motif Finder'
     author = 'Richard J. Edwards, Norman E. Davey & Denis C. Shields'
     comments = ['Cite: Palopoli N, Lythgow KT & Edwards RJ. Bioinformatics 2015; doi: 10.1093/bioinformatics/btv155 [PMID: 25792551]',

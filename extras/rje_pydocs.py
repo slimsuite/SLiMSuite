@@ -19,8 +19,8 @@
 """
 Module:       rje_pydocs
 Description:  Python Module Documentation & Distribution
-Version:      2.16.3
-Last Edit:    03/12/15
+Version:      2.16.5
+Last Edit:    05/09/17
 Copyright (C) 2011 Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -100,6 +100,8 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 2.16.1 - Added parsing of imports within a try/except block. (Cannot be on same line as try: or except:)
     # 2.16.2 - Tweaked makePages() output.
     # 2.16.3 - Fixed docstring REST parsing to work with _V* modules.
+    # 2.17.4 - Tweaked formatDocString.
+    # 2.17.5 - Added general commands to docstring HTML for REST servers.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -136,7 +138,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copyyear) = ('RJE_PYDOCS', '2.16.3', 'December 2015', '2011')
+    (program, version, last_edit, copyyear) = ('RJE_PYDOCS', '2.16.7', 'September 2017', '2011')
     description = 'Python Module Documentation & Distribution'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_zen.Zen().wisdom()]
@@ -1537,8 +1539,8 @@ class PyDoc(rje_obj.RJE_Object):
             db = self.db('Module')
             for pymod in db.indexKeys('Module') + db.indexKeys('Program'):
                 if pymod not in self.list['Keywords']: self.list['Keywords'].append(pymod)
-            for str in ['Author','Name','EMail']:
-                if self.getStr(str) not in self.list['Keywords']: self.list['Keywords'].append(self.getStr(str))
+            for dstr in ['Author','Name','EMail']:
+                if self.getStr(dstr) not in self.list['Keywords']: self.list['Keywords'].append(self.getStr(dstr))
             outdir = self.getStr('DistDir')
             htmlfile = '%sindex.html' % outdir
             ### ~ [1] Create HTML ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -1612,6 +1614,15 @@ class PyDoc(rje_obj.RJE_Object):
                     docstring = string.replace(docstring,cmdstr,'<code>%s!!*!!%s</code>' % (cmd,opt),1)
                 pretext = rje.matchExp('(###[~]+###.*\n# OUTFMT\:.*\n\.\.\..*)',docstring)
                 if pretext: docstring = string.replace(docstring,pretext[0],'<pre>%s</pre>' % string.replace(pretext[0],'\n','<PREND>'))
+                #while rje.matchExp('\n\s*(#+)\s(\S[^~]+):.+\n',docstring):
+                #    subhead = rje.matchExp('\n\s*(#+)\s(\S[^~]+):.+\n',docstring)
+                #    subfull = rje.matchExp('\n(\s*#+\s\S[^~]+:.+)\n',docstring)[0]
+                #    docstring = string.replace(docstring,subfull,'<h%d>%s</h%d>' % (len(subhead[0]),subhead[1],len(subhead[0])),1)
+                docstring = string.replace(docstring,'### Available REST Outputs:','<h3>Available REST Outputs</h3>')
+                while rje.matchExp('###\s([^:]+):\s*\n',docstring):
+                    reptext = rje.matchExp('###(\s)([^:]+):\s*\n',docstring)
+                    docstring = string.replace(docstring,'###%s%s:' % reptext,'<h3>%s</h3>' % reptext[1])
+                docstring = string.replace(docstring,'#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#','<hr>')
             while rje.matchExp('(`\w\S*=\S*\w`)',docstring):    # `opt=value`
                 cmdstr = rje.matchExp('(`\w\S*=\S*\w`)',docstring)[0]
                 [cmd,opt] = string.split(string.replace(cmdstr,'`',''),'=')
@@ -1643,6 +1654,11 @@ class PyDoc(rje_obj.RJE_Object):
         if outfmt:
             docstring = docstring.replace('\n','<br>\n')
             docstring = docstring.replace('<PREND>','\n')
+            docstring = string.replace(docstring,'<br>\n<pre>','\n<pre>')
+            docstring = string.replace(docstring,'<br>\n<h3>','\n<h3>')
+            docstring = string.replace(docstring,'</pre><br>','</pre>')
+            docstring = string.replace(docstring,'<hr><br>','<hr width="80%">')
+            docstring = string.replace(docstring,'</h3><br>','</h3>')
         return docstring
 #########################################################################################################################
     def parseToDocTabs(self,pymod):    ### Parses the docstring etc. for module and returns HTML for REST docs page
@@ -1710,7 +1726,7 @@ class PyDoc(rje_obj.RJE_Object):
                     tabhtml += '</p>\n<hr>\n<p>See <a href="http://slimsuite.blogspot.com/" target="_blank">SLiMSuite Blog</a>'
                     manfile = '%smanuals/%s_manual.pdf' % (self.getStr('DocSource'),data['Program'].lower())
                     if rje.exists(manfile): tabhtml += ' and <a href="%s%s_manual.pdf" target="_blank"><code>%s Manual</code></a>' % (self.getStr('ManualURL'),data['Program'].lower(),data['Program'])
-                    tabhtml += ' for further documentation.'
+                    tabhtml += ' for further documentation. See <code>[rje]{module:rje}</code> for general commands.'
                     break
             ## [3b] Parse rest of docstring into tabs ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             while docstring:

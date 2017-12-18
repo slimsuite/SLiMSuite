@@ -34,3 +34,9 @@ dev/jrj_fastq.py
 dev/orcfinder.py
 
 dev/patis.py
+
+shiny/template/.RData
+
+shiny/template/.Rhistory
+
+shiny/slimsuite-shiny/.Rhistory

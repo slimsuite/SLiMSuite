@@ -59,11 +59,11 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo():     ### Makes Info object
     '''Makes rje.Info object for program.'''
-    (program, version, last_edit, copyright) = ('SLiMPID', '0.0', 'June 2008', '2008')
+    (program, version, last_edit, cyear) = ('SLiMPID', '0.0', 'June 2008', '2008')
     description = 'Short Linear Motif Protein Interaction Datasets'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_zen.Zen().wisdom()]
-    return rje.Info(program,version,last_edit,description,author,time.time(),copyright,comments)
+    return rje.Info(program,version,last_edit,description,author,time.time(),cyear,comments)
 #########################################################################################################################
 def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for more sys.argv commands
     '''Prints *.__doc__ and asks for more sys.argv commands.'''

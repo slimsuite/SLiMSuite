@@ -3,8 +3,10 @@
 #rdir = "/home/re1u06/researchfiles/SBSBINF/Tools/_Serpentry/"
 #rdir = "/home/redwards/Serpentry/"
 #rdir = "/data/ben/Serpentry/"
-rdir = "/home/re1u06/researchfiles/SBSBINF/Tools/svn/libraries/r/"
-rdir = "/Users/redwards/Dropbox/_Repository_/slimsuite/libraries/r/"
+#rdir = "/home/re1u06/researchfiles/SBSBINF/Tools/svn/libraries/r/"
+#rdir = "/Users/redwards/Dropbox/_Repository_/slimsuite/libraries/r/"
+#rdir = getSrcDirectory(function(dummy) {dummy})
+rdir = "/home/z3452659/slimsuite/libraries/r/"
 
 rjesource = function(rfile){
     source(paste(rdir,rfile,sep=""))

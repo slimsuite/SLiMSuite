@@ -19,8 +19,8 @@
 """
 Module:       rje_zen
 Description:  Random Zen Wisdom Generator
-Version:      1.3.1
-Last Edit:    21/07/15
+Version:      1.3.2
+Last Edit:    13/07/17
 Copyright (C) 2007  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -51,6 +51,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 1.2 - Added a webserver mode to return text directly.
     # 1.3.0 - Modified output to work with new REST service calls.
     # 1.3.1 - Added some more words.
+    # 1.3.2 - Added some more words.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -62,7 +63,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo():     ### Makes Info object
     '''Makes rje.Info object for program.'''
-    (program, version, last_edit, cyear) = ('RJE_ZEN', '1.3.1', 'July 2015', '2007')
+    (program, version, last_edit, cyear) = ('RJE_ZEN', '1.3.2', 'July 2017', '2007')
     description = 'Random Zen Wisdom Generator'
     author = 'Dr Richard J. Edwards.'
     comments = ['WARNING: These wisdoms are computer-generated garbage.', 'Heed them at your own peril.']
@@ -278,7 +279,8 @@ class Zen(rje.RJE_Object):
                                    'cantankerous','cancerous','cursed','drug-addled','elongated',
                                    'Greek','Herculian','illiterate','killer','kindred',
                                    'opaque','orange','pale','pink','polymorphic','quality',
-                                   'shell-like','short','strong','stringy','spongy','secular','talented','tall','tiny',
+                                   'shell-like','short','strong','stringy','spongy','secular',
+                                   'talented','tall','tiny','toxic','venomous',
                                    'white','yellow','youthful','zombie']
         if ztype == 'B': alist += ['folly','worse','nonsense','death','risky']
         return rje.randomList(alist)[0]
@@ -286,26 +288,32 @@ class Zen(rje.RJE_Object):
     def _noun(self,ztype='A'):    ### Returns a random noun
         '''Returns a random noun.'''
         nlist = ['ant', 'atheist', 'athelete','armadillo','assassin',
-                 'badger', 'beetle', 'Bishop', 'boy', 'bushbaby', 'butterfly','cheerleader',
-                 'cat','cheese', 'chemist','child', 'cloud', 'communist', 'computer scientist','Creationist',
+                 'badger', 'beetle', 'Bishop', 'boy', 'bushbaby', 'butterfly','cheerleader','billionaire','bilby',
+                 'cat','cheese', 'chemist','child', 'cloud', 'communist', 'computer scientist','Creationist','Donald',
                  'diplomat', 'doctor', 'dragon', 'duck','elf', 'firefly',
                  'fish', 'fool', 'freak','fruit','fruitfly', 'fungus',
-                 'girl', 'heretic','hound', 'kangaroo', 'knight', 'lady', 'ladybird',
+                 'girl', 'heretic','hound', 'jellyfish', 'kangaroo', 'knight', 'lady', 'ladybird',
                  'ladyboy','lion','kitten','kingfisher','king','killer',
-                 'marsupial', 'mind', 'monkey', 'monster', 'mosquito', 'nazi',
-                 'philosopher', 'pig','pirate','President','Professor','priest', 'prince', 'princess', 'python',
+                 'journalist',
+                 'marsupial', 'mind', 'monkey', 'monster', 'mosquito', 'misogynist', 'nazi',
+                 'philosopher', 'pig','pirate','postgrad',
+                 'President','Professor','priest', 'prince', 'princess', 'programmer','python',
                  'queen', 'rabbit', 'Republican','runner',
                  'samurai', 'scientist', 'shrew', 'slug', 'snail',
-                 'snake', 'soldier', 'student', 'syntax error','smuggler',
-                 'teapot', 'teenager', 'termite', 'theologian','terrorist', 'theoretical physicist', 'Thespian','tiger',
-                 'warrior', 'wren','zealot','zombie','zulu'] + ['man'] * 8 + ['woman'] * 5
+                 'snake', 'soldier', 'spider', 'student', 'syntax error','smuggler',
+                 'teapot', 'teenager', 'termite', 'theologian','theoretical physicist', 'Thespian','tiger','tiger snake',
+                 'toddler',
+                 'wallaby',
+                 'warrior', 'wren','yeast','zealot','zombie','zulu'] + ['man'] * 8 + ['woman'] * 5
         if ztype == 'C':
             nlist = ['misery','happiness','poverty','wisdom','enlightenment','zen','dreams','passion','lunacy','plenty',
+                     'alternative facts',
                      'death','disease','discovery','Chaos','religion','peril','philosophy','the Soul','debuggery','youth']
         if ztype == 'Z': return string.join([rje.randomList(['A','The'])[0].lower(),rje.randomList([self._adjective('A'),self._adverb('A'),''])[0], self._noun('A')])
         if ztype == 'of' or (ztype in ['A','B'] and random.random() < 0.2):
-            nlist = nlist + ['shroom','pie','wine','gravy','egg','chocolate','cheese','banana','stool','horn',
-                             'tea','teacup','mug','motif', 'gene','genome', 'bucket','kebab','fruit',
+            nlist = nlist + ['shroom','pie','wine','gravy','egg','chocolate','cheese','banana','stool','horn','custard',
+                             'tea','teacup','mug','motif', 'gene','genome', 'bucket','bucket','bucket',
+                             'kebab','fruit','falafel','teapot',
                              'coffee','river','cake','cookie','sponge','abundance','repository','collection','library'] * 2
             nlist += ['cgi-bin']
             return string.join([rje.randomList(nlist)[0],'of',self._noun('C')])
@@ -317,9 +325,9 @@ class Zen(rje.RJE_Object):
         if ztype in ['A','B']: zlist += ['while','if','unless','when','because','whether or not']
         if ztype == 'A': zlist += ['but']
         #x#if ztype == 'B': zlist
-        if ztype == 'C': zlist += ['leads to','leads to','shows',
+        if ztype == 'C': zlist += ['leads to','leads to','shows','bamboozles','deceives',
                                    'enlightens','enlightens','enriches','enriches','exemplifies',
-                                   'compresses',
+                                   'compresses','guzzumps','scoops',
                                    'invigorates','invites','rains on','shatters','tweaks','destroys','disturbs',
                                    'promotes','chastens','mocks','rejects','surprises','tests','unlocks','unravels',
                                    'juggles']
@@ -348,7 +356,10 @@ class Zen(rje.RJE_Object):
                      'to frolic through fields of %s' % self._noun('C'),
                      'to eat bananas','to program','to get your freak on','to high-five a %s' % self._noun(),
                      'to bathe in %s' % self._noun('C'),'to poke %s' % self._noun('Z'),
-                     'to sample the %s' % self._noun('of'),'to attend a conference about %s' % self._noun('C')]
+                     'to sequence a %s genome' % self._noun(),
+                     'to sample the %s' % self._noun('of'),
+                     'to drink from the %s' % self._noun('of'),
+                     'to attend a conference about %s' % self._noun('C')]
             for i in range(3): zlist += ['to %s %s' % (rje.randomList(['smile at','shove','squeeze','punch','slap','stroke','tickle','shake','cuddle','worship','cultivate','nibble','defenestrate','curse'])[0],znoun)]
         if ztype == 'C': zlist += ['Doing','Eating','Slapping','Spanking','Loving','Poking','Stroking']
         return rje.randomList(zlist)[0]

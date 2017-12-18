@@ -19,8 +19,8 @@
 """
 Module:       rje_misc
 Description:  Miscellenous script storage module
-Version:      0.50.0
-Last Edit:    12/04/15
+Version:      0.53.0
+Last Edit:    26/11/15
 Copyright (C) 2007  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -78,6 +78,7 @@ Function:
 Commandline:
     job=X       : Identifier for the job to be performed [None]
     infile=FILE : Name of input file for relevant task [None]
+    batch=GLIST : List of files to process for relevant task []
 
 Uses general modules: glob, os, string, sys, time
 Uses RJE modules: rje, rje_blast, rje_db, rje_disorder, rje_seq, rje_uniprot, rje_zen
@@ -145,6 +146,9 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 0.48 - aicpaper = Conversion of AIC PATIS tables for Jan 2014 AIC paper.
     # 0.49.0 - jrjspf = Reformatting an SPF file for Joe Jenkins
     # 0.50.0 - crisp = Analysis of Crisp et al paper data
+    # 0.51.0 - dcfmsi = Generation of HTML table code for Manefield DCMF data
+    # 0.52.0 - mbgsnp = Compilation of MBG SNP Tables
+    # 0.53.0 - mbgSNPFreq = Generation of SNP Frequency Changes from SNP Table.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -154,7 +158,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo():     ### Makes Info object
     '''Makes rje.Info object for program.'''
-    (program, version, last_edit, cyear) = ('RJE_MISC', '0.50.0', 'April 2015', '2007')
+    (program, version, last_edit, cyear) = ('RJE_MISC', '0.52.0', 'November 2017', '2007')
     description = 'Miscellaneous Odd-jobs Module'
     author = 'Dr Richard J. Edwards.'
     comments = ['Wise %s always says:' % rje_zen.Zen()._noun(),'\t"%s"' % rje_zen.Zen().wisdom()]
@@ -226,6 +230,7 @@ class OddJob(rje.RJE_Object):
     Stat:numeric
 
     List:list
+    - Batch = List of files
 
     Dict:dictionary    
 
@@ -241,7 +246,7 @@ class OddJob(rje.RJE_Object):
         self.infolist = ['InFile']
         self.optlist = []
         self.statlist = []
-        self.listlist = []
+        self.listlist = ['Batch']
         self.dictlist = []
         self.objlist = []
         ### <b> ### Defaults
@@ -259,6 +264,7 @@ class OddJob(rje.RJE_Object):
                 ### Class Options ### 
                 self._cmdRead(cmd,type='info',att='Name',arg='job')
                 self._cmdReadList(cmd,'file',['InFile'])
+                self._cmdReadList(cmd,'glist',['Batch'])
             except:
                 self.log.errorLog('Problem with cmd:%s' % cmd)
 #########################################################################################################################
@@ -268,6 +274,9 @@ class OddJob(rje.RJE_Object):
         '''Runs odd-job specified by self.info['Name'].'''
         try:### Laavanya ###
             if self.info['Name'] == 'laavanya': self.laavanya()
+            elif self.info['Name'] == 'mbgsnpfreq': self.mbgSNPFreq()
+            elif self.info['Name'] == 'mbgsnp': self.mbgSNP()
+            elif self.info['Name'] == 'dcmfsi': self.dcmfSIJGI()
             elif self.info['Name'] == 'crisp': self.Crisp()
             elif self.info['Name'] == 'jrjspf': self.JRJSPF()
             elif self.info['Name'] == 'aicpaper': self.aicPaper() # Conversion of AIC PATIS tables for Jan 2014 AIC paper.
@@ -705,6 +714,405 @@ class OddJob(rje.RJE_Object):
                 self.log.errorLog('Job "%s" not recognised.' % self.info['Name'],printerror=False)
         except:
             self.log.errorLog('Error in rje_misc.run(%s)' % self.info['Name'],printerror=True,quitchoice=True)
+#########################################################################################################################
+    def mbgSNPFreq(self):
+        '''Compile MBG SNP tables.'''
+        try:### ~ [0] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            db = rje_db.Database(self.log,self.cmd_list+['tuplekeys=T'])
+            self.setStr({'SNPFile':'evol_pileupft.snpmap.tdt'})
+            self.list['SNPType'] = []
+            self.list['Parents'] = []
+            self.list['Strains'] = []
+            self.list['Pops'] = []
+            for cmd in self.cmd_list:
+                self._cmdReadList(cmd,'info',['Pop1','Pop2'])
+                self._cmdReadList(cmd,'list',['SNPType','Parents','Strains','Pops'])
+                self._cmdReadList(cmd,'file',['SNPFile'])
+            snpfile = self.getStr('SNPFile')
+            if self.list['SNPType']:
+                snpdb = db.addTable(snpfile,['Locus','Pos','ALT','SNPType'],name='snp')
+            else:
+                snpdb = db.addTable(snpfile,['Locus','Pos','ALT'],name='snp')
+
+            #Locus	Pos	REF	ALT	N|mbg344	mbg344	N|mbg461	mbg461	N|mbg474	mbg474	N|mbg475	mbg475	N|mbg479	mbg479
+            # N|mbg481	mbg481	N|mbg482	mbg482	N|mbg541	mbg541	N|mbg542	mbg542	N|mbg549	mbg549	N|mbg557	mbg557
+            # N|mbg558	mbg558	N|mbg602	mbg602	N|Pop04	Pop04	N|Pop06	Pop06	N|Pop09	Pop09	N|Pop10	Pop10	N|Pop11	Pop11
+            # N|Pop12	Pop12	N|Pop13	Pop13	CombFreq
+            # Strand	GB	locus	feature	position	start	end	locus_tag	protein_id	details	SNPType	SNPEffect
+
+            # Filters
+            for field in ['SNPType','Parents','Strains','Pops']:
+                if self.list[field] and field in snpdb.fields():
+                    self.printLog('#FILT','%s: %s' % (field,self.list[field]))
+                    if '*' in self.list[field]: # Drop missing
+                        snpdb.dropEntriesDirect(field,[''])
+                    else:   # Keep specified
+                        snpdb.dropEntriesDirect(field,self.list[field],inverse=True)
+
+            # Comparison
+            pop1 = self.getStr('Pop1')
+            if pop1 not in snpdb.fields(): raise ValueError(pop1)
+            pop2 = self.getStr('Pop2')
+            if pop2 not in snpdb.fields(): raise ValueError(pop2)
+            n1 = 'N|%s' % pop1
+            n2 = 'N|%s' % pop2
+            snpdb.keepFields(['Locus','Pos','REF','ALT',n1,pop1,n2,pop2,'SNPType','SNPEffect','Parents','Strains','Pops'])
+            snpdb.dataFormat({'Pos':'int',n1:'int',pop1:'num',n2:'int',pop2:'num'})
+            snpdb.addFields(['MajFreq','MajDiff','MajProb'])
+
+            ex = 0.0; etot = snpdb.entryNum()
+            for entry in snpdb.entries():
+                self.progLog('#PROB','%.1f%%' % (ex/etot)); ex += 100.0
+                entry['MajFreq'] = entry[pop2]
+                entry['MajDiff'] = entry[pop2] - entry[pop1]
+                majx = entry[n2]
+                if majx:
+                    ttot = int(0.5+(majx/entry[pop2]))
+                else: ttot = 100
+                cfreq = entry[pop1]
+                if cfreq:
+                    ctot = int(0.5+(entry[n1]/entry[pop1]))
+                else: ctot = 100
+                if not cfreq: cfreq = 1.0 / (ctot + 1)  # Assume next read is ALT
+                entry['MajProb'] = rje.eStr(rje.binomial(majx,ttot,cfreq,exact=False,callobj=self))
+            freqfile = '%s.%s.vs.%s.snpfreq.tdt' % (self.baseFile(),pop1,pop2)
+            rje.backup(self,freqfile)
+            snpdb.saveToFile(freqfile)
+            #Locus	Pos	Ref	N|Pop00	Dep|Pop00	QN|Pop00	AN|Pop00	Seq|Pop00	N|Pop04	Dep|Pop04	QN|Pop04	AN|Pop04	Seq|Pop04	MajFreq	MajDiff	MajProb
+
+        except:
+            self.log.errorLog('Error in rje_misc.run(%s)' % self.info['Name'],printerror=True,quitchoice=True)
+#########################################################################################################################
+    def mbgSNP(self): # Compile MBG SNP tables
+        '''Compile MBG SNP tables.'''
+        try:### ~ [0] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            db = rje_db.Database(self.log,self.cmd_list+['tuplekeys=T'])
+            snptabs =  self.list['Batch']
+            if not snptabs: raise ValueError('Need batch=SNPFiles')
+            #snptabs = glob.glob('*.snp.tdt')
+            comdb = None #addEmptyTable('combsnp',['Locus','Pos','REF','ALT'],['Locus','Pos','ALT'])
+            #head /srv/scratch/edwards/MBGEvolution-Feb17/analysis/2017-11-23.PileupSNPTables/mbg461.raw.S288C.sort.Q30.10.snponly.bFiF.snp.tdt
+            #Locus	Pos	REF	ALT	N	Freq
+            #sgdIII_YEAST__BK006937	116	A	C	11	0.224489795918
+            for snpfile in snptabs:
+                strain = string.split(rje.baseFile(snpfile,strip_path=True),'.')[0]
+                sdb = db.addTable(filename=snpfile,mainkeys=['Locus','Pos','REF','ALT'],name=strain,expect=True)
+                sdb.dataFormat({'Pos':'int','N':'int','Freq':'num'})
+                sdb.renameField('N','N|%s' % strain)
+                sdb.renameField('Freq',strain)
+                if comdb:
+                    comdb.list['Fields'] += sdb.list['Fields'][-2:]
+                    #comdb.addFields(['N|%s' % strain,strain])
+                    for skey in sdb.dataKeys():
+                        sentry = sdb.data(skey)
+                        if skey in comdb.data():
+                            comdb.data(skey)['N|%s' % strain] = sentry['N|%s' % strain]
+                            comdb.data(skey)[strain] = sentry[strain]
+                        else: comdb.addEntry(sentry)
+                else:
+                    comdb = sdb
+                    comdb.info['Name'] = 'combsnp'
+            comdb.fillBlanks(blank=0,fillempty=True)
+            comdb.addFields(['N|Pop00','Pop00'],after='Bad00')
+            comdb.addFields(['CombFreq','Parents','Strains','Pops'])
+            parents = []
+            for field in comdb.list['Fields'][4:]:
+                if field[:3] == 'mbg' and field not in ['mbg11a','mbg1871','mbg2303','mbgag26','mbgag35','mbgh207']:
+                    parents.append(field)
+
+            for entry in comdb.entries():
+                entry['N|Pop00'] = 1000
+                entry['Pop00'] = 0.0
+                entry['CombFreq'] = 0.0
+                entry['Parents'] = []
+                entry['Strains'] = []
+                entry['Pops'] = []
+                fx = 0
+                for field in comdb.list['Fields'][4:]:
+                    if field[:2] == 'N|': continue
+                    if field in ['CombFreq','Parents','Strains','Pops']: continue
+                    try:
+                        self.bugPrint(field)
+                        entry['CombFreq'] += entry[field]; fx +=1
+                    except:
+                        self.errorLog(field)
+                    if field[:3] == 'mbg' and entry[field] > 0:
+                        if field in ['mbg11a','mbg1871','mbg2303','mbgag26','mbgag35','mbgh207']:
+                            entry['Strains'].append(field)
+                        else:
+                            entry['Parents'].append(field)
+                            entry['Pop00'] += entry[field]
+                entry['Pop00'] /= len(parents)
+                for field in comdb.list['Fields'][4:]:
+                    if field[:3] in ['Pop'] and entry[field] > 0:
+                        entry['Pops'].append(field)
+                if fx: entry['CombFreq'] /= fx
+                entry['Parents'] = string.join(entry['Parents'],'|')
+                entry['Strains'] = string.join(entry['Strains'],'|')
+                entry['Pops'] = string.join(entry['Pops'],'|')
+                self.deBug(entry)
+            comdb.saveToFile()
+
+
+            #qdb = db.addEmptyTable('comb',['Locus','Pos','Ref','N','QN','Seq','Dep'],['Locus','Pos','ALT'])
+            qdb = db.copyTable(comdb,'comb')
+            qdb.keepFields(['Locus','Pos','REF','ALT','CombFreq','Parents','Strains','Pops'])
+            qdb.addFields(['N'])
+            for entry in qdb.entries():
+                entry['N'] = int(0.5+(entry['CombFreq']*1000))
+            qdb.makeField('#ALT#:#N#')
+            qdb.renameField('#ALT#:#N#','Seq')
+            qdb.keepFields(['Locus','Pos','REF','ALT','Seq','N','CombFreq','Parents','Strains','Pops'])
+            qdb.compress(['Locus','Pos'],rules={'REF':'str','Seq':'list','N':'sum','Parents':'list','Strains':'list','Pops':'list'},joinchar='|')
+            qdb.renameField('REF','Ref')
+            qdb.dropField('ALT')
+            qdb.list['Fields'] = ['Locus','Pos','Ref','N','QN','Seq','Dep','CombFreq','Parents','Strains']
+            for entry in qdb.entries():
+                refn = 1000 - entry['N']
+                if refn > 0:
+                    seq = string.split(entry['Seq'],'|')
+                    seq.append('%s:%s' % (entry['Ref'],refn))
+                    seq.sort()
+                    entry['Seq'] = string.join(seq,'|')
+                entry['N'] = entry['QN'] = 1000
+                entry['Dep'] = 1.0
+                entry['Parents'] = string.split(entry['Parents'],'|')
+                entry['Parents'] = rje.sortUnique(entry['Parents'])
+                entry['Parents'] = string.join(entry['Parents'],'|')
+                entry['Strains'] = string.split(entry['Strains'],'|')
+                entry['Strains'] = rje.sortUnique(entry['Strains'])
+                entry['Strains'] = string.join(entry['Strains'],'|')
+                entry['Pops'] = string.split(entry['Pops'],'|')
+                entry['Pops'] = rje.sortUnique(entry['Pops'])
+                entry['Pops'] = string.join(entry['Pops'],'|')
+            qdb.saveToFile()
+
+            #!# Make this file:
+            # Locus   Pos     Ref     N       QN      Seq     Dep
+            # sgdMT_YEAST__KP263414   9       T       508     508     T:507   4.44
+
+        except:
+            self.log.errorLog('Error in rje_misc.run(%s)' % self.info['Name'],printerror=True,quitchoice=True)
+#########################################################################################################################
+    def dcmfSIJGI(self):   # DCMF SI Table generation
+        '''SPF file conversion.'''
+        try:### ~ [0] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            db = rje_db.Database(self.log,self.cmd_list+['tuplekeys=T'])
+            db.basefile('DCMF160804.taxmap.html')
+            #Query   Hit     Method  MapRank BlastRank       EVal    Score   Query_Species   Query_Len       Query_Sim       Query_ID        Hit_Species     Hit_Len Hit_Sim Hit_ID
+            #jgi_WON710A1__Ga0180325_111     prok_WON710A1__DCMF160804.P00001        Sequence        1       1       9e-95   266     WON710A1        100.0   100.0   100.0   WON710A1        100.0   100.0   100.0
+            #mapdb = db.addTable('/srv/scratch/z3452659/ManefieldPacBio-Sep15/data/2017-10-26.JGI/DCMF160804.jgi.proteins.DCMF160804.proteins.mapping.tdt',mainkeys=['Query','Hit'],name='map')
+            # ##gff-version 3
+            # ##sequence-region chr_WON710A1__DCMF160804 1 6441270
+            # chr_WON710A1__DCMF160804        Prodigal:2.6    CDS     30      437     .       -       0       ID=DCMF160804.P00001;inference=ab initio prediction:Prodigal:2.6;locus_tag=DCMF160804.P00001;product=hypothetical protein
+            gffields = ['Locus','Source','Type','Start','End','Dot','Strand','Ignore','Details']
+            gwant  = ['Type','Start','End','Strand','Details']
+            gffdb = db.addTable('prokka/DCMF160804.gff',mainkeys=['Type','Start','End'],datakeys=gwant,delimit='\t',headers=gffields,ignore=['#'],lists=False,name='gff',expect=True,replace=False,uselower=False)
+            gffdb.dataFormat({'Start':'int','End':'int'})
+            #self.debug(gffdb.dataKeys())
+            ## #gff-version 3
+            # chr_WON710A1__DCMF160804        img_core_v400   CDS     30      437     .       -       0       ID=2718340120;locus_tag=Ga0180325_111;product=hypothetical protein
+            # chr_WON710A1__DCMF160804        img_core_v400   CDS     656     769     .       -       0       ID=2718340121;locus_tag=Ga0180325_112;product=hypothetical protein
+            jgidb = db.addTable('jgi/DCMF160804.jgi.gff',mainkeys=['Type','Start','End'],datakeys=gwant,delimit='\t',headers=gffields,ignore=['#'],lists=False,name='jgi',expect=True,replace=False,uselower=False)
+            jgidb.dataFormat({'Start':'int','End':'int'})
+            #self.debug(jgidb.dataKeys())
+
+            # protein genus   family  order   class   phylum  boot    spcode  inpara  paralogues      desc
+            # DCMF160804.P00003       None    None    None    None    None    1.0     None    DCMF160804.P01428|DCMF160804.P01567|DCMF160804.P00002           hypothetical protein
+            taxdb = db.addTable('taxonomy/DCMF160804.jgi.taxamap.taxamap.tdt',mainkeys=['protein'],name='taxamap')
+            ### ~ [1] Update Data ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            jgidb.addFields(['protein','prokka','len','pos'])
+            for entry in jgidb.entries():
+                try: entry['protein'] = string.split(rje.matchExp('locus_tag=(\S+)',entry['Details'])[0],';')[0]
+                except:
+                    self.warnLog('Dropped: %s' % entry)
+                    jgidb.dropEntry(entry)
+                    pass
+                #self.bugPrint(entry['protein'])
+                entry['len'] = int((int(entry['End']) - int(entry['Start']) + 1) / 3.0)
+                entry['pos'] = '%s..%s (%s)' % (entry['Start'],entry['End'],entry['Strand'])
+            gffdb.addFields(['prokka'])
+            for entry in gffdb.entries():
+                try: entry['prokka'] = string.split(rje.matchExp('locus_tag=(\S+)',entry['Details'])[0],';')[0]
+                except: pass
+                #if rje.matchExp('locus_tag=(\S+\d+);p',entry['Details']): entry['jgi'] = rje.matchExp('locus_tag=(\S+\d+);p',entry['Details'])[0]
+                #elif rje.matchExp('locus_tag=(\S+\d+)',entry['Details']): entry['jgi'] = rje.matchExp('locus_tag=(\S+\d+)',entry['Details'])[0]
+            for gkey in jgidb.dataKeys():
+                #self.debug('%s: %s' % (gkey,gkey in jgidb.dataKeys()))
+                if gffdb.data(gkey): jgidb.data(gkey)['prokka'] = gffdb.data(gkey)['prokka']
+                else: self.debug('%s: %s' % (gkey,jgidb.data(gkey)))
+            jgidb.newKey(['protein'])
+            gffdb = jgidb
+            #mapdb.addFields(['jgi','protein'])
+            #for entry in mapdb.entries():
+            #    entry['jgi'] = string.split(entry['Query'],'__')[1]
+            #    try: entry['protein'] = string.split(entry['Hit'],'__')[1]
+            #    except: entry['protein'] = entry['Hit']; print entry
+            #mapdb.newKey(['protein'])
+            ### Merge & add links
+            taxdb.addFields(['prokka','jgi','pos','len'])
+            taxdb.renameField('desc','description')
+            taxdb.list['Fields'] = string.split('protein prokka jgi description len pos inpara	paralogues	genus	family	order	class	phylum	boot	spcode')
+            tfields = taxdb.list['Fields'][0:]
+            taxdb.addFields(['start'])
+            #taxdb.renameField('protein','jgi')
+            urlbase = "http://www.slimsuite.unsw.edu.au/research/dcmf/dcmf.php?protein="
+            taxdb.fillBlanks()
+            for entry in taxdb.entries():
+                self.bugPrint(entry['protein'])
+                prot = entry['protein']
+                pacc = prot #string.split(prot,'.')[1]
+                #if mapdb.data(prot): entry['jgi'] = mapdb.data(prot)['jgi']
+                if gffdb.data(prot): entry['len'] = gffdb.data(prot)['len']; entry['pos'] = gffdb.data(prot)['pos']; entry['prokka'] = gffdb.data(prot)['prokka']
+                entry['protein'] = '<a href="%s%s">%s</a>' % (urlbase,pacc,prot)
+                pdesc = string.split(entry['description'])[:-3]
+                entry['jgi'] = pdesc[0][3:]
+                entry['description'] = string.join(pdesc[2:])
+                entry['start'] = int(string.split(entry['pos'],'..')[0])
+                for field in ['inpara','paralogues']:
+                    fdata = []
+                    for dprot in string.split(entry[field],'|'):
+                        #if dprot: fdata.append('<a href="%s%s">%s</a>' % (urlbase,string.split(dprot,'.')[1],dprot))
+                        if dprot: fdata.append('<a href="%s%s">%s</a>' % (urlbase,dprot,dprot))
+                        else: fdata.append('')
+                    entry[field] = string.join(fdata,'; ')
+                for field in string.split('genus	family	order	class	phylum	spcode'):
+                    entry[field] = string.join(string.split(entry[field],'|'),'; ')
+                tdata = []
+                for field in tfields: tdata.append('%s' % entry[field])
+                self.bugPrint(entry)
+                self.debug(tdata)
+                open('./proteins/%s.taxamap.html' % pacc,'w').write('<tr>\n<td>%s</td>\n</tr>\n' % string.join(tdata,'</td><td>'))
+            #taxdb.remakeKeys()
+            taxdb.newKey(['start','protein'])
+            ### Output
+            import rje_html
+            self.printLog('#HTML','Saving DCMF160804.taxmap.html...')
+            open('DCMF160804.taxamap.html','w').write(rje_html.dbTableToHTML(taxdb,fields=tfields,tabwidth='100%',tdwidths=[],tdalign=[],tdtitles={},valign='top',thead=True,border=1,tabid=''))
+            '''
+            Converts delimited plain text into an HTML table.
+            >> table:Database.Table object to convert
+            >> fields:list [] = List of fields to output. Will use them all if empty.
+            >> datakeys:list [] = List of entry data keys to output. Will use them all if empty.
+            >> tabwidth:str ['100%'] = width of table
+            >> tdwidths:list [] = Optional list of widths of columns
+            >> tdalign:list [] = Optional list of text alignment for columns
+            >> tdtitles:dict {} = Optional dictionary of {field:title text (for mouseover)}
+            >> valign:str ['center'] = Vertical text alignment for columns
+            >> thead:bool [True] = Whether first row should use th rather than td
+            >> border:int [1] = Table border strength
+            >> tabid:str [''] = Table ID setting (for CSS formatting)
+            '''
+
+            faslines = open('jgi/DCMF160804.jgi.proteins.fasta','r').readlines()
+            while faslines:
+                fline = faslines.pop(0)
+                if fline[:1] != '>': continue
+                #>jgi_WON710A1__Ga0180325_115 Id:2718340124 Locus_tag:Ga0180325_115 O-antigen ligase [Peptococcaceae bacterium DCMF]
+                jgi = string.split(string.split(fline)[0],"__")[1]
+                desc = string.join(string.split(fline)[3:-3])
+                open('proteins/%s.desc.txt' % jgi,'w').write(desc)
+                open('proteins/%s.qry.fas' % jgi,'w').write('%s\n%s\n' % (rje.chomp(fline),rje.chomp(faslines.pop(0))))
+
+
+        except: self.errorLog('Error in rje_misc.dcmfSIJGI()')
+#########################################################################################################################
+    def dcmfSI(self):   # DCMF SI Table generation
+        '''SPF file conversion.'''
+        try:### ~ [0] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            db = rje_db.Database(self.log,self.cmd_list+['tuplekeys=T'])
+            db.basefile('DCMF160804.taxmap.html')
+            #Query   Hit     Method  MapRank BlastRank       EVal    Score   Query_Species   Query_Len       Query_Sim       Query_ID        Hit_Species     Hit_Len Hit_Sim Hit_ID
+            #jgi_WON710A1__Ga0180325_111     prok_WON710A1__DCMF160804.P00001        Sequence        1       1       9e-95   266     WON710A1        100.0   100.0   100.0   WON710A1        100.0   100.0   100.0
+            #mapdb = db.addTable('/srv/scratch/z3452659/ManefieldPacBio-Sep15/data/2017-10-26.JGI/DCMF160804.jgi.proteins.DCMF160804.proteins.mapping.tdt',mainkeys=['Query','Hit'],name='map')
+            # ##gff-version 3
+            # ##sequence-region chr_WON710A1__DCMF160804 1 6441270
+            # chr_WON710A1__DCMF160804        Prodigal:2.6    CDS     30      437     .       -       0       ID=DCMF160804.P00001;inference=ab initio prediction:Prodigal:2.6;locus_tag=DCMF160804.P00001;product=hypothetical protein
+            gffields = ['Locus','Source','Type','Start','End','Dot','Strand','Ignore','Details']
+            gwant  = ['Type','Start','End','Strand','Details']
+            gffdb = db.addTable('prokka/DCMF160804.gff',mainkeys=['Type','Start','End'],datakeys=gwant,delimit='\t',headers=gffields,ignore=['#'],lists=False,name='gff',expect=True,replace=False,uselower=False)
+            gffdb.dataFormat({'Start':'int','End':'int'})
+            #self.debug(gffdb.dataKeys())
+            ## #gff-version 3
+            # chr_WON710A1__DCMF160804        img_core_v400   CDS     30      437     .       -       0       ID=2718340120;locus_tag=Ga0180325_111;product=hypothetical protein
+            # chr_WON710A1__DCMF160804        img_core_v400   CDS     656     769     .       -       0       ID=2718340121;locus_tag=Ga0180325_112;product=hypothetical protein
+            jgidb = db.addTable('jgi/DCMF160804.jgi.gff',mainkeys=['Type','Start','End'],datakeys=gwant,delimit='\t',headers=gffields,ignore=['#'],lists=False,name='jgi',expect=True,replace=False,uselower=False)
+            jgidb.dataFormat({'Start':'int','End':'int'})
+            #self.debug(jgidb.dataKeys())
+
+            # protein genus   family  order   class   phylum  boot    spcode  inpara  paralogues      desc
+            # DCMF160804.P00003       None    None    None    None    None    1.0     None    DCMF160804.P01428|DCMF160804.P01567|DCMF160804.P00002           hypothetical protein
+            taxdb = db.addTable('taxonomy/DCMF160804.taxmap.taxamap.tdt',mainkeys=['protein'],name='taxamap')
+            ### ~ [1] Update Data ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            gffdb.addFields(['protein','len','pos','jgi'])
+            for entry in gffdb.entries():
+                entry['protein'] = string.split(rje.matchExp('locus_tag=(\S+)',entry['Details'])[0],';')[0]
+                self.bugPrint(entry['protein'])
+                entry['len'] = int((int(entry['End']) - int(entry['Start']) + 1) / 3.0)
+                entry['pos'] = '%s..%s (%s)' % (entry['Start'],entry['End'],entry['Strand'])
+            jgidb.addFields(['jgi'])
+            for entry in jgidb.entries():
+                try: entry['jgi'] = string.split(rje.matchExp('locus_tag=(\S+)',entry['Details'])[0],';')[0]
+                except: pass
+                #if rje.matchExp('locus_tag=(\S+\d+);p',entry['Details']): entry['jgi'] = rje.matchExp('locus_tag=(\S+\d+);p',entry['Details'])[0]
+                #elif rje.matchExp('locus_tag=(\S+\d+)',entry['Details']): entry['jgi'] = rje.matchExp('locus_tag=(\S+\d+)',entry['Details'])[0]
+            for gkey in gffdb.dataKeys():
+                #self.debug('%s: %s' % (gkey,gkey in jgidb.dataKeys()))
+                if jgidb.data(gkey): gffdb.data(gkey)['jgi'] = jgidb.data(gkey)['jgi']
+                else: self.debug('%s: %s' % (gkey,gffdb.data(gkey)))
+            gffdb.newKey(['protein'])
+            #mapdb.addFields(['jgi','protein'])
+            #for entry in mapdb.entries():
+            #    entry['jgi'] = string.split(entry['Query'],'__')[1]
+            #    try: entry['protein'] = string.split(entry['Hit'],'__')[1]
+            #    except: entry['protein'] = entry['Hit']; print entry
+            #mapdb.newKey(['protein'])
+            ### Merge & add links
+            taxdb.addFields(['jgi','pos','len'])
+            taxdb.list['Fields'] = string.split('protein jgi desc len pos inpara	paralogues	genus	family	order	class	phylum	boot	spcode')
+            taxdb.renameField('desc','description')
+            urlbase = "http://www.slimsuite.unsw.edu.au/research/dcmf/dcmf.php?protein="
+            taxdb.fillBlanks()
+            for entry in taxdb.entries():
+                self.bugPrint(entry['protein'])
+                prot = entry['protein']
+                pacc = string.split(prot,'.')[1]
+                #if mapdb.data(prot): entry['jgi'] = mapdb.data(prot)['jgi']
+                if gffdb.data(prot): entry['len'] = gffdb.data(prot)['len']; entry['pos'] = gffdb.data(prot)['pos']; entry['jgi'] = gffdb.data(prot)['jgi']
+                entry['protein'] = '<a href="%s%s">%s</a>' % (urlbase,pacc,prot)
+                for field in ['inpara','paralogues']:
+                    fdata = []
+                    for dprot in string.split(entry[field],'|'):
+                        if dprot: fdata.append('<a href="%s%s">%s</a>' % (urlbase,string.split(dprot,'.')[1],dprot))
+                        else: fdata.append('')
+                    entry[field] = string.join(fdata,'; ')
+                for field in string.split('genus	family	order	class	phylum	spcode'):
+                    entry[field] = string.join(string.split(entry[field],'|'),'; ')
+                tdata = []
+                for field in taxdb.fields(): tdata.append('%s' % entry[field])
+                self.bugPrint(entry)
+                self.debug(tdata)
+                open('./proteins/%s.taxamap.html' % pacc,'w').write('<tr>\n<td>%s</td>\n</tr>\n' % string.join(tdata,'</td><td>'))
+            taxdb.remakeKeys()
+            ### Output
+            import rje_html
+            self.printLog('#HTML','Saving DCMF160804.taxmap.html...')
+            open('DCMF160804.taxamap.html','w').write(rje_html.dbTableToHTML(taxdb,tabwidth='100%',tdwidths=[],tdalign=[],tdtitles={},valign='top',thead=True,border=1,tabid=''))
+            '''
+            Converts delimited plain text into an HTML table.
+            >> table:Database.Table object to convert
+            >> fields:list [] = List of fields to output. Will use them all if empty.
+            >> datakeys:list [] = List of entry data keys to output. Will use them all if empty.
+            >> tabwidth:str ['100%'] = width of table
+            >> tdwidths:list [] = Optional list of widths of columns
+            >> tdalign:list [] = Optional list of text alignment for columns
+            >> tdtitles:dict {} = Optional dictionary of {field:title text (for mouseover)}
+            >> valign:str ['center'] = Vertical text alignment for columns
+            >> thead:bool [True] = Whether first row should use th rather than td
+            >> border:int [1] = Table border strength
+            >> tabid:str [''] = Table ID setting (for CSS formatting)
+            '''
+        except: self.errorLog('Error in rje_misc.dcmfSI()')
 #########################################################################################################################
     def Crisp(self):   # SPF file conversion
         '''SPF file conversion.'''

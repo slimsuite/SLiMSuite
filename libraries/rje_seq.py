@@ -587,7 +587,7 @@ class SeqList(rje.RJE_Object):
 #########################################################################################################################
     def getAlphabet(self):  ### Returns appropriate alphabet for use
         '''Returns appropriate alphabet for use.'''
-        if self.list['Alphabet']: return self.list['Alphabet']
+        if self.list['Alphabet']: return self.list['Alphabet'] + ['-']
         if self.info['Type'] == 'DNA': return alph_dna + ['-']
         elif self.info['Type'] == 'RNA': return alph_rna + ['-']
         else: return alph_protx + ['-']        

@@ -69,11 +69,11 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copyright) = ('rje_forker', '0.0', 'August 2013', '2013')
+    (program, version, last_edit, copy_right) = ('rje_forker', '0.0', 'August 2013', '2013')
     description = 'Generic RJE Forking Module'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_obj.zen()]
-    return rje.Info(program,version,last_edit,description,author,time.time(),copyright,comments)
+    return rje.Info(program,version,last_edit,description,author,time.time(),copy_right,comments)
 #########################################################################################################################
 def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for more sys.argv commands
     '''Prints *.__doc__ and asks for more sys.argv commands.'''
@@ -232,7 +232,7 @@ class Forker(rje_obj.RJE_Object):
         '''Keeps forking out and processing jobs until no more jobs in self.list['Forked'].'''
         ### ~ [1] ~ Start first set of jobs ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         if self.getBool('PIDCheck') or self.dev(): pidcheck = '%s.pid' % rje.baseFile(self.log.info['LogFile'])    # Set *.pid object to match log
-        else: pidcheck = False
+        else: pidcheck = None
         #self.deBug(pidcheck)
         ### ~ [2] ~ Monitor jobs and set next one running as they finish ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         while self.list['Forked']:

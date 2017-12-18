@@ -7,8 +7,8 @@
 """
 Module:       rje_menu
 Description:  Generic Menu Methods Module
-Version:      0.4.0
-Last Edit:    18/01/16
+Version:      0.5.0
+Last Edit:    08/11/16
 Copyright (C) 2006  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -39,6 +39,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 0.2 - Added extra addcommand and printtext menu options.
     # 0.3 - Modified to work with new object types.
     # 0.4.0 - Changed handling of default for exiting menu loop. May affect behaviour of some existing menus.
+    # 0.5.0 - Enabled simpler return tuples.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -54,7 +55,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 ### SECTION II: METHODS                                                                                                 #
 #########################################################################################################################
-def menu(callobj,headtext='',menulist=[],choicetext='Please select:',changecase=True,default='',jointxt=' = '):   ### Main Menu method
+def menu(callobj,headtext='',menulist=[],choicetext='Please select:',changecase=True,default='',jointxt=' = ',confirm=False):   ### Main Menu method
     '''
     Main Menu method.
     >> callobj:Object for which attributes are to be read and altered. Also controls interactivity and log.
@@ -71,16 +72,24 @@ def menu(callobj,headtext='',menulist=[],choicetext='Please select:',changecase=
     >> changecase:boolean [True] = change all choices and codes to upper text
     >> default:str [''] = What to return if nothing selected.
     >> jointxt:str [' = '] = What to join code and description with when listing options.
+    >> confirm:bool [False] = Whether to confirm selection.
     << returns optionkey if appropriate, else True
     '''
     try:### ~ [0] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-        ## ~ [0a] Choice Dictionary ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+        ## ~ [0a] Fill out partial (return) tuples ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+        newlist = []
+        for mtuple in menulist:
+            if len(mtuple) == 2: newlist.append(mtuple + ('return',mtuple[0]))
+            elif len(mtuple) == 3: newlist.append(mtuple + (mtuple[0],))
+            else: newlist.append(mtuple)
+        menulist = newlist
+        ## ~ [0b] Choice Dictionary ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
         choicedict = {}
         for (code,desc,vtype,key) in menulist:
             if not vtype: continue
             if changecase: choicedict[code.upper()] = (vtype,key)
             else: choicedict[code] = (vtype,key)
-        ## ~ [0b] Setup Header Text ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+        ## ~ [0c] Setup Header Text ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
         maxlen = 0
         for line in string.split(headtext,'\n'):
             if len(line) > maxlen: maxlen = len(line)
@@ -107,7 +116,7 @@ def menu(callobj,headtext='',menulist=[],choicetext='Please select:',changecase=
             print mtxt
             while mtxt:
                 try:## ~ Input user choice ~~~ ##
-                    choice = rje.choice(choicetext,default=default)
+                    choice = rje.choice(choicetext,default=default,confirm=confirm)
                     if changecase: choice = choice.upper()
                     ## ~ Process user choice ~ ##
                     if choicedict.has_key(choice):
@@ -132,12 +141,13 @@ def menu(callobj,headtext='',menulist=[],choicetext='Please select:',changecase=
                         elif vtype == 'return': return key
                     print 'Choice "%s" not recognised!\n' % choice
                 except KeyboardInterrupt:
-                    if rje.yesNo('Terminate program?'): raise
+                    if rje.yesNo('Terminate program?'): raise SystemExit
                     if rje.yesNo('Exit menu and proceed?'): return default
                 except: raise
         ### End ###
         return True
     except KeyboardInterrupt: raise
+    except SystemExit: raise
     except:
         if callobj: callobj.errorLog('Major disaster in rje_menu.menu()',quitchoice=True)
         else: raise

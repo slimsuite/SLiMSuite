@@ -19,8 +19,8 @@
 """
 Module:       SLiMFarmer
 Description:  SLiMSuite HPC job farming control program
-Version:      1.4.5
-Last Edit:    05/10/16
+Version:      1.7.0
+Last Edit:    09/05/17
 Copyright (C) 2014  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -84,10 +84,13 @@ Commandline:
     qpath=PATH      : Path to change directory too [current path]
     pause=X         : Wait X seconds before attempting showstart [5]
     email=X         : Email address to email job stats to at end ['']
+    mailstart=T/F   : Whether to email user at start of run [False]
     depend=LIST     : List of job ids to wait for before starting job (dependhpc=X added) []
     dependhpc=X     : Name of HPC system for depend ['blue30.iridis.soton.ac.uk']
     report=T/F      : Pull out running job IDs and run showstart [False]
     modules=LIST    : List of modules to add in job file e.g. blast+/2.2.31,clustalw []
+    modpurge=T/F    : Whether to purge loaded modules in qsub job file prior to loading [True]
+    precall=LIST    : List of additional commands to run between module loading and program call []
 
     ### ~ Main SLiMFarmer Options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     farm=X          : Execute a special SLiMFarm analysis on HPC [batch]
@@ -148,6 +151,9 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 1.4.3 - Added recognition of missing slimsuite programs and switching to slimsuite=F.
     # 1.4.4 - Modified default vmem request to 126GB from 127GB.
     # 1.4.5 - Updated BLAST loading default to 2.2.31
+    # 1.5.0 - mailstart=T/F : Whether to email user at start of run [False]
+    # 1.6.0 - modpurge=T/F : Whether to purge loaded modules in qsub job file prior to loading [True]
+    # 1.7.0 - precall=LIST : List of additional commands to run between module loading and program call []
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -170,7 +176,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copy_right) = ('SLiMFarmer', '1.4.5', 'October 2016', '2014')
+    (program, version, last_edit, copy_right) = ('SLiMFarmer', '1.7.0', 'May 2017', '2014')
     description = 'SLiMSuite HPC job farming control program'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_obj.zen()]

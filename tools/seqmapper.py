@@ -19,8 +19,8 @@
 """
 Module:       SeqMapper
 Description:  Sequence Mapping Program
-Version:      2.1
-Last Edit:    16/04/14
+Version:      2.2.0
+Last Edit:    31/10/17
 Copyright (C) 2006  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -61,8 +61,10 @@ Commandline:
     gablamout=T/F   : Output GABLAM statistics for mapped sequences, including "straight" matches [True]
     append=T/F      : Append rather than overwrite results files [False]
     delimit=X       : Delimiter for *.mapping.* file (will set extension) [tab]
+    basefile=FILE   : Set resfile=FILE and log=FILE at the same time []
 
     ### Mapping Options ###
+    i=X             : Set interactivity. i=-1 full auto. i=0 no menu. i=1 interactive menu. [1]
     mapspec=X       : Maps sequences onto given species code. "Self" = same species as query. "None" = any. [None]
     mapping=LIST    : Possible ways of mapping sequences (in pref order) [Name,AccNum,Sequence,ID,DescAcc,GABLAM,grep]
         - Name = First word of sequence name
@@ -109,17 +111,20 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 1.2 - Added grep method
     # 2.0 - Reworked with new Object format, new BLAST(+) module and new seqlist module.
     # 2.1 - Added catching of failure to read input sequences. Removed 'Run' from GABLAM table.
+    # 2.2.0 - Updated basefile to set resfile.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
     '''
     # [ ] : Update with new modules.
     # [ ] : Add DNA-DNA and DNA-Protein functionality?
+    # [ ] : Add REST outputs.
+    # [ ] : Add keepblast? (Checking whether it works on commandline.)
     '''
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copyright) = ('SeqMapper', '2.0', 'February 2013', '2006')
+    (program, version, last_edit, copyright) = ('SeqMapper', '2.2.0', 'October 2017', '2006')
     description = 'Sequence Mapping Program'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_zen.Zen().wisdom()]
@@ -259,7 +264,7 @@ class SeqMapper(rje_obj.RJE_Object):
                 self._generalCmd(cmd)   ### General Options ### 
                 self._forkCmd(cmd)  # Delete if no forking
                 ### Class Options (No need for arg if arg = att.lower()) ### 
-                #self._cmdRead(cmd,type='str',att='Att',arg='Cmd')  # No need for arg if arg = att.lower()
+                self._cmdRead(cmd,type='file',att='ResFile',arg='basefile')  # No need for arg if arg = att.lower()
                 self._cmdReadList(cmd,'file',['SeqIn','MapDB','ResFile'])  
                 self._cmdReadList(cmd,'str',['MapSpec','MapStat','MapFocus','StartFrom'])
                 self._cmdReadList(cmd,'bool',['Ordered','GablamOut','Combine'])

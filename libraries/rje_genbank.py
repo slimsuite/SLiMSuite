@@ -19,8 +19,8 @@
 """
 Module:       rje_genbank
 Description:  RJE GenBank Module
-Version:      1.5.2
-Last Edit:    05/09/16
+Version:      1.5.3
+Last Edit:    18/12/17
 Copyright (C) 2011  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -75,6 +75,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 1.5.0 - Added setupRefGenome() method based on PAGSAT code.
     # 1.5.1 - Fixed logskip append locus sequence file bug.
     # 1.5.2 - Fixed addtag(s) bug.
+    # 1.5.3 - Fixed https genbank download issue.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -87,7 +88,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copy_right) = ('RJE_GenBank', '1.5.2', 'September 2016', '2011')
+    (program, version, last_edit, copy_right) = ('RJE_GenBank', '1.5.3', 'December 2017', '2011')
     description = 'RJE GenBank Module'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_zen.Zen().wisdom()]
@@ -309,12 +310,12 @@ class GenBank(rje_obj.RJE_Object):
             ## ~ [1a] EFetch URL ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             self.printLog('#FETCH','%s Genbank IDs to download into %s.' % (rje.iLen(uid),self.getStr('SeqIn')))
             if len(uid) > 200: return self.fetchSplitGenbank(uid)
-            baseurl = 'http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nuccore&rettype=gb&retmode=text&id='
+            baseurl = 'https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nuccore&rettype=gb&retmode=text&id='
             fullurl = baseurl + uidstr
             if len(string.split(fullurl)) > 1:
                 self.errorLog('Spaces present in UIDs. Cannot fetch.',printerror=False); return False
             ### ~ [2a] Fetch UID into file ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            if self.getBool('OSX'): os.system('curl "%s" -o "%s"' % (fullurl,self.getStr('SeqIn')))
+            if self.getBool('OSX'): os.system('curl "%s" -k -o "%s"' % (fullurl,self.getStr('SeqIn')))
             else: os.system('wget "%s" -O "%s"' % (fullurl,self.getStr('SeqIn')))
             self.printLog('#FETCH','%s Genbank IDs downloaded into %s.' % (rje.iLen(uid),self.getStr('SeqIn')))
             if rje.exists(self.getStr('SeqIn')) and open(self.getStr('SeqIn'),'r').read().startswith('ID list is empty!'):

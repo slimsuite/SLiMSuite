@@ -19,8 +19,8 @@
 """
 Module:       rje_tree
 Description:  Phylogenetic Tree Module
-Version:      2.14.0
-Last Edit:    19/05/16
+Version:      2.15.0
+Last Edit:    30/07/17
 Copyright (C) 2007  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -70,6 +70,7 @@ Tree Making Commands:
     bootstraps=X    : Number of bootstraps [0]
     clustalw=CMD    : Path to CLUSTALW (and including) program [''] * Use forward slashes (/)
     fasttree=PATH   : Path to FastTree (and including) program ['']
+    iqtree=FULLPATH : Path IQTree program including program ['iqtree']
     phylip=PATH     : Path to PHYLIP programs [''] * Use forward slashes (/)
     phyoptions=FILE : File containing extra Phylip tree-making options ('batch running') to use [None]
     protdist=FILE   : File containing extra Phylip PROTDIST options ('batch running') to use [None]
@@ -83,6 +84,7 @@ Tree Making Commands:
         - protpars = PHYLIP MP method 
         - proml    = PHYLIP ML method
         - fasttree = Use FastTree
+        - iqtree   = Use IQTree
         - PATH     = Alternatively, a path to a different tree program/script can be given. This should accept ClustalW parameters.
 
 Tree Display/Saving Commands
@@ -151,6 +153,8 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 2.12.0 - Added treeLen() method.
     # 2.13.0 - Updated PNG saving with R to use newer code.
     # 2.14.0 - Added cladeSpec().
+    # 2.14.1 - Fixed clustalw2 makeTree issue.
+    # 2.15.0 - Added IQTree.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -188,7 +192,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo():     ### Makes Info object
     '''Makes rje.Info object for program.'''
-    (program, version, last_edit, cyear) = ('RJE_TREE', '2.14.0', 'May 2016', '2007')
+    (program, version, last_edit, cyear) = ('RJE_TREE', '2.15.0', 'July 2017', '2007')
     description = 'RJE Phylogenetic Tree Module'
     author = 'Dr Richard J. Edwards.'
     comments = []
@@ -287,6 +291,8 @@ class Tree(rje.RJE_Object):     ### Class for handling phylogenetic trees.
     - SaveTree = Save a generated tree as FILE [None]
     - SaveType = Format for generated tree file (nsf/text/r/png/bud/cairo) [nsf]
     - OutNames = 'short'/'long' names in output file [short]
+    - IQTree = Path IQTree program including program ['iqtree']
+
                
     Opt:boolean
     - Rooted = Whether tree is rooted
@@ -357,7 +363,7 @@ class Tree(rje.RJE_Object):     ### Class for handling phylogenetic trees.
         '''Sets Attributes of Object.'''
         ### Basics ###
         self.infolist = ['Name','Type','Rooting','RootMethod','GroupSpecies','Grouping','ClustalW','Phylip','PhyOptions',
-                         'ProtDist','CWTree','MakeTree','DisIn','SaveTree','OutNames','SaveType','FastTree']
+                         'ProtDist','CWTree','MakeTree','DisIn','SaveTree','OutNames','SaveType','FastTree','IQTree']
         self.statlist = ['DefLen','RootBuffer','SeqNum','Bootstraps','BootCut','MinFamSize','MinFamNum','TruncNames',
                          'TextScale','SpecDup']
         self.optlist = ['Rooted','ReRooted','Branchlengths','Bootstrapped','QueryGroup','Orphans','AllowVar','Kimura',
@@ -369,7 +375,7 @@ class Tree(rje.RJE_Object):     ### Class for handling phylogenetic trees.
         self._setDefaults(info='None',opt=False,stat=0.0,obj=None,setlist=True,setdict=True)
         self.setInfo({'Type':'Unknown','Rooting':'man','ClustalW':'',
                       'Phylip':'','OutNames':'short','SaveType':'nwk',
-                      'FastTree':''})
+                      'FastTree':'','IQTree':'iqtree'})
         self.setStat({'DefLen':0.1,'TextScale':4,'RootBuffer':0.1,'BootCut':0.7,'MinFamSize':3,'TruncNames':123,'SpecDup':1})
         self.setOpt({'Orphans':True,'Kimura':True,'OutputBranchLen':True,'AutoLoad':True,'SeqNum':False})
         self.list['TreeFormats'] = ['nwk']
@@ -401,7 +407,7 @@ class Tree(rje.RJE_Object):     ### Class for handling phylogenetic trees.
                 self._cmdReadList(cmd,'opt',['Orphans','AllowVar','Kimura','AutoLoad','SeqNum','QryVar'])
                 self._cmdRead(cmd,type='info',att='Grouping',arg='group')
                 self._cmdRead(cmd,type='info',att='GroupSpecies',arg='groupspec')
-                self._cmdReadList(cmd,'file',['CWTree','ClustalW','PhyOptions','ProtDist','MakeTree','DisIn','SaveTree','FastTree'])
+                self._cmdReadList(cmd,'file',['CWTree','ClustalW','PhyOptions','ProtDist','MakeTree','DisIn','SaveTree','FastTree','IQTree'])
                 self._cmdRead(cmd,type='path',att='Phylip')
                 self._cmdRead(cmd,type='int',att='Bootstraps',arg='bootstrap')
                 self._cmdReadList(cmd,'info',['OutNames','SaveType'])
@@ -1364,6 +1370,8 @@ class Tree(rje.RJE_Object):     ### Class for handling phylogenetic trees.
                 print 'Use Kimura multiple hit correction: %s' % self.opt['Kimura']
             if self.info['MakeTree'] in ['fasttree']:
                 print 'FastTree Path: %s' % self.info['FastTree']
+            if self.info['MakeTree'] in ['iqtree']:
+                print 'IQTree Path: %s' % self.info['IQTree']
             ### Options ###
             choicetext = '\n<M>ake Tree, Change <O>ptions'
             choices = ['M','O']
@@ -1392,9 +1400,11 @@ class Tree(rje.RJE_Object):     ### Class for handling phylogenetic trees.
                 if self.info['MakeTree'] in ['clustalw']:
                     self.info['ClustalW'] = rje.choice('ClustalW Path:', self.info['ClustalW'],True)
                     self.opt['Kimura'] = rje.yesNo('Use Kimura multiple hit correction?')
-                if self.info['MakeTree'] in ['fatstree']:
+                if self.info['MakeTree'] in ['fasttree']:
                     self.info['FastTree'] = rje.choice('FastTree Path:', self.info['FastTree'],True)
-            self.makeTreeMenu(interactiveformenu,force,make_seq)            
+                if self.info['MakeTree'] in ['iqtree']:
+                    self.info['FastTree'] = rje.choice('IQTree Path:', self.info['IQTree'],True)
+            self.makeTreeMenu(interactiveformenu,force,make_seq)
         except:
             self.log.errorLog('Major Problem in makeTreeMenu().',True,True)
 #########################################################################################################################
@@ -1521,26 +1531,51 @@ class Tree(rje.RJE_Object):     ### Class for handling phylogenetic trees.
                 ## Finish! ##                
                 os.rmdir(make_id)
             ## ~ [1b] FastTree Tree ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-            elif self.info['MakeTree'] == 'fasttree':
+            elif self.info['MakeTree'] in ['fasttree','iqtree']:
                 infile = '%s_tree.fas' % rje.baseFile(make_seq.info['Name'],True)
                 make_seq.saveFasta(seqfile=infile,name='Short')
-                cpath = rje.makePath(self.info['FastTree'],wholepath=True)
-                seed = random.randint(1,999)
-                command = cpath + ' -boot %d -seed %d %s' % (self.stat['Bootstraps'],seed,infile)
-                if self.v() < 0: command = '%s -quiet' % command
-                self.printLog('#TREE',command)
                 self.info['Name'] = '%s.nsf' % rje.baseFile(make_seq.info['Name'],True)
-                try: self.buildTree(os.popen(command).read(),make_seq,type='nsf')
-                except:
-                    self.errorLog('FastTree build failure. Will try ClustalW instead')
-                    self.info['MakeTree'] = 'clustalw'
-                    self.makeTree(make_seq,keepfile)
-                    self.info['MakeTree'] = 'fasttree'
+                if self.info['MakeTree'] in ['fasttree']:
+                    cpath = rje.makePath(self.info['FastTree'],wholepath=True)
+                    seed = random.randint(1,999)
+                    command = cpath + ' -boot %d -seed %d %s' % (self.stat['Bootstraps'],seed,infile)
+                    if self.v() < 0: command = '%s -quiet' % command
+                    self.printLog('#TREE',command)
+                    try: self.buildTree(os.popen(command).read(),make_seq,type='nsf')
+                    except:
+                        self.errorLog('FastTree build failure. Will try ClustalW instead')
+                        self.info['MakeTree'] = 'clustalw'
+                        self.makeTree(make_seq,keepfile)
+                        self.info['MakeTree'] = 'fasttree'
+                else:
+                    cpath = rje.makePath(self.info['IQTree'],wholepath=True)
+                    seed = random.randint(1,999)
+                    command = cpath + ' -s %s ' % infile
+                    if self.stat['Bootstraps'] >= 100: command = '%s-b %d ' % (command,self.stat['Bootstraps'])
+                    elif self.stat['Bootstraps']:
+                        self.printLog('#BOOT','Boostraps increased from %s to 100 for IQTree.' % self.stat['Bootstraps'])
+                        self.setStat({'Bootstraps':100})
+                        command = '%s-b %d ' % (command,self.stat['Bootstraps'])
+                    if self.v() < 0: command = '%s -quiet' % command
+                    self.printLog('#TREE',command)
+                    if self.v() < 0: os.popen(command).read()
+                    else: os.system(command)
+                    try:
+                        self.debug('%s.treefile' % infile)
+                        self.debug(rje.exists('%s.treefile' % infile))
+                        os.rename('%s.treefile' % infile,self.info['Name'])
+                        self.buildTree(open(self.info['Name']).read(),make_seq,type='nsf')
+                    except:
+                        #!# Need to add file checks and/or cleanup and "redo" option.
+                        self.errorLog('IQTree build failure. Will try ClustalW instead')
+                        self.info['MakeTree'] = 'clustalw'
+                        self.makeTree(make_seq,keepfile)
+                        self.info['MakeTree'] = 'iqtree'
                 if infile != make_seq.info['Name']: os.unlink(infile)
                 if not keepfile and os.path.exists(self.info['Name']): os.unlink(self.info['Name'])
             ## ~ [1c] ClustalW Tree ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             else:
-                if self.info['MakeTree'] == 'clustalw':
+                if self.info['MakeTree'] in ['clustalw','clustalw2']:
                     if make_seq.seqNum() < 4:
                         self.printLog('#TREE','%s has too few sequences (<4) for ClustalW Tree' % make_seq.info['Name'])
                         return self.upgmaIDTree(make_seq)
@@ -2247,7 +2282,7 @@ class Tree(rje.RJE_Object):     ### Class for handling phylogenetic trees.
             for node in self.nodes():
                 if string.split(node.info['Name'],'_')[0] == qry: subfams[node] = qry
                 elif node.obj['Sequence'] and qseq and node.obj['Sequence'].sameSpec(qseq): subfams[node] = 'qry'
-            self.debug(subfams)
+            #self.debug(subfams)
                     
             ### ~ [1] ~ Establish Base of Tree ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             ignore = []     # List of nodes to ignore when expanding tree (not in tree or already expanded)
@@ -2377,7 +2412,6 @@ class Tree(rje.RJE_Object):     ### Class for handling phylogenetic trees.
                 if title: rcmd += ' "%s"' % title
             #rcmd += ' < "%s" > "%s.r.tmp.txt" 2>&1' % (rtree,rje.baseFile(filename))
             rcmd += ' < "%s" > "%s.r.run"' % (rtree,rje.baseFile(filename))
-            if not self.getBool('DeBug') and not self.getBool('Test') and os.path.exists('%s.r.run' % rje.baseFile(filename)): os.unlink('%s.r.run' % rje.baseFile(filename))
             #x#rcmd = string.replace(rcmd,'\\','\\\\')
             self.printLog('#RTREE',rcmd)
             problems = os.popen(rcmd).read()
@@ -2385,6 +2419,7 @@ class Tree(rje.RJE_Object):     ### Class for handling phylogenetic trees.
                 self.errorLog(problems,printerror=False)
                 for ptxt in problems: self.warnLog(ptxt)
             elif rje.exists(filename) and rje.exists(rtreefile) and not (self.getBool('DeBug') or self.getBool('Test')): os.unlink(rtreefile)
+            if not self.getBool('DeBug') and not self.getBool('Test') and os.path.exists('%s.r.run' % rje.baseFile(filename)): os.unlink('%s.r.run' % rje.baseFile(filename))
             return rcmd
         except: self.log.errorLog('Major Problem with Tree.pngTree()')
 #########################################################################################################################

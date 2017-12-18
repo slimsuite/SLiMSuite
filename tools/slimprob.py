@@ -19,8 +19,8 @@
 """
 Program:      SLiMProb
 Description:  Short Linear Motif Probability tool
-Version:      2.2.5
-Last Edit:    07/12/15
+Version:      2.5.1
+Last Edit:    06/09/17
 Citation:     Davey, Haslam, Shields & Edwards (2010), Lecture Notes in Bioinformatics 6282: 50-61. 
 Copyright (C) 2007  Richard J. Edwards - See source code for GNU License Notice
 
@@ -93,6 +93,7 @@ Commandline: ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     background=FILE : Use observed support in background file for over-representation calculations [None]
     smearfreq=T/F   : Whether to "smear" AA frequencies across UPC rather than keep separate AAFreqs [False]
     seqocc=X        : Restrict to sequences with X+ occurrences (adjust for high frequency SLiMs) [1]
+    mergesplits=T/F : Whether to merge split SLiMs for recalculating statistics. (Assumes unique RunIDs) [True]
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
     ### Output Options ###
     extras=X        : Whether to generate additional output files (alignments etc.) [2]
@@ -120,7 +121,7 @@ import pickle, os, string, sys, time
 sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)),'../libraries/'))
 sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)),'../tools/'))
 ### User modules - remember to add *.__doc__ to cmdHelp() below ###
-import rje, rje_seq, rje_sequence, rje_scoring, rje_slim, rje_slimcore, rje_slimcalc, rje_slimlist, rje_zen
+import rje, rje_db, rje_seq, rje_sequence, rje_scoring, rje_slim, rje_slimcore, rje_slimcalc, rje_slimlist, rje_zen
 #########################################################################################################################
 def history():  ### Program History - only a method for PythonWin collapsing! ###
     '''
@@ -137,6 +138,10 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 2.2.3 - Tweaked basefile setting and citation.
     # 2.2.4 - Improved slimcalc output (s.f.).
     # 2.2.5 - Fixed FTMask=T/F bug.
+    # 2.3.0 - Recombining Split Motifs (mergesplits=T). Cannot be combined efficiently with append=T. (Overwrites split table.)
+    # 2.4.0 - Added AccNum to occ output for SLiMEnrich compatibility.
+    # 2.5.0 - Added map and failed outputs for uniprotid=LIST input.
+    # 2.5.1 - Updated resfile to be set by basefile if no resfile=X setting given.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -153,7 +158,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
     # [ ] : Generally tidy up use of force/debug/test/warn/dev/v/i options. Improve error handling and checking.
     # [Y] : Adjust the maxsize=X setting to be enforced AFTER masking!
     # [ ] : Make slimsearch variant (prog=slimsearch efilter=F)
-    # [ ] : ResFile default is currently over-ruling basefile=X. Change and test that REST server is still OK.
+    # [Y] : ResFile default is currently over-ruling basefile=X. Change and test that REST server is still OK.
     # [ ] : Add pickup=T/F option, as with SLiMFinder.
     # [ ] : Add maxupc=X        : Maximum UPC size of dataset to process [0]
     # [ ] : Review masking defaults.
@@ -161,7 +166,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo():     ### Makes Info object
     '''Makes rje.Info object for program.'''
-    (program, version, last_edit, copyyear) = ('SLiMProb', '2.2.5', 'December 2015', '2007')
+    (program, version, last_edit, copyyear) = ('SLiMProb', '2.5.1', 'September 2017', '2007')
     description = 'Short Linear Motif Probability tool'
     author = 'Dr Richard J. Edwards.'
     comments = ['Please cite: Davey, Haslam, Shields & Edwards (2010), Lecture Notes in Bioinformatics 6282: 50-61.']
@@ -249,6 +254,7 @@ class SLiMProb(rje_slimcore.SLiMCore):
     - Masking = Master control switch to turn off all masking if False [True]
     - MaskM = Masks the N-terminal M (can be useful if termini=T) [False]
     - MaskFreq = Whether to mask input before any analysis, or after frequency calculations [True]
+    - MergeSplits=T/F : Whether to merge split SLiMs for recalculating statistics. (Assumes unique RunIDs) [True]
     - OccUPC = Whether to output the UPC ID number in the occurrence output file [False]
     - Pickle = Whether to save/use pickles [True]
     - SmearFreq = Whether to "smear" AA frequencies across UPC rather than keep separate AAFreqs [False]
@@ -298,7 +304,7 @@ class SLiMProb(rje_slimcore.SLiMCore):
         self.strlist = ['AAFreq','AltDis','BuildPath','CaseMask','CompMask','GablamDis','Input','ResDir','ResFile',
                          'RunID','Background']
         self.boollist = ['DisMask','Force','EFilter','LogMask','Masked','Masking','MaskM','MaskFreq','SmearFreq',
-                        'TarGZ','Teiresias','ConsMask','Pickle','OccUPC']
+                        'TarGZ','Teiresias','ConsMask','Pickle','OccUPC','MergeSplits']
         self.numlist = ['MST','StartTime','WallTime']
         self.intlist = ['MaxSeq','SaveSpace','HomCut','SeqOcc','MaxSize','MaxOcc']
         self.listlist = ['AAMask','Alphabet','Batch','FTMask','Headers','IMask','NewScore','OccFilter','OccHeaders','OccStats',
@@ -309,9 +315,9 @@ class SLiMProb(rje_slimcore.SLiMCore):
         self._setDefaults(str='None',bool=True,num=0.0,int=0,obj=None,setlist=True,setdict=True)
         self.coreDefaults()
         self.setStr({'BuildPath':rje.makePath('SLiMProb/'),'CompMask':'None',
-                      'ResDir':rje.makePath('SLiMProb/'),'ResFile':'slimprob.csv'})
+                      'ResDir':rje.makePath('SLiMProb/')})
         self.setInt({'SeqOcc':1,'MaxSeq':0,'MaxSize':1e5,'Extras':2})
-        self.setBool({'ConsMask':False,'EFilter':True,'MaskM':False,'DisMask':False,'Masking':True})
+        self.setBool({'ConsMask':False,'EFilter':True,'MaskM':False,'DisMask':False,'Masking':True,'MergeSplits':True})
         self.dict['MaskPos'] = {}
         t = time.localtime(time.time())
         self.setStr({'Date': '%s%s%s-%s:%s' % (str(t[0])[-2:],rje.preZero(t[1],12),rje.preZero(t[2],31),rje.preZero(t[3],24),rje.preZero(t[4],60))})
@@ -335,11 +341,11 @@ class SLiMProb(rje_slimcore.SLiMCore):
                 self._cmdReadList(cmd,'path',['ResDir'])
                 self._cmdReadList(cmd,'str',['CaseMask','CompMask','RunID'])
                 self._cmdReadList(cmd,'bool',['DisMask','Force','EFilter','LogMask','Masked','Masking','MaskM',
-                                             'MaskFreq','SmearFreq','TarGZ','Teiresias','OccUPC'])
+                                             'MaskFreq','SmearFreq','TarGZ','Teiresias','OccUPC','MergeSplits'])
                 self._cmdReadList(cmd,'int',['MaxSeq','MaxSize','SaveSpace','HomCut','SeqOcc','MaxOcc','Extras'])
                 self._cmdReadList(cmd,'num',['MST','WallTime'])
                 self._cmdRead(cmd,'int','MaxSize','maxaa')
-                self._cmdReadList(cmd,'list',['Batch'])
+                self._cmdReadList(cmd,'glist',['Batch'])
             except: self.errorLog('Problem with cmd:%s' % cmd)
 #########################################################################################################################
     ### <2> ### Simple Stats Methods                                                                                    #
@@ -386,6 +392,8 @@ class SLiMProb(rje_slimcore.SLiMCore):
             self.setupSeqIn()
             if self.background(): self.printLog('#BACK','Background data from "%s" successful' % self.getStr('Background'))
             self.setupBasefile()
+            self.setupResults()
+            if self.getBool('Append') and self.getBool('MergeSplits') and not batch: self.warnLog('Warning: append=T. Results compression assumes unique RunID fields per run.')
             ## ~ [1a] Batch Mode ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             if not batch and self.seqNum() < 1:   # No sequences loaded - use batch mode
                 batchfiles = rje.getFileList(self,filelist=self.list['Batch'],subfolders=False,summary=True,filecount=0)
@@ -406,9 +414,9 @@ class SLiMProb(rje_slimcore.SLiMCore):
                         self.setBool({'Append':True})
                         bx += 1
                         self.printLog('#BATCH','|---------- %s run <<<|>>> %s to go -----------|' % (rje.integerString(bx),rje.integerString(len(batchfiles)-bx)),log=False)
+                if self.getBool('MergeSplits') and not batch: self.mergeMotifStats()
                 if self.getBool('Win32') and len(sys.argv) < 2: self.verbose(0,0,'Finished!',1) # Optional pause for win32
                 return
-            self.setupResults()                 
             self.backupOrCreateResFile()
             ## ~ [1b] Check whether to bother running dataset at all - Check Input versus Min and Max Seq ~~~ ##
             if 0 < self.getInt('MaxSeq') < self.seqNum():
@@ -462,6 +470,7 @@ class SLiMProb(rje_slimcore.SLiMCore):
             targz = '%s.tgz' % self.runBase()
             if self.getBool('TarGZ') and not self.getBool('Win32') and rje.exists(targz):
                 self.printLog('#TGZ','Additional dataset results tarred to %s' % targz)
+            if self.getBool('MergeSplits') and not batch: self.mergeMotifStats()        # Developmental method to reverse motif splitting (append=F)
             if self.getBool('Win32') and len(sys.argv) < 2 and not batch: self.verbose(0,0,'Finished!',1)
             return True
         except KeyboardInterrupt: raise  # Killed
@@ -588,6 +597,7 @@ class SLiMProb(rje_slimcore.SLiMCore):
                         occ['RunID'] = self.getStr('RunID')
                         occ['Masking'] = self.maskText()
                         occ['Seq'] = seq.shortName()
+                        occ['AccNum'] = seq.getStr('AccNum')
                         occ['Start_Pos'] = max(1,occ['Pos'])
                         occ['End_Pos'] = occ['Start_Pos'] + len(occ['Match']) - 1
                         occ['Prot_Len'] = seq.aaLen()
@@ -646,6 +656,104 @@ class SLiMProb(rje_slimcore.SLiMCore):
                 rje.delimitedFileOutput(self,self.getStr('SummaryFile'),self.resHead(),datadict=datadict)
             self.printLog('#OUT','Summary data for %s saved to %s' % (self.dataset(),self.getStr('SummaryFile')))
         except: self.errorLog('Error in combMotifOccStats()')
+#########################################################################################################################
+    def mergeMotifStats(self):   ### Developmental method to reverse motif splitting (append=F)
+        '''Developmental method to reverse motif splitting (append=F).'''
+        try:### ~ [0] Setup method ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            ## ~ [0a] Check settings for compression requirement ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            slimdict = self.obj['SlimList'].slimDict(corelist=True)     #i# Returns {corename:[SLiMs]}
+            if len(slimdict) == self.slimNum():
+                self.printLog('#CORES','%s SLiM core names for %s SLiMs: no compression required.' % (rje.iLen(slimdict),rje.iStr(self.slimNum())))
+                return False
+            ## ~ [0b] Set up IO ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            resfile = self.getStr('ResFile')
+            self.debug('%s: %s' % (resfile,os.path.exists(resfile)))
+            reshead = self.resHead('OccHeaders')    # Fields: self.resHead('OccHeaders')
+            rescopy = rje.baseFile(resfile) + '.split.' + string.split(resfile,'.')[-1]
+            reskeys = ['Dataset','RunID','Motif','Seq','Start_Pos','End_Pos']
+            sumfile = self.getStr('SummaryFile')    # Fields: self.resHead()
+            self.debug('%s: %s' % (sumfile,os.path.exists(sumfile)))
+            sumhead = self.resHead()
+            sumkeys = ['Dataset','RunID','Motif']
+            sumcopy = rje.baseFile(sumfile) + '.split.' + string.split(sumfile,'.')[-1]
+            ## ~ [0c] Make copies of split results files ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            rje.backup(self,rescopy,unlink=True,appendable=False,warning='Warning: old split motif data from previous runs will be lost if overwritten.')
+            os.rename(resfile,rescopy)
+            rje.backup(self,sumcopy,unlink=True,appendable=False,warning='Warning: old split motif data from previous runs will be lost if overwritten.')
+            os.rename(sumfile,sumcopy)
+            ## ~ [0d] Set up data types for reformatting and compression ~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            #Dataset	RunID	Masking	Motif	Seq	Start_Pos	End_Pos	Prot_Len	Pattern	Match	Variant	MisMatch	Desc	UPC
+            #Dataset	RunID	Masking	RunTime	SeqNum	UPNum	AANum	Motif	Pattern	IC	N_Occ	E_Occ	p_Occ	pUnd_Occ	N_Seq	E_Seq	p_Seq	pUnd_Seq	N_UPC	E_UPC	p_UPC	pUnd_UPC
+            dataformats = {}; compression = {}
+            for field in reshead + sumhead + ['SplitN']:
+                # Integers to max
+                if field in ['Start_Pos','End_Pos','Prot_Len','MisMatch','SeqNum','UPNum','AANum']:
+                    dataformats[field] = 'int'
+                    compression[field] = 'max'
+                # Integers to sum
+                if string.split(field,'_')[0] in ['N'] or field == 'SplitN':
+                    dataformats[field] = 'int'
+                    compression[field] = 'sum'
+                # Floats to max
+                if field in ['Cons','SA','Hyd','Fold','IUP','Comp']:
+                    dataformats[field] = 'float'
+                    compression[field] = 'max'
+                # Integers to mean
+                if field in []:
+                    dataformats[field] = 'int'
+                    compression[field] = 'mean'
+                # Floats to mean
+                if field in ['IC'] or string.split(field,'_')[-1] in ['mean'] or string.split(field,'_')[0] in ['p','pUnd']:
+                    dataformats[field] = 'float'
+                    compression[field] = 'mean'
+                # Floats to sum
+                if string.split(field,'_')[0] in ['E']:
+                    dataformats[field] = 'float'
+                    compression[field] = 'sum'
+                # Text to list
+                if field in ['Pattern']:
+                    compression[field] = 'list'
+            ### ~ [1] Load data ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            ## ~ [1a] Set up Database object and Tables ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            db = rje_db.Database(self.log,self.cmd_list+['tuplekeys=T'])
+            resdb = db.addTable(filename=rescopy,mainkeys=reskeys,ignore=['#'],name='Occ',expect=True)
+            sumdb = db.addTable(filename=sumcopy,mainkeys=sumkeys,ignore=['#'],name='Summary',expect=True)
+            ## ~ [1b] Replace Motif with core ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            for table in [resdb,sumdb]:
+                #i# Reformat data. This has to happen before changing motif names to keep the keys the same.
+                table.dataFormat(dataformats)
+                #i# Update Motif data with core: this should not change the table keys.
+                for entry in table.entries():
+                    entry['Motif'] = self.obj['SlimList'].slimCoreName(entry['Motif'])
+                #i# Add SplitN=1 and sum this for each entry (replace if already present)
+                if not 'SplitN' in table.fields(): table.addField('SplitN',evalue=1)
+                else: table.fillBlanks(blank=1,fields=['SplitN'],fillempty=True,prog=True,log=True)
+            ## ~ [1c] Compress tables ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            preresx = resdb.entryNum()
+            resdb.compress(reskeys,rules=compression)
+            self.printLog('#SPLIT','%s split motif occurrences => %s merged occurrences.' % (rje.iStr(preresx),rje.iStr(resdb.entryNum())))
+            presumx = sumdb.entryNum()
+            sumdb.compress(sumkeys,rules=compression)
+            self.printLog('#SPLIT','%s split motif summaries => %s merged summaries.' % (rje.iStr(presumx),rje.iStr(sumdb.entryNum())))
+            ### ~ [2] Update the statistics ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            ex = 0.0; etot = sumdb.entryNum(); ux = 0; sx = 0
+            for entry in sumdb.entries():
+                if not type(entry['SplitN']) == int:
+                    self.warnLog('Non-integer SplitN value: %s' % entry)
+                    entry['SplitN'] = int(entry['SplitN'])
+                self.progLog('#RECALC','Recalculating merged SLiM probabilities: %.1f%%.' % (ex/etot)); ex += 100.0
+                if entry['SplitN'] < 1: raise ValueError('SplitN calculation error! SplitN=0.')
+                if entry['SplitN'] < 2: continue
+                # Recalculate combined stats when SplitN > 1
+                for calc in ['Occ','Seq','UPC']:
+                    entry['p_%s' % calc] = rje_slim.expectString(rje.poisson(entry['N_%s' % calc],entry['E_%s' % calc],callobj=self))
+                    entry['pUnd_%s' % calc] = rje_slim.expectString(max(0.0,1.0 - rje.poisson(entry['N_%s' % calc]+1,entry['E_%s' % calc],callobj=self)))
+                ux += 1; sx += entry['SplitN']
+            self.printLog('#RECALC','Recalculated %s merged SLiM probabilities (%s sub-motifs)' % (rje.iStr(ux),rje.iStr(sx)))
+            ### ~ [3] Re-output results ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            resdb.saveToFile(resfile)
+            sumdb.saveToFile(sumfile)
+        except: self.errorLog('Error in mergeMotifStats()')
 #########################################################################################################################
     ### <6> ### SLiMChance Probability Methods                                                                          #
 #########################################################################################################################
@@ -935,7 +1043,7 @@ class SLiMProb(rje_slimcore.SLiMCore):
             self.list['Headers'] = ['Motif','Pattern','IC']
             for lvl in ['Occ','Seq','UPC']:
                 for s in ['N','E','p','pUnd']: self.list['Headers'].append('%s_%s' % (s,lvl))
-            self.list['OccHeaders'] = ['Motif','Seq','Start_Pos','End_Pos','Prot_Len','Pattern','Match','Variant','MisMatch','Desc']
+            self.list['OccHeaders'] = ['Motif','Seq','AccNum','Start_Pos','End_Pos','Prot_Len','Pattern','Match','Variant','MisMatch','Desc']
             if self.getBool('OccUPC'): self.list['OccHeaders'].append('UPC')
             if slist.opt['Peptides']: self.list['OccHeaders'] += ['PepSeq','PepDesign']
 
@@ -1165,6 +1273,8 @@ class SLiMProb(rje_slimcore.SLiMCore):
         if self.extras(2): output += ['mapping','motifaln','maskaln']
         if self.extras(3): output += ['dismatrix']
         if self.extras(0): output += ['slimdb','seqin']
+        for outfmt in ['map','failed']:
+            if outfmt in self.dict['Output']: output.append(outfmt)
         return output
 #########################################################################################################################
 ### End of SECTION II: SLiMProb Class                                                                                 #

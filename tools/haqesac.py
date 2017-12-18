@@ -19,8 +19,8 @@
 """
 Program:      HAQESAC
 Description:  Homologue Alignment Quality, Establishment of Subfamilies and Ancestor Construction
-Version:      1.10.2
-Last Edit:    28/03/15
+Version:      1.11.0
+Last Edit:    31/10/17
 Citation:     Edwards et al. (2007), Nature Chem. Biol. 3(2):108-112. [PMID: 17220901]
 Copyright (C) 2007  Richard J. Edwards - See source code for GNU License Notice
 
@@ -48,8 +48,14 @@ Function:
     Sequence Prediction) algorithm (Edwards & Shields 2005)
 
     By default, HAQESAC will perform all these operations. However, it is possible to turn one or more off and only, for
-    example, reject individually badly aligned sequences, if desired. Details can be found in the Manual and at the website:
-    http://www.southampton.ac.uk/~re1u06/software/packages/seqsuite/.
+    example, reject individually badly aligned sequences, if desired. Details can be found in the Manual:
+    https://github.com/slimsuite/SLiMSuite/blob/master/docs/manuals/HAQESAC%20Manual.pdf.
+
+    HAQESAC outputs can be controlled by d=X:
+    0 - *.fas, *.grp, *.nwk, *.tree.txt, *.png, *.anc.*
+    1 - *.bak (seqin), *.clean.fas, *.haq.fas, *.degap.fas
+    2 - *.saq.*.fas, *.paq.*.fas, *.scanseq.fas
+    3 - *.saqx.*.fas
 
 Commandline Options:
     # General Dataset Input/Output Options # 
@@ -60,7 +66,8 @@ Commandline Options:
     basefile=X  : Basic 'root' for all files X.* [By default will use 'root' of seqin=FILE if given or haq_AccNum if qblast]
     v=X         : Sets verbosity (-1 for silent) [0]
     i=X         : Sets interactivity (-1 for full auto) [0]
-    d=X         : Data output level (0-3) [1]
+    d=X         : Data output level (0-3, see docstring) [1]
+    resdir=PATH : Output directory for d>0 outputs [./HAQESAC/]
     log=FILE    : Redirect log to FILE [Default = calling_program.log or basefile.log]
     newlog=T/F  : Create new log file. [Default = False: append log file]
     multihaq=T/F: If pickle present, will load and continue, else will part run then pickle and stop [False]
@@ -217,6 +224,8 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 1.10- Added exceptions for BLAST failure.
     # 1.10.1 - Tweaked QryVar interactivity.
     # 1.10.2 - Corrected typos and disabled buggy post-HAQESAC data reduction.
+    # 1.10.3 - Added catching of bad query when i=-1.
+    # 1.11.0 - Added resdir=PATH [./HAQESAC/] for d>0 outputs.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -227,11 +236,15 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
     # [ ] : Make sure that HAQESAC is checking sequence numbers and quitting if appropriate. (Too few for alignment/tree)
     # [ ] : Fix the bug that gives dodgy output after saving "full" copies of files. (Remove this function.)
     # [ ] : Add memory of selection choices for group sequence selection.
+    # [ ] : Fix SeqNR bug.
+    # [ ] : Fix i=1 bug.
+    # [ ] : Add REST output.
+    # [ ] : Convert to new object type.
     '''
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, cyear) = ('HAQESAC', '1.10.2', 'March 2015', '2005')
+    (program, version, last_edit, cyear) = ('HAQESAC', '1.11.0', 'October 2017', '2005')
     description = 'Homologue Alignment Quality, Establishment of Subfamilies and Ancestor Construction'
     author = 'Dr Richard J. Edwards.'
     comments = ['Cite: Edwards RJ et al. (2007) Nature Chem. Biol. 3(2):108-112.']
@@ -297,6 +310,7 @@ class HAQESAC(rje.RJE_Object):
     - QryBlast = BLAST database against which to BLAST query (see rje_blast.py options) [None]
     - QryFastaCmd = Extract query X from qblast database using fastacmd (may also need query=X) [None]
     - QryRegion = X,Y : Concentrate on the region of the query from (and including) residue X to residue Y
+    - ResDir=PATH : Output directory for d>0 outputs [./HAQESAC/]
 
     Opt:boolean
     - Backup = Whether to store backup of original input file (*.fas.bak)
@@ -334,7 +348,7 @@ class HAQESAC(rje.RJE_Object):
     def _setAttributes(self):   ### Sets Attributes of Object
         '''Sets Attributes of Object.'''
         ### Basics ###
-        self.infolist = ['Name','Type','Basefile','QrySeqFile','QryBlast','QryFastaCmd','QryRegion']
+        self.infolist = ['Name','Type','Basefile','QrySeqFile','QryBlast','QryFastaCmd','QryRegion','ResDir']
         self.statlist = ['BlastCut','PairID','QryID','CWCut','DataLevel','QCover']
         self.optlist = ['Backup','KeepAll','UseAln','GABLAM','GABSim','CleanUp','HAQ','SAQ','PrePAQ','PAQ','ES','AC','MultiHAQ','QSpec']
         self.objlist = ['SeqList','Tree','HAQ','GASP']
@@ -342,7 +356,7 @@ class HAQESAC(rje.RJE_Object):
         self.dictlist = []
         ### Defaults ###
         self._setDefaults(info='None',opt=True,stat=0.0,obj=None)   #,setlist=True,setdict=True)
-        self.setInfo({'QryRegion':'0,-1'})
+        self.setInfo({'QryRegion':'0,-1','ResDir':rje.makePath('./HAQESAC/')})
         self.setStat({'QCover':60.0,'QryID':40.0,'CWCut':0,'DataLevel':1})
         self.setOpt({'KeepAll':False,'UseAln':False,'MultiHAQ':False})
         ### Other Attributes ###
@@ -363,6 +377,7 @@ class HAQESAC(rje.RJE_Object):
                 self._cmdRead(type='info',att='Basefile',cmd=cmd)
                 self._cmdRead(type='int',att='BlastCut',arg='blastcut',cmd=cmd)
                 self._cmdReadList(cmd,'perc',['QryID','PairID','QCover'])
+                self._cmdReadList(cmd,'path',['ResDir'])
                 self._cmdRead(type='stat',att='CWCut',arg='cwcut',cmd=cmd)
                 self._cmdRead(type='int',att='DataLevel',arg='d',cmd=cmd)
                 self._cmdReadList(cmd,'opt',['Backup','MultiHAQ','QSpec'])
@@ -442,7 +457,8 @@ class HAQESAC(rje.RJE_Object):
             _stage = '<1d> Backup'
             if self.opt['Backup'] and rje.checkForFile(self.obj['SeqList'].info['Name']) and self.stat['DataLevel'] > 0:
                 try:
-                    BAK = open('%s.bak' % self.obj['SeqList'].info['Name'], 'w')
+                    bakfile = '%s%s.bak' % (self.getStr('ResDir'),self.obj['SeqList'].info['Name'])
+                    BAK = open(bakfile, 'w')
                     FAS = open(self.obj['SeqList'].info['Name'], 'r')
                     BAK.writelines(FAS.readlines())
                     BAK.close()
@@ -467,7 +483,7 @@ class HAQESAC(rje.RJE_Object):
             ### <4> ### GASP
             _stage = '<4> GASP'
             if self.opt['AC']:
-                self.obj['GASP'] = rje_ancseq.Gasp(tree=self.obj['Tree'],ancfile=self.info['Basefile'],cmd_list=seqcmd+['autofilter=F'],log=self.log)
+                self.obj['GASP'] = rje_ancseq.Gasp(tree=self.obj['Tree'],ancfile='%s%s' % (self.getStr('ResDir'),self.info['Basefile']),cmd_list=seqcmd+['autofilter=F'],log=self.log)
         except SystemExit:
             sys.exit()
         except:
@@ -560,6 +576,7 @@ class HAQESAC(rje.RJE_Object):
             _stage = '<0> Setup'
             #if self.stat['Interactive'] >= 1:
             #    self.runMenu() #!' Include Manual sequence review!
+            rje.mkDir(self,self.getStr('ResDir'))
             haqpickle = self.unpickleMe()
             if haqpickle and not self.opt['MultiHAQ'] and self.i() >= 0 and not rje.yesNo('HAQESAC pickle found and extracted. Would you like to use this and continue the previous analysis?'): haqpickle = None
             self.opt['MultiKill'] = self.opt['MultiHAQ'] and not haqpickle  # Conditions to pickle then die!
@@ -580,6 +597,8 @@ class HAQESAC(rje.RJE_Object):
             if 'TreeFormats' not in tree.list: tree.list['TreeFormats'] = ['te','nsf','text','png']
             if not haqpickle and not haq.opt['NoQuery']:
                 if seqlist.obj['QuerySeq'] == None:
+                    if self.i() < 0:
+                        raise IOError('Query "%s" not found and noquery=F. Quitting HAQESAC.' % seqlist.getStr('Query'))
                     if rje.yesNo('No Query given but noquery=F. Use %s as query sequence?' % seqlist.seq[0].shortName()):
                         seqlist.obj['QuerySeq'] = seqlist.seq[0]
                         self.log.printLog('#QRY','Query Sequence = %s.' % seqlist.obj['QuerySeq'].shortName())
@@ -595,7 +614,7 @@ class HAQESAC(rje.RJE_Object):
             if self.opt['CleanUp'] and not haqpickle:
                 seqlist = self.cleanUp()
                 if self.stat['DataLevel'] > 0:
-                    seqlist.saveFasta(seqfile='%s.clean.fas' % self.info['Basefile'])
+                    seqlist.saveFasta(seqfile='%s%s.clean.fas' % (self.getStr('ResDir'),self.info['Basefile']))
                 
             self.stat['QryID'] = 0  # No Need to repeat this!
 
@@ -623,17 +642,17 @@ class HAQESAC(rje.RJE_Object):
                     if self.stat['DataLevel'] > 2:
                         if self.opt['UseAln'] == False:
                             seqlist.tidyGaps(key='SAQX')
-                        haq.saveHAQ(seqlist,filename='%s.saqx.%d.fas' % (self.info['Basefile'],haq.stat['SAQCyc']),key='SAQX')
+                        haq.saveHAQ(seqlist,filename='%s%s.saqx.%d.fas' % (self.getStr('ResDir'),self.info['Basefile'],haq.stat['SAQCyc']),key='SAQX')
                     if self.stat['DataLevel'] > 1:
                         if self.opt['UseAln'] == False:
                             seqlist.tidyGaps(key='SAQ')
-                        haq.saveHAQ(seqlist,filename='%s.saq.%d.fas' % (self.info['Basefile'],haq.stat['SAQCyc']),key='SAQ')
+                        haq.saveHAQ(seqlist,filename='%s%s.saq.%d.fas' % (self.getStr('ResDir'),self.info['Basefile'],haq.stat['SAQCyc']),key='SAQ')
                 if self.opt['UseAln'] == False:
                     seqlist.tidyGaps()
                 if self.stat['DataLevel'] > 0:
                     if self.opt['UseAln'] == False:
                         seqlist.tidyGaps(key='SAQ')
-                    haq.saveHAQ(seqlist,filename='%s.haq.fas' % self.info['Basefile'],key='SAQ')
+                    haq.saveHAQ(seqlist,filename='%s%s.haq.fas' % (self.getStr('ResDir'),self.info['Basefile']),key='SAQ')
                 self.verbose(0,1,'\nFinished Single Sequence Alignment Quality (%d Cycles):\n => %d of %d sequences retained.' % (haq.stat['SAQCyc'],seqnum[-1],seqnum[1]),1)
                 seqlist.saveFasta()
 
@@ -666,10 +685,10 @@ class HAQESAC(rje.RJE_Object):
                         self.log.printLog('#HAQ','SAQ%d: %d -> %d sequences.' % (haq.stat['SAQCyc'],seqnum[-2],seqnum[-1]))
                         if self.stat['DataLevel'] > 2:
                             if self.opt['UseAln'] == False: seqlist.tidyGaps(key='SAQX')
-                            haq.saveHAQ(seqlist,filename='%s.saqx.%d.fas' % (self.info['Basefile'],haq.stat['SAQCyc']),key='SAQX')
+                            haq.saveHAQ(seqlist,filename='%s%s.saqx.%d.fas' % (self.getStr('ResDir'),self.info['Basefile'],haq.stat['SAQCyc']),key='SAQX')
                         if self.stat['DataLevel'] > 1:
                             if self.opt['UseAln'] == False: seqlist.tidyGaps(key='SAQ')
-                            haq.saveHAQ(seqlist,filename='%s.saq.%d.fas' % (self.info['Basefile'],haq.stat['SAQCyc']),key='SAQ')
+                            haq.saveHAQ(seqlist,filename='%s%s.saq.%d.fas' % (self.getStr('ResDir'),self.info['Basefile'],haq.stat['SAQCyc']),key='SAQ')
                         seqnum[-1] = seqlist.seqNum()
                         if seqnum[-2] != seqnum[-1]: continue   # Dumped seqs at SAQ - continue                            
                     ## <iii> ## PAQ
@@ -681,7 +700,7 @@ class HAQESAC(rje.RJE_Object):
                         self.log.printLog('#HAQ','PAQ%d: %d -> %d sequences.' % (haq.stat['PAQCyc'],seqnum[-2],seqnum[-1]))
                         if self.stat['DataLevel'] > 1:
                             if self.opt['UseAln'] == False: seqlist.tidyGaps(key='PAQ')
-                            haq.saveHAQ(seqlist,filename='%s.paq.%d.fas' % (self.info['Basefile'],haq.stat['PAQCyc']),key='SAQ')
+                            haq.saveHAQ(seqlist,filename='%s%s.paq.%d.fas' % (self.getStr('ResDir'),self.info['Basefile'],haq.stat['PAQCyc']),key='SAQ')
                     ## <iv> ## PostPAQ
                     while self.opt['PrePAQ'] and seqnum[-2] == seqnum[-1]:
                         if self.i() < 0 or rje.yesNo('*** No Sequences lost. Accept %d seqs (%d Groups)?' % (seqlist.seqNum(),tree.groupNum())): break
@@ -693,7 +712,7 @@ class HAQESAC(rje.RJE_Object):
                     seqlist.tidyGaps()
                 if self.stat['DataLevel'] > 0:
                     if self.opt['UseAln'] == False and self.opt['PAQ']: seqlist.tidyGaps(key='PAQ')
-                    haq.saveHAQ(seqlist,filename='%s.haq.fas' % self.info['Basefile'],key='PAQ')
+                    haq.saveHAQ(seqlist,filename='%s%s.haq.fas' % (self.getStr('ResDir'),self.info['Basefile']),key='PAQ')
                 self.verbose(0,1,'\nFinished Pairwise Alignment Quality (%d Cycles):\n => %d of %d sequences retained.' % (haq.stat['PAQCyc'],seqnum[-1],seqnum[1]),1)
                 seqlist.saveFasta()
                     
@@ -710,7 +729,7 @@ class HAQESAC(rje.RJE_Object):
                     tree._reviewGroups(interactive=self.stat['Interactive'])  
                     if tree._orphanCount() > 0 and tree.opt['Orphans'] == False:
                         if self.stat['Interactive'] < 0 or rje.yesNo('Remove Sequences not in a subgroup?'):
-                            tree._purgeOrphans
+                            tree._purgeOrphans()
                     tree._saveGroups(filename='%s.grp' % self.info['Basefile'],groupnames=True)
                     tree._reorderSeqToGroups()
                     seqnum = seqlist.seqNum()
@@ -728,14 +747,21 @@ class HAQESAC(rje.RJE_Object):
                 if self.stat['Interactive'] > 0 and not rje.yesNo('Use these parameters?'):
                     self.obj['GASP'].edit()
                 if not self.opt['ES'] and not self.opt['HAQ']:
-                    tree.loadTree(file='%s.nsf' % self.info['Basefile'],seqlist=seqlist)
-                self.obj['GASP'].gasp()
+                    if rje.exists('%s.nsf' % self.info['Basefile']):
+                        tree.loadTree(file='%s.nsf' % self.info['Basefile'],seqlist=seqlist)
+                    elif rje.exists('%s.nwk' % self.info['Basefile']):
+                        tree.loadTree(file='%s.nwk' % self.info['Basefile'],seqlist=seqlist)
+                    else:
+                        self.errorLog('Cannot finf *.nwk or *.nsf: no GASP analysis',printerror=False)
+                        self.setBool({'AC':False})
+                if self.getBool('AC') and self.obj['SeqList'].seqNum() > 2: self.obj['GASP'].gasp()
 
             ### <5> ### Final Data Adjustments
             _stage = '<5> Final Data Adjustments'
             #!# Add option to save full and cut-down #!#
             #!# NOTE: this is not really working
             if self.dev() and self.opt['ES'] and self.stat['Interactive'] > -1 and self.obj['SeqList'].seqNum() > 2 and rje.yesNo('Save *.full.* backup and reduce groups for further analysis (BADASP etc.)?',default='N'):
+                #!# Add output of this to self.getStr('ResDir')
                 seqlist.saveFasta(seqfile='%s.full.fas' % self.info['Basefile'])
                 tree.info['Basefile'] = '%s.full' % self.info['Basefile'] 
                 try: tree.saveTrees()
@@ -759,17 +785,19 @@ class HAQESAC(rje.RJE_Object):
                 if self.opt['AC']:
                     tree.ancSeqOut(file='%s.anc.fas' % self.info['Basefile'],ordered=self.obj['GASP'].opt['Ordered'])
             ### Adjust other data output ###
-            if self.stat['DataLevel'] > 0:
-                seqlist.saveScanSeq()
+            if self.stat['DataLevel'] > 1:
+                seqlist.saveScanSeq(seqfile='%s%s.scanseq.fas' % (self.getStr('ResDir'),self.baseFile()))
                 seqlist.degapSeq(log=False)
-                seqlist.saveFasta(seqfile='%s.degap.fas' % seqlist.info['Basefile'],name='AccNum')
+                seqlist.saveFasta(seqfile='%s%s.degap.fas' % (self.getStr('ResDir'),seqlist.info['Basefile']),name='AccNum')
             for ext in ['psq','psi','psd','pin','phr']:
                 if rje.checkForFile('%s.%s' % (self.info['Basefile'],ext)):
                     os.unlink('%s.%s' % (self.info['Basefile'],ext))
             if rje.checkForFile('%s_cw.phb' % self.info['Basefile'].lower()):
                 os.unlink('%s_cw.phb' % self.info['Basefile'].lower())
+            if rje.checkForFile('%s.phb' % self.info['Basefile']):
+                os.rename('%s.phb' % self.info['Basefile'],'%s%s.phb' % (self.getStr('ResDir'),self.info['Basefile']))
             if self.stat['DataLevel'] > 0 and self.stat['Interactive'] > 0 and not rje.yesNo('Keep all output files?'):
-                filelist = glob.glob('%s.*' % self.info['Basefile'])
+                filelist = glob.glob('%s.*' % self.info['Basefile']) + glob.glob('%s%s.*' % (self.getStr('ResDir'),self.baseFile()))
                 for file in filelist:
                     if not rje.yesNo('Keep %s?' % file):
                         os.unlink(file)
