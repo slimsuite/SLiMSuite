@@ -2,7 +2,7 @@
 
 > Copyright (C) 2015 Richard J. Edwards
 
-> Distribution compiled: Mon Dec 18 16:24:26 2017
+> Distribution compiled: Mon Jul  2 15:24:49 2018
 
 > Please visit http://www.slimsuite.unsw.edu.au for additional documentation
 
@@ -490,8 +490,8 @@ Commandline:
 
 Program:      GABLAM
 Description:  Global Analysis of BLAST Local AlignMents
-Version:      2.28.3
-Last Edit:    31/08/17
+Version:      2.29.0
+Last Edit:    04/04/18
 Citation:     Davey, Shields & Edwards (2006), Nucleic Acids Res. 34(12):3546-54. [PMID: 16855291]
 Copyright (C) 2006  Richard J. Edwards - See source code for GNU License Notice
 
@@ -580,6 +580,12 @@ Versions/Updates:
     The defaults for when GABLAM is run from the commandline have been set to fullblast=T keepblast=T. When GABLAM is
     called from within another program, the fullblast=T/F and keepblast=T/F default status is set by that program.
 
+    ### ~ Version 2.29: SAM and GFF3 output ~ ###
+    Version 2.29.x tided SAM output and added GFF3 output options for the `*.local.tdt` and `*.unique.tdt` tables. A
+    special `cdsgff=T/F` option was added for the latter, which will treat the input sequences as CDS sequences for the
+    unique table GFF3 output. This will activate the `qryunique=T` option, which reduced local BLAST hits to non-
+    overlapping query regions rather than non-overlapping hit regions. This mode is only possible for `blastn` searches.
+
 Commandline:
     ### ~ Input/Search Options ~ ###
     seqin=FILE      : Query dataset file [infile.fas]
@@ -598,12 +604,15 @@ Commandline:
     fullres=T/F     : Whether to output full GABLAM results table [True]
     hitsum=T/F      : Whether to output the BLAST Hit Summary table [True]
     local=T/F       : Whether to output local alignment summary stats table [True]
-    localsAM=T/F    : Save local (and unique) hits data as SAM files in addition to TDT [False]
+    localsam=T/F    : Save local (and unique) hits data as SAM files in addition to TDT [False]
+    localgff=T/F    : Save local (and unique) hits data as GFF3 files in addition to TDT [False]
+    cdsgff=T/F      : Whether the query should be treated as the (in-frame) CDS of a gene (also sets qryunique=T) [False]
     reftype=X       : Whether to map SAM/GFF3 hits onto the Qry, Hit, Both or Combined [Hit]
     qassemble=T/F   : Whether to fully assemble query stats from all hits in HitSum [False]
     localmin=X      : Minimum length of local alignment to output to local stats table [0]
     localidmin=PERC : Minimum local %identity of local alignment to output to local stats table [0.0]
     localunique=T/F : Reduce local hits to unique non-overlapping regions (*.unique.tdt) [snptable=T/F]
+    qryunique=T/F   : Whether to reduce local hits to the query rather than the hit [False]
     localsort=X     : Local hit field used to sort local alignments for localunique reduction [Identity]
     snptable=T/F    : Generate a SNP table (similar to MUMmer NUCmer output) for query/hit overlap (fullblast=T) [False]
     selfhit=T/F     : Whether to include self hits in the fullres output [True] * See also selfsum=T/F *
@@ -679,6 +688,36 @@ Commandline:
     killforks=X     : Number of seconds of no activity before killing all remaining forks. [36000]
 
 ### ~~~~~~~~~ Module gasp ~ [/Users/redwards/ownCloud/projects/SLiMSuite-Jun14/code/slimsuite/tools/gasp.py] ~~~~~~~~~ ###
+
+Program:      GASP
+Description:  Gapped Ancestral Sequence Prediction
+Version:      2.0.0
+Last Edit:    08/03/18
+Citation:     Edwards & Shields (2004), BMC Bioinformatics 5(1):123. [PMID: 15350199]
+Copyright (C) 2004  Richard J. Edwards - See source code for GNU License Notice
+
+Function:
+    This module is purely for running the GASP algorithm as a standalone program. All the main functionality is encoded in
+    the modules listed below. The GASP algorithm itself is now encoded in the rje_ancseq module. GASP may also be run
+    interactively from the rje_tree module.
+
+Input/Output:
+    seqin=FILE      : Fasta/ClustalW/Phylip Format sequence file [infile.fas].
+    nsfin=FILE      : Newick Standard Format treefile [infile.nsf].
+    indeltree=T/F   : Whether to output a text tree describing indel patterns [True]
+
+GASP Model Options:
+    fixpam=INT      : PAM distance fixed to X [0].
+    rarecut=NUM     : Rare aa cut-off [0.05].
+    fixup=T/F       : Fix AAs on way up (keep probabilities) [True].
+    fixdown=T/F     : Fix AAs on initial pass down tree [False].
+    ordered=T/F     : Order ancestral sequence output by node number [False].
+    pamtree=T/F     : Calculate and output ancestral tree with PAM distances [True].
+    desconly=T/F    : Limits ancestral AAs to those found in descendants [True].
+    xpass=INT       : How many extra passes to make down & up tree after initial GASP [1].
+
+
+### ~~~~~~ Module gasp_V1 ~ [/Users/redwards/ownCloud/projects/SLiMSuite-Jun14/code/slimsuite/tools/gasp_V1.py] ~~~~~~ ###
 
 Program:      GASP
 Description:  Gapped Ancestral Sequence Prediction
@@ -760,8 +799,8 @@ See also rje.py generic commandline options.
 
 Program:      GOPHER
 Description:  Generation of Orthologous Proteins from Homology-based Estimation of Relationships
-Version:      3.4.2
-Last Edit:    17/06/15
+Version:      3.4.3
+Last Edit:    22/06/18
 Citation:     Davey, Edwards & Shields (2007), Nucleic Acids Res. 35(Web Server issue):W455-9. [PMID: 17576682]
 Copyright (C) 2005 Richard J. Edwards - See source code for GNU License Notice
 
@@ -986,8 +1025,8 @@ Other modules needed: None
 
 Program:      HAQESAC
 Description:  Homologue Alignment Quality, Establishment of Subfamilies and Ancestor Construction
-Version:      1.11.0
-Last Edit:    31/10/17
+Version:      1.12.0
+Last Edit:    20/03/18
 Citation:     Edwards et al. (2007), Nature Chem. Biol. 3(2):108-112. [PMID: 17220901]
 Copyright (C) 2007  Richard J. Edwards - See source code for GNU License Notice
 
@@ -1051,6 +1090,7 @@ Commandline Options:
     #!# filterseq=FILE  : Filters out sequences in given file (Log, Fasta or list of names)
     #!# filterspec=FILE : Filters out sequences according to species (codes) listed in given file
     unkspec=T/F     : Whether sequences of unknown species are allowed [True]
+    9spec=T/F       : Whether to treat 9XXXX species codes as actual species (generally higher taxa) [False]
     dblist=X,Y,..,Z : List of databases in order of preference (good to bad)
     dbonly=T/F      : Whether to only allow sequences from listed databases [False]
     #!# keepdesc=FILE   : Only keeps sequences with 1+ of text listed in given file in sequence description
@@ -1167,8 +1207,8 @@ Commandline Options:
 
 Program:      MultiHAQ
 Description:  Multi-Query HAQESAC controller
-Version:      1.3.0
-Last Edit:    08/09/17
+Version:      1.4.1
+Last Edit:    26/03/18
 Citation:     Jones, Edwards et al. (2011), Marine Biotechnology 13(3): 496-504. [PMID: 20924652]
 Copyright (C) 2009  Richard J. Edwards - See source code for GNU License Notice
 
@@ -1208,6 +1248,7 @@ Commandline:
 
     ### ~~~ OUTPUT OPTIONS ~~~~ ###
     haqdir=PATH     : Directory in which to output HAQESAC files and perform run [seqin_HAQESAC]
+    haqblastdir=PATH: Directory in which MultiHAQ BLAST2FAS BLAST runs will be performed [./HAQBLAST/]
 
 See also haqesac.py commands and rje.py generic commandline options.
 
@@ -1219,8 +1260,8 @@ Other modules needed: None
 
 Module:       PAGSAT
 Description:  Pairwise Assembled Genome Sequence Analysis Tool
-Version:      2.3.3
-Last Edit:    23/06/17
+Version:      2.4.0
+Last Edit:    12/04/18
 Copyright (C) 2015  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -1295,6 +1336,7 @@ Commandline:
     compare=FILES   : Compare assemblies selected using a list of *.Summary.tdt files (wildcards allowed). []
     fragcov=LIST    : List of coverage thresholds to count min. local BLAST hits (checks integrity) [50,90,95,99]
     chromcov=LIST   : Report no. of chromosomes covered by a single contig at different %globID (GABLAM table) [95,98,99]
+    compile=FILES   : Compile reference chromosome comparisons for a set of *.report.html files []
     ### ~ Assembly Tidy/Edit Options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     mapfas=T/F      : Output assembly *.map.fasta file with RevComp contigs based on initial (automatic) mapping [True]
     tidy=T/F        : Execute semi-automated assembly tidy/edit mode to complete draft assembly [False]
@@ -2087,8 +2129,8 @@ Commandline:
 
 Module:       SeqSuite
 Description:  Miscellaneous biological sequence analysis toolkit
-Version:      1.14.0
-Last Edit:    22/08/17
+Version:      1.19.1
+Last Edit:    19/06/18
 Copyright (C) 2014  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -2111,7 +2153,9 @@ SeqSuite tools:
     - ExTATIC = extatic.ExTATIC. !!! Development only. Not available in main download. !!!
     - FIESTA = fiesta.FIESTA. Fasta Input EST Analysis. Transcriptome annotation/querying.
     - GABLAM = gablam.GABLAM. Global Analysis of BLAST Local AlignMents
+    - GASP = gasp.GASP. Gapped Ancestral Sequence Prediction.
     - Genbank = rje_genbank.GenBank. Genbank fetching/parsing module.
+    - GFF = rje_gff.GFF. GFF File Parser and Manipulator.
     - GOPHER = gopher.GOPHER. Generation of Orthologous Proteins from Homology-based Estimation of Relationships.
     - HAQESAC = haqesac.HAQESAC. Homologue Alignment Quality, Establishment of Subfamilies and Ancestor Construction.
     - MITAB = rje_mitab.MITAB. MITAB PPI parser.
@@ -2130,6 +2174,9 @@ SeqSuite tools:
     - XRef = rje_xref.XRef. Identifier cross-referencing module.
     - Zen - rje_zen.Zen. Random Zen wisdom generator and test code.
 
+Special run modes:
+    - summarise = run seqlist summarise on each file in `batchrun=FILELIST`
+
 Commandline:
     ### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     prog=X      # Identifies the tool to be used. Will load defaults from X.ini (before seqsuite.ini) [seqlist]
@@ -2146,8 +2193,8 @@ See also rje.py generic commandline options.
 
 Module:       SLiMBench
 Description:  Short Linear Motif prediction Benchmarking
-Version:      2.14.0
-Last Edit:    08/11/17
+Version:      2.18.2
+Last Edit:    23/05/18
 Citation:     Palopoli N, Lythgow KT & Edwards RJ. Bioinformatics 2015; doi: 10.1093/bioinformatics/btv155 [PMID: 25792551]
 Copyright (C) 2012  Richard J. Edwards - See source code for GNU License Notice
 
@@ -2179,6 +2226,8 @@ Commandline:
     ppid=X              : PPI source protein identifier type (gene/uni/none; will work out from headers if None) [None]
     randsource=FILE     : Source for random/simulated dataset sequences. If species, will extract from UniProt [HUMAN]
     randat=T/F          : Whether to use DAT file for random source [False]
+    occsource=X/FILE    : Source for OccBench datasets (ELM, RandSource, or file). (ELM/RAND/FILE) [ELM]
+    occspec=LIST        : Restrict OccBench analysis to given species; blank for all (useful for occsource=ELM/FILE) []
     download=T/F        : Whether to download files directly from websites where possible if missing [True]
     integrity=T/F       : Whether to quit by default if source data integrity is breached [False]
     unipath=PATH        : Path to UniProt download. Will query website if "URL" [URL]
@@ -2221,6 +2270,7 @@ Commandline:
     balanced=T/F        : Whether to reduce benchmarking to datasets found for all RunIDs [True]
     compdb=FILE         : Motif file to be used for benchmarking [elmclass file] (reduced unless occ/ppi)
     occbenchpos=FILE    : File of all positive occurrences for OccBench [genpath/ELM_OccBench/ELM.full.ratings.csv]
+    bymotif=T/F         : Whether to weight output by motif for OccBench (others always weighted) [True]
     benchbase=X         : Basefile for SLiMBench benchmarking output [slimbench]
     runid=LIST          : List of factors to split RunID column into (on '.') [Program,Analysis]
     bycloud=X           : Whether to compress results into clouds prior to assessment (True/False/Both) [Both]
@@ -2228,6 +2278,7 @@ Commandline:
     iccut=LIST          : Minimum IC for (Q)SLiMFinder results for elm/sim/ppi benchmark assessment [2.0,2.1,3.0]
     slimlencut=LIST     : List of individual SLiM lengths to return results for (0=All) [0,3,4,5]
     noamb=T/F           : Filter out ambiguous patterns [False]
+    assfilter=LIST      : List of motifs to filter out from assessment datasets post-rating (still count as OT) []
 
     ### ~ GENERAL OPTIONS ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     force=T/F           : Whether to force regeneration of outputs (True) or assume existing outputs are right [False]
@@ -2239,8 +2290,8 @@ See also rje.py generic commandline options.
 
 Module:       SLiMFarmer
 Description:  SLiMSuite HPC job farming control program
-Version:      1.7.0
-Last Edit:    09/05/17
+Version:      1.9.0
+Last Edit:    30/05/18
 Copyright (C) 2014  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -2311,6 +2362,7 @@ Commandline:
     modules=LIST    : List of modules to add in job file e.g. blast+/2.2.31,clustalw []
     modpurge=T/F    : Whether to purge loaded modules in qsub job file prior to loading [True]
     precall=LIST    : List of additional commands to run between module loading and program call []
+    daisychain=X    : Chain together a set of qsub runs of the same call that depend on the previous job.
 
     ### ~ Main SLiMFarmer Options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     farm=X          : Execute a special SLiMFarm analysis on HPC [batch]
@@ -2321,6 +2373,7 @@ Commandline:
     hpcmode=X       : Mode to be used for farming jobs between nodes (rsh/fork) [fork]
     forks=X         : Number of forks to be used when hpcmode=fork and qsub=F. [1]
     jobini=FILE     : Ini file to pass to the farmed SLiMSuite run. (Also used for SLiMFarmer options if qsub=T.) [None]
+    jobforks=X      : Number of forks to pass to farmed out run if >0 [0]
 
     ### ~ Standard HPC Options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     subsleep=X      : Sleep time (seconds) between cycles of subbing out jobs to hosts [1]
@@ -2352,8 +2405,8 @@ See also rje.py generic commandline options.
 
 Program:      SLiMFinder
 Description:  Short Linear Motif Finder
-Version:      5.3.3
-Last Edit:    06/09/17
+Version:      5.3.4
+Last Edit:    18/05/18
 Citation:     Edwards RJ, Davey NE & Shields DC (2007), PLoS ONE 2(10): e967. [PMID: 17912346]
 ConsMask Citation: Davey NE, Shields DC & Edwards RJ (2009), Bioinformatics 25(4): 443-50. [PMID: 19136552]
 SigV/SigPrime Citation: Davey NE, Edwards RJ & Shields DC (2010), BMC Bioinformatics 11: 14. [PMID: 20055997]
@@ -2803,7 +2856,7 @@ Commandline: ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     megablam=T/F    : Whether to create and use all-by-all GABLAM results for (gablamdis) UPC generation [False]
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
     ### SearchDB Options I: Input Protein Sequence Masking ###
-    masking=T/F     : Master control switch to turn off all masking if False [False]
+    masking=T/F     : Master control switch to turn off all masking if False [True]
     dismask=T/F     : Whether to mask ordered regions (see rje_disorder for options) [False]
     consmask=T/F    : Whether to use relative conservation masking [False]
     ftmask=LIST     : UniProt features to mask out (True=EM,DOMAIN,TRANSMEM) []
@@ -2944,8 +2997,8 @@ Commandline: ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Module:       SLiMSuite
 Description:  Short Linear Motif analysis Suite
-Version:      1.7.0
-Last Edit:    16/02/17
+Version:      1.7.1
+Last Edit:    08/05/17
 Citation:     Edwards RJ & Palopoli N (2015): Methods Mol Biol. 1268:89-141. [PMID: 25555723]
 Copyright (C) 2014  Richard J. Edwards - See source code for GNU License Notice
 
@@ -2991,8 +3044,8 @@ See also rje.py generic commandline options.
 
 Module:       SMRTSCAPE
 Description:  SMRT Subread Coverage & Assembly Parameter Estimator
-Version:      2.2.1
-Last Edit:    14/07/17
+Version:      2.2.2
+Last Edit:    05/02/18
 Copyright (C) 2017  Richard J. Edwards - See source code for GNU License Notice
 
 Summary:
@@ -3295,8 +3348,8 @@ Commandline:
 
 Module:       Snapper
 Description:  Genome-wide SNP Mapper
-Version:      1.6.0
-Last Edit:    31/10/17
+Version:      1.6.1
+Last Edit:    05/04/18
 Copyright (C) 2016  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -4011,8 +4064,8 @@ Other modules needed: None
 
 Module:       rje_pydocs
 Description:  Python Module Documentation & Distribution
-Version:      2.16.5
-Last Edit:    05/09/17
+Version:      2.16.7
+Last Edit:    19/12/17
 Copyright (C) 2011 Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -4905,8 +4958,8 @@ Uses RJE modules: rje
 
 Module:       rje_blast
 Description:  BLAST+ Control Module
-Version:      2.18.0
-Last Edit:    30/10/17
+Version:      2.22.2
+Last Edit:    14/05/18
 Copyright (C) 2013  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -4924,6 +4977,7 @@ Function:
 Commandline:
     ## Search Options ##    
     blastprog=X     : BLAST program to use. blastp=X also recognised. (BLAST -p X) [blastp]
+    blasttask=X     : Flavour of blast to use (BLAST -task X) (NOTE: blastn default is megablast) [blast+ default]
     blasti=FILE     : Input file (BLAST -i FILE) [None]
     blastd=FILE     : BLAST database (BLAST -d FILE) [None]
     formatdb=T/F    : Whether to (re)format BLAST database [False]
@@ -4969,7 +5023,7 @@ Commandline:
     blasta=X        : Number of processors to use (BLAST -a X) [1]
     blastforce=T/F  : Whether to force regeneration of new BLAST results if already existing [False]
     ignoredate=T/F  : Ignore date stamps when deciding whether to regenerate files [False]
-    gzip=T/F        : Whether to gzip (and gunzip) BLAST results files if keeping (not Windows) [True]
+    blastgz=T/F     : Whether to gzip (and gunzip) BLAST results files if keeping (not Windows) [False]
 
 See also rje.py generic commandline options.
 
@@ -4996,8 +5050,8 @@ Uses RJE modules: rje
 
 Module:       rje_db
 Description:  R Edwards Relational Database module
-Version:      1.8.6
-Last Edit:    06/11/17
+Version:      1.9.0
+Last Edit:    19/01/18
 Copyright (C) 2007  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -5085,8 +5139,8 @@ Other modules needed: None
 
 Module:       rje_disorder
 Description:  Disorder Prediction Module
-Version:      0.8
-Last Edit:    06/08/14
+Version:      1.2.1
+Last Edit:    19/04/18
 Copyright (C) 2006  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -5111,22 +5165,32 @@ Function:
 
     For IUPred, the individual residue results are stored in Disorder.list['ResidueDisorder']. For both methods, the
     disordered regions are stored in Disorder.list['RegionDisorder'] as (start,stop) tuples.
+
+    V1.2.0 introduced the optional use of IUScoreDir/ to save and/or (re)load lists of disorder scores. These are files
+    named <ACC>.<DISORDER>.txt where <ACC> is the accession number of the protein. If `md5acc=T` then an md5 hash of the
+    sequence is used instead: `hashlib.md5(<SEQUENCE>).hexdigest()`.
     
 Commandline:
     ### General Options ###
-    disorder=X  : Disorder method to use (iupred/foldindex/anchor/parse) [iupred]
-    iucut=X     : Cut-off for IUPred/ANCHOR results [0.2]
-    iumethod=X  : IUPred method to use (long/short) [short]
-    sequence=X  : Sequence to predict disorder for (autorun) []
-    name=X      : Name of sequence to predict disorder for []
-    minregion=X : Minimum length of an ordered/disordered region [0]
+    disorder=X      : Disorder method to use (iupred/foldindex/anchor/parse) [iupred]
+    strict=T/F      : Whether to exit with error if disorder method not found [False]
+    iucut=X         : Cut-off for score-based method (e.g. IUPred/ANCHOR) results [0.2]
+    iumethod=X      : IUPred method to use (long/short) [short]
+    sequence=X      : Sequence to predict disorder for (autorun) []
+    name=X          : Name of sequence to predict disorder for []
+    minregion=INT   : Minimum length of an ordered/disordered region [0]
+    minorder=INT    : Minimum length of an ordered region; over-rides minregion if >-1 [-1]
+    smoothing=X     : Smoothing mode for minregion=X and minorder=X smoothing (foldfirst/sequence) [foldfirst]
+    iuscoredir=PATH : Path in which to save protein acc.DISORDER.txt score files for re-use []
+    discalculate=T/F: Whether to try to calculate disorder if existing score not loaded [True]
+    md5acc=T/F      : Whether to use md5sum hexdigest hashing of sequence in place of accession numbers [False]
 
     ### System Settings ###
-    iupath=PATH : The full path to the IUPred executable [c:/bioware/iupred/iupred.exe]
-    anchor=PATH : Full path to ANCHOR executable []
-    filoop=X    : Number of times to try connecting to FoldIndex server [10]
-    fisleep=X   : Number of seconds to sleep between attempts [2]
-    iuchdir=T/F : Whether to change to IUPred directory and run (True) or rely on IUPred_PATH env variable [False]
+    iupath=PATH     : The full path to the IUPred executable [c:/bioware/iupred/iupred.exe]
+    anchor=PATH     : Full path to ANCHOR executable []
+    filoop=INT      : Number of times to try connecting to FoldIndex server [10]
+    fisleep=INT     : Number of seconds to sleep between attempts [2]
+    iuchdir=T/F     : Whether to change to IUPred directory and run (True) or rely on IUPred_PATH env variable [False]
 
 Uses general modules: copy, os, string, sys, time, urllib2
 Uses RJE modules: rje
@@ -5433,6 +5497,67 @@ Uses general modules: copy, glob, pickle, os, string, sys, time, urllib2
 Uses RJE modules: rje, rje_seq, rje_zen
 Other modules needed: None
 
+### ~~~~ Module rje_gff ~ [/Users/redwards/ownCloud/projects/SLiMSuite-Jun14/code/slimsuite/libraries/rje_gff.py] ~~~~ ###
+
+Module:       rje_gff
+Description:  GFF File Parser and Manipulator
+Version:      0.1.0
+Last Edit:    23/03/18
+Webserver:    http://www.slimsuite.unsw.edu.au/servers/gff.php
+Copyright (C) 2018  Richard J. Edwards - See source code for GNU License Notice
+
+Function:
+    The GFF file given by gffin=FILE will be parsed and the components optionally output to tables, a text file of
+    comment lines (starting `#`) and fasta format sequences if given. The GFF filename sets the output prefix,
+    which can be over-ridden with basefile=FILE.
+
+    The default fields parsed from the GFF are: `locus, source, feature, start, end, score, strand, phase, attributes`.
+    Additional fields can be extracted from the attributes field, using `attributes=LIST`. Setting `attributes="*"` or
+    `attributes=all` will extract all attributes into additional fields. Note that the `attributes` field itself will be
+    kept unless `attfield=F` is used to remove it.
+
+    `integrity=T` will perform checks that the features do not go outside the range of the parsed sequence-region and/or
+    fasta sequences.
+
+    `indelwarn=T` and `stopwarn=T` will identify adjacent CDS features that may have sequencing and/or translation
+    errors. `indelwarn=T` looks for adjacent CDS features with the same (or hyplist=LIST) "product" (warnfield=X)
+    annotation that are within 3 nt of each other (generally overlapping) and might thus represent a fragmented ORF due
+    to a frameshift error. `stopwarn=T` identifies similar features that have exactly one codon between them, which
+    could represent an atypical genetic code being mis-translated as a stop codon.
+
+    `joinseq=T` will output joined sequences to `*.joined.gff` and, if sequences are parsed, `*.joined.aa.fas` and
+    `*.joined.nt.fas`. For protein sequence translations, `stopwarn` sequences are joined with a `*`. `indelwarn`
+    sequences are joined with flanking and internal `xx` pairs that delineate the overlapping parts of each
+    annotated protein sequence.
+
+    NOTE: Only GFF3 is currently supported.
+
+Commandline:
+    ### ~ Input/Output Options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+    gffin=FILE      : Input GFF file to parse [None]
+    seqin=FILE      : Optional fasta file of reference sequences [None]
+    gfftab=T/F      : Whether to output parsed GFF file as a delimited table with headers [True]
+    gffloci=T/F     : Whether to parse sequence-region GFF comments to `*.loci.tdt` [True]
+    gffcomment=T/F  : Whether to output parsed GFF comments to `*.comments.txt` [False]
+    gfffasta=T/F    : Whether to output parsed GFF sequences to `*.fasta` [False]
+    attributes=LIST : List of attributes (X=Y;) to pull out into own fields ("*" or "all" for all) [*]
+    attfield=T/F    : Whether to keep the full attribute field as parsed from the GFF file [False]
+    gffout=FILE     : Save updated GFF format to FILE [*Not yet implemented*] [None]
+    gffseq=T/F      : Whether to include sequences in updated GFF file [False]
+
+    ### ~ GFF Processing Options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+    integrity=T/F   : Perform GFF integrity check based on parsed sequence-region comments and/or fasta [True]
+    indelwarn=T/F   : Perform check for possible indels based on overlapping/close common features [True]
+    hypindel=INT    : Number of hypothetical proteins that can be involved in a possible indel (0-2) [1]
+    stopwarn=T/F    : Perform check for possible codon table stop codon errors based on close common features [True]
+    warnfield=X     : Attribute field to use for generating indel or stop codon warnings [product]
+    idfield=X       : Attribute field to use for CDS gene ID [ID]
+    hyplist=LIST    : List of warnfield values to identify as hypothetical protein ['hypothetical protein']
+    cdsfeatures=LIST: List of feature types to count as CDS for warning checks [CDS]
+    joinseq=T/F     : Whether to join sequences possible affected by stop codons or frameshifts [False]
+
+    ### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+
 ### ~~~~~ Module rje_go ~ [/Users/redwards/ownCloud/projects/SLiMSuite-Jun14/code/slimsuite/libraries/rje_go.py] ~~~~~ ###
 
 Module:       rje_go
@@ -5537,8 +5662,8 @@ Uses RJE modules: rje, rje_blast
 
 Module:       rje_hpc
 Description:  High Performance Computing job farming
-Version:      1.1
-Last Edit:    17/06/14
+Version:      1.1.1
+Last Edit:    22/02/18
 Copyright (C) 2014  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -5632,8 +5757,8 @@ Other modules needed: None
 
 Module:       RJE_HTML
 Description:  Module for generating HTML 
-Version:      0.2.1
-Last Edit:    28/01/15
+Version:      0.3.0
+Last Edit:    23/04/18
 Copyright (C) 2010  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -5645,7 +5770,8 @@ Commandline:
     border=X            : Border setting for tables [0]
     nobots=T/F          : Whether to add code to avoid Google Bots [True]
     analytics=X         : Google Analytics code to use with pages []
-    javascript=PATH     : Path to javascript files for tabs etc. ['http://www.southampton.ac.uk/~re1u06/javascript/']
+    javascript=PATH     : Path to javascript files for tabs etc. ['http://www.slimsuite.unsw.edu.au/javascript/']
+    jscripts=LIST       : List of javascript files to load ['stupidtable.js?dev']
     keywords=LIST       : List of keywords to put in page metadata []
     title=X             : Default title for HTML page []
     copyright=X         : Copyright statement for page ['RJ Edwards 2015']
@@ -6172,8 +6298,8 @@ Other modules needed: None
 
 Module:       rje_qsub
 Description:  QSub Generating module
-Version:      1.9.1
-Last Edit:    02/11/17
+Version:      1.9.2
+Last Edit:    30/05/18
 Copyright (C) 2006  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -6208,8 +6334,8 @@ Other modules needed: None
 
 Module:       rje_samtools
 Description:  RJE SAMtools parser and processor
-Version:      1.19.2
-Last Edit:    26/11/17
+Version:      1.20.0
+Last Edit:    22/03/18
 Copyright (C) 2013  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -6330,12 +6456,15 @@ Commandline:
     altcontrol=FILE     : MPileup or processed TDT file to be used for control SNP frequencies in Alt genome []
     alttreatment=FILE   : MPileup or processed TDT file to be used for treatment SNP frequencies in Alt genome []
     ### ~ Read Coverage Analysis ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-    readcheck=FILE      : SAM/Pileup/RID file with read mappings [None]
+    readcheck=FILE      : BAM/SAM/Pileup/RID file with read mappings [None]
     seqin=FASFILE       : Sequence file for loci in MPileup/SAM files (e.g. matching all relevant RID files) [None]
     depthplot=T/F       : Whether to generate Xdepth plot data for the readcheck FILE. (May be slow!) [False]
     fullcut=X           : Proportion of read to be mapped to count as full-length [0.9]
     readlen=T/F         : Include read length data for the readcheck file (if depthplot=T) [True]
     dirnlen=X           : Include directional read length data at X bp intervals (readlen=T; 0=OFF) [500]
+    minsoftclip=INT     : If set, will generate *.clipped.* output for reads with terminal soft clipping above INT [0]
+    maxsoftclip=INT     : If set, will generate *.noclip.* output for reads with less terminal soft clipping than INT [200]
+    minreadlen=INT      : Minimum read length to include in depth plots (all reads will be in RID file) [0]
     depthsmooth=X       : Smooth out any read plateaus < X nucleotides in length [200]
     peaksmooth=X        : Smooth out Xcoverage peaks < X depth difference to flanks (<1 = %Median) [0.05]
     rgraphics=T/F       : Whether to generate PNG graphics using R. (Needs R installed and setup) [True]
@@ -6422,8 +6551,8 @@ Other modules needed: None
 
 Program:      RJE_SEQ
 Description:  DNA/Protein sequence list module
-Version:      3.24.0
-Last Edit:    02/12/15
+Version:      3.25.0
+Last Edit:    20/03/18
 Copyright (C) 2005  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -6478,6 +6607,7 @@ Sequence Filtering Options:
                       [sprot,ipi,uniprot,trembl,ens_known,ens_novel,ens_scan]
     dbonly=T/F      : Whether to only allow sequences from listed databases [False]
     unkspec=T/F     : Whether sequences of unknown species are allowed [True]
+    9spec=T/F       : Whether to treat 9XXXX species codes as actual species (generally higher taxa) [False]
     accnr=T/F       : Check for redundant Accession Numbers/Names on loading sequences. [True]
     seqnr=T/F       : Make sequences Non-Redundant [False]
     nrid=X          : %Identity cut-off for Non-Redundancy (GABLAMO) [100.0]
@@ -6539,8 +6669,8 @@ Classes:
 
 Module:       rje_seqlist
 Description:  RJE Nucleotide and Protein Sequence List Object (Revised)
-Version:      1.25.0
-Last Edit:    08/05/17
+Version:      1.29.0
+Last Edit:    09/05/18
 Copyright (C) 2011  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -6614,7 +6744,7 @@ Commandline:
     spcode=X        : Species code for non-gnspacc format sequences [None]
     newacc=X        : New base for sequence accession numbers - will rename sequences [None]
     newgene=X       : New gene for renamed sequences (if blank will use newacc or 'seq' if none read) [None]
-    concatenate=T   : Concenate sequences into single output sequence named after file [False]
+    concatenate=T   : Concatenate sequences into single output sequence named after file [False]
     split=X         : String to be inserted between each concatenated sequence [''].
     seqshuffle=T/F  : Randomly shuffle each sequence without replacement (maintains monomer composition) [False]
     region=X,Y      : Alignment/Query region to use for reformat=peptides/(q)region reformatting of fasta alignment (1-L) [1,-1]
@@ -6628,7 +6758,9 @@ Commandline:
 
     ### ~ FILTERING OPTIONS ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     seqnr=T/F       : Whether to check for redundancy on loading. (Will remove, save and reload if found) [False]
-    revcompnr=T/F   : Whether to check reverse complement for redundancy too [False]
+    grepnr=T/F      : Whether to use grep based forking NR mode (needs sized-sorted one-line-per-sequence fasta) [True]
+    twopass=T/F     : Whether to perform second pass looking for redundancy of earlier sequences within later ones [True]
+    revcompnr=T/F   : Whether to check reverse complement for redundancy too [True]
     goodX=LIST      : Inclusive filtering, only retaining sequences matching list []
     badX=LIST       : Exclusive filtering, removing sequences matching list []
     - where X is 'Acc', Accession number; 'Seq', Sequence name; 'Spec', Species code; 'Desc', part of name;
@@ -6641,7 +6773,9 @@ Commandline:
     sortseq=X       : Whether to sort sequences prior to output (size/invsize/accnum/name/seq/species/desc) [None]
     sampler=N(,X)   : Generate (X) file(s) sampling a random N sequences from input into seqout.N.X.fas [0]
     summarise=T/F   : Generate some summary statistics in log file for sequence data after loading [False]
+    maker=T/F       : Whether to extract MAKER2 statistics (AED, eAED, QI) from sequence names [False]
     splitseq=X      : Split output sequence file according to X (gene/species) [None]
+    tmpdir=PATH     : Directory used for temporary files ['./tmp/']
 
 See also rje.py generic commandline options.
 
@@ -6720,8 +6854,8 @@ Other modules needed: None
 
 Module:       rje_slimcalc
 Description:  SLiM Attribute Calculation Module
-Version:      0.9.3
-Last Edit:    27/09/17
+Version:      0.10.0
+Last Edit:    20/03/18
 Copyright (C) 2007  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -7065,8 +7199,8 @@ Commandline:
 
 Module:       rje_taxonomy
 Description:  Downloads, reads and converts Uniprot species codes and NCBI Taxa IDs
-Version:      1.2.0
-Last Edit:    19/05/16
+Version:      1.3.0
+Last Edit:    22/06/18
 Copyright (C) 2014  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -7129,6 +7263,7 @@ Commandline:
     ranktypes=LIST      : List of Taxon types to include if rankonly=True [species,subspecies,no rank]
     restrictid=LIST     : List of Taxa IDs to restrict output to (i.e. output overlaps with taxin) []
     basefile=X          : Results file prefix. Will use first taxin=LIST term if missing [None]
+    taxtable=T/F        : Whether to output results in a table rather than text lists [False]
     ### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
 See also rje.py generic commandline options.
 
@@ -7163,8 +7298,8 @@ Other modules required: rje_blast, rje_dismatrix, rje_pam, rje_sequence, rje_uni
 
 Module:       rje_tree
 Description:  Phylogenetic Tree Module
-Version:      2.15.0
-Last Edit:    30/07/17
+Version:      2.16.1
+Last Edit:    19/06/18
 Copyright (C) 2007  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -7200,6 +7335,7 @@ Grouping/Subfamily Commands:
     qryvar=T/F  : Keep variants of query species within a group (over-rides allowvar=F). [False]
     groupspec=X : Species for duplication grouping [None]
     specdup=X   : Minimum number of different species in clade to be identified as a duplication [1]
+    9spec=T/F   : Whether to treat 9XXXX species codes as actual species (generally higher taxa) [False]
     group=X     : Grouping of tree
         - man = manual grouping (unless i<0).
         - dup = duplication (all species unless groupspec specified).
@@ -7279,8 +7415,8 @@ Other modules needed: rje_blast, rje_dismatrix, rje_pam, rje_sequence, rje_unipr
 
 Module:       rje_uniprot
 Description:  RJE Module to Handle Uniprot Files
-Version:      3.24.1
-Last Edit:    09/02/17
+Version:      3.25.0
+Last Edit:    14/06/18
 Copyright (C) 2007 Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -7319,6 +7455,7 @@ Input/Output:
     complete=T/F    : Whether to restrict proteome downloads to "complete proteome" sets [False]
     uniformat=X     : Desired UniProt format for URL download (over-rules normal processing). Append gz to compress. [txt]
                         - html | tab | xls | fasta | gff | txt | xml | rdf | list | rss
+    onebyone=T/F    : Whether to download one entry at a time. Slower but should maintain order [False]
 
     ### ~ Output Options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     basefile=X      : If set, can use "T" or "True" for other `*out` options. (Will default to `datout` if given) [None]
@@ -7529,8 +7666,8 @@ See also rje.py generic commandline options.
 
 Module:       rje_zen
 Description:  Random Zen Wisdom Generator
-Version:      1.3.2
-Last Edit:    13/07/17
+Version:      1.4.0
+Last Edit:    19/12/17
 Copyright (C) 2007  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -7539,6 +7676,7 @@ Function:
 Commandline:
     wisdoms=X   : Number of Zen Wisdoms to return [10]
     zensleep=X  : Time in seconds to sleep between wisdoms [0]
+    fightcrime=X: Probability of returning a "They fight crime!" message [0.1]
 
 Uses general modules: copy, glob, os, string, sys, time
 Uses RJE modules: rje

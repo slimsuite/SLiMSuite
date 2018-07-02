@@ -21,6 +21,9 @@ var tabberOptions = {
 <!-- Load the tabber code -->
 <script type="text/javascript" src="http://www.southampton.ac.uk/~re1u06/tabber.js"></script>
 
+
+<!-- ~~~~~~~~~~~ Google Analytics Script ~~~~~~~~~ -->
+<script src="http://www.southampton.ac.uk/~re1u06/stupidtable.js?dev"></script>
 </head>
 <!-- ~~~~~~~~~~~~~~~ End of HTML head data ~~~~~~~~~~~~~~~~~ -->
 
@@ -29,12 +32,11 @@ var tabberOptions = {
 <h2>Updates in extras/:</h2>
 
 </p>
-<p><b>&bull; rje_dbase:</b> <i>Updated from Version 2.3.</i>
-<br>&rarr; Version 2.3.1: Updated the dbdownload function to recognise individual files and wildcard file lists.
-</p>
 <p><b>&bull; rje_pydocs:</b> <i>Updated from Version 2.16.3.</i>
-<br>&rarr; Version 2.17.4: Tweaked formatDocString.
-<br>&rarr; Version 2.17.5: Added general commands to docstring HTML for REST servers.
+<br>&rarr; Version 2.16.4: Tweaked formatDocString.
+<br>&rarr; Version 2.16.5: Added general commands to docstring HTML for REST servers.
+<br>&rarr; Version 2.16.6: Modified parsing to keep DocString for SPyDarm runs.
+<br>&rarr; Version 2.16.7: Fixed T/F/FILE option type parsing bug.
 </p>
 <h2>Updates in legacy/:</h2>
 
@@ -42,281 +44,138 @@ var tabberOptions = {
 <h2>Updates in libraries/:</h2>
 
 </p>
-<p><b>&bull; rje:</b> <i>Updated from Version 4.17.0.</i>
-<br>&rarr; Version 4.18.0: Added Roman numeral functions.
-<br>&rarr; Version 4.18.1: Updated error handling for full REST output.
-<br>&rarr; Version 4.18.2: Fixed rje module call bug.
-<br>&rarr; Version 4.19.0: Tweaked Docstring. Added extra parameter catching. Added report of INI loading.
+<p><b>&bull; rje_blast_V2:</b> <i>Updated from Version 2.18.0.</i>
+<br>&rarr; Version 2.19.0: Added blastgz=T/F     : Whether to zip and unzip BLAST results files [False]
+<br>&rarr; Version 2.19.1: Fixed erroneous i=-1 blastprog over-ride but not sure why it was happening.
+<br>&rarr; Version 2.20.0: Added localGFF output
+<br>&rarr; Version 2.21.0: Added blasttask=X setting for BLAST -task ['megablast']
+<br>&rarr; Version 2.22.0: Added dust filter for blastn and setting blastprog based on blasttask
+<br>&rarr; Version 2.22.1: Added trimLocal error catching for exonerate issues.
+<br>&rarr; Version 2.22.2: Fixed GFF attribute case issue.
 </p>
-<p><b>&bull; rje_blast_V2:</b> <i>Updated from Version 2.11.2.</i>
-<br>&rarr; Version 2.12.0: Added localidcut %identity filter for GABLAM calculations.
-<br>&rarr; Version 2.13.0: Added GFF and SAM output for BLAST local tables for GABLAM, PAGSAT etc.
-<br>&rarr; Version 2.14.0: Updated gablamfrag=X and fragmerge=X usage. Fixed localFragFas position output.
-<br>&rarr; Version 2.15.0: Fragmerge no longer removes flanks and can be negative for enforced overlap!
-<br>&rarr; Version 2.16.0: Added qassemblefas mode for generating fasta file from outfmt 4 run.
-<br>&rarr; Version 2.16.1: Improved error messages for BLAST QAssembly.
-<br>&rarr; Version 2.17.0: qconsensus=X    : Whether to convert QAssemble alignments to consensus sequences (None/Hit/Full) [None]
-<br>&rarr; Version 2.17.1: Modified QAssembleFas output sequence names for better combining of hits. Added QFasDir.
-<br>&rarr; Version 2.17.2: Modified QAssembleFas output file names for better re-running. Fixed major QConsensus Bug.
-<br>&rarr; Version 2.18.0: Added REST output. Fixed QConsensus=Full bug.
+<p><b>&bull; rje_db:</b> <i>Updated from Version 1.8.6.</i>
+<br>&rarr; Version 1.9.0: Added comment output to saveToFile().
 </p>
-<p><b>&bull; rje_db:</b> <i>Updated from Version 1.8.1.</i>
-<br>&rarr; Version 1.8.2: Fixed minor readSet bug.
-<br>&rarr; Version 1.8.3: Minor debugging message changes.
-<br>&rarr; Version 1.8.4: Cosmetic log message changes.
-<br>&rarr; Version 1.8.5: Added saveToFileName() function.
-<br>&rarr; Version 1.8.6: Minor IndexReport tweak.
+<p><b>&bull; rje_disorder:</b> <i>Updated from Version 0.8.</i>
+<br>&rarr; Version 1.0.0: Added random disorder function and elevated to v1.x as fully functional for SLiMSuite
+<br>&rarr; Version 1.1.0: Added strict option for disorder method selection. Added minorder=X.
+<br>&rarr; Version 1.2.0: Added saving and loading scores to IUScoreDir/.
 </p>
-<p><b>&bull; rje_genbank:</b> <i>Updated from Version 1.5.2.</i>
-<br>&rarr; Version 1.5.3: Fixed https genbank download issue.
+<p><b>&bull; rje_gff:</b> <i>Created/Renamed/moved.</i>
+<br>&rarr; Version 0.0.0: Initial Compilation.
+<br>&rarr; Version 0.1.0: Basic functional version.
 </p>
-<p><b>&bull; rje_menu:</b> <i>Updated from Version 0.4.0.</i>
-<br>&rarr; Version 0.5.0: Enabled simpler return tuples.
+<p><b>&bull; rje_hpc:</b> <i>Updated from Version 1.1.</i>
+<br>&rarr; Version 1.1.1: Added output of subjob command to log as run.
 </p>
-<p><b>&bull; rje_obj:</b> <i>Updated from Version 2.2.1.</i>
-<br>&rarr; Version 2.2.2: Updated error handling for full REST output.
+<p><b>&bull; rje_html:</b> <i>Updated from Version 0.2.1.</i>
+<br>&rarr; Version 0.3.0: Added optional loading of javascript files and stupidtable.js?dev default.
 </p>
-<p><b>&bull; rje_qsub:</b> <i>Updated from Version 1.6.3.</i>
-<br>&rarr; Version 1.7.0: Added option for email when job started
-<br>&rarr; Version 1.8.0: Added modpurge=T/F : Whether to purge loaded modules in qsub job file prior to loading [True]
-<br>&rarr; Version 1.9.0: Added precall=LIST  : List of additional commands to run between module loading and program call []
-<br>&rarr; Version 1.9.1: Removed default module list: causing conflicts. Better to have in INI file.
+<p><b>&bull; rje_qsub:</b> <i>Updated from Version 1.9.1.</i>
+<br>&rarr; Version 1.9.2: Modified qsub() to return job ID.
 </p>
-<p><b>&bull; rje_samtools:</b> <i>Updated from Version 1.8.1.</i>
-<br>&rarr; Version 1.9.0: Added depthplot data generation. (Will need to add R function for plot itself.)
-<br>&rarr; Version 1.9.1: Changed mincut default to 0.1.
-<br>&rarr; Version 1.10.0: Added readlen output, which is like the depth plot but uses max read length (kb) instead of depth.
-<br>&rarr; Version 1.11.0: Added dirnlen=X : Include directional read length data at X bp intervals (depthplot=T; 0=OFF) [500]
-<br>&rarr; Version 1.11.1: Minor tweaks to try and speed up pileup parsing.
-<br>&rarr; Version 1.12.0: Updated the snpfreq run code to make clearer and check for parsing issues. Set mincut=1 default.
-<br>&rarr; Version 1.13.0: Added skiploci=LIST - need to screen out mitochondrion from Illumina Pileup parsing!
-<br>&rarr; Version 1.14.0: Added forking of pileup parsing for SNPFreq analysis.
-<br>&rarr; Version 1.14.1: Fixed SNPFreq rerunning bug.
-<br>&rarr; Version 1.15.0: Added rgraphics=T/F   : Whether to generate snpfreq multichromosome plots [True]
-<br>&rarr; Version 1.16.0: Add coverage calculation per locus to depth plot table output (depthplot=T).
-<br>&rarr; Version 1.16.1: Added reporting of existing files for parsing Pileup.
-<br>&rarr; Version 1.17.0: Added parsing of lengths from SAM files to RID file.
-<br>&rarr; Version 1.18.0: Updated processing of Treatment and Control without Alt to still limit to SNPTable. Fixed SNPFreq filters.
-<br>&rarr; Version 1.19.0: snptableout=T/F    : Output filtered alleles to SNP Table [False]
-<br>&rarr; Version 1.19.1: Fixed AltLocus SNP table bug.
-<br>&rarr; Version 1.19.2: Updated forker parsing to hopefully fix bug.
+<p><b>&bull; rje_samtools:</b> <i>Updated from Version 1.19.2.</i>
+<br>&rarr; Version 1.20.0: Added parsing of BAM file - needs samtools on system. Added minsoftclip=X, maxsoftclip=X and minreadlen=X.
 </p>
-<p><b>&bull; rje_seqlist:</b> <i>Updated from Version 1.20.1.</i>
-<br>&rarr; Version 1.21.0: Added capacity to add/update database object from self.summarise() even if not seqmode=db. Added filedb mode.
-<br>&rarr; Version 1.22.0: Added geneDic() method.
-<br>&rarr; Version 1.23.0: Added seqSequence() method.
-<br>&rarr; Version 1.24.0: Add NNN gaps option and "delete rest of sequences" to edit().
-<br>&rarr; Version 1.24.1: Minor edit bug fix and DNA toggle option.
-<br>&rarr; Version 1.25.0: Added loading of FASTQ files in seqmode=file mode.
+<p><b>&bull; rje_seq:</b> <i>Updated from Version 3.24.0.</i>
+<br>&rarr; Version 3.25.0: 9spec=T/F   : Whether to treat 9XXXX species codes as actual species (generally higher taxa) [False]
 </p>
-<p><b>&bull; rje_sequence:</b> <i>Updated from Version 2.5.3.</i>
-<br>&rarr; Version 2.6.0: Added mutation dictionary to Ks calculation.
+<p><b>&bull; rje_seqlist:</b> <i>Updated from Version 1.25.0.</i>
+<br>&rarr; Version 1.26.0: Updated sequence statistics and fixed N50 underestimation bug.
+<br>&rarr; Version 1.26.1: Fixed median length overestimation bug.
+<br>&rarr; Version 1.26.2: Fixed sizesort bug. (Now big to small as advertised.)
+<br>&rarr; Version 1.27.0: Added grepNR() method (dev only). Switched default to RevCompNR=T.
+<br>&rarr; Version 1.28.0: Fixed second pass NR naming bug and added option to switch off altogether.
+<br>&rarr; Version 1.29.0: Added maker=T/F : Whether to extract MAKER2 statistics (AED, eAED, QI) from sequence names [False]
 </p>
-<p><b>&bull; rje_slim:</b> <i>Updated from Version 1.12.0.</i>
-<br>&rarr; Version 1.12.1: Modified error message.
+<p><b>&bull; rje_slimcalc:</b> <i>Updated from Version 0.9.3.</i>
+<br>&rarr; Version 0.10.0: Added extra disorder methods to slimcalc.
 </p>
-<p><b>&bull; rje_slimcalc:</b> <i>Updated from Version 0.9.2.</i>
-<br>&rarr; Version 0.9.3: Changed fudge error to warning.
+<p><b>&bull; rje_taxonomy:</b> <i>Updated from Version 1.2.0.</i>
+<br>&rarr; Version 1.3.0: taxtable=T/F        : Whether to output results in a table rather than text lists [False]
 </p>
-<p><b>&bull; rje_slimcore:</b> <i>Updated from Version 2.7.7.</i>
-<br>&rarr; Version 2.7.8: Fixed batch=FILE error for single input files.
-<br>&rarr; Version 2.8.0: Added map and failed output to REST servers and standalone uniprotid=LIST input runs.
-<br>&rarr; Version 2.8.1: Updated resfile to be set by basefile if no resfile=X setting given
-<br>&rarr; Version 2.9.0: Added separate IUPred long suffix for reusing predictions
+<p><b>&bull; rje_tree:</b> <i>Updated from Version 2.15.0.</i>
+<br>&rarr; Version 2.16.0: 9spec=T/F   : Whether to treat 9XXXX species codes as actual species (generally higher taxa) [False]
+<br>&rarr; Version 2.16.1: Modified NSF reading to cope with extra information beyond the ";".
 </p>
-<p><b>&bull; rje_synteny:</b> <i>Updated from Version 0.0.0.</i>
-<br>&rarr; Version 0.0.1: Altered problematic ValueError to warnLog()
-<br>&rarr; Version 0.0.2: Updated the synteny mappings to be m::n instead of m:n for Excel compatibility.
-<br>&rarr; Version 0.0.3: Added catching of the Feature locus/accnum mismatch issue.
+<p><b>&bull; rje_uniprot:</b> <i>Updated from Version 3.24.1.</i>
+<br>&rarr; Version 3.24.2: Updated HTTP to HTTPS. Having some download issues with server failures.
+<br>&rarr; Version 3.25.0: Fixed new Uniprot batch query URL. Added onebyone=T/F    : Whether to download one entry at a time. Slower but should maintain order [False].
 </p>
-<p><b>&bull; rje_tree:</b> <i>Updated from Version 2.14.0.</i>
-<br>&rarr; Version 2.14.1: Fixed clustalw2 makeTree issue.
-<br>&rarr; Version 2.15.0: Added IQTree.
-</p>
-<p><b>&bull; rje_uniprot:</b> <i>Updated from Version 3.22.0.</i>
-<br>&rarr; Version 3.23.0: Added accnum map table output. Fixed REST output bug when bad IDs given. Added version and about output.
-<br>&rarr; Version 3.24.0: Added pfam out and changed map table headers.
-<br>&rarr; Version 3.24.1: Fixed process Uniprot error when uniprot=FILE given.
-</p>
-<p><b>&bull; rje_zen:</b> <i>Updated from Version 1.3.1.</i>
-<br>&rarr; Version 1.3.2: Added some more words.
-</p>
-<p><b>&bull; snp_mapper:</b> <i>Updated from Version 1.0.0.</i>
-<br>&rarr; Version 1.1.0: Added pNS and modified the "Positive" CDS rating to be pNS < 0.05.
-<br>&rarr; Version 1.1.1: Updated pNS calculation to include EXT mutations and substitution frequency.
-<br>&rarr; Version 1.2.0: SNPByFType=T/F  : Whether to output mapped SNPs by feature type (before FTBest filtering) [False]
+<p><b>&bull; rje_zen:</b> <i>Updated from Version 1.3.2.</i>
+<br>&rarr; Version 1.4.0: Added some more words and "They fight crime!" structure.
 </p>
 <h2>Updates in tools/:</h2>
 
 </p>
-<p><b>&bull; gablam:</b> <i>Updated from Version 2.23.0.</i>
-<br>&rarr; Version 2.23.1: Added tuplekeys=T to cmd_list as default. (Can still be over-ridden if it breaks things!)
-<br>&rarr; Version 2.24.0: Added localidmin and and localidcut as %identity versions of localmin and localcut. (Use for PAGSAT.)
-<br>&rarr; Version 2.25.0: Added localsAM=T/F : Save local (and unique) hits data as SAM files in addition to TDT [False]
-<br>&rarr; Version 2.26.0: Fixed fragfas output and clarified fullblast=T/F, localmin=X and localcut=X. Set fullblast=T keepblast=T.
-<br>&rarr; Version 2.26.1: Fixed keepblast error.
-<br>&rarr; Version 2.26.2: Fixed gablamcut fragfas filtering bug.
-<br>&rarr; Version 2.26.3: Fixed nrseq=T to use Query OR Hit stat for NR filtering.
-<br>&rarr; Version 2.26.4: Minor bug fix to nrchoice command parsing.
-<br>&rarr; Version 2.27.0: Fragmerge no longer removes flanks and can be negative for enforced overlap!
-<br>&rarr; Version 2.28.0: Added localidmin=PERC to localUnique (and thus Snapper).
-<br>&rarr; Version 2.28.1: Fixed missing combinedfas when using existing blastres.
-<br>&rarr; Version 2.28.2: Minor bug fix for NRSeq manual choice when i=-1.
-<br>&rarr; Version 2.28.3: Fixed NRSeq query sorting bug.
+<p><b>&bull; gablam:</b> <i>Updated from Version 2.28.3.</i>
+<br>&rarr; Version 2.29.0: Added localGFF=T/F output
 </p>
-<p><b>&bull; haqesac:</b> <i>Updated from Version 1.10.2.</i>
-<br>&rarr; Version 1.10.3: Added catching of bad query when i=-1.
-<br>&rarr; Version 1.11.0: Added resdir=PATH [./HAQESAC/] for d>0 outputs.
+<p><b>&bull; gasp:</b> <i>Updated from Version 1.4.</i>
+<br>&rarr; Version 2.0.0: Upgraded to rje_obj framework for REST server.
 </p>
-<p><b>&bull; multihaq:</b> <i>Updated from Version 1.2.2.</i>
-<br>&rarr; Version 1.3.0: MultiCut : Restrict BLAST to the top X hits from each database [100]
+<p><b>&bull; gasp_V1:</b> <i>Created/Renamed/moved.</i>
+<br>&rarr; Version 0.0: Initial Compilation.
+<br>&rarr; Version 1.0: Improved version with second pass.
+<br>&rarr; Version 1.1: Improved OO. Restriction to descendant AAs. (Good for BAD etc.)
+<br>&rarr; Version 1.2: No Out Object in Objects
+<br>&rarr; Version 1.3: Added more interactive load options
+<br>&rarr; Version 1.4: Minor tweaks to imports.
 </p>
-<p><b>&bull; pagsat:</b> <i>Updated from Version 1.11.2.</i>
-<br>&rarr; Version 1.11.3: Added reference=FILE as alias for refgenome=FILE. Fixed orphan delete bug.
-<br>&rarr; Version 1.12.0: Tidying up and documenting outputs. Changed default minloclen=250 and minlocid=95. (LTR identification.)
-<br>&rarr; Version 2.0.0: Major overhaul of outputs to improve consistency and clarity. Added Snapper to main run.
-<br>&rarr; Version 2.1.0: Added localSAM output.
-<br>&rarr; Version 2.1.1: Fixed the case of some output files.
-<br>&rarr; Version 2.1.2: Fixed some issues with reverse hits in Snapper and application of minlocid.
-<br>&rarr; Version 2.2.0: Added mapout=T, which is recommended for first run if going to subsequently tidy. (Run tidy on mapfile.)
-<br>&rarr; Version 2.2.1: Tried to fix covplot bug in compare=FILES mode.
-<br>&rarr; Version 2.2.2: Cleaned up *.map.* output for SAMPhaser output files. Added tidy/mapfas option selection.
-<br>&rarr; Version 2.2.3: Added #NOTE to tidy and fixed makesnp=T bug.
-<br>&rarr; Version 2.2.4: Fixed `fragrevcomp=F` bug for Gene and Protein TopHits.
-<br>&rarr; Version 2.2.5: Hopefully really fixed makesnp=T bug now!
-<br>&rarr; Version 2.2.6: Fixed Haploid tidy sequence output naming bug.
-<br>&rarr; Version 2.2.7: Fixed Compare File path bug & dropped some empty outputs.
-<br>&rarr; Version 2.3.0: Minor bug fixes and extra tidy options (join gaps and multi-deletes).
-<br>&rarr; Version 2.3.1: Minor bug fixes.
-<br>&rarr; Version 2.3.2: Updated the synteny mappings to be m::n instead of m:n for Excel compatibility.
-<br>&rarr; Version 2.3.3: Fixed bad assembly sequence name bug.
+<p><b>&bull; gopher:</b> <i>Updated from Version 3.4.2.</i>
+<br>&rarr; Version 3.4.3: Added checking and warning if no bootstraps for orthtree.
 </p>
-<p><b>&bull; pagsat_V1:</b> <i>Created/Renamed/moved.</i>
-<br>&rarr; Version 1.0.0: Initial working version for based on rje_pacbio assessment=T.
-<br>&rarr; Version 1.1.0: Fixed bug with gene and protein summary data. Removed gene/protein reciprocal searches. Added compare mode.
-<br>&rarr; Version 1.1.1: Added PAGSAT output directory for tidiness!
-<br>&rarr; Version 1.1.2: Renamed the PacBio class PAGSAT.
-<br>&rarr; Version 1.2.0: Tidied up output directories. Added QV filter and Top Gene/Protein hits output.
-<br>&rarr; Version 1.2.1: Added casefilter=T/F  : Whether to filter leading/trailing lower case (low QV) sequences [True]
-<br>&rarr; Version 1.3.0: Added tophitbuffer=X and initial synteny analysis for keeping best reference hits.
-<br>&rarr; Version 1.4.0: Added chrom-v-contig alignment files along with *.ordered.fas.
-<br>&rarr; Version 1.4.1: Made default chromalign=T.
-<br>&rarr; Version 1.4.2: Fixed casefilter=F.
-<br>&rarr; Version 1.5.0: diploid=T/F     : Whether to treat assembly as a diploid [False]
-<br>&rarr; Version 1.6.0: mincontiglen=X  : Minimum contig length to retain in assembly [1000]
-<br>&rarr; Version 1.6.1: Added diploid=T/F to R PNG call.
-<br>&rarr; Version 1.7.0: Added tidy=T/F option. (Development)
-<br>&rarr; Version 1.7.1: Updated tidy=T/F to include initial assembly.
-<br>&rarr; Version 1.7.2: Fixed some bugs introduced by changing gablam fragment output.
-<br>&rarr; Version 1.7.3: Added circularise sequence generation.
-<br>&rarr; Version 1.8.0: Added orphan processing and non-chr naming of Reference.
-<br>&rarr; Version 1.9.0: Modified the join sorting and merging. Added better tracking of positions when trimming.
-<br>&rarr; Version 1.9.1: Added joinmargin=X    : Number of extra bases allowed to still be considered an end local BLAST hit [10]
-<br>&rarr; Version 1.10.0: Added weighted tree output and removed report warning.
-<br>&rarr; Version 1.10.1: Fixed issue related to having Description in GABLAM HitSum tables.
-<br>&rarr; Version 1.10.2: Tweaked haploid core output.
-<br>&rarr; Version 1.10.3: Fixed tidy bug for RevComp contigs and switched joinsort default to Identity. (Needs testing.)
-<br>&rarr; Version 1.10.4: Added genetar option to tidy out genesummary and protsummary output. Incorporated rje_synteny.
-<br>&rarr; Version 1.10.5: Set gablamfrag=1 for gene/protein hits.
-<br>&rarr; Version 1.11.0: Consolidated automated tidy mode and cleaned up some excess code.
-<br>&rarr; Version 1.11.1: Added option for running self-PAGSAT of ctidX contigs versus haploid set. Replaced ctid "X" with "N".
-<br>&rarr; Version 1.11.2: Fixed Snapper run choice bug.
-<br>&rarr; Version 1.11.3: Added reference=FILE as alias for refgenome=FILE. Fixed orphan delete bug.
-<br>&rarr; Version 1.12.0: Tidying up and documenting outputs. Changed default minloclen=250 and minlocid=95. (LTR identification.)
+<p><b>&bull; haqesac:</b> <i>Updated from Version 1.11.0.</i>
+<br>&rarr; Version 1.12.0: 9spec=T/F   : Whether to treat 9XXXX species codes as actual species (generally higher taxa) [False]
 </p>
-<p><b>&bull; peptcluster:</b> <i>Updated from Version 1.5.2.</i>
-<br>&rarr; Version 1.5.3: Added catching of splitPattern() error during alignment.
-<br>&rarr; Version 1.5.4: Fixed error message error.
+<p><b>&bull; multihaq:</b> <i>Updated from Version 1.3.0.</i>
+<br>&rarr; Version 1.4.0: Added SLiMFarmer batch forking if autoskip=F and i=-1.
+<br>&rarr; Version 1.4.1: Added haqblastdir=PATH: Directory in which MultiHAQ BLAST2FAS BLAST runs will be performed [./HAQBLAST/]
 </p>
-<p><b>&bull; pingu_V4:</b> <i>Updated from Version 4.8.0.</i>
-<br>&rarr; Version 4.9.0: Updated HINT download and parsing details.
+<p><b>&bull; pagsat:</b> <i>Updated from Version 2.3.3.</i>
+<br>&rarr; Version 2.3.4: Fixed full.fas request bug.
+<br>&rarr; Version 2.4.0: Added PAGSAT compile mode to generate comparisons of reference chromosomes across assemblies.
 </p>
-<p><b>&bull; qslimfinder:</b> <i>Updated from Version 2.1.1.</i>
-<br>&rarr; Version 2.2.0: Added map and failed outputs for uniprotid=LIST input.
+<p><b>&bull; seqsuite:</b> <i>Updated from Version 1.14.0.</i>
+<br>&rarr; Version 1.14.1: Added zentest for testing the REST servers.
+<br>&rarr; Version 1.15.0: Added GASP to REST servers.
+<br>&rarr; Version 1.16.0: Add rje_gff.GFF to REST servers.
+<br>&rarr; Version 1.17.0: Added batch summarise mode.
+<br>&rarr; Version 1.18.0: Added rje_apollo.Apollo to REST servers.
+<br>&rarr; Version 1.19.0: Tweaked the output of batch summarise, adding Gap% and reducing dp for some fields.
+<br>&rarr; Version 1.19.1: Fixed GapPC summarise output to be a percentage, not a fraction.
 </p>
-<p><b>&bull; seqmapper:</b> <i>Updated from Version 2.1.</i>
-<br>&rarr; Version 2.2.0: Updated basefile to set resfile.
+<p><b>&bull; slimbench:</b> <i>Updated from Version 2.14.0.</i>
+<br>&rarr; Version 2.14.1: Fixed up PPIBench results loading.
+<br>&rarr; Version 2.14.2: Fixed ByCloud bug.
+<br>&rarr; Version 2.15.0: Updated assessSearchMemSaver() to handle different data types properly. dombench not yet supported.
+<br>&rarr; Version 2.16.0: Added ppi hub/slim summary and motif filter for assessment datasets post-rating (still count as OT)
+<br>&rarr; Version 2.16.1: Bug-fixing PPI generation from pairwise PPI files.
+<br>&rarr; Version 2.16.2: Fixed benchmarking setup bug.
+<br>&rarr; Version 2.16.3: Fixed bug when Hub-PPI links fail during PPI Benchmarking.
+<br>&rarr; Version 2.17.0: Added output of missing datasets when balanced=T.
+<br>&rarr; Version 2.18.0: Added dev OccBench with improved ratings and more efficient results handling. (dev only)
+<br>&rarr; Version 2.18.1: Added additional OccBench options (bymotif, occsource, occspec)
+<br>&rarr; Version 2.18.2: Fixed problem with source file selection ignoring i=-1.
 </p>
-<p><b>&bull; seqsuite:</b> <i>Updated from Version 1.12.0.</i>
-<br>&rarr; Version 1.12.1: Fixed possible download run bug. (No dev/ modules?)
-<br>&rarr; Version 1.13.0: Changed GABLAM defaults to fullblast=T keepblast=T.
-<br>&rarr; Version 1.14.0: Added BLAST run object, particularly for qassemblefas running.
+<p><b>&bull; slimfarmer:</b> <i>Updated from Version 1.7.0.</i>
+<br>&rarr; Version 1.8.0: jobforks=X : Number of forks to pass to farmed out run if >0 [0]
+<br>&rarr; Version 1.9.0: daisychain=X : Chain together a set of qsub runs of the same call that depend on the previous job.
 </p>
-<p><b>&bull; slimbench:</b> <i>Updated from Version 2.10.1.</i>
-<br>&rarr; Version 2.10.2: Updated HINT Source URLs.
-<br>&rarr; Version 2.11.0: Fixed issue with ELM motifs file names (*.motifs, not *.motifs.txt). Updated some warning/error messages.
-<br>&rarr; Version 2.11.1: Switched mergesplits=F for SLiMProb run. (Not expecting it.)
-<br>&rarr; Version 2.11.2: Trying to complete implementation of PPIBench.
-<br>&rarr; Version 2.11.3: Fixed ppdb bug when making simbench without ppibench.
-<br>&rarr; Version 2.12.0: Added randat=T/F : Whether to use DAT file for random source [False]
-<br>&rarr; Version 2.13.0: Added balanced=T/F : Whether to reduce benchmarking to datasets found for all RunIDs [True]
-<br>&rarr; Version 2.13.1: Set tuplekeys=T for benchmark assessment runs.
-<br>&rarr; Version 2.13.2: Fixed tuplekeys=T bug for benchmark assessment runs.
-<br>&rarr; Version 2.14.0: Added wPPV = SN/(SN+FPR) for OccBench.
+<p><b>&bull; slimfinder:</b> <i>Updated from Version 5.3.3.</i>
+<br>&rarr; Version 5.3.4: Fixed terminal (^/$) musthave bug.
 </p>
-<p><b>&bull; slimfarmer:</b> <i>Updated from Version 1.4.5.</i>
-<br>&rarr; Version 1.5.0: mailstart=T/F : Whether to email user at start of run [False]
-<br>&rarr; Version 1.6.0: modpurge=T/F : Whether to purge loaded modules in qsub job file prior to loading [True]
-<br>&rarr; Version 1.7.0: precall=LIST : List of additional commands to run between module loading and program call []
+<p><b>&bull; slimsuite:</b> <i>Updated from Version 1.7.0.</i>
+<br>&rarr; Version 1.7.1: Added error raising for protected REST alias data.
 </p>
-<p><b>&bull; slimfinder:</b> <i>Updated from Version 5.2.3.</i>
-<br>&rarr; Version 5.3.0: Added map and failed outputs for uniprotid=LIST input.
-<br>&rarr; Version 5.3.1: Modified placement of disorder masking warning.
-<br>&rarr; Version 5.3.2: Tweaked REST output format presentation.
-<br>&rarr; Version 5.3.3: Updated resfile to be set by basefile if no resfile=X setting given
+<p><b>&bull; smrtscape:</b> <i>Updated from Version 2.2.1.</i>
+<br>&rarr; Version 2.2.2: Added dna=T to all SeqList object generation.
 </p>
-<p><b>&bull; slimmaker:</b> <i>Updated from Version 1.6.1.</i>
-<br>&rarr; Version 1.7.0: Added maxlen parameter.
-</p>
-<p><b>&bull; slimparser:</b> <i>Updated from Version 0.4.0.</i>
-<br>&rarr; Version 0.5.0: Added restkeys/outputs output of REST output keys.
-</p>
-<p><b>&bull; slimprob:</b> <i>Updated from Version 2.2.5.</i>
-<br>&rarr; Version 2.3.0: Recombining Split Motifs (mergesplits=T). Cannot be combined efficiently with append=T. (Overwrites split table.)
-<br>&rarr; Version 2.4.0: Added AccNum to occ output for SLiMEnrich compatibility.
-<br>&rarr; Version 2.5.0: Added map and failed outputs for uniprotid=LIST input.
-<br>&rarr; Version 2.5.1: Updated resfile to be set by basefile if no resfile=X setting given.
-</p>
-<p><b>&bull; slimsuite:</b> <i>Updated from Version 1.6.0.</i>
-<br>&rarr; Version 1.7.0: Updated to work with symbolic link in main slimsuite/ path.
-</p>
-<p><b>&bull; smrtscape:</b> <i>Updated from Version 1.10.1.</i>
-<br>&rarr; Version 2.0.0: Updated Version 2.x. Anchor read depth calculations no longer subtract seed coverage.
-<br>&rarr; Version 2.0.1: Fixed a bug with the preassembly MinX calculation and enabled seqin=FILE ftcovx analysis.
-<br>&rarr; Version 2.0.2: SeqIn does not generate *.fofn output.
-<br>&rarr; Version 2.1.0: Added MapLen and MapX to optimise.tdt output.
-<br>&rarr; Version 2.1.1: Fixed basefile bug.
-<br>&rarr; Version 2.2.0: Updated to work with fasta files generated from Sequel BAM files. (No RQ values.)
-<br>&rarr; Version 2.2.1: Fixed printLog typo bug.
-</p>
-<p><b>&bull; smrtscape_V1:</b> <i>Created/Renamed/moved.</i>
-<br>&rarr; Version 0.0.0: Initial Compilation.
-<br>&rarr; Version 1.0.0: Initial working version for server.
-<br>&rarr; Version 1.1.0: Added xnlist=LIST : Additional columns giving % sites with coverage >= Xn [10,25,50,100].
-<br>&rarr; Version 1.2.0: Added assessment -> now PAGSAT.
-<br>&rarr; Version 1.3.0: Added seed and anchor read coverage generator (calculate=T).
-<br>&rarr; Version 1.3.1: Deleted assessment function. (Now handled by PAGSAT.)
-<br>&rarr; Version 1.4.0: Added new coverage=T function that incorporates seed and anchor subreads.
-<br>&rarr; Version 1.5.0: Added parseparam=FILES with paramlist=LIST to parse restricted sets of parameters.
-<br>&rarr; Version 1.6.0: New SMRTSCAPE program building on PacBio v1.5.0. Added predict=T/F option.
-<br>&rarr; Version 1.6.1: Updated parameters=T to incorporate that the seed read counts as X=1.
-<br>&rarr; Version 1.7.0: Added *.summary.tdt output from subread summary analysis. Added minreadlen.
-<br>&rarr; Version 1.8.0: preassembly=FILE: Preassembly fasta file to assess/correct over-fragmentation (use seqin=FILE for subreads)
-<br>&rarr; Version 1.9.0: Updated empirical preassembly mapefficiency calculation.
-<br>&rarr; Version 1.10.0: Added batch processing of subread files.
-<br>&rarr; Version 1.10.1: Fixed bug in batch processing.
-</p>
-<p><b>&bull; snapper:</b> <i>Updated from Version 1.0.1.</i>
-<br>&rarr; Version 1.1.0: NoCopy fasta output
-<br>&rarr; Version 1.2.0: makesnp=T/F : Whether or not to generate Query vs Reference SNP tables [True]
-<br>&rarr; Version 1.3.0: localsAM=T/F : Save local (and unique) hits data as SAM files in addition to TDT [False] - via GABLAM
-<br>&rarr; Version 1.4.0: localidmin=PERC : Minimum local %identity of local alignment to output to local stats table [0.0]
-<br>&rarr; Version 1.4.1: Modified warning for AccNum/Locus mismatch in Reference.
-<br>&rarr; Version 1.5.0: Added pNS and modified the "Positive" CDS rating to be pNS < 0.05.
-<br>&rarr; Version 1.6.0: filterself=T/F  : Filter out self-hits prior to Snapper pipeline (e.g for assembly all-by-all) [False] Added renaming of alt sequences that are found in the Reference for self-comparisons.
+<p><b>&bull; snapper:</b> <i>Updated from Version 1.6.0.</i>
+<br>&rarr; Version 1.6.1: Fixed bug for reducing to unique-unique pairings that was over-filtering.
 </p>
 <!-- ~~~~~~~~~~~~~~ HTML tail data ~~~~~~~~~~~~~~~~~ -->
-<HR><FONT COLOR=#979E45 SIZE=2>&copy; RJ Edwards 2017. Last modified 18 Dec 2017.</FONT></P>
+<HR><FONT COLOR=#979E45 SIZE=2>&copy; RJ Edwards 2018. Last modified 2 Jul 2018.</FONT></P>
 
 <script type="text/javascript">
 /* manualStartup=true so need to run it now */
