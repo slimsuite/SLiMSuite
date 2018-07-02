@@ -1,8 +1,8 @@
 ################# ::: APP INFO ::: ######################
 info = list(
   apptitle = "SNPFreqR MBG Evolution",
-  version = "0.7.0",
-  lastedit = "12/12/2017",
+  version = "0.11.1",
+  lastedit = "28/06/2018",
   author = "Richard J. Edwards",
   contact = "richard.edwards@unsw.edu.au",
   description = "Custom SNP Frequency analysis for MBGEvolution project."
@@ -20,6 +20,16 @@ info = list(
 # V0.6.0 - Added locus_tag filer.
 # V0.6.1 - Fixed PNG file name bug and moved other RJE R scripts to main directory for ease of sharing.
 # V0.7.0 - Updated interface for Microbiogen, plus initial in-app documentation.
+# v0.8.0 - Added lots of features and extra filters. (Documentation needed!)
+# v0.8.1 - Added single strain colouring on grey backdrop.
+# v0.8.2 - Added colouring of no parents, plot pausing, alternative input, more plot updates and chromosome cycling.
+#        - Switched default to be plotting CDS only.
+# v0.9.0 - Added additional plot data types: (Absolute) SNPFreq change. Added Pop00->13 and Pop04-> to multiload.
+# v0.10.0 - Added histogram plotting options.
+# v0.10.1 - Tried adding multipanel plots but layout() does not seem to work. Need to be cleverer with app design?
+#         - Addd histogram of whole genome and modified description.
+# v0.11.0 - Added TimeLine table of frequencies at all timepoints.
+# v0.11.1 - Moved plotting function to plotcode.R. Added Fixation colour scheme. Fixed TimeLine filtering. Many "Any" population the default.
 
 ################## ::: LICENSE ::: #####################
 # This is free software: you can redistribute it and/or modify
@@ -27,7 +37,7 @@ info = list(
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
 
-# SLiMEnrich program is distributed in the hope that it will be useful,
+# The SNPFreqR program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
@@ -38,10 +48,19 @@ info = list(
 ################# ::: KNOWN BUGS ::: ######################
 #!# List bugs here.
 #!# Might need to run source("main.R")
+#!# Trying to look at the SNP table before a plot is made does not work.
 
 ################# ::: TO DO LIST ::: ######################
 # [ ] : Filter the Features table.
-
+# [X] : Add feature table locus_tag to SNPFreq tables.
+# [Y] : Modify feature filter to accept a list of locus_tags.
+# [Y] : Add a straincolour option to use rainbow colouring by strain, not red/blue.
+# [Y] : Add custom strain list. 
+# [Y] : Change "any" strain to be any of the custom list.
+# [Y] : Change "All" to be all strains in list, and change current "All" to "Ignore".
+# [Y] : Add histograms to plot types.
+# [Y] : Update MBG unique strain selection to pick from given list, not all MBG strains.
+# [ ] : Tidy up some of the column names and documentation. (No longer for the bulked segregant analysis.)
 
 ############### ::: GENERAL SETUP ::: ##################
 #i# This used to be the setup.R code...
@@ -85,7 +104,7 @@ settings = list(
   
   inputpath = "../../analysis/2017-11-27.SNPFreq",
   #inputpath = "/Users/redwards/OneDrive - UNSW/projects/MBGEvolution-Feb17/analysis/2017-11-27.SNPFreq",
-  pngpath = "../../analysis/2017-11-27.SNPFreq/plots",
+  pngpath = "/Users/redwards/Data/projects/MBGEvolution-Feb17/analysis/2018-06-25.SNPFreqRPlots/plots",
   
   
   #i# URL of REST servers
@@ -104,12 +123,23 @@ settings = list(
   #i# Default program
   prog = "zen",
   #i# Default JobID
-  jobid = "17092300003"   # Test with 17092500002
+  jobid = "17092300003",   # Test with 17092500002
+  #i# MBG Strains
+  strains = c('mbg11a','mbg1871','mbg2303','mbgag26','mbgag35','mbgh207'),
+  mbgstrains = "mbg11a,mbg1871,mbg2303,mbgag26,mbgag35,mbgh207",
+  popcomb = c("Pop00.vs.Pop04","Pop04.vs.Pop06","Pop06.vs.Pop09","Pop09.vs.Pop10","Pop10.vs.Pop11","Pop11.vs.Pop12","Pop12.vs.Pop13","Pop00.vs.Pop13","Pop04.vs.Pop13"),
+  #popcomb = c("Pop00.vs.Pop04","Pop04.vs.Pop06","Pop06.vs.Pop09"),
+  multichrom = c("sgdI","sgdII","sgdIII","sgdIV")
 )
 
-if(getwd() == "/Users/redwards/Dropbox/_Repository_/slimsuite/shiny/snpfreqR"){
+if(getwd() == "/Users/redwards/Dropbox/code/slimsuite/shiny/snpfreqR"){
   settings$inputpath = "/Users/redwards/OneDrive - UNSW/projects/MBGEvolution-Feb17/analysis/2017-11-27.SNPFreq"
   settings$pngpath = "/Users/redwards/OneDrive - UNSW/projects/MBGEvolution-Feb17/analysis/2017-11-27.SNPFreq/plots"
+}
+
+if(getwd() == "/Users/aperezbercoff/slimsuite/shiny/snpfreqR/"){
+  settings$inputpath = "/Users/aperezbercoff/Projects/MBGMutants-May18/analysis/2018-06-08.SNPFreq.mutants"
+  settings$pngpath = "/Users/aperezbercoff/Projects/MBGMutants-May18/analysis/2018-06-08.SNPFreq.mutants/plots"
 }
 
 ## ~ Set up global plot settings (SNPFreq) ~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
@@ -118,13 +148,13 @@ settings$pngwidth = 2400
 settings$pngheight = 1600
 settings$dualpng = 1600
 settings$pointsize = 36
-settings$pcut = 0.01
+settings$pcut = 1   #0.01
 settings$fdrplot = FALSE
 settings$multiplot = FALSE
 
 ## ~ Setup Chromosome plot settings ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
 settings$chrom = NA
-settings$chrom = "sgdI_YEAST__BK006935" # "sgdIII_YEAST__BK006937"
+settings$chrom = "sgdXV_YEAST__BK006948" # "sgdI_YEAST__BK006935" # "sgdIII_YEAST__BK006937"
 settings$ymin=0
 settings$ymax=1.0
 settings$xmin=0
@@ -148,6 +178,18 @@ settings = featureDefaults(settings)
 #}
 settings = featureColours(settings)
 
+allpar = c("mbg344","mbg461","mbg474","mbg475","mbg479","mbg481","mbg482","mbg541","mbg542","mbg549","mbg557","mbg558","mbg602")
+parcol = rainbow(length(allpar))
+for(i in 1:length(allpar)){
+  pparent = allpar[i]
+  settings$col[[pparent]] = parcol[i]
+}
+allmbg = c('mbg11a','mbg1871','mbg2303','mbgag26','mbgag35','mbgh207')
+parcol = rainbow(length(allmbg))
+for(i in 1:length(allmbg)){
+  pparent = allmbg[i]
+  settings$col[[pparent]] = parcol[i]
+}
 
 ############### ::: SETUP DATA ::: ##################
 #i# This function is called by server.R in a reactiveValues() call.
@@ -164,7 +206,9 @@ setupData = function(){
   emptydb$featloaded = FALSE   # Stores whether features have been loaded.
   emptydb$loads = 0      # This counter is to prevent action buttons from self-triggering
   emptydb$pngsaves = 0   # This counter is to prevent action buttons from self-triggering
+  emptydb$plots = 0      # This counter is to prevent action buttons from self-triggering
   emptydb$intro = "Load SNP Frequencies and Reference Features. (See Instructions Tab)"
+  emptydb$activitylog = c(paste0(info$apptitle," v",info$version),info$description,paste("For help, contact:",info$contact))
   emptydb$settings = settings
   # Return data list
   return(emptydb)
@@ -179,6 +223,9 @@ setupData = function(){
 
 ## ~ FreqTable formatting cleanup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
 freqTableCleanup = function(freqdb){
+  if(settings$testing){
+    freqdb = freqdb[freqdb$Locus == settings$chrom,]
+  }
   if(! 'AltPos' %in% colnames(freqdb)){
     freqdb$AltPos = freqdb$Pos
     freqdb$AltLocus = freqdb$Locus
@@ -207,7 +254,8 @@ freqTableCleanup = function(freqdb){
 
 
 ## ~ FreqTable SNP filtering ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-filterSNPs = function(appdata,freqdb){
+source("snpfilter.R")
+OLDfilterSNPs = function(appdata,freqdb){
   snpdata = freqdb
   ### Subsetting data
   if(appdata$freqfilter == "Fixed"){
@@ -217,7 +265,7 @@ filterSNPs = function(appdata,freqdb){
     snpdata = snpdata[snpdata$MajFreq <= appdata$fixfreq,]  
   }
   if(appdata$freqfilter == "Polymorphic"){
-    snpdata = snpdata[snpdata$MajFreq >= appdata$fixfreq & snpdata$MajFreq <= (1.0-appdata$fixfreq),]  
+    snpdata = snpdata[snpdata$MajFreq > appdata$fixfreq & snpdata$MajFreq < (1.0-appdata$fixfreq),]  
   }
   desc = c(appdata$freqfilter," ")
   #1# Parents
@@ -338,23 +386,48 @@ filterSNPs = function(appdata,freqdb){
   ymax = appdata$ymax
   
   # Locus_tag restriction
+  #writeLines(appdata$findft)
   if(appdata$findft != ""){
-    writeLines("locus_tag restriction")
+    writeLines("FilterSNPs locus_tag restriction")
     writeLines(appdata$findft)
     writeLines(">>>")
-    ftchrom = as.character(appdata$feattable[appdata$feattable$locus_tag == appdata$findft,]$Chrom[1])
-    #writeLines(ftchrom)
-    fmin = min(appdata$feattable[appdata$feattable$locus_tag == appdata$findft,]$start)
-    #writeLines(fmin)
-    fmax = max(appdata$feattable[appdata$feattable$locus_tag == appdata$findft,]$end)
-    writeLines("Looking for ftsnp")
-    if(ftchrom %in% snpdata$Locus){
-      snpdata = snpdata[snpdata$Locus == ftchrom & snpdata$Pos >= fmin & snpdata$Pos <= fmax,]  
-      if(nrow(snpdata) < 1){
+    if(regexpr(',',appdata$findft) > 0){
+      # Multiple (new)
+      ftdata = snpdata[snpdata$Locus == "BLANK" & snpdata$Pos >= 1 & snpdata$Pos <= -1,]
+      for(locustag in strsplit(appdata$findft,",",fixed=TRUE)){
+        writeLines(paste0("Looking for",locustag))
+        ftchrom = as.character(appdata$feattable[appdata$feattable$locus_tag == locustag,]$Chrom[1])
+        fmin = min(appdata$feattable[appdata$feattable$locus_tag == locustag,]$start)
+        fmax = max(appdata$feattable[appdata$feattable$locus_tag == locustag,]$end)
+        if(ftchrom %in% snpdata$Locus){
+          ftdata = rbind(ftdata,snpdata[snpdata$Locus == ftchrom & snpdata$Pos >= fmin & snpdata$Pos <= fmax,])
+          if(nrow(ftdata) < 1){
+            return(paste(ftchrom,"not found in filtered SNP data."))
+          }
+        }else{
+          return(paste(ftchrom,"not found in loaded data."))
+        }
+      }
+      print(dim(ftdata))
+      snpdata = ftdata          
+      
+    }else{
+      # Single (old)
+      writeLines("Single feature")
+      ftchrom = as.character(appdata$feattable[appdata$feattable$locus_tag == appdata$findft,]$Chrom[1])
+      #writeLines(ftchrom)
+      fmin = min(appdata$feattable[appdata$feattable$locus_tag == appdata$findft,]$start)
+      #writeLines(fmin)
+      fmax = max(appdata$feattable[appdata$feattable$locus_tag == appdata$findft,]$end)
+      writeLines("Looking for ftsnp")
+      if(ftchrom %in% snpdata$Locus){
+        snpdata = snpdata[snpdata$Locus == ftchrom & snpdata$Pos >= fmin & snpdata$Pos <= fmax,]  
+        if(nrow(snpdata) < 1){
+          return(paste(ftchrom,"not found in filtered SNP data."))
+        }
+      }else{
         return(paste(ftchrom,"not found in filtered SNP data."))
       }
-    }else{
-      return(paste(ftchrom,"not found in filtered SNP data."))
     }
   }
   appdata$intro = desc
@@ -389,7 +462,8 @@ chromCNVPlot = function(chromdata,chrom,xmin=0,xmax=-1){
 #># chromdata has the chromosome size etc.
 #># colbychrom=TRUE uses the colour of the matching chromosome for the points and lines
 #># colbychrom=FALSE uses the red for up and blue for down. (Purple for no change.)
-chromSNPFreqPlot = function(appdata,chromdata,chrom,alt="Alt",comparison=settings$basename,ymin=0,ymax=1.0,xmin=0,xmax=-1,colbychrom=TRUE,region=FALSE){
+source("plotcode.R")
+OLDchromSNPFreqPlot = function(appdata,chromdata,chrom,alt="Alt",comparison=settings$basename,ymin=0,ymax=1.0,xmin=0,xmax=-1,colbychrom=TRUE,region=FALSE, plotcol="Direction"){
   #!# Add switch for time series plot
   timeplot = FALSE
   writeLines("chromSNPFreqPlot")
@@ -403,130 +477,118 @@ chromSNPFreqPlot = function(appdata,chromdata,chrom,alt="Alt",comparison=setting
     }else{
       snpdata = appdata$freqdb[[appdata$freqlist]]
     }
+    if(appdata$plothist %in% c("TimeLine","TimeLine (all chrom)")){
+      snpdata = appdata$timedb
+    }
   }
   desc = c(chrom," - ")
   
-  #>> FILTER START >>#
-  ### Subsetting data
-  if(appdata$freqfilter == "Fixed"){
-    snpdata = snpdata[snpdata$MajFreq >= (1.0-appdata$fixfreq),]  
+  ### ~ FILTER SNPs ~ ###
+  snpdata = filterSNPs(appdata,snpdata)
+  if(appdata$plothist %in% c("TimeLine","TimeLine (all chrom)")){
+    snpdata = appdata$timedb
+    #Try ordering. Might make this an option
+    #snpdata = snpdata[order(snpdata$Pop00),]
+    #snpdata = snpdata[order(snpdata$Pop13),]
+    snpdata = snpdata[rev(order(snpdata$Pop00)),]
+    snpdata = snpdata[rev(order(snpdata$Pop13)),]
+    #!# Reorder based on colouring!
   }
-  if(appdata$freqfilter == "Lost"){
-    snpdata = snpdata[snpdata$MajFreq <= appdata$fixfreq,]  
-  }
-  if(appdata$freqfilter == "Polymorphic"){
-    snpdata = snpdata[snpdata$MajFreq >= appdata$fixfreq & snpdata$MajFreq <= (1.0-appdata$fixfreq),]  
-  }
+  #>> FILTER Description >>#
   #1# Parents
-  desc = c(desc,"Par:",appdata$parlist)
+  if(appdata$parlist != "No Filter"){
+    desc = c(desc,"Par:",appdata$parlist)
+  }
   if(substr(appdata$parlist,1,3) == 'mbg'){   # Single Parent
     if(appdata$paruniq){  # Unique to parent
       if(appdata$parinv){
-        snpdata = snpdata[snpdata$Parents != appdata$parlist,]  
         desc = c(desc," (UniqInv)")
       }else{
-        snpdata = snpdata[snpdata$Parents == appdata$parlist,]  
         desc = c(desc," (Uniq)")
       }
     }else{   # All SNPs in parent
       if(appdata$parinv){
-        snpdata = snpdata[regexpr(appdata$parlist,snpdata$Parents) < 0,]  
         desc = c(desc," (Inv)")
-      }else{
-        snpdata = snpdata[regexpr(appdata$parlist,snpdata$Parents) > 0,]  
       }
     }
   }
-  if(appdata$parlist == "Any"){   # Any parent
-    if(appdata$parinv){
-      snpdata = snpdata[regexpr("mbg",snpdata$Parents) < 0,]  
-    }else{
-      snpdata = snpdata[regexpr("mbg",snpdata$Parents) > 0,]  
-    }
-  }  
-  if(appdata$parlist == "None"){  # No parent
-    snpdata = snpdata[snpdata$Parents == "",]  
-  }
-  
-    
+  if(appdata$parlist != "No Filter"){ desc = c(desc,"; ") }
   #2# MBG non-parent Strains
-  desc = c(desc,"; MBG:",appdata$strlist)
+  if(appdata$strlist != "No Filter"){
+    desc = c(desc,"MBG1:",appdata$strlist)
+  }
   if(substr(appdata$strlist,1,3) == 'mbg'){   # Single strain
     if(appdata$struniq){  # Unique to strain
       if(appdata$strinv){
-        snpdata = snpdata[snpdata$Strains != appdata$strlist,]  
         desc = c(desc," (UniqInv)")
       }else{
-        snpdata = snpdata[snpdata$Strains == appdata$strlist,]  
         desc = c(desc," (Uniq)")
       }
     }else{   # All SNPs in strain
       if(appdata$strinv){
-        snpdata = snpdata[regexpr(appdata$strlist,snpdata$Strains) < 0,]  
         desc = c(desc," (nv)")
-      }else{
-        snpdata = snpdata[regexpr(appdata$strlist,snpdata$Strains) > 0,]  
       }
     }
   }
-  if(appdata$strlist == "Any"){   # Any strain
-    if(appdata$strinv){
-      snpdata = snpdata[regexpr("mbg",snpdata$Strains) < 0,]  
-    }else{
-      snpdata = snpdata[regexpr("mbg",snpdata$Strains) > 0,]  
-    }
-  }  
-  if(appdata$strlist == "None"){  # No strain
-    snpdata = snpdata[snpdata$Strains == "",]  
+  if(appdata$strlist != "No Filter"){ desc = c(desc,"; ") }
+  if(appdata$str2list != "No Filter"){
+    desc = c(desc,"MBG2:",appdata$str2list)
   }
-  
+  if(substr(appdata$str2list,1,3) == 'mbg'){   # Single strain
+    if(appdata$str2uniq){  # Unique to strain
+      if(appdata$str2inv){
+        desc = c(desc," (UniqInv)")
+      }else{
+        desc = c(desc," (Uniq)")
+      }
+    }else{   # All SNPs in strain
+      if(appdata$str2inv){
+        desc = c(desc," (nv)")
+      }
+    }
+  }
+  if(appdata$str2list != "No Filter"){ desc = c(desc,"; ") }
   #3# Populations
-  desc = c(desc,"; Pop:",appdata$poplist)
+  if(appdata$poplist != "No Filter"){
+    desc = c(desc,"Pop:",appdata$poplist)
+  }
   if(substr(appdata$poplist,1,3) == 'Pop'){   # Single population
     if(appdata$popuniq){  # Unique to population
       if(appdata$popinv){
         desc = c(desc," (UniqInv)")
-        snpdata = snpdata[snpdata$Pops != appdata$poplist,]  
       }else{
-        snpdata = snpdata[snpdata$Pops == appdata$poplist,]  
         desc = c(desc," (Uniq)")
       }
     }else{   # All SNPs in population
       if(appdata$popinv){
-        snpdata = snpdata[regexpr(appdata$poplist,snpdata$Pops) < 0,]  
         desc = c(desc," (Inv)")
-      }else{
-        snpdata = snpdata[regexpr(appdata$poplist,snpdata$Pops) > 0,]  
       }
     }
   }
-  if(appdata$poplist == "Any"){   # Any population
-    if(appdata$popinv){
-      snpdata = snpdata[regexpr("Pop",snpdata$Pops) < 0,]  
-    }else{
-      snpdata = snpdata[regexpr("Pop",snpdata$Pops) > 0,]  
-    }
-  }  
-  if(appdata$poplist == "None"){  # No population
-    snpdata = snpdata[snpdata$Pops == "",]  
-  }
-  
+  if(appdata$poplist != "No Filter"){ desc = c(desc,"; ") }
   #4# SNP Types and Effects  
-  if(appdata$snplist != "All"){
-    if(appdata$snplist == "CDS"){
-      snpdata = snpdata[snpdata$SNPType != "SNP",]  
-    }else{
-      snpdata = snpdata[snpdata$SNPType == appdata$snplist,]  
-    }
-  }
-  if(appdata$efflist != "All"){
-    snpdata = snpdata[snpdata$SNPEffect == appdata$efflist,]  
-  }
   pop1 = colnames(snpdata)[6]
   pop2 = colnames(snpdata)[8]
-  desc = paste0(c(desc,"; SNP:(",appdata$snplist,"|",appdata$efflist,")"),collapse="")
-  desc = paste0(desc," ",pop1," to ",pop2," (n = ",nrow(snpdata[snpdata$Locus==chrom,])," / ",nrow(snpdata),")")
+  desc = paste0(c(desc,"SNP:(",appdata$snplist,"|",appdata$efflist,")"),collapse="")
+  if(appdata$plothist %in% c("Scatterplot")){
+    desc = paste0(desc," ",pop1," to ",pop2," (n = ",nrow(snpdata[snpdata$Locus==chrom,])," / ",nrow(snpdata),")")
+  }
+  if(appdata$plothist %in% c("Histogram","Histogram (all chrom)")){
+    if(appdata$plothist %in% c("Histogram (all chrom)")){
+      desc = paste0(desc," ",appdata$plotfield," (n = ",nrow(snpdata),")")
+    }else{
+      desc = paste0(desc," ",appdata$plotfield," (n = ",nrow(snpdata[snpdata$Locus==chrom,])," / ",nrow(snpdata),")")
+    }
+  }
+  if(appdata$plothist %in% c("TimeLine","TimeLine (all chrom)")){
+    if(appdata$plothist %in% c("TimeLine (all chrom)")){
+      desc = paste0(desc," ",appdata$plotfield," (n = ",nrow(snpdata),")")
+    }else{
+      desc = paste0(desc," ",appdata$plotfield," (n = ",nrow(snpdata[snpdata$Locus==chrom,])," / ",nrow(snpdata),")")
+    }
+  }
   writeLines(desc)
+  appdata$intro = desc
   
   chromdata = appdata$feattable
   comparison = paste0(appdata$complabel," ",pop1," to ",pop2," (n = ",nrow(snpdata[snpdata$Locus==chrom,])," / ",nrow(snpdata),")")
@@ -535,36 +597,19 @@ chromSNPFreqPlot = function(appdata,chromdata,chrom,alt="Alt",comparison=setting
   ymin = appdata$ymin
   ymax = appdata$ymax
   
-  # Locus_tag restriction
-  if(appdata$findft != ""){
-    writeLines("locus_tag restriction")
-    writeLines(appdata$findft)
-    writeLines(">>>")
-    ftchrom = as.character(appdata$feattable[appdata$feattable$locus_tag == appdata$findft,]$Chrom[1])
-    #writeLines(ftchrom)
-    fmin = min(appdata$feattable[appdata$feattable$locus_tag == appdata$findft,]$Start)
-    #writeLines(fmin)
-    fmax = max(appdata$feattable[appdata$feattable$locus_tag == appdata$findft,]$End)
-    writeLines("Looking for ftsnp")
-    if(ftchrom %in% snpdata$Locus){
-      snpdata = snpdata[snpdata$Locus == ftchrom & snpdata$Pos >= fmin & snpdata$Pos <= fmax,]  
-      if(nrow(snpdata) < 1){
-        return(paste(ftchrom,"not found in filtered SNP data."))
-      }
-    }else{
-      return(paste(ftchrom,"not found in filtered SNP data."))
-    }
-  }
-  #<< FILTER END <<#
-
+  ### ~ SETUP PLOT ~ ##
   scaling = settings$scaling
   units = paste("(",settings$units,")",sep="")
-  if(alt == "Alt"){
-    (plotdata = snpdata[snpdata$AltLocus==chrom,])
-    plotdata = plotdata[(order(plotdata$AltPos)),]
+  if(appdata$plothist %in% c("Histogram (all chrom)","TimeLine (all chrom)")){
+    plotdata = snpdata
   }else{
-    (plotdata = snpdata[snpdata$Locus==chrom,])
-    plotdata = plotdata[(order(plotdata$Pos)),]
+    if(alt == "Alt"){
+      (plotdata = snpdata[snpdata$AltLocus==chrom,])
+      plotdata = plotdata[(order(plotdata$AltPos)),]
+    }else{
+      (plotdata = snpdata[snpdata$Locus==chrom,])
+      plotdata = plotdata[(order(plotdata$Pos)),]
+    }
   }
   if(xmax < xmin){
     xmax = max(chromdata[chromdata$Chrom==chrom,]$End)/scaling
@@ -595,14 +640,76 @@ chromSNPFreqPlot = function(appdata,chromdata,chrom,alt="Alt",comparison=setting
   }
   
   # Setup Plot
-  plot(c(xmin,xmax),c(ymin,ymax),col="red",type="n",ylab="SNP Freq",main=ptitle,xlab=paste("Chromosome Position",units),xaxs="i")
-  plotGridlines(xmin,xmax,ymin,ymax,10000/scaling,50000/scaling,0.1,0.5)
+  if(appdata$plotfield == "SNPFreq Change"){
+    if(ymin == 0){ ymin = -1 }
+  }
+  
+  writeLines(appdata$plothist)
+  if(appdata$plothist %in% c("Histogram","Histogram (all chrom)")){
+    if(dim(plotdata)[1] < 1){ return(paste0(desc,": No data to plot!")) }
+    #Histogram test code = good. Tidy up and add!
+    # rgb(1,0,0) = red
+    # rgb(0,1,0) = green
+    # rgb(0,0,1) = blue
+    # rgb(1,1,0) = yellow
+    pcol = c()
+    for(i in c(0:99)/99){
+      pcol = c(pcol,rgb(0,1-i,i))
+    }
+    pcol = c(pcol,rgb(0,0,0))
+    for(i in c(0:99)/99){
+      pcol = c(pcol,rgb(1,i,0))
+    }
+    if(appdata$plotfield %in% c("SNPFreq","Ending SNPFreq")){
+      hist(plotdata$MajFreq,breaks=c(-100.5:100.5)/100,xlim=c(ymin,ymax),xlab=appdata$plotfield,col=pcol,main=ptitle)
+    }
+    if(appdata$plotfield == "Starting SNPFreq"){
+      hist(plotdata$MajFreq-plotdata$MajDiff,breaks=c(-100.5:100.5)/100,xlim=c(ymin,ymax),xlab=appdata$plotfield,col=pcol,main=ptitle)
+    }
+    if(appdata$plotfield == "SNPFreq Change"){
+      hist(plotdata$MajDiff,breaks=c(-100.5:100.5)/100,xlim=c(ymin,ymax),xlab=appdata$plotfield,col=pcol,main=ptitle)
+    }
+    if(appdata$plotfield == "Absolute SNPFreq Change"){
+      hist(abs(plotdata$MajDiff),breaks=c(-100.5:100.5)/100,xlim=c(ymin,ymax),xlab=appdata$plotfield,col=pcol,main=ptitle)
+    }
+    #
+    return(desc)
+  }
+  
+  # Set up scatterplot
+  if(appdata$plothist %in% c("Scatterplot")){
+    plot(c(xmin,xmax),c(ymin,ymax),col="red",type="n",ylab=appdata$plotfield,main=ptitle,xlab=paste("Chromosome Position",units),xaxs="i")
+    plotGridlines(xmin,xmax,ymin,ymax,10000/scaling,50000/scaling,0.1,0.5)
+  }
+  # Set up TimeLine plot
+  if(appdata$plothist %in% c("TimeLine","TimeLine (all chrom)")){
+    plot(c(0,13),c(ymin,ymax),col="red",type="n",ylab=appdata$plotfield,main=ptitle,xlab=paste("Time Point",units),xaxs="i")
+    plotGridlines(0,13,ymin,ymax,1,2,0.1,0.5)
+  }
+  
+  
   writeLines("Base Plotted")
+  plotcol = appdata$plotcol
+  if(colbychrom){ plotcol = "Chromosome" }
+  #else{ plotcol = "Direction" }
   #return(1)
-  if(dim(plotdata)[1] < 1){ return(0) }
+  if(dim(plotdata)[1] < 1){ return(desc) }
+
   # Plot Data
+  plotfield = appdata$plotfield
+  if(appdata$plothist %in% c("TimeLine","TimeLine (all chrom)")){ plotfield = "TimeLine" }
   for(xi in 1:length(plotdata$Pos)){
     pdata = plotdata[xi,]
+    
+    #Check whether to plot
+    if(pdata$MajDiff > 0){
+      if(appdata$plotpos == FALSE){ next }
+    }else if(pdata$MajDiff == 0){
+      if(appdata$plotfix == FALSE){ next }
+    }else{
+      if(appdata$plotneg == FALSE){ next }
+    }
+    
     # Set plot symbol
     if(pdata$MajDiff > 0){
       ppch=24
@@ -611,17 +718,11 @@ chromSNPFreqPlot = function(appdata,chromdata,chrom,alt="Alt",comparison=setting
     }else{
       ppch=25
     }
-    # Set plot colours
-    if(pdata$MajProb <= settings$pcut){
-      p = pdata$MajProb
-      i = max(0,(10 + log10(p))/10.0)
-      pbg = rgb(1,1,i)
-      plwd = 2 - i
-    }else{
-      pbg = NA
-      plwd = 1
-    }
-    if(colbychrom){
+
+    ### Set plot colours
+    ## Colour line and outlines
+    # Colour by chromosome
+    if(plotcol == "Chromosome"){
       if(alt == "Alt"){
         pchrom = as.character(pdata$Locus)
         pcol = settings$col[[pchrom]]
@@ -629,27 +730,128 @@ chromSNPFreqPlot = function(appdata,chromdata,chrom,alt="Alt",comparison=setting
         pchrom = as.character(pdata$AltLocus)
         pcol = settings$col[[pchrom]]
       }
-    }else{
+    }
+    # Colour by parent
+    pparent = as.character(pdata$Parents)
+    if(plotcol == "Parent"){
+      if(pparent %in% names(appdata$col)){
+        pcol = appdata$col[[pparent]]
+      }else{
+        pcol = rgb(0.8,0.8,0.8,0.5)
+      }
+    }
+    # Colour by MBG Strain
+    pstrain = as.character(pdata$Strains)
+    if(plotcol == "MBG Strain"){
+      if(pstrain %in% names(appdata$col)){
+        pcol = appdata$col[[pstrain]]
+      }else{
+        pcol = rgb(0.8,0.8,0.8,0.5)
+      }
+    }
+    # Colour by direction of change
+    if(plotcol %in% c("Direction","Strain 1 Selection","No Parent")){
       if(pdata$MajDiff > 0){
-        if(appdata$plotpos == FALSE){ next }
         i = min(1,max(0.2,2*pdata$MajDiff))
         pcol = rgb(1,1-i,1-i)
       }else if(pdata$MajDiff == 0){
         pcol = rgb(1,0.5,1)
-        if(appdata$plotfix == FALSE){ next }
       }else{
-        if(appdata$plotneg == FALSE){ next }
         i = max(-1.0,min(-0.2,2*pdata$MajDiff))
         pcol = rgb(1+i,1+i,1)
       }
     }
-    # Plot lines and symbols
-    if(alt == "Alt"){
-      lines(c(pdata$AltPos/scaling,pdata$AltPos/scaling),c(pdata$MajFreq,pdata$MajFreq-pdata$MajDiff),col=pcol,type="l",lwd=plwd)
-      points(c(pdata$AltPos/scaling),c(pdata$MajFreq),col=pcol,pch=ppch,bg=pbg)
-    }else{
-      lines(c(pdata$Pos/scaling,pdata$Pos/scaling),c(pdata$MajFreq,pdata$MajFreq-pdata$MajDiff),col=pcol,type="l",lwd=plwd)
-      points(c(pdata$Pos/scaling),c(pdata$MajFreq),col=pcol,pch=ppch,bg=pbg)
+    
+    # Colour by direction of change
+    if(plotcol == "Strain 1 Selection"){
+      if(regexpr(appdata$strlist,pdata$Strains) < 0){
+        pcol = rgb(0.8,0.8,0.8,0.5)
+      }
+    }
+
+    if(plotcol == "No Parent"){
+      if(pparent != ""){
+        pcol = rgb(0.8,0.8,0.8,0.5)
+      }
+    }
+    
+    ## Background symbol highlights
+    pbg = NA
+    plwd = 1
+    if(pdata$MajProb <= settings$pcut & appdata$plothightlights & plotcol %in% c("Direction","Strain 1 Selection","No Parent")){
+      p = pdata$MajProb
+      i = max(0,(10 + log10(p))/10.0)
+      if(pdata$MajDiff >= 0){
+        pbg = rgb(1,1,i)
+      }else{
+        pbg = rgb(i,1,i)
+      }  
+      #plwd = 2 - i
+    }
+    if(appdata$plothightlights & plotcol == "Parent" & pparent %in% names(appdata$col)){ 
+      pbg = pcol 
+    }
+    if(appdata$plothightlights & plotcol == "MBG Strain" & pstrain %in% names(appdata$col)){ 
+      pbg = pcol 
+    }
+    
+    
+    # TimeLine plot
+    if(plotfield == "TimeLine"){
+      # Plot line of frequencies
+      xdata = c(0,4,6,9,10,11,12,13)
+      ydata = c(pdata$Pop00,pdata$Pop04,pdata$Pop06,pdata$Pop09,pdata$Pop10,pdata$Pop11,pdata$Pop12,pdata$Pop13)
+      lines(xdata,ydata,col=pcol,type="l",lwd=plwd)
+    }
+    # "SNPFreq" = Basic plot
+    if(plotfield == "SNPFreq"){
+      # Plot lines and symbols
+      if(alt == "Alt"){
+        lines(c(pdata$AltPos/scaling,pdata$AltPos/scaling),c(pdata$MajFreq,pdata$MajFreq-pdata$MajDiff),col=pcol,type="l",lwd=plwd)
+        points(c(pdata$AltPos/scaling),c(pdata$MajFreq),col=pcol,pch=ppch,bg=pbg)
+      }else{
+        lines(c(pdata$Pos/scaling,pdata$Pos/scaling),c(pdata$MajFreq,pdata$MajFreq-pdata$MajDiff),col=pcol,type="l",lwd=plwd)
+        points(c(pdata$Pos/scaling),c(pdata$MajFreq),col=pcol,pch=ppch,bg=pbg)
+      }
+    }
+    if(plotfield == "Starting SNPFreq"){
+      # Plot lines and symbols
+      if(alt == "Alt"){
+        points(c(pdata$AltPos/scaling),c(pdata$MajFreq-pdata$MajDiff),col=pcol,pch=ppch,bg=pbg)
+      }else{
+        points(c(pdata$Pos/scaling),c(pdata$MajFreq-pdata$MajDiff),col=pcol,pch=ppch,bg=pbg)
+      }
+    }
+    if(plotfield == "Ending SNPFreq"){
+      # Plot lines and symbols
+      if(alt == "Alt"){
+        points(c(pdata$AltPos/scaling),c(pdata$MajFreq),col=pcol,pch=ppch,bg=pbg)
+      }else{
+        points(c(pdata$Pos/scaling),c(pdata$MajFreq),col=pcol,pch=ppch,bg=pbg)
+      }
+    }
+    #"SNPFreq Change" = centre P1 freq to be 0.0
+    if(plotfield == "SNPFreq Change"){
+      if(ymin == 0){ ymin = -1 }
+      # Plot lines and symbols
+      if(alt == "Alt"){
+        lines(c(pdata$AltPos/scaling,pdata$AltPos/scaling),c(0,pdata$MajDiff),col=pcol,type="l",lwd=plwd)
+        points(c(pdata$AltPos/scaling),c(pdata$MajDiff),col=pcol,pch=ppch,bg=pbg)
+      }else{
+        lines(c(pdata$Pos/scaling,pdata$Pos/scaling),c(0,pdata$MajDiff),col=pcol,type="l",lwd=plwd)
+        points(c(pdata$Pos/scaling),c(pdata$MajDiff),col=pcol,pch=ppch,bg=pbg)
+      }
+    }
+    #"Absolute SNPFreq Change" = centre P1 freq to be 0.0 and invert negative changes
+    if(plotfield == "Absolute SNPFreq Change"){
+      # Plot lines and symbols
+      if(alt == "Alt"){
+        lines(c(pdata$AltPos/scaling,pdata$AltPos/scaling),c(0,abs(pdata$MajDiff)),col=pcol,type="l",lwd=plwd)
+        points(c(pdata$AltPos/scaling),c(abs(pdata$MajDiff)),col=pcol,pch=ppch,bg=pbg)
+      }else{
+        lines(c(pdata$Pos/scaling,pdata$Pos/scaling),c(0,abs(pdata$MajDiff)),col=pcol,type="l",lwd=plwd)
+        points(c(pdata$Pos/scaling),c(abs(pdata$MajDiff)),col=pcol,pch=ppch,bg=pbg)
+      }
     }
   }#lines(plotdata$Pos/scaling,plotdata$ContigNum-plotdata$ChromNum,col="blue",type="l")
   writeLines("Plot finished.")
@@ -807,7 +1009,13 @@ multiSNPPlot = function(appdata,pngfile,chrom,alt="Alt",ymin=0,ymax=1.0,xmin=0,x
 
 ### ~ Make functions for the different main plot types
 pngName = function(appdata){
-  pngfile = paste0(appdata$pngpath,"/",appdata$pngbase,".",appdata$chrom,".A-",appdata$parlist,".M-",appdata$strlist,".P-",appdata$poplist,".",appdata$snplist,"-",appdata$efflist)
+  pname = paste0(appdata$pngpath,"/",appdata$pngbase,".",appdata$chrom)
+  if(appdata$parlist != "No Filter"){ pname = paste0(pname,".A-",appdata$parlist) }
+  if(appdata$strlist != "No Filter"){ pname = paste0(pname,".M1-",appdata$strlist) }
+  if(appdata$str2list != "No Filter"){ pname = paste0(pname,".M2-",appdata$str2list) }
+  if(appdata$poplist != "No Filter"){ pname = paste0(pname,".P-",appdata$poplist) }
+  pngfile = paste0(pname,".",appdata$snplist,"-",appdata$efflist)
+  #pngfile = paste0(appdata$pngpath,"/",appdata$pngbase,".",appdata$chrom,".A-",appdata$parlist,".M1-",appdata$strlist,".M2-",appdata$str2list,".P-",appdata$poplist,".",appdata$snplist,"-",appdata$efflist)
   if(appdata$freqlist != "Loaded data"){
     pngfile = paste(pngfile,appdata$freqlist,"png",sep=".")
   }

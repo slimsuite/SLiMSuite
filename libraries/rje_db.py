@@ -19,8 +19,8 @@
 """
 Module:       rje_db
 Description:  R Edwards Relational Database module
-Version:      1.8.6
-Last Edit:    06/11/17
+Version:      1.9.0
+Last Edit:    19/01/18
 Copyright (C) 2007  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -79,6 +79,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 1.8.4 - Cosmetic log message changes.
     # 1.8.5 - Added saveToFileName() function.
     # 1.8.6 - Minor IndexReport tweak.
+    # 1.9.0 - Added comment output to saveToFile().
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -97,7 +98,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo():     ### Makes Info object
     '''Makes rje.Info object for program.'''
-    (program, version, last_edit, copy_right) = ('RJE_DB', '1.8.6', 'November 2017', '2008')
+    (program, version, last_edit, copy_right) = ('RJE_DB', '1.9.0', 'January 2018', '2008')
     description = 'R Edwards Relational Database module'
     author = 'Dr Richard J. Edwards.'
     comments = ['Please report bugs to Richard.Edwards@UNSW.edu.au']
@@ -155,7 +156,7 @@ def setupProgram(): ### Basic Setup of Program
 #########################################################################################################################
 ### SECTION II: Database Class                                                                                          #
 #########################################################################################################################
-class Database(rje.RJE_Object):     
+class Database(rje.RJE_Object):
     '''
     Database Class. Author: Rich Edwards (2007).
 
@@ -791,9 +792,10 @@ class Table(rje.RJE_Object):
             if logstr: self.printLog(logstr,'%s "%s" %s:%s entries.' % (rje.iLen(self.indexEntries(index,ikey)),ikey,self.name(),index))
             else: self.printLog('#%s' % index.upper()[:6],'%s %s %s:%s entries.' % (rje.iLen(self.indexEntries(index,ikey)),ikey,self.name(),index))
         return ikeys
-    def entries(self,keys=None):
+    def entries(self,keys=None,sorted=False):
         '''Returns all entries as a list.'''
-        if not keys: return self.dict['Data'].values()
+        if not keys and not sorted: return self.dict['Data'].values()
+        if sorted and not keys: return self.entryList(self.datakeys())
         if type(keys) != list and keys in self.dict['Data']: return self.dict['Data'][keys]
         return self.entryList(keys)
     def clear(self):    ### Deletes data and indices but leaves rest of structure in place
@@ -853,7 +855,7 @@ class Table(rje.RJE_Object):
         for okey in rje.sortKeys(self.dict['Data']):
             entry = self.dict['Data'][okey]
             newkey = self.makeKey(entry)
-            if warnings and newkey in newdict: self.printLog('#KEY','Warning: %s over-written!' % newkey)
+            if warnings and newkey in newdict: self.printLog('#KEY','Warning: %s over-written!' % str(newkey))
             newdict[newkey] = entry
         self.dict['Data'] = newdict
         self.dict['Index'] = {}
@@ -1175,7 +1177,7 @@ class Table(rje.RJE_Object):
             return filename
         except: self.errorLog('Problem generating table "%s" filename' % (self.info['Name']))
 #########################################################################################################################
-    def saveToFile(self,filename=None,delimit=None,backup=True,append=False,savekeys=[],savefields=[],sfdict={},log=True,headers=True):    ### Saves data to delimited file
+    def saveToFile(self,filename=None,delimit=None,backup=True,append=False,savekeys=[],savefields=[],sfdict={},log=True,headers=True,comments=[]):    ### Saves data to delimited file
         '''
         Saves data to delimited file.
         >> filename:str [None] = Output file name (will use self.info['Name'] if None)
@@ -1187,6 +1189,7 @@ class Table(rje.RJE_Object):
         >> sfdict:dict {} = Optional dictionary of {field:sigfig} for formatting output.
         >> log:bool [True] = Whether to log output.
         >> headers:bool [True] = Whether to output the field headers.
+        >> comments:list [] = Add a list of comment lines to the start of the file if not appending. Should usually start with #.
         '''
         try:### ~ [1] Setup parameters ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if filename and not delimit: delimit = rje.delimitFromExt(filename=filename,write=True)
@@ -1203,6 +1206,15 @@ class Table(rje.RJE_Object):
             if append and rje.exists(filename): OUT = open(filename,'a')
             else:
                 OUT = open(filename,'w')
+                if comments:
+                    hashwarn = 0
+                    for comment in comments:
+                        if comment.startswith('@') and filename.endswith('.sam'): pass
+                        elif not comment.startswith('#'): hashwarn += 1
+                        OUT.write('%s\n' % comment)
+                    if hashwarn and log:
+                        self.warnLog('%d of %d comments in "%s" did not start with "#"!' % (hashwarn,len(comments),filename),warntype="hashwarn",suppress=True)
+                    if log: self.printLog('#SAVE','%s: %d leading comments' % (filename,len(comments)))
                 outlist = []
                 for field in savefields: outlist.append('%s' % field)
                 if headers: OUT.write('%s\n' % string.join(outlist,delimit))
@@ -1222,7 +1234,9 @@ class Table(rje.RJE_Object):
                         outlist[-1] = '"%s"' % outlist[-1]
                 OUT.write('%s\n' % string.join(outlist,delimit)); sx += 1
             OUT.close()
-            if log: self.printLog('\r#SAVE','Table "%s" saved to "%s": %s entries.' % (self.info['Name'],filename,rje.iStr(sx)))
+            if log:
+                if sx: self.printLog('\r#SAVE','Table "%s" saved to "%s": %s entries.' % (self.info['Name'],filename,rje.iStr(sx)))
+                else: self.printLog('\r#SAVE','Table "%s" saved to "%s": headers only.' % (self.info['Name'],filename))
             return filename
         except: self.errorLog('Problem saving table "%s" to "%s"' % (self.info['Name'],filename))
 #########################################################################################################################
@@ -1244,7 +1258,7 @@ class Table(rje.RJE_Object):
     def readSet(self,fields,entry=None,clear=True):    ### Reads in a set of entries with matching fields data     #V2.0
         '''
         Reads in a set of entries with matching fields data.
-        >> fields:list = Fields to match (starting with next entry and assuming sorted file in entry not given)
+        >> fields:list = Fields to match (starting with next entry and assuming sorted file if entry not given)
         >> entry:dict [None] = Entry to use for data in place of next read entry. [NOT WORKING!]
         >> clear:bool [True] = Whether to clear existing entries before reading.
         << returns list of field values matching the set read in

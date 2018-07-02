@@ -19,8 +19,8 @@
 """
 Module:       SPyDARM
 Description:  SLiMSuite Python Documentation And ReadMe
-Version:      0.0.0
-Last Edit:    01/01/15
+Version:      0.0.1
+Last Edit:    18/12/17
 Copyright (C) 2015  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -54,6 +54,7 @@ import rje, rje_db, rje_html, rje_obj, rje_pydocs
 def history():  ### Program History - only a method for PythonWin collapsing! ###
     '''
     # 0.0.0 - Initial Compilation.
+    # 0.0.1 - Fixed DocString parsing issue.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -68,7 +69,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copy_right) = ('SPyDARM', '0.0.0', 'May 2015', '2015')
+    (program, version, last_edit, copy_right) = ('SPyDARM', '0.0.1', 'December 2017', '2017')
     description = 'Generic RJE Module'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_obj.zen()]
@@ -206,9 +207,12 @@ class SPyDARM(rje_obj.RJE_Object):
         '''Main run method.'''
         try:### ~ [1] ~ Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if not self.setup(): return False
+            self.deBugDB()
             ### ~ [2] ~ Add main run code here ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if not self.dependencies(): return False
+            self.deBugDB()
             if not self.release(): return False
+            self.deBugDB()
             # Generate a readme text file
             return True
         except:
@@ -219,7 +223,7 @@ class SPyDARM(rje_obj.RJE_Object):
         '''Main class setup method.'''
         try:### ~ [1] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             pydoc = self.obj['PyDoc'] = rje_pydocs.PyDoc(self.log,self.cmd_list+['name=%s' % self.basefile(strip_path=True)])
-            if not pydoc.setup(): return False
+            if not pydoc.setup(keepdoc=True): return False
             pydoc.parseModules()
             db = self.obj['DB'] = pydoc.db()
             db.basefile(self.basefile())
@@ -281,6 +285,13 @@ class SPyDARM(rje_obj.RJE_Object):
             return True
         except: self.errorLog('%s.release error' % self.prog()); return False
 #########################################################################################################################
+    def deBugDB(self):
+        for table in self.db().tables():
+            self.bugPrint(table.name())
+            for entry in table.entries()[:20]:
+                self.bugPrint(entry)
+            self.debug('>>>')
+#########################################################################################################################
     def readMeHeader(self):
         rtxt = '# ReadMe documentation for SLiMSuite software\n\n'
         rtxt += '> Copyright (C) 2015 Richard J. Edwards\n\n'
@@ -330,7 +341,10 @@ class SPyDARM(rje_obj.RJE_Object):
                     ## ~ [2a] ~ Module docstring ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
                     mtxt = '### ~~~ Module %s ~ [%s] ~~~ ###' % (module,pyfile)
                     while len(mtxt) < 122: mtxt = mtxt[:5] + '~' + mtxt[5:-5] + '~' + mtxt[-5:]
-                    PYDOC.write('%s\n\n%s\n' % (mtxt,entry['DocString'])); dx += 1
+                    try: PYDOC.write('%s\n\n%s\n' % (mtxt,entry['DocString'])); dx += 1
+                    except:
+                        self.errorLog('Cannot write DocString for %s' % module,printerror=False)
+                        PYDOC.write('%s\n\nDocString Error!\n' % (mtxt)); dx += 1
                 PYDOC.write('\n\n\n')
             PYDOC.close()
             self.printLog('#DOC','Output to %s complete: %s modules.' % (filename,rje.iStr(dx)))
@@ -356,7 +370,11 @@ class SPyDARM(rje_obj.RJE_Object):
                 history = []    # History lines
                 updates = []    # Version number entries
                 for mentry in self.db('Method').indexEntries('File',pyfile):
-                    if mentry['Method'] == 'history': history = string.split(mentry['DocString'],'\n'); break
+                    if mentry['Method'] == 'history':
+                        try: history = string.split(mentry['DocString'],'\n'); break
+                        except:
+                            history = []
+                            self.errorLog('History parsing problem: %s' % mentry,printerror=False)
                 for dline in history:
                     if rje.matchExp('# (\d+\.\d+\.?\d*)\s?-\s(\S.+)$',dline):
                         (v,text) = rje.matchExp('# (\d\.\d+\.?\d*)\s?-\s(\S.+)$',dline)
@@ -493,7 +511,7 @@ class SPyDARM(rje_obj.RJE_Object):
                 DFILE.close()
                 self.printLog('#OUT','Module dependencies output to %s.' % dfile)
                 return True
-        except: self.errorLog('Error in %s.makeHistory()' % self.prog()); return False
+        except: self.errorLog('Error in %s.dependencies()' % self.prog()); return False
 #########################################################################################################################
 ### End of SECTION II: SPyDARM Class                                                                                    #
 #########################################################################################################################

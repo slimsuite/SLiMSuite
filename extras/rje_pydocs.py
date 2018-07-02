@@ -19,8 +19,8 @@
 """
 Module:       rje_pydocs
 Description:  Python Module Documentation & Distribution
-Version:      2.16.5
-Last Edit:    05/09/17
+Version:      2.16.7
+Last Edit:    19/12/17
 Copyright (C) 2011 Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -100,8 +100,10 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 2.16.1 - Added parsing of imports within a try/except block. (Cannot be on same line as try: or except:)
     # 2.16.2 - Tweaked makePages() output.
     # 2.16.3 - Fixed docstring REST parsing to work with _V* modules.
-    # 2.17.4 - Tweaked formatDocString.
-    # 2.17.5 - Added general commands to docstring HTML for REST servers.
+    # 2.16.4 - Tweaked formatDocString.
+    # 2.16.5 - Added general commands to docstring HTML for REST servers.
+    # 2.16.6 - Modified parsing to keep DocString for SPyDarm runs.
+    # 2.16.7 - Fixed T/F/FILE option type parsing bug.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -138,7 +140,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copyyear) = ('RJE_PYDOCS', '2.16.7', 'September 2017', '2011')
+    (program, version, last_edit, copyyear) = ('RJE_PYDOCS', '2.16.7', 'December 2017', '2011')
     description = 'Python Module Documentation & Distribution'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_zen.Zen().wisdom()]
@@ -329,7 +331,7 @@ class PyDoc(rje_obj.RJE_Object):
             self.errorLog(rje_zen.Zen().wisdom())
             raise   # Delete this if method error not terrible
 #########################################################################################################################
-    def setup(self):    ### Main class setup method.                                                                #V2.0
+    def setup(self,keepdoc=False):    ### Main class setup method.                                                                #V2.0
         '''Main class setup method.'''
         try:### ~ [1] Expand PyList ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             pylist = []     # Generate a new list containing actual modules
@@ -350,6 +352,8 @@ class PyDoc(rje_obj.RJE_Object):
             db.addEmptyTable('Class',['File','Class','Methods'],['File','Class'])
             db.addEmptyTable('Method',['File','Class','Method','CallAttributes'],['File','Class','Method'])
             db.addEmptyTable('Options',['File','Class','Type','Attribute','Argument','ArgType','Description','Default'],['File','Class','Argument'])
+            if keepdoc:
+                for table in db.tables(): table.addField('DocString')
             ### ~ [3] Create directories if necessary ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if self.getBool('fulldoc'): rje.mkDir(self,self.getStr('DocDir'))
             if self.basefile().lower() in ['','none']: self.basefile('%s%s' % (self.getStr('DocDir'),self.getStr('Name')))
@@ -1834,10 +1838,13 @@ class PyDoc(rje_obj.RJE_Object):
             odb.addField('page')
             for entry in odb.entries():
                 arg = entry['ArgType']
+                if arg.startswith('`'): arg = arg[1:]
+                if arg.endswith('`'): arg = arg[:-1]
                 entry['page'] = arg
                 if arg in ['"X"','X\\t','0','N(,X)', 'T/F/X']: entry['page'] = 'X'
                 if arg in [ 'FILE(s)', 'FILE/LIST', 'FILES']: entry['page'] = 'FILELIST'
                 if arg in ['T', 'T/F', 'T/F\\t']: entry['page'] = 'boolean'
+                if arg in ['T/F/FILE']: entry['page'] = 'boolorfile'
                 if arg in ['X,Y', 'X[,Y]']: entry['page'] = 'minmax'
                 if arg in ['X,Y,..','X,Y,..,Z']: entry['page'] = 'LIST'
                 if arg in ['PATH/']: entry['page'] = 'PATH'
@@ -1845,6 +1852,8 @@ class PyDoc(rje_obj.RJE_Object):
             rje.mkDir(self,'%scmd/' % pagedir)
             for arg in odb.index('Argument'):
                 if arg == '?': continue
+                if arg.startswith('`'): arg = arg[1:]
+                if arg.endswith('`'): arg = arg[:-1]
                 apage = '%scmd/%s.page' % (pagedir,arg)
                 pagetxt = '<h1>SLiMSuite Documentation</h1>\n'
                 pagetxt += '<p><i>Please note that command documentation sometimes lags behind the latest module versions.\n'
@@ -1852,7 +1861,9 @@ class PyDoc(rje_obj.RJE_Object):
                 pagetxt += '<h2>cmd: %s</h2>\n' % (arg)
                 pagetxt += '<p><b>Option Type:</b>'
                 for otype in odb.indexDataList('Argument',arg,'ArgType'):
+                    if otype.endswith('`'): otype = otype[:-1]
                     if otype == 'T/F': pagetxt += ' <code>[%s]{docs:boolean}</code>' % (otype)
+                    elif otype == 'T/F/FILE': pagetxt += ' <code>[%s]{docs:boolorfile}</code>' % (otype)
                     else: pagetxt += ' <code>[%s]{docs:%s}</code>' % (otype,otype)
                 pagetxt += '</p>\n'
                 pagetxt += '<p><b>Modules:</b>'
@@ -1894,7 +1905,9 @@ class PyDoc(rje_obj.RJE_Object):
             self.debug(rje.sortKeys(odb.index('page')))
             for arg in odb.index('page'):
                 if arg == '?': continue
+                if arg.endswith('`'): arg = arg[:-1]
                 if arg == 'T/F': apage = '%sdocs/boolean.page' % pagedir
+                elif arg == 'T/F/FILE': apage = '%sdocs/boolorfile.page' % pagedir
                 else: apage = '%sdocs/%s.page' % (pagedir,arg)
                 self.debug(apage)
                 pagetxt = '<h2>Option Type: %s</h2>\n' % (arg)

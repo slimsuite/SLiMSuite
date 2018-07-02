@@ -19,8 +19,8 @@
 """
 Module:       rje_tree
 Description:  Phylogenetic Tree Module
-Version:      2.15.0
-Last Edit:    30/07/17
+Version:      2.16.1
+Last Edit:    19/06/18
 Copyright (C) 2007  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -56,6 +56,7 @@ Grouping/Subfamily Commands:
     qryvar=T/F  : Keep variants of query species within a group (over-rides allowvar=F). [False]
     groupspec=X : Species for duplication grouping [None]
     specdup=X   : Minimum number of different species in clade to be identified as a duplication [1]
+    9spec=T/F   : Whether to treat 9XXXX species codes as actual species (generally higher taxa) [False]
     group=X     : Grouping of tree
         - man = manual grouping (unless i<0).
         - dup = duplication (all species unless groupspec specified).
@@ -155,6 +156,8 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 2.14.0 - Added cladeSpec().
     # 2.14.1 - Fixed clustalw2 makeTree issue.
     # 2.15.0 - Added IQTree.
+    # 2.16.0 - 9spec=T/F   : Whether to treat 9XXXX species codes as actual species (generally higher taxa) [False]
+    # 2.16.1 - Modified NSF reading to cope with extra information beyond the ";".
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -192,7 +195,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo():     ### Makes Info object
     '''Makes rje.Info object for program.'''
-    (program, version, last_edit, cyear) = ('RJE_TREE', '2.15.0', 'July 2017', '2007')
+    (program, version, last_edit, cyear) = ('RJE_TREE', '2.16.1', 'June 2018', '2007')
     description = 'RJE Phylogenetic Tree Module'
     author = 'Dr Richard J. Edwards.'
     comments = []
@@ -307,6 +310,7 @@ class Tree(rje.RJE_Object):     ### Class for handling phylogenetic trees.
     - OutputBranchLen = Whether to use branch lengths in output tree [True]
     - AutoLoad = Whether to automatically load sequences upon initiating object [True]
     - SeqNum = Output sequence numbers for general make tree thing [True]
+    - 9SPEC=T/F   : Whether to treat 9XXXX species codes as actual species (generally higher taxa) [False]
 
     Stat:numeric
     - DefLen = Default length for branches when no lengths given [0.1]
@@ -367,7 +371,7 @@ class Tree(rje.RJE_Object):     ### Class for handling phylogenetic trees.
         self.statlist = ['DefLen','RootBuffer','SeqNum','Bootstraps','BootCut','MinFamSize','MinFamNum','TruncNames',
                          'TextScale','SpecDup']
         self.optlist = ['Rooted','ReRooted','Branchlengths','Bootstrapped','QueryGroup','Orphans','AllowVar','Kimura',
-                        'OutputBranchLen','AutoLoad','SeqNum','QryVar']
+                        'OutputBranchLen','AutoLoad','SeqNum','QryVar','9SPEC']
         self.listlist = ['TreeFormats']
         self.dictlist = []
         self.objlist = ['SeqList','PAM']
@@ -377,7 +381,7 @@ class Tree(rje.RJE_Object):     ### Class for handling phylogenetic trees.
                       'Phylip':'','OutNames':'short','SaveType':'nwk',
                       'FastTree':'','IQTree':'iqtree'})
         self.setStat({'DefLen':0.1,'TextScale':4,'RootBuffer':0.1,'BootCut':0.7,'MinFamSize':3,'TruncNames':123,'SpecDup':1})
-        self.setOpt({'Orphans':True,'Kimura':True,'OutputBranchLen':True,'AutoLoad':True,'SeqNum':False})
+        self.setOpt({'Orphans':True,'Kimura':True,'OutputBranchLen':True,'AutoLoad':True,'SeqNum':False,'9SPEC':False})
         self.list['TreeFormats'] = ['nwk']
         self.obj['SeqList'] = None
         ### Other Attributes ###
@@ -404,7 +408,7 @@ class Tree(rje.RJE_Object):     ### Class for handling phylogenetic trees.
                 self._cmdRead(cmd,type='int',att='MinFamSize',arg='mfs')
                 self._cmdRead(cmd,type='int',att='MinFamNum',arg='fam')
                 self._cmdRead(cmd,type='opt',att='Orphans',arg='orphan')
-                self._cmdReadList(cmd,'opt',['Orphans','AllowVar','Kimura','AutoLoad','SeqNum','QryVar'])
+                self._cmdReadList(cmd,'opt',['Orphans','AllowVar','Kimura','AutoLoad','SeqNum','QryVar','9SPEC'])
                 self._cmdRead(cmd,type='info',att='Grouping',arg='group')
                 self._cmdRead(cmd,type='info',att='GroupSpecies',arg='groupspec')
                 self._cmdReadList(cmd,'file',['CWTree','ClustalW','PhyOptions','ProtDist','MakeTree','DisIn','SaveTree','FastTree','IQTree'])
@@ -550,6 +554,7 @@ class Tree(rje.RJE_Object):     ### Class for handling phylogenetic trees.
                 nsftree += '%s:%s' % (start,end)
                 #self.deBug(nsftree)
             else: nsftree += line
+        nsftree = nsftree[:nsftree.find(';')+1]
         #self.deBug(nsftree)
         return nsftree        
 #########################################################################################################################
@@ -3256,7 +3261,7 @@ class Tree(rje.RJE_Object):     ### Class for handling phylogenetic trees.
                         break
                 if prevnode == nextnode:    ## No change!
                     self.log.errorLog('Major problem with node numbering.',printerror=False)
-                    raise    
+                    raise ValueError('Major problem with node numbering for rootPath()')
             return path
         except:
             self.log.errorLog('Major problem with rootPath().')
@@ -3467,13 +3472,17 @@ class Tree(rje.RJE_Object):     ### Class for handling phylogenetic trees.
                     clade = self._descClades(node)
                     cladespec = []
                     for s in clade[0] + clade[1]:
-                        if s.obj['Sequence'].info['SpecCode'] not in cladespec: cladespec.append(s.obj['Sequence'].info['SpecCode'])
+                        spcode = s.obj['Sequence'].info['SpecCode']
+                        if spcode.startswith('9') and not self.getBool('9SPEC'): spcode = 'UNK'
+                        if spcode not in cladespec: cladespec.append(spcode)
                     for s in clade[0]:
                         if node.opt['Duplication']: break
                         elif (species == None) or (species == s.obj['Sequence'].info['Species']) or (species == s.obj['Sequence'].info['SpecCode']):
                             myspec = s.obj['Sequence'].info['SpecCode']
+                            if myspec.startswith('9') and not self.getBool('9SPEC'): myspec = 'UNK'
                             for t in clade[1]:
                                 tspec = t.obj['Sequence'].info['SpecCode']
+                                if tspec.startswith('9') and not self.getBool('9SPEC'): tspec = 'UNK'
                                 if node.opt['Duplication']: break
                                 elif (tspec != 'UNK') and (tspec == myspec): node.opt['Duplication'] = True
                 if node.opt['Duplication'] and len(cladespec) < self.stat['SpecDup'] and 'UNK' not in cladespec:
@@ -3502,14 +3511,17 @@ class Tree(rje.RJE_Object):     ### Class for handling phylogenetic trees.
                     cladespec = []
                     for s in clade[0] + clade[1]:
                         spcode = string.split(s.info['Name'],'_')[1]
+                        if spcode.startswith('9') and not self.getBool('9SPEC'): spcode = 'UNK'
                         if spcode not in cladespec: cladespec.append(spcode)
                     for s in clade[0]:
                         spcode = string.split(s.info['Name'],'_')[1]
+                        if spcode.startswith('9') and not self.getBool('9SPEC'): spcode = 'UNK'
                         if node.opt['Duplication']: break
                         elif (species == None) or (species == spcode):
                             myspec = spcode
                             for t in clade[1]:
                                 tspec = string.split(t.info['Name'],'_')[1]
+                                if tspec.startswith('9') and not self.getBool('9SPEC'): tspec = 'UNK'
                                 if node.opt['Duplication']: break
                                 elif (tspec != 'UNK') and (tspec == myspec): node.opt['Duplication'] = True
                 if node.opt['Duplication'] and len(cladespec) < self.stat['SpecDup'] and 'UNK' not in cladespec:

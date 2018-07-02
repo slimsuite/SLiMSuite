@@ -1,15 +1,15 @@
 #!/usr/bin/python
 
 # See below for name and description
-# Copyright (C) 2004 Richard J. Edwards <redwards@cabbagesofdoom.co.uk>
-#
+# Copyright (C) 2016 Richard J. Edwards <redwards@cabbagesofdoom.co.uk>
+#  
 # This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License
 # as published by the Free Software Foundation; either version 2 of the License, or (at your option) any later version.
-#
+# 
 # This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied
 # warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 #
-# You should have received a copy of the GNU General Public License along with this program; if not, write to
+# You should have received a copy of the GNU General Public License along with this program; if not, write to 
 # the Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #
 # Author contact: <seqsuite@gmail.com> / School of Biotechnology and Biomolecular Sciences, UNSW, Sydney, Australia.
@@ -17,33 +17,21 @@
 # To incorporate this module into your own programs, please see GNU Lesser General Public License disclaimer in rje.py
 
 """
-Program:      GASP
-Description:  Gapped Ancestral Sequence Prediction
-Version:      2.0.0
-Last Edit:    08/03/18
-Citation:     Edwards & Shields (2004), BMC Bioinformatics 5(1):123. [PMID: 15350199]
-Copyright (C) 2004  Richard J. Edwards - See source code for GNU License Notice
+Module:       rje_ena
+Description:  ENA Submission XML Generator
+Version:      0.0.0
+Last Edit:    15/02/18
+Copyright (C) 2016  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
-    This module is purely for running the GASP algorithm as a standalone program. All the main functionality is encoded in
-    the modules listed below. The GASP algorithm itself is now encoded in the rje_ancseq module. GASP may also be run
-    interactively from the rje_tree module.
+    This script is designed to read directory contents and ask questions to generate XML files required from programmatic
+    ENA uploads.
 
-Input/Output:
-    seqin=FILE      : Fasta/ClustalW/Phylip Format sequence file [infile.fas].
-    nsfin=FILE      : Newick Standard Format treefile [infile.nsf].
-    indeltree=T/F   : Whether to output a text tree describing indel patterns [True]
+Commandline:
+    datatype=X      : Type of data in directory [PacBio]
+    dirlist=LIST    : List of directories to process (blank for all) []
 
-GASP Model Options:
-    fixpam=INT      : PAM distance fixed to X [0].
-    rarecut=NUM     : Rare aa cut-off [0.05].
-    fixup=T/F       : Fix AAs on way up (keep probabilities) [True].
-    fixdown=T/F     : Fix AAs on initial pass down tree [False].
-    ordered=T/F     : Order ancestral sequence output by node number [False].
-    pamtree=T/F     : Calculate and output ancestral tree with PAM distances [True].
-    desconly=T/F    : Limits ancestral AAs to those found in descendants [True].
-    xpass=INT       : How many extra passes to make down & up tree after initial GASP [1].
-
+    ### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
 """
 #########################################################################################################################
 ### SECTION I: GENERAL SETUP & PROGRAM DETAILS                                                                          #
@@ -54,35 +42,28 @@ sys.path.append(os.path.join(slimsuitepath,'libraries/'))
 sys.path.append(os.path.join(slimsuitepath,'tools/'))
 ### User modules - remember to add *.__doc__ to cmdHelp() below ###
 import rje, rje_obj
-import rje_ancseq, rje_seq, rje_tree   # rje_ancseq now sorts out rje_pam
 #########################################################################################################################
 def history():  ### Program History - only a method for PythonWin collapsing! ###
     '''
-    # 0.0 - Initial Compilation.
-    # 1.0 - Improved version with second pass.
-    # 1.1 - Improved OO. Restriction to descendant AAs. (Good for BAD etc.)
-    # 1.2 - No Out Object in Objects
-    # 1.3 - Added more interactive load options
-    # 1.4 - Minor tweaks to imports.
-    # 2.0.0 - Upgraded to rje_obj framework for REST server.
+    # 0.0.0 - Initial Compilation.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
     '''
-    # [ ] : Improved Interactive menus for module and major activities - currently use rje_tree.py. Add to rje_ancseq./py?
-    # [ ] : Convert to newer module style.
-    # [ ] : Take interactive running out of rje_tree and reinstate GASP as top-level module?
+    # [ ] : Populate Module Docstring with basic info.
+    # [ ] : Populate makeInfo() method with basic info.
+    # [ ] : Add full description of program to module docstring.
+    # [ ] : Create initial working version of program.
     # [ ] : Add REST outputs to restSetup() and restOutputOrder()
     # [ ] : Add to SLiMSuite or SeqSuite.
     '''
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copy_right) = ('GASP', '2.0.0', 'March 2016', '2004')
-    description = 'Gapped Ancestral Sequence Prediction'
+    (program, version, last_edit, copy_right) = ('ENA', '0.0.0', 'February 2018', '2016')
+    description = 'ENA Submission XML Generator'
     author = 'Dr Richard J. Edwards.'
-    comments = ['Cite: Edwards & Shields (2004), BMC Bioinformatics 5(1):123. [PMID: 15350199]',
-                 'Please report bugs to Richard.Edwards@UNSW.edu.au']
+    comments = ['This program is still in development and has not been published.',rje_obj.zen()]
     return rje.Info(program,version,last_edit,description,author,time.time(),copy_right,comments)
 #########################################################################################################################
 def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for more sys.argv commands
@@ -116,7 +97,7 @@ def setupProgram(): ### Basic Setup of Program when called from commandline.
         info = makeInfo()                                   # Sets up Info object with program details
         cmd_list = rje.getCmdList(sys.argv[1:],info=info)   # Reads arguments and load defaults from program.ini
         out = rje.Out(cmd_list=cmd_list)                    # Sets up Out object for controlling output to screen
-        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2
+        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2 
         out.printIntro(info)                                # Prints intro text using details from Info object
         cmd_list = cmdHelp(info,out,cmd_list)               # Shows commands (help) and/or adds commands from user
         log = rje.setLog(info,out,cmd_list)                 # Sets up Log object for controlling log file output
@@ -131,32 +112,29 @@ def setupProgram(): ### Basic Setup of Program when called from commandline.
                                                     ### ~ ### ~ ###
 
 #########################################################################################################################
-### SECTION II: New Class                                                                                               #
+### SECTION II: ENA Class                                                                                               #
 #########################################################################################################################
-class GASP(rje_obj.RJE_Object):
+class ENA(rje_obj.RJE_Object):
     '''
-    GASP Class. Author: Rich Edwards (2018).
+    ENA Class. Author: Rich Edwards (2018).
 
     Str:str
-    - SeqIn=FILE      : Fasta/ClustalW/Phylip Format sequence file [infile.fas].
-    - NSFIn=FILE      : Newick Standard Format treefile [infile.nsf].
+    - DataType=X   : Type of data in directory [PacBio]
 
     Bool:boolean
-    - IndelTree=T/F  : Prints a text tree describing indel patterns.
 
     Int:integer
 
     Num:float
 
     File:file handles with matching str filenames
-
+    
     List:list
+    - DirList=LIST    : List of directories to process (blank for all) []
 
-    Dict:dictionary
+    Dict:dictionary    
 
     Obj:RJE_Objects
-    - GASP = rje_ancseq.Gasp object
-    - Tree - rje_tree.Tree object
     '''
 #########################################################################################################################
     ### <1> ### Class Initiation etc.: sets attributes                                                                  #
@@ -164,18 +142,18 @@ class GASP(rje_obj.RJE_Object):
     def _setAttributes(self):   ### Sets Attributes of Object
         '''Sets Attributes of Object.'''
         ### ~ Basics ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-        self.strlist = ['SeqIn','NSFIn']
-        self.boollist = ['IndelTree']
+        self.strlist = ['DataType']
+        self.boollist = []
         self.intlist = []
         self.numlist = []
         self.filelist = []
-        self.listlist = []
+        self.listlist = ['DirList']
         self.dictlist = []
         self.objlist = []
         ### ~ Defaults ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         self._setDefaults(str='None',bool=False,int=0,num=0.0,obj=None,setlist=True,setdict=True,setfile=True)
-        self.setStr({'SeqIn':'infile.fas'})
-        self.setBool({'IndelTree':True})
+        self.setStr({'DataType':'pacbio'})
+        self.setBool({})
         self.setInt({})
         self.setNum({})
         ### ~ Other Attributes ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -188,22 +166,22 @@ class GASP(rje_obj.RJE_Object):
         '''
         for cmd in self.cmd_list:
             try:
-                self._generalCmd(cmd)   ### General Options ###
+                self._generalCmd(cmd)   ### General Options ### 
                 self._forkCmd(cmd)  # Delete if no forking
-                ### Class Options (No need for arg if arg = att.lower()) ###
+                ### Class Options (No need for arg if arg = att.lower()) ### 
                 #self._cmdRead(cmd,type='str',att='Att',arg='Cmd')  # No need for arg if arg = att.lower()
-                #self._cmdReadList(cmd,'str',['Att'])   # Normal strings
-                #self._cmdReadList(cmd,'path',['Att'])  # String representing directory path
-                self._cmdReadList(cmd,'file',['SeqIn','NSFIn'])  # String representing file path
+                self._cmdReadList(cmd,'str',['DataType'])   # Normal strings
+                #self._cmdReadList(cmd,'path',['Att'])  # String representing directory path 
+                #self._cmdReadList(cmd,'file',['Att'])  # String representing file path 
                 #self._cmdReadList(cmd,'date',['Att'])  # String representing date YYYY-MM-DD
-                self._cmdReadList(cmd,'bool',['IndelTree'])  # True/False Booleans
+                #self._cmdReadList(cmd,'bool',['Att'])  # True/False Booleans
                 #self._cmdReadList(cmd,'int',['Att'])   # Integers
                 #self._cmdReadList(cmd,'float',['Att']) # Floats
                 #self._cmdReadList(cmd,'min',['Att'])   # Integer value part of min,max command
                 #self._cmdReadList(cmd,'max',['Att'])   # Integer value part of min,max command
                 #self._cmdReadList(cmd,'list',['Att'])  # List of strings (split on commas or file lines)
                 #self._cmdReadList(cmd,'clist',['Att']) # Comma separated list as a *string* (self.str)
-                #self._cmdReadList(cmd,'glist',['Att']) # List of files using wildcards and glob
+                self._cmdReadList(cmd,'glist',['DirList']) # List of files using wildcards and glob
                 #self._cmdReadList(cmd,'cdict',['Att']) # Splits comma separated X:Y pairs into dictionary
                 #self._cmdReadList(cmd,'cdictlist',['Att']) # As cdict but also enters keys into list
             except: self.errorLog('Problem with cmd:%s' % cmd)
@@ -213,51 +191,18 @@ class GASP(rje_obj.RJE_Object):
     def run(self):  ### Main run method
         '''Main run method.'''
         try:### ~ [1] ~ Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            if not self.setup(): return False
+            self.setup()
             ### ~ [2] ~ Add main run code here ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            self.gasp()
+            self.runXML()
+            return
         except:
             self.errorLog(self.zen())
             raise   # Delete this if method error not terrible
 #########################################################################################################################
     def setup(self):    ### Main class setup method.
         '''Main class setup method.'''
-        try:### ~ [1] Read in Sequences ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            seqfile = self.getStr('SeqIn')
-            seqs = rje_seq.SeqList(log=self.log,cmd_list=['i=0']+self.cmd_list+['autofilter=F','autoload=F','seqin=None'])
-            self.printLog('#SEQS','Loading sequences from %s' % seqfile)
-            if not seqs.loadSeqs(seqfile=seqfile,seqtype='protein',aln=True):
-                raise IOError('Cannot load from %s' % seqfile)
-            seqfile = seqs.info['Name']
-            basefile = rje.baseFile(seqfile)
-            if not self.getStrLC('Basefile'): self.baseFile(basefile)
-            self.printLog('#SEQ',"%s protein sequences read from %s\n" % (str(seqs.seqNum()),seqfile),1)
-            #?# Add option to generate alignment?
-            self.printLog('#SEQ',"Alignment = %s. (%d aa)\n" % (seqs.opt['Aligned'],seqs.seq[0].seqLen()),1)
-            self.dict['Output']['seqin'] = seqfile
-
-            ### ~ [1] Read in Tree ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            if self.getStrLC('NSFIn'):
-                nsfin = self.getStr('NSFIn')
-            else:
-                nsfin = basefile + '.nsf'
-            while not os.path.exists(nsfin):
-                if self.i() >= 0:
-                    nsfin = rje.choice(text='Input tree file "%s" not found. Input filename? (Blank to exit.)' % nsfin)
-                    if nsfin == '':
-                        raise KeyboardInterrupt
-                else:
-                    raise IOError('File %s not found. Cannot load tree!' % nsfin)
-            self.dict['Output']['nsfin'] = nsfin
-            self.cmd_list.append('nsfin=' + nsfin)
-            self.printLog('#TREE','Loading tree from %s' % nsfin)
-            self.obj['Tree'] = mytree = rje_tree.Tree(log=self.log,cmd_list=['root=yes']+self.cmd_list)
-            mytree.mapSeq(seqlist=seqs)
-            mytree.textTree()
-            if mytree.opt['ReRooted']:
-                mytree.saveTree(filename='%s.nsf' % basefile)
+        try:### ~ [1] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             return True     # Setup successful
-        except KeyboardInterrupt: self.printLog('#CANCEL','User terminated.'); return False
         except: self.errorLog('Problem during %s setup.' % self.prog()); return False  # Setup failed
 #########################################################################################################################
     def restSetup(self):    ### Sets up self.dict['Output'] and associated output options if appropriate.
@@ -273,12 +218,7 @@ class GASP(rje_obj.RJE_Object):
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
         ### Available REST Outputs:
-        seqin = Input sequence alignment [fas]
-        nsfin = Input phylogenetic tree (Newick) [nsf]
-        indeltree = [Optional] Text tree describing indel patterns. [txt]
-        anc.fas = Ancestral sequence prediction alignment [fas]
-        anc.txt = Text tree with ancestral nodes named and numbered [txt]
-        anc.nsf = Newick version of tree with ancestral nodes named and numbered [nsf]
+        There is currently no specific help available on REST output for this program.
         '''
         try:### ~ [0] ~ Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             for outfmt in self.restOutputOrder(): self.dict['Output'][outfmt] = 'No output generated.'
@@ -286,38 +226,136 @@ class GASP(rje_obj.RJE_Object):
             return
         except: self.errorLog('RestSetup error')
 #########################################################################################################################
-    def restOutputOrder(self): return ['seqin','nsfin','indeltree','anc.fas','anc.txt','anc.nsf']
+    def restOutputOrder(self): return rje.sortKeys(self.dict['Output'])
 #########################################################################################################################
     ### <3> ### Additional Class Methods                                                                                #
 #########################################################################################################################
-    def gasp(self):      ### Main GASP Method, copied from GASP v1.4
+    def runXML(self):      ### Generic method
         '''
-        Main GASP Method, copied from GASP v1.4.
+        Generic method. Add description here (and arguments.)
         '''
         try:### ~ [1] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            mytree = self.obj['Tree']
-            indeltree = self.getBool('IndelTree')
-            if self.baseFile() == 'infile': self.baseFile('gasp')
-            ### ~ [2] GASP ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            if not indeltree or not mytree.node[-1].obj['Sequence']:  # Perform GASP
-                self.printLog('#SEQ','GASP: Gapped Ancestral Sequence Prediction')
-                mygasp = rje_ancseq.Gasp(tree=mytree,ancfile='%s' % self.baseFile(),cmd_list=self.cmd_list,log=self.log)
-                self.verbose(0,2,'%s' % mygasp.details(),1)
-                if self.i() > 0:
-                    if not rje.yesNo('Use these parameters?'):
-                        mygasp.edit()
-                mygasp.gasp()
-                self.printLog('#GASP',"GASP run completed OK!")
-                self.dict['Output']['anc.fas'] = '%s.anc.fas' % self.baseFile()
-                self.dict['Output']['anc.nsf'] = '%s.anc.nsf' % self.baseFile()
-                self.dict['Output']['anc.txt'] = '%s.anc.txt' % self.baseFile()
-            ### ~ [3] InDel Tree ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            if indeltree:
-                self.dict['Output']['indeltree'] = '%s.indel.txt' % self.baseFile()
-                mytree.indelTree(filename='%s.indel.txt' % self.baseFile())
-        except: self.errorLog('%s.gasp error' % self.prog())
+            datatype = self.getStr('DataType').lower()
+            exps = {}        # Experiment alias: run directory list
+            runs = {}        # Run alias: file list
+            run2run = {}    # Convert runs to run aliases
+
+            ## ~ [1a] Get Files and Directories ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            dirlist = rje.listDir(self,subfolders=False,folders=True,files=False,summary=True)
+            filelist = rje.listDir(self,folder=os.getcwd(),subfolders=True,folders=False,files=True,summary=True)
+
+            current = os.getcwd()
+            curlen = len(current) + 1
+            for pathlist in [dirlist,filelist]:
+                for i in range(len(pathlist)):
+                    path = pathlist[i]
+                    if path.startswith(current): pathlist[i] = path[curlen:]
+                    else: raise ValueError(path)
+
+            ## ~ [1b] Clean up files ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            dx = len(dirlist)
+            self.debug(filelist)
+            self.debug(dirlist)
+            self.debug(self.list['DirList'])
+            if self.list['DirList']:
+                dirlist = rje.listIntersect(dirlist,self.list['DirList'])
+            self.printLog('#DIR','Process %d of %d directories' % (len(dirlist),dx))
+            keepext = []
+            if datatype == 'pacbio': keepext = ['.h5','.xml']
+            for filename in filelist[0:]:
+                ext = os.path.splitext(filename)[1]
+                if len(string.split(filename,os.sep)) < 2 or ext not in keepext or string.split(filename,os.sep)[0] not in dirlist:
+                    filelist.remove(filename)
+            self.printLog('#FILES','%s files kept from %s directories' % (rje.iLen(filelist),rje.iLen(dirlist)))
+            self.debug(filelist[:10])
+            self.debug(filelist[-10:])
+
+            ### ~ [2] Parse runs ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            if datatype == 'pacbio':
+                for filename in filelist[0:]:
+                    self.printLog('#FILE',filename)
+                    filedata = string.split(filename,os.sep)
+                    parent = filedata[0]    # This should be a directory containing runs
+                    experiment = filedata[1]
+                    expalias = string.join(string.split(experiment,'.')[:2],'.')
+                    run = string.join(filedata[1:3],os.sep)
+                    if expalias not in exps: exps[expalias] = []
+                    if run not in exps[expalias]: exps[expalias].append(run)
+                    runalias = '%s-%d' % (expalias,len(exps[expalias]))
+                    run2run[run] = runalias
+                    runfile = filedata[-1]
+                    if runalias not in runs: runs[runalias] = []
+                    runs[runalias].append(filename)
+                    self.printLog('#PARSE','%s - %s: (%d) %s' % (expalias,runalias,len(runs[runalias]),filename))
+
+            ### ~ [3] Generate XML ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            ## ~ [3a] Experiment XML ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            efile = '%s.exp.xml' % self.baseFile()
+            elines = ['<?xml version="1.0" encoding="UTF-8"?>','<EXPERIMENT_SET xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="ftp://ftp.sra.ebi.ac.uk/meta/xsd/sra_1_5/SRA.experiment.xsd">']
+            for experiment in rje.sortKeys(exps):
+                ex = experiment[-1:]
+                elines += ['    <EXPERIMENT alias="%s" center_name="">' % experiment,
+                            '        <TITLE>Cane toad whole genome sequencing - PacBio library %s</TITLE>' % ex,
+                            '        <STUDY_REF accession="ERP106543"/>',
+                            '        <DESIGN>',
+                            '            <DESIGN_DESCRIPTION/>',
+                            '            <SAMPLE_DESCRIPTOR accession="ERS2169570"/>',
+                '            <LIBRARY_DESCRIPTOR>',
+                '                <LIBRARY_NAME>%s</LIBRARY_NAME>' % experiment,
+                '                <LIBRARY_STRATEGY>WGS</LIBRARY_STRATEGY>',
+                '                <LIBRARY_SOURCE>GENOMIC</LIBRARY_SOURCE>',
+                '                <LIBRARY_SELECTION>size fractionation</LIBRARY_SELECTION>',
+                '                <LIBRARY_LAYOUT>',
+                '                    <SINGLE/>',
+                '                </LIBRARY_LAYOUT>',
+                '                <LIBRARY_CONSTRUCTION_PROTOCOL></LIBRARY_CONSTRUCTION_PROTOCOL>',
+                '               </LIBRARY_DESCRIPTOR>',
+                '        </DESIGN>',
+                '        <PLATFORM>',
+                '            <PACBIO_SMRT>',
+                '                <INSTRUMENT_MODEL>PacBio RS II</INSTRUMENT_MODEL>',
+                '            </PACBIO_SMRT>',
+                '        </PLATFORM>',
+                '        <EXPERIMENT_ATTRIBUTES>',
+                '            <EXPERIMENT_ATTRIBUTE>',
+                '                <TAG>Size selection</TAG>',
+                '                <VALUE>15-50 kb</VALUE>',
+                '            </EXPERIMENT_ATTRIBUTE>',
+                '            <EXPERIMENT_ATTRIBUTE>',
+                '                <TAG>Sequencing Chemistry</TAG>',
+                '                <VALUE>P6C4</VALUE>',
+                '            </EXPERIMENT_ATTRIBUTE>',
+                '        </EXPERIMENT_ATTRIBUTES>',
+                '    </EXPERIMENT>']
+            elines += ['</EXPERIMENT_SET>']
+            open(efile,'w').write(string.join(elines,'\n'))
+            self.printLog('#EXP','Experiment data saved to %s' % efile)
+            ## ~ [3b] Run XML ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            rfile = '%s.run.xml' % self.baseFile()
+            rlines = ['<?xml version="1.0" encoding="UTF-8"?>','<RUN_SET xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="ftp://ftp.sra.ebi.ac.uk/meta/xsd/sra_1_5/SRA.run.xsd">']
+            for experiment in rje.sortKeys(exps):
+                for run in exps[experiment]:
+                    runalias = run2run[run]
+                    rlines += ['   <RUN alias="%s" center_name="">' % runalias,'    <EXPERIMENT_REF refname="%s"/>' % experiment,
+                            '      <DATA_BLOCK>','        <FILES>']
+                    for filename in runs[runalias]:
+                        rlines += ['             <FILE filename="%s" filetype="PacBio_HDF5">' % filename,'             </FILE>']
+                    rlines += ['        </FILES>','      </DATA_BLOCK>','  </RUN>']
+            rlines += ['</RUN_SET>']
+            open(rfile,'w').write(string.join(rlines,'\n'))
+            self.printLog('#RUN','Run data saved to %s' % rfile)
+            ## ~ [3c] Submission XML ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            xfile = '%s.xml' % self.baseFile()
+            xlines = ['<?xml version="1.0" encoding="UTF-8"?>','<SUBMISSION alias="%s" center_name="">' % self.baseFile(),
+                        '   <ACTIONS>','      <ACTION>','         <ADD source="%s" schema="experiment"/>' % efile,
+                        '      </ACTION>','      <ACTION>','         <ADD source="%s" schema="run"/>' % rfile,
+                        '      </ACTION>','   </ACTIONS>','</SUBMISSION>']
+            open(xfile,'w').write(string.join(xlines,'\n'))
+            self.printLog('#SUBXML','Submission XML saved to %s' % xfile)
+            return
+        except: self.errorLog('%s.method error' % self.prog())
 #########################################################################################################################
-### End of SECTION II: GASP Class                                                                                       #
+### End of SECTION II: ENA Class                                                                                        #
 #########################################################################################################################
 
                                                     ### ~ ### ~ ###
@@ -338,11 +376,11 @@ class GASP(rje_obj.RJE_Object):
 def runMain():
     ### ~ [1] ~ Basic Setup of Program  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try: (info,out,mainlog,cmd_list) = setupProgram()
-    except SystemExit: return
+    except SystemExit: return  
     except: print 'Unexpected error during program setup:', sys.exc_info()[0]; return
-
+    
     ### ~ [2] ~ Rest of Functionality... ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-    try: GASP(mainlog,cmd_list).run()
+    try: ENA(mainlog,cmd_list).run()
 
     ### ~ [3] ~ End ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     except SystemExit: return  # Fork exit etc.
@@ -350,11 +388,10 @@ def runMain():
     except: mainlog.errorLog('Fatal error in main %s run.' % info.program)
     mainlog.endLog(info)
 #########################################################################################################################
-if __name__ == "__main__":      ### Call runMain
+if __name__ == "__main__":      ### Call runMain 
     try: runMain()
     except: print 'Cataclysmic run error:', sys.exc_info()[0]
     sys.exit()
 #########################################################################################################################
 ### END OF SECTION IV                                                                                                   #
 #########################################################################################################################
-

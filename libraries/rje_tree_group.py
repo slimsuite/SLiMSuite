@@ -820,6 +820,8 @@ def _reviewGroups(_tree,interactive=1):    ### Summarise, scan for variants (sam
                 grpmaster = seqlist.bestMeanID(queries=masters,seqlist=grpseq,key='MSA ID')
             if mastervar == 1:
                 masters = [grpmaster]
+            _tree.printLog('#GRP','Group %d (%s)' % (g,fam.info['CladeName']))
+            _tree.printLog('#MASTER',_groupDisSum(_tree,grpmaster,query,qtxt))
             _tree.verbose(0,4,'GroupMaster: Group %d, %s' % (g,fam.info['CladeName']),1)
             _tree.verbose(0,4,_groupDisSum(_tree,grpmaster,query,qtxt),2)
 
@@ -850,6 +852,7 @@ def _reviewGroups(_tree,interactive=1):    ### Summarise, scan for variants (sam
                 elif _tree.stat['Interactive'] >= 0:
                     if (_tree.opt['AllowVar'] or _tree.opt['QryVar']) and query and grpmaster.info['SpecCode'] == query.info['SpecCode']: choice = rje.choice('\n %s?: ' % ctext,default='k').lower()
                     #choice = rje.getInt('\n %s?: ' % ctext,blank0=True)
+                    elif grpmaster.info['SpecCode'].startswith('9') and _tree.opt['9SPEC']: choice = rje.choice('\n %s?: ' % ctext,default='k').lower()
                     else: choice = rje.choice('\n %s?: ' % ctext,default='0').lower()
                     if choice == 'k': choice = len(masters)
                     elif choice == 'n': choice = -1
@@ -858,8 +861,10 @@ def _reviewGroups(_tree,interactive=1):    ### Summarise, scan for variants (sam
                         except: continue
                 elif _tree.opt['AllowVar']: choice = len(masters)
                 elif _tree.opt['QryVar'] and query and grpmaster.info['SpecCode'] == query.info['SpecCode']: choice = len(masters)
+                elif grpmaster.info['SpecCode'].startswith('9') and not _tree.opt['9SPEC']: choice = len(masters)
                 else: choice = 0
 
+                if grpmaster.info['SpecCode'].startswith('9') and not _tree.opt['9SPEC']: break
                 if choice == 0:
                     masters.pop(0)
                     _grpVarDel(_tree,masters,grpmaster,fam)
@@ -885,6 +890,9 @@ def _reviewGroups(_tree,interactive=1):    ### Summarise, scan for variants (sam
             _stage ='<1f> Scan for Variants'
             seqspec.pop(grpmaster.info['SpecCode'])
             for spec in seqspec.keys():
+                # Ignore 9XXXX species codes for variant removal
+                if spec.startswith('9') and not _tree.getBool('9SPEC'): continue
+                # Identify variants
                 vseq = []
                 if seqspec[spec] > 1:   # Variants
                     fam = _tree.subfam[g]

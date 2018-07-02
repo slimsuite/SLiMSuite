@@ -19,8 +19,8 @@
 """
 Module:       rje_seqlist
 Description:  RJE Nucleotide and Protein Sequence List Object (Revised)
-Version:      1.25.0
-Last Edit:    08/05/17
+Version:      1.29.0
+Last Edit:    09/05/18
 Copyright (C) 2011  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -94,7 +94,7 @@ Commandline:
     spcode=X        : Species code for non-gnspacc format sequences [None]
     newacc=X        : New base for sequence accession numbers - will rename sequences [None]
     newgene=X       : New gene for renamed sequences (if blank will use newacc or 'seq' if none read) [None]
-    concatenate=T   : Concenate sequences into single output sequence named after file [False]
+    concatenate=T   : Concatenate sequences into single output sequence named after file [False]
     split=X         : String to be inserted between each concatenated sequence [''].
     seqshuffle=T/F  : Randomly shuffle each sequence without replacement (maintains monomer composition) [False]
     region=X,Y      : Alignment/Query region to use for reformat=peptides/(q)region reformatting of fasta alignment (1-L) [1,-1]
@@ -108,7 +108,9 @@ Commandline:
 
     ### ~ FILTERING OPTIONS ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     seqnr=T/F       : Whether to check for redundancy on loading. (Will remove, save and reload if found) [False]
-    revcompnr=T/F   : Whether to check reverse complement for redundancy too [False]
+    grepnr=T/F      : Whether to use grep based forking NR mode (needs sized-sorted one-line-per-sequence fasta) [True]
+    twopass=T/F     : Whether to perform second pass looking for redundancy of earlier sequences within later ones [True]
+    revcompnr=T/F   : Whether to check reverse complement for redundancy too [True]
     goodX=LIST      : Inclusive filtering, only retaining sequences matching list []
     badX=LIST       : Exclusive filtering, removing sequences matching list []
     - where X is 'Acc', Accession number; 'Seq', Sequence name; 'Spec', Species code; 'Desc', part of name;
@@ -121,7 +123,9 @@ Commandline:
     sortseq=X       : Whether to sort sequences prior to output (size/invsize/accnum/name/seq/species/desc) [None]
     sampler=N(,X)   : Generate (X) file(s) sampling a random N sequences from input into seqout.N.X.fas [0]
     summarise=T/F   : Generate some summary statistics in log file for sequence data after loading [False]
+    maker=T/F       : Whether to extract MAKER2 statistics (AED, eAED, QI) from sequence names [False]
     splitseq=X      : Split output sequence file according to X (gene/species) [None]
+    tmpdir=PATH     : Directory used for temporary files ['./tmp/']
 
 See also rje.py generic commandline options.
 
@@ -181,6 +185,12 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 1.24.0 - Add NNN gaps option and "delete rest of sequences" to edit().
     # 1.24.1 - Minor edit bug fix and DNA toggle option.
     # 1.25.0 - Added loading of FASTQ files in seqmode=file mode.
+    # 1.26.0 - Updated sequence statistics and fixed N50 underestimation bug.
+    # 1.26.1 - Fixed median length overestimation bug.
+    # 1.26.2 - Fixed sizesort bug. (Now big to small as advertised.)
+    # 1.27.0 - Added grepNR() method (dev only). Switched default to RevCompNR=T.
+    # 1.28.0 - Fixed second pass NR naming bug and added option to switch off altogether.
+    # 1.29.0 - Added maker=T/F : Whether to extract MAKER2 statistics (AED, eAED, QI) from sequence names [False]
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -201,7 +211,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copy_right) = ('SeqList', '1.25.0', 'May 2017', '2011')
+    (program, version, last_edit, copy_right) = ('SeqList', '1.29.0', 'May 2018', '2011')
     description = 'RJE Nucleotide and Protein Sequence List Object (Revised)'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_zen.Zen().wisdom()]
@@ -281,6 +291,7 @@ class SeqList(rje_obj.RJE_Object):
     - SpCode = Species code for non-gnpacc format sequences [None]
     - Split = String to be inserted between each concatenated sequence [''].
     - SplitSeq = Split output sequence file according to X (gene/species) [None]
+    - TmpDir = Directory used for temporary files ['./tmp/']
 
     Bool:boolean
     - AutoFilter = Whether to automatically apply sequence filtering. [True]
@@ -288,15 +299,18 @@ class SeqList(rje_obj.RJE_Object):
     - Concatenate = Concatenate sequences into single output sequence named after file [False]
     - DNA = Alternative option to indicate dealing with nucleotide sequences [False]
     - Edit = Enter sequence edit mode upon loading (will switch seqmode=list) [False]
+    - GrepNR = Whether to use grep based forking NR mode (needs sized-sorted one-line-per-sequence fasta) [True]
+    - Maker = Whether to extract MAKER2 statistics (AED, eAED, QI) from sequence names [False]
     - Mixed = Whether to allow auto-identification of mixed sequences types (else uses first seq only) [False]
     - ORFMet = Whether ORFs must start with a methionine (before minorf cutoff) [True]
     - ReName = Whether to rename sequences (will need newacc and spcode) [False]
-    - RevCompNR = Whether to check reverse complement for redundancy too [False]
+    - RevCompNR = Whether to check reverse complement for redundancy too [True]
     - SeqIndex = Whether to save (and load) sequence index file in file mode. [True]
     - SeqNR = Whether to check for redundancy on loading. (Will remove, save and reload if found) [False]
     - SeqShuffle = Randomly shuffle each sequence (cannot use file or index mode) [False]
     - SizeSort = Sort sequences by size big -> small re-output prior to loading/filtering [False]
     - Summarise = Generate some summary statistics in log file for sequence data after loading [False]
+    - TwoPass=T/F     : Whether to perform second pass looking for redundancy of earlier sequences within later ones [True]
     - UseCase = Whether to return sequences in the same case as input (True), or convert to Upper (False) [False]
 
     Int:integer
@@ -331,8 +345,9 @@ class SeqList(rje_obj.RJE_Object):
         ### ~ Basics ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         self.strlist = ['Edit','Name','NameFormat','NewAcc','Region',
                         'SeqDB','SeqDictType','SeqFormat','SeqIn','SeqMode','SeqType','SeqOut',
-                        'Reformat','SpCode','SeqNR','NewGene','Split','SortSeq','SplitSeq']
-        self.boollist = ['AutoFilter','AutoLoad','Concatenate','DNA','Edit','Mixed','ORFMet','ReName','RevCompNR','SizeSort',
+                        'Reformat','SpCode','SeqNR','NewGene','Split','SortSeq','SplitSeq','TmpDir']
+        self.boollist = ['AutoFilter','AutoLoad','Concatenate','DNA','Edit','GrepNR','Maker',
+                         'Mixed','ORFMet','ReName','RevCompNR','SizeSort','TwoPass',
                          'SeqIndex','SeqShuffle','Summarise','UseCase']
         self.intlist = ['MinLen','MaxLen','MinORF','RFTran','TerMinORF']
         self.numlist = []
@@ -341,8 +356,8 @@ class SeqList(rje_obj.RJE_Object):
         self.objlist = ['Current','CurrSeq','DB','SEQFILE','INDEX']
         ### ~ Defaults ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         self._setDefaults(str='None',bool=False,int=0,num=0.0,obj=None,setlist=True,setdict=True)
-        self.setStr({'SeqMode':'file','ReFormat':'None','Region':'1,-1'})
-        self.setBool({'AutoFilter':True,'AutoLoad':True,'ORFMet':True,'SeqIndex':True})
+        self.setStr({'SeqMode':'file','ReFormat':'None','Region':'1,-1','TmpDir':rje.makePath('./tmp/')})
+        self.setBool({'AutoFilter':True,'AutoLoad':True,'ORFMet':True,'SeqIndex':True,'GrepNR':True,'RevCompNR':True,'TwoPass':True})
         self.setInt({'MinORF':-1,'RFTran':1,'TerMinORF':-1})
         self.list['Sampler'] = [0,1]
         #self.setInt({})
@@ -364,9 +379,10 @@ class SeqList(rje_obj.RJE_Object):
                 self._cmdRead(cmd,type='str',att='SortSeq',arg='seqsort')  # No need for arg if arg = att.lower()
                 self._cmdReadList(cmd,'str',['NewAcc','NewGene','Region','SeqFormat','SeqMode','ReFormat','SpCode','SeqType','Split','SortSeq','SplitSeq'])
                 self._cmdReadList(cmd,'file',['Edit','SeqDB','SeqIn','SeqOut'])
+                self._cmdReadList(cmd,'path',['TmpDir'])
                 self._cmdReadList(cmd,'int',['MinLen','MaxLen','MinORF','RFTran','TerMinORF'])
                 self._cmdReadList(cmd,'nlist',['Sampler'])
-                self._cmdReadList(cmd,'bool',['Align','AutoFilter','AutoLoad','Concatenate','DNA','Edit','Mixed','ORFMet','ReName','RevCompNR','SizeSort','SeqIndex','SeqNR','SeqShuffle','Summarise','UseCase'])
+                self._cmdReadList(cmd,'bool',['Align','AutoFilter','AutoLoad','Concatenate','DNA','Edit','GrepNR','Maker','Mixed','ORFMet','ReName','RevCompNR','SizeSort','SeqIndex','SeqNR','SeqShuffle','Summarise','TwoPass','UseCase'])
             except: self.errorLog('Problem with cmd:%s' % cmd)
         ## ~ [1a] ~ Tidy Commands ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
         if self.getStrLC('SeqMode') == 'tuple': self.setStr({'SeqMode':'list'})
@@ -390,7 +406,7 @@ class SeqList(rje_obj.RJE_Object):
         if self.getBool('Edit') and int(self.list['Sampler'][0]) > 0:
             self.list['Sampler'] = [0,1]
             self.printLog('#EDIT','Edit mode not compatible with Sampler: sampler=0[,1]')
-        if not self.getStrLC('SortSeq') and self.getBool('SizeSort'): self.setStr({'SortSeq':'size'})
+        if not self.getStrLC('SortSeq') and self.getBool('SizeSort'): self.setStr({'SortSeq':'invsize'})
         else: self.setStr({'SortSeq':self.getStrLC('SortSeq')})
         if self.getInt('RFTran') not in [1,3,6]:
             self.warnLog('rftran=%d not recognised: will use rftran=1' % self.getInt('RFTran'))
@@ -413,7 +429,9 @@ class SeqList(rje_obj.RJE_Object):
             if self.getBool('SeqShuffle'): self.shuffleSeq()
             #if self.getBool('SizeSort'): self.sizeSort()
             if self.getStr('SortSeq'): self.seqSort()
-            if self.getBool('SeqNR'): self.seqNR(twopass=not self.getStrLC('SortSeq'))
+            if self.getBool('SeqNR'):
+                if self.getBool('GrepNR'): self.grepNR()
+                else: self.seqNR(twopass=not self.getStrLC('SortSeq'),grepnr=self.getBool('GrepNR'))
             if self.getBool('Concatenate'): self.concatenate()
             if self.getBool('ReName'): self.rename()
             self.loadSeq()
@@ -873,12 +891,13 @@ class SeqList(rje_obj.RJE_Object):
             seqbase = rje.baseFile(self.getStr('SeqIn'),strip_path=True)
             if not self.getStrLC('SeqIn'): seqbase = self.getStr('Basefile')
             if not basename: basename = seqbase
-            seqdata = {}    # SeqNum, TotLength, MinLength, MaxLength, MeanLength, MedLength, N50Length
+            seqdata = {'File':self.getStr('SeqIn'),'GC':0,'GapLength':0}    # SeqNum, TotLength, MinLength, MaxLength, MeanLength, MedLength, N50Length, L50Count, GapLength, GC
             if sumdb or self.mode().endswith('db'): # {'Name':name,'Sequence':sequence,'FPos':fpos}
                 if not self.obj['DB']: self.obj['DB'] = rje_db.Database(self.log,self.cmd_list+['tuplekeys=T'])
                 db = self.db()
                 sdb = db.addEmptyTable('sequences',['name','desc','gene','spec','accnum','length'],['name'])
-                if self.dna(): sdb.addField('gc')
+                if self.dna(): sdb.addField('gc'); sdb.addField('gapn')
+                if self.getBool('Maker'): sdb.addFields(['AED','eAED','QIUTR5','QISpliceEST','QIExonEST','QIExonAlign','QISpliceSNAP','QIExonSNAP','QIExonmRNA','QIUTR3','QIProtLen'])
             self.printLog('#~~#','# ~~~~~~~~~~~~~~~~~~~~~~~ SEQUENCE SUMMARY FOR %s ~~~~~~~~~~~~~~~~~~~~~~~~~~~ #' % basename)
             seqlen = []
             if not seqs: seqs = self.seqs()
@@ -886,12 +905,32 @@ class SeqList(rje_obj.RJE_Object):
             for seq in seqs:
                 self.progLog('\r#SUM','Total number of sequences: %s' % rje.iLen(seqlen),rand=0.01)
                 seqlen.append(self.seqLen(seq))
+                if self.dna():
+                    sequence = self.seqSequence(seq).upper()
+                    seqdata['GC'] += sequence.count('G') + sequence.count('C')
+                    seqdata['GapLength'] += sequence.count('N')
                 if self.mode().endswith('db'):
                     entry = {'name':self.shortName(seq),'desc':self.seqDesc(seq),'gene':self.seqGene(seq),
                              'spec':self.seqSpec(seq),'accnum':self.seqAcc(seq),'length':self.seqLen(seq)}
                     if self.dna():
-                        sequence = seq['Sequence'].upper()
-                        entry['gc'] = float(sequence.count('G') + sequence.count('C')) / len(sequence)
+                        nonN = (len(sequence) - sequence.count('N'))
+                        if nonN:
+                            entry['gc'] = float(sequence.count('G') + sequence.count('C')) / nonN
+                        else:
+                            entry['gc'] = -1
+                            if len(sequence) > 0:
+                                self.warnLog('%s is 100%% Ns!' % self.shortName(seq),warntype="alln")
+                            else:
+                                self.warnLog('%s is zero length!' % self.shortName(seq),warntype="zerolen")
+                        entry['gapn'] = float(sequence.count('N')) / len(sequence)
+                    if self.getBool('Maker'):
+                        name = self.seqName(seq)
+                        if rje.matchExp('\sAED:(\S+)',name): entry['AED'] = rje.matchExp('\sAED:(\S+)',name)[0]
+                        if rje.matchExp('eAED:(\S+)',name): entry['eAED'] = rje.matchExp('eAED:(\S+)',name)[0]
+                        if rje.matchExp('QI:(\S+)',name):
+                            qi = string.split(rje.matchExp('QI:(\S+)',name)[0],'|')
+                            for field in ['QIUTR5','QISpliceEST','QIExonEST','QIExonAlign','QISpliceSNAP','QIExonSNAP','QIExonmRNA','QIUTR3','QIProtLen']:
+                                entry[field] = qi.pop(0)
                     sdb.addEntry(entry)
             self.printLog('#SUM','Total number of sequences: %s' % rje.iLen(seqlen))
             if not seqs: return {}
@@ -913,19 +952,28 @@ class SeqList(rje_obj.RJE_Object):
             self.printLog('#SUM','Mean length of sequences: %s.%s' % (rje.iStr(meansplit[0]),meansplit[1]))
             seqdata['MeanLength'] = meanlen
             if rje.isOdd(len(seqlen)): median = seqlen[len(seqlen)/2]
-            else: median = sum(seqlen[len(seqlen)/2:][:2]) / 2.0
+            else: median = sum(seqlen[(len(seqlen)/2)-1:][:2]) / 2.0
             self.printLog('#SUM','Median length of sequences: %s' % (rje.iStr(median)))
             seqdata['MedLength'] = median
             ## N50 calculation
             n50len = sumlen / 2.0
             n50 = seqlen[0:]
-            while n50len > 0 and n50: n50len -= n50.pop(-1)
+            l50 = 0
+            while n50 and n50len > n50[-1]: n50len -= n50.pop(-1); l50 += 1
             if n50:
                 self.printLog('#SUM','N50 length of sequences: %s' % rje.iStr(n50[-1]))
                 seqdata['N50Length'] = n50[-1]
+                l50 += 1
+                self.printLog('#SUM','L50 count of sequences: %s' % rje.iStr(l50))
+                seqdata['L50Count'] = l50
             else:
-                self.printLog('#SUM','N50 length of sequences: %s' % rje.iStr(seqlen[-1]))
-                seqdata['N50Length'] = seqlen[-1]
+                raise ValueError('Half sum of sequences not reached!')
+                #self.printLog('#SUM','N50 length of sequences: %s' % rje.iStr(seqlen[-1]))
+                #seqdata['N50Length'] = seqlen[-1]
+            if self.dna():
+                seqdata['GCPC'] = 100.0 * seqdata['GC'] / (float(sumlen) - seqdata['GapLength'])
+                self.printLog('#SUM','GC content: %.2f%%' % seqdata['GCPC'])
+                self.printLog('#SUM','Gap (N) length: %s (%.2f%%)' % (rje.iStr(seqdata['GapLength']),100.0 * seqdata['GapLength'] / float(sumlen)))
             return seqdata
         except: self.errorLog('Problem during %s summarise.' % self.prog()); return {}   # Summarise failed
 #########################################################################################################################
@@ -1209,13 +1257,14 @@ class SeqList(rje_obj.RJE_Object):
                     iline = IN.readline()
             ### ~ [1] Forward Pass ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             IN.seek(0); sx = 0.0; goodnames = []
-            iline = IN.readline(); name = None; seq = None
+            iline = IN.readline(); name = None; seq = None; fullname = None
             while seqx:
                 if iline[:1] == '>' or not iline:
                     if grepnr and name and name not in grepnr:
                         goodrev = goodname = ''
                         foundme = False
                         #self.deBug("grep %s %s -B 1 | grep '>'" % (seq,self.getStr('SeqIn')))
+                        #!# Possibly too long!
                         glines = os.popen("grep %s %s -B 1 | grep '>'" % (seq,self.getStr('SeqIn'))).readlines()
                         #self.deBug(name)
                         #self.deBug(glines)
@@ -1287,6 +1336,7 @@ class SeqList(rje_obj.RJE_Object):
             if grepnr: self.printLog('\r#SEQNR','Removing redundancy (%s:%s|%s): ready to filter.' % (rje.iStr(int(sx)/100), rje.iLen(goodnames),rje.iLen(grepnr[1:])))
             ### ~ [2] Reverse pass ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             seqlist = string.split(sequences); seqx = len(seqlist); sx = 0.0
+            if twopass and not self.getBool('TwoPass'): self.printLog('#SEQNR','Redundancy removal Pass II deactivated (twopass=F).')
             if twopass:
                 goodseq = []
                 while seqlist:
@@ -1295,15 +1345,25 @@ class SeqList(rje_obj.RJE_Object):
                     if self.getBool('RevCompNR') and self.nt(): revseq = rje_sequence.reverseComplement(check,rna=self.rna())
                     else: revseq = ''
                     if check in sequences:
-                        matched = rje.matchExp('\s(\S*%s\S*)\s' % seq,' %s ' % sequences)[0]
-                        name = seqdict.pop(check)
-                        self.printLog('\r#SEQNR','%s removed: contained within %s' % (string.split(name)[0],string.split(seqdict[matched])[0]))
-                        self.dict['Filter']['NR'] += 1
+                        matched = rje.matchExp('\s(\S*%s\S*)\s' % check,' %s ' % sequences)[0]
+                        if self.getBool('TwoPass'):
+                            name = seqdict.pop(check)
+                            self.printLog('\r#SEQNR','%s removed: contained within %s' % (string.split(name)[0],string.split(seqdict[matched])[0]))
+                            self.dict['Filter']['NR'] += 1
+                        else:
+                            name = seqdict[check]
+                            self.warnLog('#SEQNR: %s contained within %s; not removed (twopass=F)' % (string.split(name)[0],string.split(seqdict[matched])[0]),warntype='twopass',suppress=True)
+                            goodseq.append(check)
                     elif revseq and revseq in sequences:
-                        name = seqdict.pop(check)
                         matched = rje.matchExp('\s(\S*%s\S*)\s' % revseq,' %s ' % sequences)[0]
-                        self.printLog('\r#SEQNR','%s removed: reverse complement contained within %s' % (string.split(name)[0],string.split(seqdict[matched])[0]))
-                        self.dict['Filter']['NR'] += 1
+                        if self.getBool('TwoPass'):
+                            name = seqdict.pop(check)
+                            self.printLog('\r#SEQNR','%s removed: reverse complement contained within %s' % (string.split(name)[0],string.split(seqdict[matched])[0]))
+                            self.dict['Filter']['NR'] += 1
+                        else:
+                            name = seqdict[check]
+                            self.warnLog('#SEQNR: %s reverse complement contained within %s; not removed (twopass=F)' % (string.split(name)[0],string.split(seqdict[matched])[0]),warntype='twopass',suppress=True)
+                            goodseq.append(check)
                     else: goodseq.append(check)
                 self.progLog('\r#SEQNR','Removing redundancy (Pass II): %.2f%%  ' % (sx/seqx)); sx += 100.0
             else: goodseq = seqlist
@@ -1336,7 +1396,237 @@ class SeqList(rje_obj.RJE_Object):
                 self.printLog('\r#SEQNR','Saved %s NR sequences (%s filtered) -> %s' % (rje.iStr(self.seqNum()),rje.iStr(self.dict['Filter']['NR']),outfile))
                 self.setStr({'SeqIn':outfile})
             else: self.printLog('\r#SEQNR','No sequence redundancy found: %s unique sequences.' % rje.iStr(seqx))
-        except: self.errorLog('Problem during %s rename.' % self); return False   # Tidy failed
+        except: self.errorLog('Problem during %s seqNR.' % self); return False   # Tidy failed
+#########################################################################################################################
+    def grepNR(self,seqnr=True):  ### Removes redundancy from sequences and saves them to file before reloading as normal
+        '''
+        Removes redundancy from sequences and saves them to file before reloading as normal.
+        >> seqnr:bool [True] = Whether to use old seqNR() process if fails. Else with raise an error.
+        '''
+        try:### ~ [0] ~ Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            fastgrep = True #!# Replace with commandline
+            tmpdir = self.getStr('TmpDir')  #'./tmp/'
+            maxgrep = 1000
+            redseq = {}     # Dictionary of redundant sequences {bad sequence:(good sequence, description)}
+            revnr = self.getBool('RevCompNR') and self.nt()     # Whether to also look at reverse complements
+            try:
+                self.progLog('#GREP','Testing grep...')
+                seqx = string.atoi(rje.chomp(os.popen("grep -c '>' %s" % self.getStr('SeqIn')).readlines()[0]))
+                self.printLog('#GREP','Identified %s sequences using grep' % rje.iStr(seqx))
+            except:
+                raise ValueError('grep failure: cannot use grepNR mode')
+            if not self.force(): self.printLog('#TMP','Using tmpdir=%s - will reuse *.nr files (force=F).' % self.getStr('TmpDir'))
+            else: self.printLog('#TMP','Using tmpdir=%s - will remake *.nr files (force=T).' % self.getStr('TmpDir'))
+            if self.nt(): self.printLog('#REVNR','Reverse complement NR checks: %s' % revnr)
+            else: self.printLog('#REVNR','Protein NR (dna=F): no reverse complement NR checks.')
+            if not fastgrep: self.warnLog('Note: grep and/or head may report some write or broken pipe errors. These are harmless and can be ignored.')
+            ## ~ [0a] ~ Check single line sorting and make seqname list ~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            seqname = []    # List of sequence names in order
+            prevseq = ''    # Previous sequence
+            SEQIN = open(self.getStr('SeqIn'),'r')
+            sx = 0.0
+            while SEQIN:
+                self.progLog('\r#CHECK','Checking sorted fasta: %.2f%%' % (sx/seqx)); sx += 100.0
+                sline = SEQIN.readline()
+                if not sline: break
+                if not sline.startswith('>'):
+                    raise ValueError('Expected ">" line: fasta files needs to be one line per sequence')
+                sname = string.split(sline)[0][1:]
+                seqname.append(sname)
+                seq = string.split(SEQIN.readline())[0]
+                if prevseq:
+                    if len(seq) > len(prevseq):
+                        raise ValueError('Expected ">" line: fasta files needs to be one line per sequence')
+                    elif seq == prevseq:
+                        redseq[sname] = (seqname[-2],'100% identical to')
+                        continue
+                    #i# Could also check revcomp but I think it would be too slow.
+                prevseq = seq
+            SEQIN.close()
+            self.printLog('\r#CHECK','Checking sorted fasta complete: %s sequences; %s redundant' % (rje.iLen(seqname),rje.iLen(redseq)))
+            self.debug('End of a Check.')
+            ## ~ [0b] SeqFile Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            rje.mkDir(self,tmpdir,log=True)
+            outfile = self.getStr('SeqOut')
+            if outfile == self.getStr('SeqIn'): outfile = ''
+            if self.getBool('AutoFilter') or outfile.lower() in ['','none']: outfile = '%s.nr.fas' % rje.baseFile(self.getStr('SeqIn'))
+            else: self.setStr({'SeqOut':'None'})
+            self.dict['Filter']['NR'] = 0   # Counter for NR removal
+            ## ~ [0c] Forking Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            forkx = max(1,self.getInt('Forks'))      # Number of forks to have running at one time
+            forks = []      # List of active fork PIDs
+            forked = {}     # Dictionary of {pid:sname}
+            killforks = self.getInt('KillForks')     # Time in seconds to wait after main thread has apparently finished
+            killtime = time.time()
+
+            ### ~ [1] Forking ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            SEQIN = open(self.getStr('SeqIn'),'r')
+            sx = 0.0    # Sequence counter
+            hx = 0      # Head length counter
+            fx = 0      # Forking cleanup loop counter
+            readingseq = True   # Still reading in sequences from file
+            while readingseq or len(forks):
+                ## ~ [1a] Read sequence and start new fork ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+                while readingseq and (len(forks) < forkx):     # Add more forks
+                    if self.debugging(): self.progLog('\r#GREPNR','Checking for redundancy: %s|%d' % (rje.iStr(int(sx/100)),fx))
+                    else: self.progLog('\r#GREPNR','Checking for redundancy: %.2f%%' % (sx/seqx))
+                    killtime = time.time()  # Reset killtime - still doing stuff
+
+                    sline = SEQIN.readline()
+                    if not sline: readingseq = False; break
+                    sname = string.split(sline)[0][1:]
+                    if not sname: readingseq = False; break
+                    seq = string.split(SEQIN.readline())[0]
+                    sx += 100.0; hx += 2
+                    if sname in redseq: continue    # Sequence already marked as redundant
+                    if sname == seqname[0]: continue    # First Sequence - cannot be redundant
+
+                    #self.debug("head -n %d %s | grep -B 1 %s" % (hx,self.getStr('SeqIn'),seq[:maxgrep]))
+
+                    newpid = os.fork()
+                    if newpid == 0: # child
+                        self.setBool({'Child':True})
+                        self.log.stat['Interactive'] = -1
+                        self.log.stat['Verbose'] = -1
+                        sfile = '%s%s.nr' % (tmpdir,sname)
+                        #i# If file exists, use (unless force=T)
+                        if rje.exists(sfile) and not self.force(): raise KeyboardInterrupt    # Exit process
+
+                        #!# Add grepnr code
+                        goodname = None
+                        desc = None
+                        #GREP = os.popen("head -n %d %s | grep -B 1 %s 2>&1" % (hx,self.getStr('SeqIn'),seq[:maxgrep]))
+                        GREP = os.popen("head -n %d %s | grep -B 1 %s" % (hx,self.getStr('SeqIn'),seq[:maxgrep]))
+                        while GREP:
+                            gname = string.split(GREP.readline())[0]
+                            if not gname: break
+                            elif gname[:1] == '>': gname = gname[1:]
+                            else: continue
+                            gseq = rje.chomp(GREP.readline())
+                            if seq in gseq:
+                                goodname = gname
+                                if gseq == seq: desc = '100% identical to'
+                                else: desc = 'a subsequence of'
+                                break
+                        #?# Add a quick method that gets more pipefail errors without this while?
+                        while GREP.readline() and not fastgrep: pass
+                        GREP.close()
+                        if not goodname:
+                            goodname = sname
+                            desc = 'Grep error! Self not found'
+
+                        if goodname == sname and revnr:
+                            revseq = rje_sequence.reverseComplement(seq,rna=self.rna())
+                            #GREP = os.popen("head -n %d %s | grep -B 1 %s 2>&1" % (hx,self.getStr('SeqIn'),revseq[:maxgrep]))
+                            GREP = os.popen("head -n %d %s | grep -B 1 %s" % (hx,self.getStr('SeqIn'),revseq[:maxgrep]))
+                            while GREP:
+                                gline = GREP.readline()
+                                if not gline: break
+                                gname = string.split(gline)[0]
+                                if not gname: break
+                                elif gname[:1] == '>': gname = gname[1:]
+                                else: continue
+                                gseq = rje.chomp(GREP.readline())
+                                if revseq in gseq:
+                                    goodname = gname
+                                    if gseq == revseq: desc = 'RevComp 100% identical to'
+                                    else: desc = 'RevComp a subsequence of'
+                                    break
+                            #?# Add a quick method that gets more pipefail errors without this while?
+                            while GREP.readline() and not fastgrep: pass
+                            GREP.close()
+
+                        open(sfile,'w').write('%s\n%s\n' % (goodname,desc))
+
+                        raise KeyboardInterrupt    # Exit process
+                    elif newpid == -1: self.errorLog('Problem forking %s.' % sname,printerror=False)  # Error!
+                    else:
+                        forked[newpid] = sname
+                        forks.append(newpid)    # Add fork to list
+
+                ## ~ [1b] Monitor and remove finished forks ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+                time.sleep(0.01)       # Sleep for 1s
+                forklist = self._activeForks(forks,nowarn=[0])
+                if len(forklist) != len(forks):
+                    #self.verbose(1,2,' => %d of %d forks finished!' % (len(forks) - len(forklist),len(forks)),1)
+                    forks = forklist[0:]
+                    for pid in forked.keys():   # Go through current forks
+                        if pid not in forks:
+                            sname = forked.pop(pid)
+                            sfile = '%s%s.nr' % (tmpdir,sname)
+                            fx += 1
+                            #i# Process sname.nr file: first line is goodseq; second line (if redundant) is description
+                            NR = open(sfile,'r')
+                            goodname = rje.chomp(NR.readline())
+                            if goodname !=  sname:  # Redundant
+                                desc = rje.chomp(NR.readline())
+                                redseq[sname] = (goodname,desc)
+                            NR.close()
+                            killtime = time.time()  # Reset killtime - still doing stuff
+                #self.bugPrint(redseq)
+                #self.debug('End of a Cycle.')
+
+                ## ~ [1c] Look for eternal hanging of threads ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+                if (time.time() - killtime) > killforks:
+                    self.warnLog('%d seconds of main thread inactivity. %d forks still active!' % (killforks,len(forks)))
+                    for fork in forks:
+                        self.warnLog('GrepNRFork %s, PID %d still Active!' % (forked[fork],fork),1)
+                    if self.i() < 0 or rje.yesNo('Kill Main Thread?'): break   #!# killing options
+                    elif rje.yesNo('Kill hanging forks?'):
+                        for fork in forks:
+                            self.printLog('#KILL','Killing GopherFork %s, PID %d.' % (forked[fork],fork))
+                            os.system('kill %d' % fork)
+                    else: killtime = time.time()
+
+            ### ~ [2] Finish Forking ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            SEQIN.close()
+            self.printLog('\r#GREPNR','Checking for redundancy complete: %s sequences; %s redundant' % (rje.iLen(seqname),rje.iLen(redseq)))
+            if len(forks) > 0: self.errorLog('%d GrepNR Forks still active after %d seconds of mainthread inactivity' % (len(forks),killforks),quitchoice=True,printerror=False)
+
+            ### ~ [3] Save if filtering done ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            if redseq:
+                self.printLog('\r#SEQNR','%s redundant sequences flagged for removal' % (rje.iLen(redseq)))
+                self._filterCmd(clear=True)
+                self.list['BadSeq'] = rje.sortKeys(redseq)
+                RED = open('%s.redundant.txt' % rje.baseFile(outfile),'w')
+                for gname in self.list['BadSeq']:
+                    gnr = redseq[gname]
+                    goodname = gnr[0]
+                    while goodname in redseq: goodname = redseq[goodname][0]
+                    RED.write('%s is %s %s\n' % (gname,gnr[1],goodname))
+                    self.printLog('#NR','%s is %s %s' % (gname,gnr[1],goodname),screen=False)
+                RED.close()
+                self.loadSeq(seqfile=self.getStr('SeqIn'),nodup=True,clearseq=True,mode='file')
+                self.filterSeqs()
+                self.dict['Filter']['NR'] = self.dict['Filter']['BadSeq']
+                self.dict['Filter']['BadSeq'] = 0
+                self.list['BadSeq'] = []
+                self._filterCmd(self.cmd_list,clear=False)
+                self.saveSeq(seqfile=outfile)
+                self.printLog('\r#SEQNR','Saved %s NR sequences (%s filtered) -> %s' % (rje.iStr(self.seqNum()),rje.iStr(self.dict['Filter']['NR']),outfile))
+                self.setStr({'SeqIn':outfile})
+            else: self.printLog('\r#SEQNR','No sequence redundancy found: %s unique sequences.' % rje.iStr(seqx))
+            ## ~ [3a] Tidied tmpdir ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            sx = 0.0; stot = len(seqname)
+            for sname in seqname:
+                self.progLog('\r#TMP','Cleaning up tmpdir: %.2f%%' % (sx/stot)); sx += 100.0
+                sfile = '%s%s.nr' % (tmpdir,sname)
+                if os.path.exists(sfile): os.unlink(sfile)
+            self.printLog('\r#TMP','Cleaning up tmpdir complete!')
+            try: os.rmdir(tmpdir)
+            except: self.printLog('\r#TMP','Failed to delete tmpdir.')
+
+        except KeyboardInterrupt:
+            if self.getBool('Child'): os._exit(0)
+            else: raise
+        except ValueError:
+            if self.getBool('Child'): os._exit(1)
+            self.errorLog('Problem during %s grepNR.' % self)
+            if seqnr: return self.seqNR(twopass=True,grepnr=False)
+            else: return False   # Tidy failed
+        except:
+            if self.getBool('Child'): os._exit(1)
+            self.errorLog('Cannot use grepNR mode.'); return False   # Tidy failed
 #########################################################################################################################
     def loadSeq(self,seqfile=None,filetype=None,seqtype=None,nodup=True,clearseq=True,mode=None,screen=True):     ### Loads sequences from file
         '''
@@ -2561,7 +2851,7 @@ def runMain():
 if __name__ == "__main__":      ### Call runMain 
     try: runMain()
     except: print 'Cataclysmic run error:', sys.exc_info()[0]
-    sys.exit()
+    os._exit(0)
 #########################################################################################################################
 ### END OF SECTION IV                                                                                                   #
 #########################################################################################################################

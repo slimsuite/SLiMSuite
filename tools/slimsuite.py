@@ -19,8 +19,8 @@
 """
 Module:       SLiMSuite
 Description:  Short Linear Motif analysis Suite
-Version:      1.7.0
-Last Edit:    16/02/17
+Version:      1.7.1
+Last Edit:    08/05/17
 Citation:     Edwards RJ & Palopoli N (2015): Methods Mol Biol. 1268:89-141. [PMID: 25555723]
 Copyright (C) 2014  Richard J. Edwards - See source code for GNU License Notice
 
@@ -102,6 +102,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 1.5.2 - Updated XRef REST call.
     # 1.6.0 - Removed SLiMCore as default. Default will now show help.
     # 1.7.0 - Updated to work with symbolic link in main slimsuite/ path.
+    # 1.7.1 - Added error raising for protected REST alias data.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -116,7 +117,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copy_right) = ('SLiMSuite', '1.7.0', 'February 2017', '2014')
+    (program, version, last_edit, copy_right) = ('SLiMSuite', '1.7.1', 'May 2017', '2014')
     description = 'Short Linear Motif analysis Suite'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',
@@ -279,6 +280,8 @@ class SLiMSuite(rje_obj.RJE_Object):
                 ## ~ [2b] Run program unless rest call is return simple information ~~~~~~~~~~~~~~~ ##
                 if slimobj.getStrLC('Rest') not in ['help','version','check','outfmt']:
                     try:
+                        for cmd in self.cmd_list:
+                            if cmd.endswith('=!PROTECTED!'): raise ValueError('%s - check for password-protected data aliases' % cmd)
                         if self.getStrLC('Name') == 'haqesac': slimobj.run(setobjects=True)
                         elif self.getStrLC('Name') == 'xref': slimobj.run(rest=True)
                         else: slimobj.run()       #!# Note that SLiMFinder raises SystemExit upon premature ending #!#

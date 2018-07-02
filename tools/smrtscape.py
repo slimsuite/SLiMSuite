@@ -19,8 +19,8 @@
 """
 Module:       SMRTSCAPE
 Description:  SMRT Subread Coverage & Assembly Parameter Estimator
-Version:      2.2.1
-Last Edit:    14/07/17
+Version:      2.2.2
+Last Edit:    05/02/18
 Copyright (C) 2017  Richard J. Edwards - See source code for GNU License Notice
 
 Summary:
@@ -286,6 +286,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 2.1.1 - Fixed basefile bug.
     # 2.2.0 - Updated to work with fasta files generated from Sequel BAM files. (No RQ values.)
     # 2.2.1 - Fixed printLog typo bug.
+    # 2.2.2 - Added dna=T to all SeqList object generation.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -331,7 +332,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copy_right) = ('SMRTSCAPE', '2.2.1', 'July 2017', '2017')
+    (program, version, last_edit, copy_right) = ('SMRTSCAPE', '2.2.2', 'February 2018', '2017')
     description = 'SMRT Subread Coverage & Assembly Parameter Estimator'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_obj.zen()]
@@ -931,7 +932,7 @@ class SMRTSCAPE(rje_obj.RJE_Object):
             seqbatch = []   # List of SeqList objects
             self.printLog('#BATCH','%s sequence files to process.' % rje.iLen(self.list['Batch']))
             for seqfile in self.list['Batch']:
-                seqcmd = self.cmd_list + ['seqmode=file','autoload=T','summarise=F','seqin=%s' % seqfile,'autofilter=F']
+                seqcmd = self.cmd_list + ['seqmode=file','autoload=T','summarise=F','seqin=%s' % seqfile,'autofilter=F','dna=T']
                 seqbatch.append(rje_seqlist.SeqList(self.log,seqcmd))
             self.printLog('#BATCH','%s sequence files to summarise.' % rje.iLen(seqbatch))
             if not seqbatch: raise IOError('No batch input fasta files found! Set batch=FILELIST.')
@@ -1481,7 +1482,7 @@ class SMRTSCAPE(rje_obj.RJE_Object):
             seqbatch = []   # List of SeqList objects
             self.printLog('#BATCH','%s sequence files to process.' % rje.iLen(self.list['Batch']))
             for seqfile in self.list['Batch']:
-                seqcmd = self.cmd_list + ['seqmode=file','autoload=T','summarise=F','seqin=%s' % seqfile,'autofilter=F']
+                seqcmd = self.cmd_list + ['seqmode=file','autoload=T','summarise=F','seqin=%s' % seqfile,'autofilter=F','dna=T']
                 seqbatch.append(rje_seqlist.SeqList(self.log,seqcmd))
             self.printLog('#BATCH','%s sequence files to summarise.' % rje.iLen(seqbatch))
             if not seqbatch: raise IOError('No batch input fasta files found! Set batch=FILELIST.')
@@ -1555,7 +1556,7 @@ class SMRTSCAPE(rje_obj.RJE_Object):
                 self.printLog('\r#FTXCOV','Assessing unique reads for feature X coverage complete.')
             ## ~ [1b] Processed read calculations ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             else:
-                seqlist = rje_seqlist.SeqList(self.log,self.cmd_list+['seqmode=file','autoload=T','summarise=F','seqin=%s' % self.getStr('SeqIn')])   # This will summarise read lengths etc.
+                seqlist = rje_seqlist.SeqList(self.log,self.cmd_list+['seqmode=file','autoload=T','summarise=F','seqin=%s' % self.getStr('SeqIn'),'dna=T'])   # This will summarise read lengths etc.
                 ux = 0.0; utot = seqlist.seqNum()
                 for seq in seqlist.seqs():
                     self.progLog('\r#FTXCOV','Assessing seqin reads for feature X coverage: %.2f%%' % (ux/utot)); ux += 100
@@ -1592,7 +1593,7 @@ class SMRTSCAPE(rje_obj.RJE_Object):
             self.printLog('#~~#','# ~~~~~~~~~~~~~~~~~~~~~~~ PACBIO PREASSEMBLY FRAGMENTATION ANALYSIS ~~~~~~~~~~~~~~~~~~~~~~~~~~~ #')
             db = self.db()
             if not rje.exists(self.getStr('Preassembly')): raise IOError('Preassembly file "%s" not found!' % self.getStr('Preassembly'))
-            seqlist = rje_seqlist.SeqList(self.log,self.cmd_list+['seqmode=file','autoload=T','summarise=F','seqin=%s' % self.getStr('Preassembly')])   # This will summarise read lengths etc.
+            seqlist = rje_seqlist.SeqList(self.log,self.cmd_list+['seqmode=file','autoload=T','summarise=F','seqin=%s' % self.getStr('Preassembly'),'dna=T'])   # This will summarise read lengths etc.
             basename = rje.baseFile(self.getStr('Preassembly'),strip_path=True)
             #i# NOTE: If basefile.fragment.tdt exists, it will be loaded. This enables multiple preassembly analyses to
             #i# be compiled in the same table.
@@ -1637,7 +1638,7 @@ class SMRTSCAPE(rje_obj.RJE_Object):
             self.printLog('#FAS','%s preassembly reads -> %s output to %s' % (rje.iStr(seqlist.seqNum()),rje.iStr(fx),fixfas))
             fdb.addEntry(seqdata)
             ### ~ [3] Calculate FixFas data ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            fixseq = rje_seqlist.SeqList(self.log,self.cmd_list+['seqmode=file','autoload=T','summarise=F','seqin=%s' % fixfas])   # This will summarise read lengths etc.
+            fixseq = rje_seqlist.SeqList(self.log,self.cmd_list+['seqmode=file','autoload=T','summarise=F','seqin=%s' % fixfas,'dna=T'])   # This will summarise read lengths etc.
             seqdata = fixseq.summarise()
             seqdata['Assembly'] = basename; seqdata['Stage'] = 'smrtscape'
             seqdata['XCoverage'] = seqdata['TotLength'] / self.getNum('GenomeSize')

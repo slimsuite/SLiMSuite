@@ -351,6 +351,10 @@ class SLiMParser(rje_obj.RJE_Object):
         if outfmt in self.dict['Output']:
             rfile = string.split(self.dict['Output'][outfmt],'\n')[0]
             if rje.exists(rfile):
+                fext = string.split(rfile,'.')[-1]
+                if fext in ['png']:
+                    self.debug(rfile)
+                    self.jsonText(rfile,asjson)
                 nbytes = os.path.getsize(rfile)
                 if nbytes > maxparsesize > 0:   # Too large to parse
                     otext = '%s is too large to return (%s > %s)' % (os.path.basename(rfile),rje.humanByteSize(nbytes),rje.humanByteSize(maxparsesize))
@@ -393,11 +397,17 @@ class SLiMParser(rje_obj.RJE_Object):
             #?# Q. Why only if jobid? Is it not always good to replace with content?
             if jobid and rje.exists(string.split(self.dict['Output'][rkey],'\n')[0]): ### File given instead of content
                 rfile = string.split(self.dict['Output'][rkey],'\n')[0]
+                fext = string.split(rfile,'.')[-1]
                 nbytes = os.path.getsize(rfile)
                 if nbytes > maxparsesize > 0:   # Too large to parse
                     otext = '%s is too large to return (%s > %s)' % (os.path.basename(rfile),rje.humanByteSize(nbytes),rje.humanByteSize(maxparsesize))
                     resturl = '%sretrieve&jobid=%s&rest=%s[&password=X]' % (self.getStr('RestURL'),jobid,rkey)
                     rtxt += '%s in full output. Try %s.' % (otext,resturl)
+                elif rfile.endswith('.png'):
+                    rtxt += '%s\n' % rfile
+                    #rtxt += 'Cannot return graphic in full output\n'
+                #elif fext in ['htm','html']:
+                #    rtxt += 'Cannot return HTML in full output\n'
                 else:
                     outtxt = open(rfile,'r').read()
                     if not outtxt.endswith('\n'): outtxt += '\n'

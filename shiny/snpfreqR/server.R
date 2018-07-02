@@ -22,6 +22,7 @@ shinyServer(function(input, output, session) {
         withProgress(message="Loading data", value=0, {
           if(input$multiload == FALSE){
             writeLines(paste("Loading",nrow(input$snpfreq) ,"data",input$load))
+            adata$data$activitylog = c(adata$data$activitylog,paste("Loading",nrow(input$snpfreq) ,"data..."))
             #i# Load SNP Frequencies
             freqdb = read.delim(input$snpfreq$datapath,header=TRUE,stringsAsFactors = TRUE,sep="\t")
             # if(! 'AltPos' %in% colnames(freqdb)){
@@ -51,10 +52,12 @@ shinyServer(function(input, output, session) {
             adata$data$freqloaded = TRUE
             adata$data$freqtable = freqdb
             writeLines(input$snpfreq$name)
+            adata$data$activitylog = c(adata$data$activitylog,input$snpfreq$name)
             incProgress(1/3)
             #i# Load Features Table
             ftdb = read.delim(input$features$datapath,header=TRUE,stringsAsFactors = TRUE,sep="\t")
             writeLines(input$features$name)
+            adata$data$activitylog = c(adata$data$activitylog,input$features$name)
             updateSelectInput(session, "freqlist",
               choices = c("Loaded data"),
               selected = "Loaded data"
@@ -64,29 +67,53 @@ shinyServer(function(input, output, session) {
           }else{
             #x#shinyDirChoose(input, 'freqpath', roots = c(home = '~'), filetypes = c('', 'txt', 'tdt'))
             writeLines(paste("Loading",input$freqpath,"data",input$load))
+            adata$data$activitylog = c(adata$data$activitylog,paste("Loading",nrow(input$snpfreq) ,"data..."))
             ftfile = paste(input$freqpath,"ref.Feature.tdt",sep="/")
             ftfile = paste(input$freqpath,"sgd.R64.2.1.Feature.tdt",sep="/")
             ftdb = read.delim(ftfile,header=TRUE,stringsAsFactors = TRUE,sep="\t")
             writeLines(ftfile)
+            adata$data$activitylog = c(adata$data$activitylog,ftfile)
             incProgress(1/3)
-            freqfile = paste(input$freqpath,"allfreq.Pop00.vs.Pop04.snpfreq.tdt",sep="/")
+            freqfile = paste(input$freqpath,paste0(input$freqbase,".Pop00.vs.Pop04.snpfreq.tdt"),sep="/")
             freqdb = read.delim(freqfile,header=TRUE,stringsAsFactors = TRUE,sep="\t")
             freqdb = freqTableCleanup(freqdb)
             adata$data$freqloaded = TRUE
             adata$data$freqtable = freqdb
             writeLines(freqfile)
+            adata$data$activitylog = c(adata$data$activitylog,freqfile)
             incProgress(1/21)
             
-            popcomb = c("Pop00.vs.Pop04","Pop04.vs.Pop06","Pop06.vs.Pop09","Pop09.vs.Pop10","Pop10.vs.Pop11","Pop11.vs.Pop12","Pop12.vs.Pop13")
+            popcomb = settings$popcomb
             adata$data$freqdb = list()
             adata$data$freqdb[["Pop00.vs.Pop04"]] = freqdb
-            for(combo in popcomb[2:7]){
-              freqfile = paste0(input$freqpath,"/allfreq.",combo,".snpfreq.tdt")
+            
+            #Locus	Pos	REF	ALT	Pop00	N|Pop00	N|Pop04	Pop04	Parents	Strains	Pops	SNPType	SNPEffect	Source	MajFreq	MajDiff	MajProb
+            tfields = colnames(freqdb)[9:17]
+            timedb = freqdb[,c(1:5,8)]
+            
+            for(combo in popcomb[2:length(popcomb)]){
+              freqfile = paste0(input$freqpath,"/",input$freqbase,".",combo,".snpfreq.tdt")
               freqdb = read.delim(freqfile,header=TRUE,stringsAsFactors = TRUE,sep="\t")
               freqdb = freqTableCleanup(freqdb)
               adata$data$freqdb[[combo]] = freqdb  
+              if(combo %in% c("Pop00.vs.Pop13","Pop04.vs.Pop13")){
+                if(combo %in% c("Pop00.vs.Pop13")){
+                  for(field in tfields){
+                    timedb[[field]] = freqdb[[field]]
+                  }
+                }
+              }else{
+                timedb[[colnames(freqdb)[8]]] = freqdb[,8]
+              }
               writeLines(freqfile)
+              adata$data$activitylog = c(adata$data$activitylog,freqfile)
               incProgress(1/21)
+            }
+            adata$data$timedb = timedb
+            timefile = paste0(input$freqpath,"/",input$freqbase,".timeline.csv")
+            if(! file.exists(timefile)){
+              write.csv(timedb,timefile,quote=FALSE,row.names=FALSE)
+              writeLines(paste("Written to:",timefile))
             }
             # freqname = as.character(input$snpfreq$name)
             # adata$data$freqfiles = c(adata$data$freqfiles,freqname)
@@ -103,7 +130,7 @@ shinyServer(function(input, output, session) {
           updateSelectInput(session, "snplist",
           #                  label = "Chromosome to Plot:",
                               choices = c("All","CDS",levels(freqdb$SNPType)),
-                              selected = "All"
+                              selected = "CDS"
           )
           #selectInput("efflist", "Restrict to SNPEffect:", c("All"), "text"),
           updateSelectInput(session, "efflist",
@@ -134,11 +161,16 @@ shinyServer(function(input, output, session) {
           adata$data$feattable = ftdb
           incProgress(1/6)
           
+          allchrom = levels(as.factor(as.character(ftdb[ftdb$Source=="Ref",]$Chrom)))
           updateSelectInput(session, "chromlist",
                             label = "Chromosome to Plot:",
-                            choices = c(levels(as.factor(as.character(ftdb[ftdb$Source=="Ref",]$Chrom))),"None"),
+                            choices = c(allchrom,"None"),
                             selected = settings$chrom
           )
+          adata$data$chromdict = list()
+          for(chrom in allchrom){
+            adata$data$chromdict[[strsplit(chrom,"_")[[1]][1]]] = chrom
+          }
           
           #i# Load Features Table
           if(is.null(input$snpmap) == FALSE){
@@ -150,6 +182,17 @@ shinyServer(function(input, output, session) {
           adata$data$loads = input$load
 
           adata$data$intro = "Data Loaded. Ready to Plot Data."
+          
+          updateSelectInput(session, "strlist",
+                            label = "Restrict to MBG Strains (1):",
+                            choices = c("No Filter","All","Any",strsplit(input$mbgstrainlist,',',TRUE)[[1]]),
+                            selected = "No Filter"
+          )
+          updateSelectInput(session, "str2list",
+                            label = "Restrict to MBG Strains (2):",
+                            choices = c("No Filter","All","Any",strsplit(input$mbgstrain2list,',',TRUE)[[1]]),
+                            selected = "No Filter"
+          )
         })  
       })
     }
@@ -165,15 +208,54 @@ shinyServer(function(input, output, session) {
           adata$data$pngheight = input$pngheight
           adata$data$pointsize = input$pointsize
           if(input$plottype == "Time Lapse"){
-            popcomb = c("Pop00.vs.Pop04","Pop04.vs.Pop06","Pop06.vs.Pop09","Pop09.vs.Pop10","Pop10.vs.Pop11","Pop11.vs.Pop12","Pop12.vs.Pop13")
+            popcomb = c("Pop00.vs.Pop04","Pop04.vs.Pop06","Pop06.vs.Pop09","Pop09.vs.Pop10","Pop10.vs.Pop11","Pop11.vs.Pop12","Pop12.vs.Pop13","Pop00.vs.Pop13","Pop04.vs.Pop13")
             for(combo in popcomb){
               writeLines(combo)
               adata$data$freqlist = combo
               adata$data$intro = zoomPlot(adata$data,makepng = TRUE)
+              adata$data$activitylog = c(adata$data$activitylog,paste("PNG output:",adata$data$intro))
               incProgress(1/7)
             }
-          }else{
+          }
+          
+          if(input$plottype == "Monster (PNG Only)"){
+            mychrom = adata$data$chrom
+            ftdb = adata$data$feattable
+            allchrom = levels(as.factor(as.character(ftdb[ftdb$Source=="Ref",]$Chrom)))
+            for(chrom in allchrom){
+              writeLines(chrom)
+              adata$data$chrom = chrom
+              
+              popcomb = c("Pop00.vs.Pop04","Pop04.vs.Pop06","Pop06.vs.Pop09","Pop09.vs.Pop10","Pop10.vs.Pop11","Pop11.vs.Pop12","Pop12.vs.Pop13","Pop00.vs.Pop13","Pop04.vs.Pop13")
+              for(combo in popcomb){
+                writeLines(combo)
+                adata$data$freqlist = combo
+                adata$data$intro = zoomPlot(adata$data,makepng = TRUE)
+                adata$data$activitylog = c(adata$data$activitylog,paste("PNG output:",adata$data$intro))
+                incProgress(1/(7*length(allchrom)))
+              }
+            }
+            adata$data$chrom = mychrom
+          }
+
+          if(input$plottype == "All Chrom (PNG Only)"){
+            mychrom = adata$data$chrom
+            ftdb = adata$data$feattable
+            allchrom = levels(as.factor(as.character(ftdb[ftdb$Source=="Ref",]$Chrom)))
+            for(chrom in allchrom){
+              writeLines(chrom)
+              adata$data$chrom = chrom
+              adata$data$intro = zoomPlot(adata$data,makepng = TRUE)
+              adata$data$activitylog = c(adata$data$activitylog,paste("PNG output:",adata$data$intro))
+              incProgress(1/length(allchrom))
+            }
+            adata$data$chrom = mychrom
+          }
+          
+                    
+          if(input$plottype %in% c("Standard","Chrom Cycle")){
             adata$data$intro = zoomPlot(adata$data,makepng = TRUE)
+            adata$data$activitylog = c(adata$data$activitylog,paste("PNG output:",adata$data$intro))
             incProgress(1/1)
           }
           adata$data$pngsaves = input$savepng
@@ -181,7 +263,6 @@ shinyServer(function(input, output, session) {
       })
     }
           
-    
     return(adata$data$intro)
   })
   
@@ -204,45 +285,95 @@ shinyServer(function(input, output, session) {
         adata$data$fixfreq = input$fixfreq
         adata$data$parlist = input$parlist
         adata$data$strlist = input$strlist
+        adata$data$str2list = input$str2list
         adata$data$poplist = input$poplist
         adata$data$paruniq = input$paruniq
         adata$data$struniq = input$struniq
+        adata$data$str2uniq = input$str2uniq
         adata$data$popuniq = input$popuniq
         adata$data$parinv = input$parinv
         adata$data$strinv = input$strinv
+        adata$data$str2inv = input$str2inv
         adata$data$popinv = input$popinv
         adata$data$snplist = input$snplist
         adata$data$efflist = input$efflist
         
         adata$data$findft = input$findft
         fdata = filterSNPs(adata$data,adata$data$freqtable)
+        adata$data$intro = fdata$desc
+        fdata = fdata$snpdata
       }else{
         fdata = adata$data$freqtable
       }
       if(input$zoomfreqtable){
-        minpos = input$xmin
-        maxpos = input$xmax
+        minpos = input$xmin * 1000
+        maxpos = input$xmax * 1000
         if(maxpos < 1){ maxpos = max(fdata$Pos) }
         fdata = fdata[fdata$Pos >= minpos & fdata$Pos <= maxpos & fdata$Locus == input$chromlist,]
       }
       fdata
     },
     rownames=FALSE,
-    options = list(lengthMenu = c(10, 25, 50, 100), pageLength = 25)
+    options = list(lengthMenu = c(10, 25, 50, 100, 500), pageLength = 50)
   )
   
+  output$timetable = renderDataTable({
+    adata$data$timedb
+    if(input$filtertimetable){
+      #Update plot settings
+      adata$data$chrom = input$chromlist
+      adata$data$plotpos = input$plotpos
+      adata$data$plotneg = input$plotneg
+      adata$data$plotfix = input$plotfix
+      
+      adata$data$freqfilter = input$freqfilter
+      adata$data$fixfreq = input$fixfreq
+      adata$data$parlist = input$parlist
+      adata$data$strlist = input$strlist
+      adata$data$str2list = input$str2list
+      adata$data$poplist = input$poplist
+      adata$data$paruniq = input$paruniq
+      adata$data$struniq = input$struniq
+      adata$data$str2uniq = input$str2uniq
+      adata$data$popuniq = input$popuniq
+      adata$data$parinv = input$parinv
+      adata$data$strinv = input$strinv
+      adata$data$str2inv = input$str2inv
+      adata$data$popinv = input$popinv
+      adata$data$snplist = input$snplist
+      adata$data$efflist = input$efflist
+      
+      adata$data$findft = input$findft
+      fdata = filterSNPs(adata$data,adata$data$timedb)
+      adata$data$intro = fdata$desc
+      fdata = fdata$snpdata
+    }else{
+      fdata = adata$data$timedb
+    }
+    if(input$zoomfreqtable){
+      minpos = input$xmin * 1000
+      maxpos = input$xmax * 1000
+      if(maxpos < 1){ maxpos = max(fdata$Pos) }
+      fdata = fdata[fdata$Pos >= minpos & fdata$Pos <= maxpos & fdata$Locus == input$chromlist,]
+    }
+    fdata
+  },
+  rownames=FALSE,
+  options = list(lengthMenu = c(10, 25, 50, 100, 500), pageLength = 50)
+  )
+
   output$feattable = renderDataTable({
     adata$data$feattable
   },
   rownames=FALSE,
-  options = list(lengthMenu = c(10, 25, 50, 100), pageLength = 25)
+  options = list(lengthMenu = c(10, 25, 50, 100, 500), pageLength = 25)
   )
   
   output$snptable = renderDataTable({
     adata$data$snptable
   },
   rownames=FALSE,
-  options = list(lengthMenu = c(10, 25, 50, 100), pageLength = 25)
+  options = list(lengthMenu = c(10, 25, 50, 100, 500), pageLength = 50)
   )
 
   PlotHeight = reactive(
@@ -253,11 +384,40 @@ shinyServer(function(input, output, session) {
   output$freqplot = renderPlot({
     #plot(c(0,1),c(0,1))
     input$makeplot
-    if(input$makeplot > 0 & input$plotdata == TRUE){
-      writeLines(input$chromlist)
+    if(input$makeplot > 0 & input$plotdata == TRUE & input$pauseplot == FALSE){
+      writeLines(input$chromlist) #-> Commented out to stop auto-update cycle with ChromCycle
+      input$freqlist #-> Commented out to stop auto-update cycle with TimePlot
       writeLines(input$titlestyle)
+      input$plotcol
+      input$plotpos
+      input$plotneg
+      input$plotfix
+      input$plothighlights
       input$freqfilter
-      input$freqlist
+
+      #!# Tidy this up. Here for now to generate auto-updates of plots
+      input$freqfilter
+      input$fixfreq
+      input$parlist
+      input$strlist
+      input$str2list
+      input$poplist
+      input$paruniq
+      input$struniq
+      input$str2uniq
+      input$popuniq
+      input$parinv
+      input$strinv
+      input$strcol
+      input$str2inv
+      input$popinv
+      input$snplist
+      input$efflist
+      
+      input$findft      
+      input$plotfield
+      input$plothist
+      
       isolate({
   
         #!#adata$freqtable = adata$freqdb[[input$freqlist]]
@@ -273,37 +433,77 @@ shinyServer(function(input, output, session) {
           }
           adata$data$findft = input$findft
         }
-        
+        if(input$findft != "" & regexpr(',',input$findft) > 0){
+          adata$data$findft = input$findft
+        }
         #Update plot settings
-        adata$data$chrom = input$chromlist
         adata$data$titlestyle = input$titlestyle
         adata$data$xmin = input$xmin
         adata$data$xmax = input$xmax
+        adata$data$plotfield = input$plotfield
         adata$data$plotpos = input$plotpos
         adata$data$plotneg = input$plotneg
         adata$data$plotfix = input$plotfix
         adata$data$plotheight = input$plotheight
         adata$data$ymin = input$ymin
         adata$data$ymax = input$ymax
+        adata$data$pcut = input$pcut
         adata$data$complabel = input$title
+        adata$data$plothightlights = input$plothighlights
+        adata$data$plotcol = input$plotcol
+        adata$data$plothist = input$plothist
 
         adata$data$freqfilter = input$freqfilter
         adata$data$fixfreq = input$fixfreq
         adata$data$parlist = input$parlist
-        adata$data$strlist = input$strlist
+        adata$data$mbgstrainlist = strsplit(input$mbgstrainlist,',',TRUE)[[1]]
+        if(input$strlist %in% c("All","Any","None",strsplit(input$mbgstrainlist,',',TRUE)[[1]])){
+          adata$data$strlist = input$strlist
+        }else{
+          adata$data$strlist = "No Filter"
+        }
+        updateSelectInput(session, "strlist",
+                          label = "Restrict to MBG Strains (1):",
+                          choices = c("No Filter","All","Any",strsplit(input$mbgstrainlist,',',TRUE)[[1]]),
+                          selected = adata$data$strlist
+        )
+
+        adata$data$mbgstrain2list = strsplit(input$mbgstrain2list,',',TRUE)[[1]]
+        if(input$str2list %in% c("All","Any","None",strsplit(input$mbgstrain2list,',',TRUE)[[1]])){
+          adata$data$str2list = input$str2list
+        }else{
+          adata$data$str2list = "No Filter"
+        }
+        updateSelectInput(session, "str2list",
+                          label = "Restrict to MBG Strains (2):",
+                          choices = c("No Filter","All","Any",strsplit(input$mbgstrain2list,',',TRUE)[[1]]),
+                          selected = adata$data$str2list
+        )
+        
         adata$data$poplist = input$poplist
         adata$data$paruniq = input$paruniq
         adata$data$struniq = input$struniq
+        adata$data$strcol = input$strcol
+        adata$data$str2uniq = input$str2uniq
         adata$data$popuniq = input$popuniq
         adata$data$parinv = input$parinv
         adata$data$strinv = input$strinv
+        adata$data$str2inv = input$str2inv
         adata$data$popinv = input$popinv
         adata$data$snplist = input$snplist
         adata$data$efflist = input$efflist
         
+        adata$data$col = settings$col   #list()
+        #allpar = c("mbg344","mbg461","mbg474","mbg475","mbg479","mbg481","mbg482","mbg541","mbg542","mbg549","mbg557","mbg558","mbg602")
+        #parcol = rainbow(length(allpar))
+        #for(i in 1:length(allpar)){
+        #  pparent = allpar[i]
+        #  adata$data$col[[pparent]] = parcol[i]
+        #}
+        
         #Generate plot
-        if(input$plottype == "Time Lapse" & input$freqlist != "Loaded data"){
-          popcomb = c("Pop00.vs.Pop04","Pop04.vs.Pop06","Pop06.vs.Pop09","Pop09.vs.Pop10","Pop10.vs.Pop11","Pop11.vs.Pop12","Pop12.vs.Pop13")
+        if(input$plottype == "Time Lapse" & input$freqlist != "Loaded data" & input$makeplot > adata$data$plots){
+          popcomb = c("Pop00.vs.Pop04","Pop04.vs.Pop06","Pop06.vs.Pop09","Pop09.vs.Pop10","Pop10.vs.Pop11","Pop11.vs.Pop12","Pop12.vs.Pop13","Pop00.vs.Pop13","Pop04.vs.Pop13")
           findcomb = which(popcomb == adata$data$freqlist)
           if(length(findcomb) < 1){
             combo = popcomb[1]
@@ -316,15 +516,67 @@ shinyServer(function(input, output, session) {
           }
           writeLines(combo)
           writeLines(adata$data$freqlist)
+          updateSelectInput(session, "freqlist",
+                            selected = combo
+          )
+          adata$data$chrom = input$chromlist
           adata$data$freqlist = combo
-          adata$data$intro = zoomPlot(adata$data)
+          #adata$data$intro = zoomPlot(adata$data)
+
         }else{
-          adata$data$freqlist = input$freqlist
-          adata$data$intro = zoomPlot(adata$data)
-          adata$data$multiplotx = 0
+          
+          if(input$plottype == "Chrom Cycle" & input$freqlist != "Loaded data" & input$makeplot > adata$data$plots){
+            mychrom = adata$data$chrom
+            ftdb = adata$data$feattable
+            allchrom = levels(as.factor(as.character(ftdb[ftdb$Source=="Ref",]$Chrom)))
+            #allchrom = input$chromlist$choices
+            writeLines(paste(allchrom,collapse = ", "))
+            findchrom = which(allchrom == mychrom)
+            if(length(findchrom) < 1){
+              combo = allchrom[1]
+            }else{
+              if(findchrom == length(allchrom)){
+                combo = allchrom[1]
+              }else{
+                combo = allchrom[findchrom+1]
+              }
+            }
+            writeLines(combo)
+            writeLines(adata$data$chrom)
+            updateSelectInput(session, "chromlist",
+                              selected = combo
+            )
+            adata$data$chrom = combo
+            #adata$data$intro = zoomPlot(adata$data)
+
+          }else{
+            if(input$plottype == "Genome multi-plot"){
+              layout(matrix(1:4,nrow=2))
+              for(chrom in input$multichrom[1:4]){
+                adata$data$chrom = adata$data$chromdict[[chrom]]
+                writeLines(paste(chrom,adata$data$chrom))
+                adata$data$freqlist = input$freqlist
+                plot(rnorm(100),rnorm(100),main=chrom)
+                #adata$data$intro = zoomPlot(adata$data)
+                adata$data$multiplotx = 0
+              }
+              
+            }else{
+  
+              adata$data$chrom = input$chromlist
+              adata$data$freqlist = input$freqlist
+              adata$data$intro = zoomPlot(adata$data)
+              adata$data$multiplotx = 0
+              writeLines("Plot Rendered.")
+            }
+          }
         }
-        writeLines("Plot Rendered.")
+        #writeLines("Plot Rendered.")
         writeLines("")
+        adata$data$plots = input$makeplot
+        if(! adata$data$intro %in% adata$data$activitylog){
+          adata$data$activitylog = c(adata$data$activitylog,adata$data$intro)
+        }
       })
     }
   })
@@ -377,6 +629,10 @@ shinyServer(function(input, output, session) {
       })
     }
     return(paste(as.character(adata$data$status),sep="\n",collapse="\n"))
+  })
+  
+  output$activitylog <- renderText({
+    return(paste(as.character(adata$data$activitylog),sep="\n",collapse="\n"))
   })
   
   ### SECTION 3 - Output tabs: data rendering
@@ -497,7 +753,7 @@ shinyServer(function(input, output, session) {
 
     #i# Markdown description of setting the paths to the files
   output$pathset <- renderUI({
-    pathmd = c("### Advanced settings","","The multiload function of SNPFreqR expects the `sgd.R64.2.1.Feature.tdt` and `allfreq.*.snpfreq.tdt` files to be present in a single directory. Set the path to these files below. Alternatively, uncheck the **Load Multiple SNPFreq tables** box to select a single timepoint and feature table.")
+    pathmd = c("### Advanced settings","","The multiload function of SNPFreqR expects the `sgd.R64.2.1.Feature.tdt` and `allfreq.*.snpfreq.tdt` files to be present in a single directory. Set the path to these files below. The `allfreq` can also be changed if required. Alternatively, uncheck the **Load Multiple SNPFreq tables** box to select a single timepoint and feature table.")
     pathmd = paste(pathmd,sep="\n")
     return(HTML(renderMarkdown(text=pathmd)))
   })

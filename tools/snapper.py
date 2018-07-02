@@ -19,8 +19,8 @@
 """
 Module:       Snapper
 Description:  Genome-wide SNP Mapper
-Version:      1.6.0
-Last Edit:    31/10/17
+Version:      1.6.1
+Last Edit:    05/04/18
 Copyright (C) 2016  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -125,6 +125,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 1.5.0 - Added pNS and modified the "Positive" CDS rating to be pNS < 0.05.
     # 1.6.0 - filterself=T/F  : Filter out self-hits prior to Snapper pipeline (e.g for assembly all-by-all) [False]
     # 1.6.0 - Added renaming of alt sequences that are found in the Reference for self-comparisons.
+    # 1.6.1 - Fixed bug for reducing to unique-unique pairings that was over-filtering.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -150,11 +151,12 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
     # [ ] : Add option to run without some of the SNP-Ft output for compatibility with PAGSAT.
     # [ ] : Add method to generate SNP Frequency plot from table.
     # [ ] : Tidy up the run() method comments and documentation.
+    # [ ] : Add CDS GFF output: see https://github.com/The-Sequence-Ontology/Specifications/blob/master/gff3.md for gaps
     '''
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copy_right) = ('Snapper', '1.6.0', 'October 2017', '2016')
+    (program, version, last_edit, copy_right) = ('Snapper', '1.6.1', 'April 2018', '2016')
     description = 'Genome-wide SNP Mapper'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_obj.zen()]
@@ -397,7 +399,7 @@ class Snapper(rje_obj.RJE_Object):
             refdb.dataFormat({'AlnID':'int','BitScore':'num','Expect':'num','Identity':'int','QryStart':'int','QryEnd':'int','SbjStart':'int','SbjEnd':'int','Length':'int'})
             # Invert the Query and Hit data
             for entry in refdb.entries():
-                [entry['QryStart'],entry['QryEnd'],entry['QrySeq'],entry['SbjStart'],entry['SbjEnd'],entry['SbjSeq']] = [entry['SbjStart'],entry['SbjEnd'],entry['SbjSeq'],entry['QryStart'],entry['QryEnd'],entry['QrySeq']]
+                [entry['Query'],entry['Hit'],entry['QryStart'],entry['QryEnd'],entry['QrySeq'],entry['SbjStart'],entry['SbjEnd'],entry['SbjSeq']] = [entry['Hit'],entry['Query'],entry['SbjStart'],entry['SbjEnd'],entry['SbjSeq'],entry['QryStart'],entry['QryEnd'],entry['QrySeq']]
                 if entry['QryStart'] > entry['QryEnd']:
                     [entry['QryStart'],entry['QryEnd'],entry['SbjStart'],entry['SbjEnd']] = [entry['QryEnd'],entry['QryStart'],entry['SbjEnd'],entry['SbjStart']]
                     entry['QrySeq'] = rje_sequence.reverseComplement(entry['QrySeq'])
@@ -407,7 +409,7 @@ class Snapper(rje_obj.RJE_Object):
             if not refudb: raise ValueError('Reference BLAST.reduceLocal() failed.')
             # Re-invert the Query and Hit data
             for entry in refudb.entries():
-                [entry['QryStart'],entry['QryEnd'],entry['QrySeq'],entry['SbjStart'],entry['SbjEnd'],entry['SbjSeq']] = [entry['SbjStart'],entry['SbjEnd'],entry['SbjSeq'],entry['QryStart'],entry['QryEnd'],entry['QrySeq']]
+                [entry['Query'],entry['Hit'],entry['QryStart'],entry['QryEnd'],entry['QrySeq'],entry['SbjStart'],entry['SbjEnd'],entry['SbjSeq']] = [entry['Hit'],entry['Query'],entry['SbjStart'],entry['SbjEnd'],entry['SbjSeq'],entry['QryStart'],entry['QryEnd'],entry['QrySeq']]
                 if entry['QryStart'] > entry['QryEnd']:
                     [entry['QryStart'],entry['QryEnd'],entry['SbjStart'],entry['SbjEnd']] = [entry['QryEnd'],entry['QryStart'],entry['SbjEnd'],entry['SbjStart']]
                     entry['QrySeq'] = rje_sequence.reverseComplement(entry['QrySeq'])

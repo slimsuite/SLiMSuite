@@ -19,8 +19,8 @@
 """
 Module:       rje_uniprot
 Description:  RJE Module to Handle Uniprot Files
-Version:      3.24.1
-Last Edit:    09/02/17
+Version:      3.25.0
+Last Edit:    14/06/18
 Copyright (C) 2007 Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -59,6 +59,7 @@ Input/Output:
     complete=T/F    : Whether to restrict proteome downloads to "complete proteome" sets [False]
     uniformat=X     : Desired UniProt format for URL download (over-rules normal processing). Append gz to compress. [txt]
                         - html | tab | xls | fasta | gff | txt | xml | rdf | list | rss
+    onebyone=T/F    : Whether to download one entry at a time. Slower but should maintain order [False]
 
     ### ~ Output Options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     basefile=X      : If set, can use "T" or "True" for other `*out` options. (Will default to `datout` if given) [None]
@@ -167,6 +168,8 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 3.23.0 - Added accnum map table output. Fixed REST output bug when bad IDs given. Added version and about output.
     # 3.24.0 - Added pfam out and changed map table headers.
     # 3.24.1 - Fixed process Uniprot error when uniprot=FILE given.
+    # 3.24.2 - Updated HTTP to HTTPS. Having some download issues with server failures.
+    # 3.25.0 - Fixed new Uniprot batch query URL. Added onebyone=T/F    : Whether to download one entry at a time. Slower but should maintain order [False].
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -197,7 +200,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo():     ### Makes Info object
     '''Makes rje.Info object for program.'''
-    (program, version, last_edit, copyyear) = ('RJE_UNIPROT', '3.24.1', 'February 2017', '2007')
+    (program, version, last_edit, copyyear) = ('RJE_UNIPROT', '3.25.0', 'June 2018', '2007')
     description = 'RJE Uniprot Parsing/Extraction Module'
     author = 'Dr Richard J. Edwards.'
     comments = []
@@ -323,6 +326,7 @@ class UniProt(rje.RJE_Object):
     - MakeIndex = Generate UniProt index files [False]
     - MakeSpec = Generate species table [False]
     - MakeFas = Generate fasta files [False]
+    - OneByOne=T/F    : Whether to download one entry at a time. Slower but should maintain order [False]
     - PfamOut = Whether to output a "long" table of (accnum, pfam, name, num) [None]
     - Reviewed = Whether to restrict input to reviewed entries only [False]
     - SpliceVar = Whether to search for AccNum allowing for splice variants (AccNum-X) [True]
@@ -356,7 +360,7 @@ class UniProt(rje.RJE_Object):
                          'UCFT','LCFT','SplitOut','UniFormat']
         self.optlist = ['Complete','DBSplit','DBDetails','DomTable','LongLink','MakeIndex','MakeSpec','MakeFas',
                         'SpliceVar','ClearData','GrepDat','FullRef','Reviewed','UseBeta','GOTable',
-                        'DATOut','TabOut','XRefOut','FTOut','MapOut','PfamOut']
+                        'DATOut','TabOut','XRefOut','FTOut','MapOut','PfamOut','OneByOne']
         self.statlist = ['SpecSleep']
         self.listlist = ['DBList','Extract','Entry','Proteome','SpecDat','Taxonomy','UParse']
         self.dictlist = []
@@ -365,7 +369,7 @@ class UniProt(rje.RJE_Object):
         self._setDefaults(info='None',opt=False,stat=0.0,obj=None,setlist=True,setdict=True)
         self.setInfo({'UniPath':rje.makePath('url'),'DBIndex':'uniprot.index','UCFT':'','LCFT':'','AccField':'UniProt',
                       'UniFormat':'txt'})
-        self.setOpt({'SpliceVar':True,'LongLink':True,'ClearData':True,'DBDetails':False})
+        self.setOpt({'SpliceVar':True,'LongLink':True,'ClearData':True,'DBDetails':False,'OneByOne':False})
         self.setInt({'SpecSleep':60})
         self.list['DBList'] = dbparse[0:]
         self._setForkAttributes()   # Delete if no forking
@@ -387,7 +391,7 @@ class UniProt(rje.RJE_Object):
                 self._cmdRead(cmd,'file','XRefOut','linkout')
                 self._cmdReadList(cmd,'info',['AccField','UCFT','LCFT'])
                 self._cmdReadList(cmd.lower(),'info',['UniFormat'])
-                self._cmdReadList(cmd,'opt',['Complete','DomTable','LongLink','MakeIndex','SpliceVar','MakeSpec',
+                self._cmdReadList(cmd,'opt',['Complete','DomTable','LongLink','MakeIndex','SpliceVar','MakeSpec','OneByOne',
                                              'MakeFas','ClearData','GrepDat','FullRef','Reviewed','DBSplit','DBDetails',
                                              'UseBeta','GOTable','DATOut','TabOut','XRefOut','FTOut','MapOut','PfamOut'])
                 self._cmdReadList(cmd,'int',['SpecSleep'])
@@ -659,7 +663,7 @@ class UniProt(rje.RJE_Object):
             if indexfile == 'URL':
                 if self.list['Proteome']: return self._extractProteomesFromURL(self.list['Proteome'],cleardata=cleardata,logft=logft,reformat=reformat)
                 elif self.list['Taxonomy']: return self._extractProteomesFromURL(self.list['Taxonomy'],cleardata=cleardata,logft=logft,reformat=reformat,taxonomy=True)
-                elif acclist: return self._extractFromURL(acclist,cleardata=cleardata,logft=logft,reformat=reformat)
+                elif acclist: return self._extractFromURL(acclist,cleardata=cleardata,logft=logft,reformat=reformat,onebyone=self.getBool('OneByOne'))
                 self.printLog('#ERR','Cannot extract from URL without list of accession numbers or TaxaIDs')
                 return False
             ## ~ [0d] ~ DatFiles ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
@@ -824,7 +828,7 @@ class UniProt(rje.RJE_Object):
                 elif rje.exists(pfile): os.unlink(pfile)
                 if not pickup: rje.backup(self,datout)
             ### ~ [1] ~ Process ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            logtext = 'Extracting proteomes from http://www.uniprot.org/uniprot/'
+            logtext = 'Extracting proteomes from https://www.uniprot.org/uniprot/'
             if self.getBool('UseBeta'): logtext = string.replace(logtext,'www','beta')
             if self.opt['Complete']: logtext = string.replace(logtext,'proteomes','complete proteomes')
             if self.opt['Reviewed']: logtext = string.replace(logtext,'proteomes','reviewed proteomes')
@@ -835,8 +839,8 @@ class UniProt(rje.RJE_Object):
             for taxid in taxalist:
                 extracted[taxid] = 0; tx += 1
                 try:
-                    if taxonomy: uniurl = 'http://www.uniprot.org/uniprot/?query=taxonomy:%s' % taxid
-                    else: uniurl = 'http://www.uniprot.org/uniprot/?query=organism:%s' % taxid
+                    if taxonomy: uniurl = 'https://www.uniprot.org/uniprot/?query=taxonomy:%s' % taxid
+                    else: uniurl = 'https://www.uniprot.org/uniprot/?query=organism:%s' % taxid
                     if self.getBool('UseBeta'): uniurl = string.replace(uniurl,'www','beta')
                     if self.opt['Complete']: uniurl += '+AND+keyword:"Complete+proteome"'
                     if self.opt['Reviewed']: uniurl += '+AND+reviewed:yes'
@@ -876,7 +880,7 @@ class UniProt(rje.RJE_Object):
                     if log: self.printLog('\r#PROT','%s of %s UniProt entries extracted for TaxaID %s Proteome.' % (rje.iStr(extracted[taxid]),rje.iLen(acclist),taxid))
                     if not extracted[taxid]: fx += 1
                 except urllib2.HTTPError: self.errorLog('UniProt proteome "%s" not found!' % taxid); continue
-                except ValueError: self.errorLog('Something went wrong parsing http://www.uniprot.org/uniprot/?query=organism:%s+AND+keyword:"Complete+proteome"&format=txt' % taxid); fx += 1
+                except ValueError: self.errorLog('Something went wrong parsing https://www.uniprot.org/uniprot/?query=organism:%s+AND+keyword:"Complete+proteome"&format=txt' % taxid); fx += 1
                 except: raise
             ### ~ [2] ~ Finish ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if log and not uniformat: self.printLog('\r#URL','%s: %s read, %s extracted; %s failed.' % (logtext,rje.iStr(rx),rje.iStr(ex),rje.iStr(fx)))
@@ -908,17 +912,19 @@ class UniProt(rje.RJE_Object):
             batch = extract[0:]
             singles = []
             ### ~ [1] ~ Process ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            logtext = 'Extracting %s AccNum from http://www.uniprot.org/uniprot/' % rje.iLen(extract)
+            logtext = 'Extracting %s AccNum from https://www.uniprot.org/uniprot/' % rje.iLen(extract)
             if log: self.progLog('\r#URL','%s...' % (logtext))
             while batch:
-                uniurl = "http://www.uniprot.org/uniprot/?query=%s&format=txt" % string.join(batch[:batchn],',')
+                #uniurl = "https://www.uniprot.org/uniprot/?query=%s&format=txt" % string.join(batch[:batchn],',')
+                #!# Note, this will not maintain the order #!#
+                uniurl = "https://www.uniprot.org/uniprot/?query=accession:%s&format=txt" % string.join(batch[:batchn],'+OR+accession:')
                 #self.debug(uniurl)
                 try: UNIPROT = urllib2.urlopen(uniurl)
                 except:
                     self.errorLog(uniurl,printerror=False)
                     self.printLog('#FAIL','UniProt._extractProteinsFromURL() failures. Will try one-by-one for failures.')
                     singles = batch[:batchn]
-                    UNIPROT = urllib2.urlopen("http://www.uniprot.org/uniprot/%s.txt" % singles.pop(0))
+                    UNIPROT = urllib2.urlopen("https://www.uniprot.org/uniprot/%s.txt" % singles.pop(0))
                 batch = batch[batchn:]
                 try:
                     while self._readSingleEntry(UNIPROT,logft=logft,cleardata=cleardata,reformat=reformat,expect=False,write=True):
@@ -953,9 +959,9 @@ class UniProt(rje.RJE_Object):
                         if log: self.progLog('\r#URL','%s: %s read & extracted...' % (logtext,rje.iStr(rx)))
                         if singles:
                             UNIPROT.close()
-                            UNIPROT = urllib2.urlopen("http://www.uniprot.org/uniprot/%s.txt" % singles.pop(0))
+                            UNIPROT = urllib2.urlopen("https://www.uniprot.org/uniprot/%s.txt" % singles.pop(0))
                 except:
-                    self.errorLog('Something went wrong parsing entries from http://www.uniprot.org/uniprot/?query=ACCLIST&format=txt')
+                    self.errorLog('Something went wrong parsing entries from https://www.uniprot.org/uniprot/?query=ACCLIST&format=txt')
                     #i# Extract list will now be longer
                 x = UNIPROT.readlines()
                 #self.debug('>>>\n%d\n%s\n???' % (len(x),string.join(x[-5:])))
@@ -1011,15 +1017,15 @@ class UniProt(rje.RJE_Object):
             if self.warn() and len(rje.sortUnique(acclist)) != len(acclist): self.warnLog('AccList for _extractFromURL contains duplicates.')
             if not acclist: self.printLog('#ERR','No accession numbers for Uniprot extraction!'); return False
             ### ~ [1] ~ Process ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            logtext = 'Extracting %s AccNum from http://www.uniprot.org/uniprot/' % rje.iLen(acclist)
+            logtext = 'Extracting %s AccNum from https://www.uniprot.org/uniprot/' % rje.iLen(acclist)
             for acc in acclist[0:]:
                 if self.getBool('SpliceVar'): acc = string.split(acc,'-')[0]
                 if acc in primaries + secondaries: dx += 1; continue
                 extracted[acc] = 0
                 try:
-                    #!# Update to use http://www.uniprot.org/uniprot/?query=P40688,O43521&format=txt
+                    #!# Update to use https://www.uniprot.org/uniprot/?query=P40688,O43521&format=txt
                     #!# Will need to handle splice variants differently. - Safest to strip prior to download
-                    UNIPROT = urllib2.urlopen("http://www.uniprot.org/uniprot/%s.txt" % acc)
+                    UNIPROT = urllib2.urlopen("https://www.uniprot.org/uniprot/%s.txt" % acc)
                     while self._readSingleEntry(UNIPROT,logft=logft,cleardata=cleardata,reformat=reformat,expect=not extracted[acc],write=False,fulltext=True):
                         # Check for replaced AccNum/ID
                         rx += 1
@@ -1041,8 +1047,8 @@ class UniProt(rje.RJE_Object):
                     UNIPROT.close()
                     if not extracted[acc]: fx += 1; raise ValueError
                     if log: self.progLog('\r#URL','%s: %s read, %s extracted; %s failed; %s duplicates.' % (logtext,rje.iStr(rx),rje.iStr(ex),rje.iStr(fx),rje.iStr(dx)))
-                except urllib2.HTTPError: self.errorLog('UniProt entry "%s" not found! Possibly withdrawn or demerged' % acc); continue; fx += 1
-                except ValueError: self.errorLog('Something went wrong parsing http://www.uniprot.org/uniprot/%s.txt' % acc); fx += 1
+                except urllib2.HTTPError: self.errorLog('UniProt entry "%s" not found! Possibly withdrawn or demerged' % acc); fx += 1; continue
+                except ValueError: self.errorLog('Something went wrong parsing https://www.uniprot.org/uniprot/%s.txt' % acc); fx += 1
                 except: raise
             ### ~ [2] ~ Finish ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if log: self.printLog('\r#URL','%s: %s read, %s extracted; %s failed; %s duplicates.' % (logtext,rje.iStr(rx),rje.iStr(ex),rje.iStr(fx),rje.iStr(dx)))

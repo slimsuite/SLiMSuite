@@ -605,9 +605,10 @@ class RJE_Object(object):     ### Metaclass for inheritance by other classes
             clist = rje.listFromCommand(value)
             for c in clist:
                 data = string.split(c,':')
-                if len(data) > 2: data = [data[0],string.join(data[1:],':')]
-                self.dict[att][data[0]] = data[1]
-                if type == 'cdictlist': self.list[att].append(data[0])
+                if ':' in c:
+                    if len(data) > 2: data = [data[0],string.join(data[1:],':')]
+                    self.dict[att][data[0]] = data[1]
+                    if type == 'cdictlist': self.list[att].append(data[0])
         else:
             self.deBug('%s=%s' % (type,value))
             raise ValueError
@@ -1174,20 +1175,22 @@ class RJE_Object(object):     ### Metaclass for inheritance by other classes
 #########################################################################################################################
     ### <5> ### Forks                                                                                                   #
 #########################################################################################################################
-    def _activeForks(self,pidlist=[]):   ### Checks Process IDs of list and returns list of those still running.
+    def _activeForks(self,pidlist=[],nowarn=[0]):   ### Checks Process IDs of list and returns list of those still running.
         '''
         Checks Process IDs of list and returns list of those still running.
         >> pidlist:list of integers = Process IDs
+        >> nowarn:list [[0]] = List of exit codes that will not trigger a warning
         '''
         try:### ~ [0] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             oldpids = pidlist[0:]
             ### ~ [1] Check PIDs ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             for pid in oldpids[0:]:
                 (newpid,exitcode) = os.waitpid(pid,os.WNOHANG)
-                if newpid == pid and exitcode == 0: oldpids.remove(pid)
+                while exitcode > 255: exitcode -= 256
+                if newpid == pid and exitcode in nowarn: oldpids.remove(pid)
                 elif newpid == pid:
                     oldpids.remove(pid)
-                    self.errorLog('WARNING!: PID %d returned with exit code %d.' % (pid,exitcode),printerror=False)
+                    self.warnLog('PID %d returned with exit code %d.' % (pid,exitcode))
             return oldpids
         except:
             self.errorLog('Error in _activeForks(%s)' % (pidlist))

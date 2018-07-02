@@ -19,8 +19,8 @@
 """
 Module:       rje_qsub
 Description:  QSub Generating module
-Version:      1.9.1
-Last Edit:    02/11/17
+Version:      1.9.2
+Last Edit:    30/05/18
 Copyright (C) 2006  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -77,6 +77,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 1.8.0 - Added modpurge=T/F : Whether to purge loaded modules in qsub job file prior to loading [True]
     # 1.9.0 - Added precall=LIST  : List of additional commands to run between module loading and program call []
     # 1.9.1 - Removed default module list: causing conflicts. Better to have in INI file.
+    # 1.9.2 - Modified qsub() to return job ID.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -88,7 +89,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo():     ### Makes Info object
     '''Makes rje.Info object for program.'''
-    (program, version, last_edit, copy_right) = ('RJE_QSUB', '1.9.1', 'October 2017', '2006')
+    (program, version, last_edit, copy_right) = ('RJE_QSUB', '1.9.2', 'May 2018', '2006')
     description = 'QSub Generating module'
     author = 'Dr Richard J. Edwards.'
     comments = [rje_zen.Zen().wisdom()]
@@ -289,7 +290,7 @@ class QSub(rje.RJE_Object):
             time.sleep(self.stat['Pause'])
             for qline in os.popen('showstart %s' % qrun):   #qid):
                 if rje.chomp(qline): self.printLog('#INFO', qline, timeout=False)
-            return True
+            return qid
         except: self.errorLog('Error in qsub()'); return False
 #########################################################################################################################
     def report(self):   ### Run qstat to get job list then showstart on each job

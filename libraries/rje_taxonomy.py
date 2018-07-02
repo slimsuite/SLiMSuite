@@ -19,8 +19,8 @@
 """
 Module:       rje_taxonomy
 Description:  Downloads, reads and converts Uniprot species codes and NCBI Taxa IDs
-Version:      1.2.0
-Last Edit:    19/05/16
+Version:      1.3.0
+Last Edit:    22/06/18
 Copyright (C) 2014  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -83,6 +83,7 @@ Commandline:
     ranktypes=LIST      : List of Taxon types to include if rankonly=True [species,subspecies,no rank]
     restrictid=LIST     : List of Taxa IDs to restrict output to (i.e. output overlaps with taxin) []
     basefile=X          : Results file prefix. Will use first taxin=LIST term if missing [None]
+    taxtable=T/F        : Whether to output results in a table rather than text lists [False]
     ### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
 See also rje.py generic commandline options.
 """
@@ -103,6 +104,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 1.0 - Fully functional version with modified viral species code creation.
     # 1.1.0 - Added parsing of yeast strains.
     # 1.2.0 - Added storage of Parents.
+    # 1.3.0 - taxtable=T/F        : Whether to output results in a table rather than text lists [False]
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -120,7 +122,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copy_right) = ('RJE_Taxonomy', '1.1.0', 'May 2014', '2014')
+    (program, version, last_edit, copy_right) = ('RJE_Taxonomy', '1.3.0', 'June 2018', '2014')
     description = 'Downloads, reads and converts Uniprot species codes and NCBI Taxa IDs'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_obj.zen()]
@@ -191,6 +193,7 @@ class Taxonomy(rje_obj.RJE_Object):
     - NodeOnly = Whether to limit output to the matched nodes (i.e. no children) [False]
     - RankOnly = Whether to limit output to species-level taxonomic codes [False]
     - Setup = Whether the setup() has been run.
+    - TaxTable=T/F        : Whether to output results in a table rather than text lists [False]
 
     Int:integer
 
@@ -220,7 +223,7 @@ class Taxonomy(rje_obj.RJE_Object):
         '''Sets Attributes of Object.'''
         ### ~ Basics ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         self.strlist = ['NameMap','SourceDate','SourcePath','SpecFile','TaxMap']
-        self.boollist = ['BatchMode','Download','NodeOnly','RankOnly','Setup']
+        self.boollist = ['BatchMode','Download','NodeOnly','RankOnly','Setup','TaxTable']
         self.intlist = []
         self.numlist = []
         self.listlist = ['RankTypes','RestrictID','RankID','TaxIn','TaxOut']
@@ -230,7 +233,7 @@ class Taxonomy(rje_obj.RJE_Object):
         self._setDefaults(str='None',bool=False,int=0,num=0.0,obj=None,setlist=True,setdict=True)
         self.setStr({'TaxOut':'taxid','SourcePath':'SourceData/','SpecFile':'speclist.txt','TaxMap':'nodes.dmp',
                      'NameMap':'names.dmp'})
-        self.setBool({'Download':True,'Setup':False})
+        self.setBool({'Download':True,'Setup':False,'TaxTable':False})
         self.setInt({})
         self.setNum({})
         self.list['TaxOut'] = ['taxid']
@@ -257,7 +260,7 @@ class Taxonomy(rje_obj.RJE_Object):
                 self._cmdReadList(cmd,'date',['SourceDate'])   # String representing date YYYY-MM-DD
                 self._cmdRead(cmd,'path','SourcePath','taxdir')  # String representing directory path
                 self._cmdReadList(cmd,'file',['NameMap','SpecFile','TaxMap'])  # String representing file path
-                self._cmdReadList(cmd,'bool',['BatchMode','Download','NodeOnly','RankOnly'])  # True/False Booleans
+                self._cmdReadList(cmd,'bool',['BatchMode','Download','NodeOnly','RankOnly','TaxTable'])  # True/False Booleans
                 #self._cmdReadList(cmd,'int',['Att'])   # Integers
                 #self._cmdReadList(cmd,'float',['Att']) # Floats
                 #self._cmdReadList(cmd,'min',['Att'])   # Integer value part of min,max command
@@ -275,14 +278,23 @@ class Taxonomy(rje_obj.RJE_Object):
         '''Main run method.'''
         try:### ~ [1] ~ Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             self.setup()
+            if self.getBool('TaxTable'): self.setBool({'BatchMode':True})
             ### ~ [2] ~ Single Mode ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if not self.getBool('BatchMode'): return self.mapTaxa(self.list['TaxIn'],self.list['TaxOut'],self.getBool('NodeOnly'),self.getBool('RankOnly'))
             ### ~ [3] ~ Batch Mode ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            if self.getBool('TaxTable'):
+                tdb = self.db().addEmptyTable('taxtable',['TaxIn']+self.list['TaxOut'],['TaxIn'])
             basefile = self.baseFile()
             for taxa in self.list['TaxIn'][0:]:
                 self._cmdReadList('taxin=%s' % taxa,'list',['TaxIn'])  # List of strings (split on commas or file lines)
                 self.setBaseFile('%s.%s' % (basefile,rje.baseFile(taxa,strip_path=True)))
-                self.mapTaxa(self.list['TaxIn'],self.list['TaxOut'],self.getBool('NodeOnly'),self.getBool('RankOnly'))
+                taxdict = self.mapTaxa(self.list['TaxIn'],self.list['TaxOut'],self.getBool('NodeOnly'),self.getBool('RankOnly'),savetaxout=not self.getBool('TaxTable'))
+                if self.getBool('TaxTable'):
+                    tentry =  {'TaxIn':taxa}
+                    for tfield in taxdict: tentry[tfield] = string.join(taxdict[tfield],'|')
+                    tdb.addEntry(tentry)
+            self.baseFile(basefile)
+            if self.getBool('TaxTable'): tdb.saveToFile()
             return True
         except:
             self.errorLog(self.zen())
@@ -370,13 +382,14 @@ class Taxonomy(rje_obj.RJE_Object):
 #########################################################################################################################
     ### <3> ### Main Taxonomy Mapping Methods                                                                           #
 #########################################################################################################################
-    def mapTaxa(self,taxin,taxout=['spcode'],nodeonly=False,rankonly=False):    ### Takes a list of Taxa and returns mapped Taxa data
+    def mapTaxa(self,taxin,taxout=['spcode'],nodeonly=False,rankonly=False,savetaxout=True):    ### Takes a list of Taxa and returns mapped Taxa data
         '''
         Takes a list of Taxa and returns mapped Taxa data.
         >> taxin:str or list of taxon identifiers to map from.
         >> taxout:str or list of taxa output formats
         >> nodeonly:bool = whether to limit TaxID mapping to the precise matching nodes (else include children)
         >> rankonly:bool = whether to limit TaxID to those matching self.list['RankTypes'] taxon types.
+        >> savetaxout:bool [True] = Whether to save the TaxOut list to a text file
         << taxoutlist:list of mapped taxa if taxout is a string, OR
         << taxoutdict:dict of mapped taxa if taxout is a list
         '''
@@ -409,11 +422,12 @@ class Taxonomy(rje_obj.RJE_Object):
                     taxoutlist.sort()
                 else: self.errorLog('TaxOut format "%s" not recognised' % taxout,printerror=False); continue
                 taxoutdict[taxout] = taxoutlist
-                if not taxoutlist: self.printLog('#OUT','No %s IDs to output' % taxout); continue
-                tfile = '%s.%s.txt' % (self.baseFile(),taxout)
-                rje.backup(self,tfile)
-                open(tfile,'w').write(string.join(taxoutlist,'\n'))
-                self.printLog('#OUT','%s %s IDs output to %s.' % (rje.iLen(taxoutlist), taxout, tfile))
+                if savetaxout:
+                    if not taxoutlist: self.printLog('#OUT','No %s IDs to output' % taxout); continue
+                    tfile = '%s.%s.txt' % (self.baseFile(),taxout)
+                    rje.backup(self,tfile)
+                    open(tfile,'w').write(string.join(taxoutlist,'\n'))
+                    self.printLog('#OUT','%s %s IDs output to %s.' % (rje.iLen(taxoutlist), taxout, tfile))
             if tlist: return taxoutdict
             return taxoutlist
         except: self.errorLog('Problem during %s mapTaxa.' % self); raise

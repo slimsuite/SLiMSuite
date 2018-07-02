@@ -19,8 +19,8 @@
 '''
 Program:      GOPHER
 Description:  Generation of Orthologous Proteins from Homology-based Estimation of Relationships
-Version:      3.4.2
-Last Edit:    17/06/15
+Version:      3.4.3
+Last Edit:    22/06/18
 Citation:     Davey, Edwards & Shields (2007), Nucleic Acids Res. 35(Web Server issue):W455-9. [PMID: 17576682]
 Copyright (C) 2005 Richard J. Edwards - See source code for GNU License Notice
 
@@ -187,6 +187,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 3.4 - Fixed FullRBH paralogue duplication issue.
     # 3.4.1 - Fixed stripXGap issue. (Why was this being implemented anyway?). Added REST output.
     # 3.4.2 - Removed GOPHER System Exit on IOError to prevent breaking of REST server.
+    # 3.4.3 - Added checking and warning if no bootstraps for orthtree.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -430,6 +431,22 @@ class Gopher(rje.RJE_Object):
             gopherblast.setStr({'DBase':self.info['OrthDB']})      # Altered by formatDB?
             ## ~ [1d] Sticky Mode Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             self.stickySetup(seqfile,startfrom) #!# Experimental #!#
+            ## ~ [1e] Tree bootstrapping ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            if self.setMode() == 'orthtree':
+                self.warnLog('Default bootstrap value is 0: use bootstraps=X to set.')
+                # Check boot
+                tree = rje_tree.Tree(log=self.log,cmd_list=['root=mid']+self.cmd_list+['autoload=F','savetree=%s' % tfile])
+                # Option to set higher
+                if not tree.getInt('Bootstraps') and self.i() >= 0:
+                    if rje.yesNo('Set new bootstrap value for trees?',default='N'):
+                        newboot = rje.getInt(text='Number of bootstraps for trees?:',blank0=True,default='100',confirm=True)
+                        if newboot:
+                            self.cmd_list.append('bootstraps=%d' % newboot)
+                            tree = rje_tree.Tree(log=self.log,cmd_list=['root=mid']+self.cmd_list+['autoload=F','savetree=%s' % tfile])
+                            self.printLog('#BOOT','Set bootstraps=%d' % tree.getInt('Bootstraps'))
+                # Warn if zero
+                if not tree.getInt('Bootstraps'):
+                    self.warnLog('Default bootstrap value is 0: use bootstraps=X to set.')
 
             ### ~ [1] Forking ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ### 
             gseqx = 0   # Counter for GOPHER

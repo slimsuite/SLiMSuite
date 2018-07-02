@@ -19,8 +19,8 @@
 """
 Program:      SLiMFinder
 Description:  Short Linear Motif Finder
-Version:      5.3.3
-Last Edit:    06/09/17
+Version:      5.3.4
+Last Edit:    18/05/18
 Citation:     Edwards RJ, Davey NE & Shields DC (2007), PLoS ONE 2(10): e967. [PMID: 17912346]
 ConsMask Citation: Davey NE, Shields DC & Edwards RJ (2009), Bioinformatics 25(4): 443-50. [PMID: 19136552]
 SigV/SigPrime Citation: Davey NE, Edwards RJ & Shields DC (2010), BMC Bioinformatics 11: 14. [PMID: 20055997]
@@ -294,6 +294,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 5.3.1 - Modified placement of disorder masking warning.
     # 5.3.2 - Tweaked REST output format presentation.
     # 5.3.3 - Updated resfile to be set by basefile if no resfile=X setting given
+    # 5.3.4 - Fixed terminal (^/$) musthave bug.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -335,7 +336,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo():     ### Makes Info object
     '''Makes rje.Info object for program.'''
-    (program, version, last_edit, copyyear) = ('SLiMFinder', '5.3.3', 'September 2017', '2007')
+    (program, version, last_edit, copyyear) = ('SLiMFinder', '5.3.4', 'May 2018', '2007')
     description = 'Short Linear Motif Finder'
     author = 'Richard J. Edwards, Norman E. Davey & Denis C. Shields'
     comments = ['Cite: Edwards, Davey & Shields (2007), PLoS ONE 2(10): e967. [PMID: 17912346]',
@@ -1686,28 +1687,33 @@ class SLiMFinder(rje_slimcore.SLiMCore):
         try:### ~ [1] Setup MustHave restriction adjustment ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             alphx = musthave = len(self.list['Alphabet'])
             for aa in rje.sortUnique(self.list['MustHave']):
-                while aa not in self.list['Alphabet'] and aa in self.list['MustHave']:
+                if aa not in self.list['Alphabet'] and aa in self.list['MustHave'] and (aa not in '^$' or not self.getBool('Termini')):
                     self.list['MustHave'].remove(aa)
                     self.warnLog('MustHave aa "%s" removed: not in alphabet' % aa)
             if self.list['MustHave']:
                 self.list['MustHave'] = rje.sortUnique(self.list['MustHave'])
                 musthave = len(self.list['MustHave'])
+                if '^' in self.list['MustHave']: musthave -= 1
+                if '$' in self.list['MustHave']: musthave -= 1
                 self.printLog('#MUST','MustHave: %s' % string.join(self.list['MustHave']))
             ### ~ [2] Calculate motif space ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if self.getBool('AlphaHelix'):
                 self.dict['Extremf.'][2] = 1
                 i = 3; iwild = 2
                 maxi = pow(alphx,i)
-                if musthave: maxi -= pow(alphx-musthave,i)   # 1+ position must have musthave aa
+                maxi -= pow(alphx-musthave,i)   # 1+ position must have musthave aa
                 maxi *= iwild
                 #maxi = musthave * pow(len(self.list['Alphabet']),i-1) * iwild       # 1+ position must have musthave aa
                 self.dict['Extremf.'][i] = maxi
                 self.printLog('#SPACE','Motif Space, %d positions: %s motifs' % (i,rje.integerString(maxi)))
                 i = 4; iwild = 1
                 maxi = pow(alphx,i)
-                if musthave: maxi -= pow(alphx-musthave,i)   # 1+ position must have musthave aa
+                maxi -= pow(alphx-musthave,i)   # 1+ position must have musthave aa
                 maxi *= iwild
                 #maxi = musthave * pow(len(self.list['Alphabet']),i-1) * iwild       # 1+ position must have musthave aa
+                #i# Termini
+                if '^' in self.list['MustHave']: maxi += pow(alphx,i-1) * iwild
+                if '$' in self.list['MustHave']: maxi += pow(alphx,i-1) * iwild
                 self.dict['Extremf.'][i] = maxi
                 self.printLog('#SPACE','Motif Space, %d positions: %s motifs' % (i,rje.integerString(maxi)))                
             elif self.getBool('DNA') and self.getBool('Palindrome'):
@@ -1717,23 +1723,28 @@ class SLiMFinder(rje_slimcore.SLiMCore):
                     else: maxi = (pow(alphx,(i/2)) - pow(alphx-musthave,(i/2))) * iwild
                     #if rje.isOdd(i): maxi = musthave * pow(len(self.list['Alphabet']),((i+1)/2)-1) * iwild       # 1+ position must have musthave aa
                     #else: maxi = musthave * pow(len(self.list['Alphabet']),(i/2)-1) * iwild       # 1+ position must have musthave aa
+                    if '^' in self.list['MustHave'] or '$' in self.list['MustHave']: self.warnLog('Cannot have terminal MustHave characters in Palindrome mode')
                     self.dict['Extremf.'][i] = maxi
                     self.printLog('#SPACE','Motif Space, %d positions: %s palindrome motifs' % (i,rje.integerString(maxi)))
             elif self.getBool('FixLen'):
                 iwild = (self.getInt('SlimLen') + self.getInt('MaxWild')) - 2
                 for i in range(1,self.getInt('MaxWild')): iwild *= i
                 maxi = pow(alphx,self.getInt('SlimLen'))
-                if musthave: maxi -= pow(alphx-musthave,self.getInt('SlimLen')) # 1+ position must have musthave aa
+                maxi -= pow(alphx-musthave,self.getInt('SlimLen')) # 1+ position must have musthave aa
                 maxi *= iwild
                 #maxi = musthave * pow(len(self.list['Alphabet']),self.getInt('SlimLen')) * iwild       # 1+ position must have musthave aa
+                if '^' in self.list['MustHave']: maxi += pow(alphx,self.getInt('SlimLen')-1) * iwild
+                if '$' in self.list['MustHave']: maxi += pow(alphx,self.getInt('SlimLen')-1) * iwild
                 self.dict['Extremf.'][self.getInt('SlimLen')] = maxi
                 self.printLog('#SPACE','Motif Space, %d positions: %s motifs' % (self.getInt('SlimLen'),rje.integerString(maxi)))
             else:
                 for i in range(2,self.getInt('SlimLen')+1):
                     iwild = pow(self.getInt('MaxWild')-self.getInt('MinWild')+1,(i-1))
                     maxi = pow(alphx,i)
-                    if musthave: maxi -= pow(alphx-musthave,i)   # 1+ position must have musthave aa
+                    maxi -= pow(alphx-musthave,i)   # 1+ position must have musthave aa
                     maxi *= iwild
+                    if '^' in self.list['MustHave']: maxi += pow(alphx,i-1) * iwild
+                    if '$' in self.list['MustHave']: maxi += pow(alphx,i-1) * iwild
                     #maxi = musthave * pow(len(self.list['Alphabet']),i-1) * iwild       # 1+ position must have musthave aa
                     self.dict['Extremf.'][i] = maxi
                     self.printLog('#SPACE','Motif Space, %d positions: %s motifs' % (i,rje.integerString(maxi)))

@@ -19,8 +19,8 @@
 """
 Module:       rje_hpc
 Description:  High Performance Computing job farming
-Version:      1.1
-Last Edit:    17/06/14
+Version:      1.1.1
+Last Edit:    22/02/18
 Copyright (C) 2014  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -66,6 +66,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     '''
     # 1.0 - Initial Compilation based on rje_iridis V1.10.
     # 1.1 - Disabled memory checking in Windows and OSX.
+    # 1.1.1 - Added output of subjob command to log as run.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -79,7 +80,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copy_right) = ('RJE_HPC', '1.0', 'February 2014', '2014')
+    (program, version, last_edit, copy_right) = ('RJE_HPC', '1.1.1', 'February 2018', '2014')
     description = 'High Performance Computing job farming'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_obj.zen()]
@@ -333,6 +334,8 @@ class JobFarmer(rje_obj.RJE_Object):
             cpid = os.fork()        # Fork child process
             if cpid:                # parent process records pid of child rsh process
                 jdict['PID'] = cpid
+                if self.rsh(): self.printLog('#SUB',rsh)
+                else: self.printLog('#SUB',job)
                 self.printLog('#JOB','Running job as %s: %d remain; %.1f%% mem free' % (cpid,len(self.list['SubJobs']),freemem*100.0))
             else:                   # child process
                 if self.rsh(): os.system(rsh)

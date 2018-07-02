@@ -19,8 +19,8 @@
 """
 Module:       rje_misc
 Description:  Miscellenous script storage module
-Version:      0.53.0
-Last Edit:    26/11/15
+Version:      0.58.0
+Last Edit:    20/06/18
 Copyright (C) 2007  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -74,6 +74,8 @@ Function:
     - humsf09 = Human SF09 cleanup
     - biol3050 = BIOL3050 clone vs ENST cDNA matchup
     - jrjspf = Reformatting an SPF file for Joe Jenkins
+    - disjson = Parsing of disorder JSON file
+    - pop00freq
 
 Commandline:
     job=X       : Identifier for the job to be performed [None]
@@ -149,6 +151,11 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 0.51.0 - dcfmsi = Generation of HTML table code for Manefield DCMF data
     # 0.52.0 - mbgsnp = Compilation of MBG SNP Tables
     # 0.53.0 - mbgSNPFreq = Generation of SNP Frequency Changes from SNP Table.
+    # 0.54.0 - disjson = Parsing of disorder JSON file
+    # 0.55.0 - diphap = Parsing of pseudodiploid fasta file and annotating with diploid or haploid status
+    # 0.56.0 - ancNorm = Conversion of raw anchor scores to normalised scores.
+    # 0.57.0 - occjoin = Table join for occbench complementary analysis.
+    # 0.58.0 - pop00freq = Regenerate SNP frequencies. Modified mbgSNPFreq to handle pop00freq output.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -158,7 +165,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo():     ### Makes Info object
     '''Makes rje.Info object for program.'''
-    (program, version, last_edit, cyear) = ('RJE_MISC', '0.52.0', 'November 2017', '2007')
+    (program, version, last_edit, cyear) = ('RJE_MISC', '0.58.0', 'June 2018', '2007')
     description = 'Miscellaneous Odd-jobs Module'
     author = 'Dr Richard J. Edwards.'
     comments = ['Wise %s always says:' % rje_zen.Zen()._noun(),'\t"%s"' % rje_zen.Zen().wisdom()]
@@ -274,6 +281,11 @@ class OddJob(rje.RJE_Object):
         '''Runs odd-job specified by self.info['Name'].'''
         try:### Laavanya ###
             if self.info['Name'] == 'laavanya': self.laavanya()
+            elif self.info['Name'] == 'pop00freq': self.pop00Freq()
+            elif self.info['Name'] == 'occjoin': self.occjoin()
+            elif self.info['Name'] == 'ancnorm': self.ancNorm()
+            elif self.info['Name'] == 'diphap': self.dipHap()
+            elif self.info['Name'] == 'disjson': self.disJSON()
             elif self.info['Name'] == 'mbgsnpfreq': self.mbgSNPFreq()
             elif self.info['Name'] == 'mbgsnp': self.mbgSNP()
             elif self.info['Name'] == 'dcmfsi': self.dcmfSIJGI()
@@ -715,6 +727,29 @@ class OddJob(rje.RJE_Object):
         except:
             self.log.errorLog('Error in rje_misc.run(%s)' % self.info['Name'],printerror=True,quitchoice=True)
 #########################################################################################################################
+    def dipHap(self):
+        '''Update sequence names.'''
+        try:### ~ [0] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            seqlist = rje_seqlist.SeqList(self.log,self.cmd_list)
+            SEQOUT = open(self.baseFile() + '.dipnr.fasta','w')
+            diplist = []
+            haplist = []
+            for seq in seqlist.seqs():
+                hap = rje.matchExp('HAP(\d+)',seqlist.shortName(seq))
+                if hap in diplist: haplist.append(hap)
+                else: diplist.append(hap)
+            for seq in seqlist.seqs():
+                hap = rje.matchExp('HAP(\d+)',seqlist.shortName(seq))
+                if hap in haplist:
+                    if hap in diplist: haptxt = 'haploidA'; diplist.remove(hap)
+                    else: haptxt = 'haploidB'
+                else: haptxt = 'diploid'
+                SEQOUT.write('>%s %s %s\n%s\n' % (seqlist.shortName(seq),haptxt,seqlist.seqDesc(seq),seqlist.seqSequence(seq)))
+                self.printLog('#DIP','%s: %s\n' % (seqlist.shortName(seq),haptxt))
+            SEQOUT.close()
+        except:
+            self.log.errorLog('Error in rje_misc.dipHap(%s)' % self.info['Name'],printerror=True,quitchoice=True)
+#########################################################################################################################
     def mbgSNPFreq(self):
         '''Compile MBG SNP tables.'''
         try:### ~ [0] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -756,13 +791,20 @@ class OddJob(rje.RJE_Object):
             if pop2 not in snpdb.fields(): raise ValueError(pop2)
             n1 = 'N|%s' % pop1
             n2 = 'N|%s' % pop2
-            snpdb.keepFields(['Locus','Pos','REF','ALT',n1,pop1,n2,pop2,'SNPType','SNPEffect','Parents','Strains','Pops'])
+            snpdb.keepFields(['Locus','Pos','REF','ALT',n1,pop1,n2,pop2,'SNPType','SNPEffect','Parents','Strains','Pops','Source'])
             snpdb.dataFormat({'Pos':'int',n1:'int',pop1:'num',n2:'int',pop2:'num'})
             snpdb.addFields(['MajFreq','MajDiff','MajProb'])
 
             ex = 0.0; etot = snpdb.entryNum()
             for entry in snpdb.entries():
                 self.progLog('#PROB','%.1f%%' % (ex/etot)); ex += 100.0
+                if 'Source' in snpdb.fields() and entry['Source'] != 'REF':  # Invert numbers
+                    if entry[pop1] < 1:
+                        entry[n1] = int(0.5+(entry[n1]/(1-entry[pop1])) - entry[n1])
+                    else: entry[n1] = 100
+                    if entry[pop2] < 1: entry[n2] = int(0.5+(entry[n2]/(1-entry[pop2])) - entry[n2])
+                    else: entry[n2] = 100
+
                 entry['MajFreq'] = entry[pop2]
                 entry['MajDiff'] = entry[pop2] - entry[pop1]
                 majx = entry[n2]
@@ -774,7 +816,10 @@ class OddJob(rje.RJE_Object):
                     ctot = int(0.5+(entry[n1]/entry[pop1]))
                 else: ctot = 100
                 if not cfreq: cfreq = 1.0 / (ctot + 1)  # Assume next read is ALT
-                entry['MajProb'] = rje.eStr(rje.binomial(majx,ttot,cfreq,exact=False,callobj=self))
+                if entry[pop2] >= entry[pop1]: # Freq Up
+                    entry['MajProb'] = rje.eStr(rje.binomial(majx,ttot,cfreq,exact=False,callobj=self))
+                else: # Freq Down
+                    entry['MajProb'] = rje.eStr(1.0 - rje.binomial(majx+1,ttot,cfreq,exact=False,callobj=self))
             freqfile = '%s.%s.vs.%s.snpfreq.tdt' % (self.baseFile(),pop1,pop2)
             rje.backup(self,freqfile)
             snpdb.saveToFile(freqfile)
@@ -783,9 +828,378 @@ class OddJob(rje.RJE_Object):
         except:
             self.log.errorLog('Error in rje_misc.run(%s)' % self.info['Name'],printerror=True,quitchoice=True)
 #########################################################################################################################
+    def occjoin(self):
+        '''Compile SLiM Occurrence scores and ratings.'''
+        try:### ~ [0] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            db = rje_db.Database(self.log,self.cmd_list+['tuplekeys=T'])
+            rdb = db.addTable(filename='../../data/2018-03-06.OccBench/SLiMBenchDatasets/OccBench/occbench.ratings.csv',mainkeys=['Motif','Seq','Start_Pos','End_Pos'],name='ratings')
+            odb = db.addTable(filename='mobicalc.norm.2018-05-14.occ.csv',mainkeys=['Motif','Seq','Start_Pos','End_Pos'],name='occ')
+            odb.dropFields(['Dataset','RunID','AccNum','Pattern','Match','Variant','MisMatch','Desc'])
+            odb.addField('Rating',evalue='NA')
+            #Dataset,RunID,Masking,Motif,Seq,AccNum,Start_Pos,End_Pos,Prot_Len,Pattern,Match,Variant,MisMatch,Desc,UPC,anchor,AbsChg,NetChg,Comp,Cons,HomNum,GlobID,LocID,dis465,dishl,espd,espn,espx,glo,Hyd,iupl,iups,jronn,SA,vsl,SplitN
+            ratings = rdb.dict['Data']
+            ox = 0.0; otot = odb.entryNum()
+            for okey in odb.dataKeys():
+                self.progLog('\r#JOIN','Joining ratings to occurrences: %.2f%%' % (ox/otot)); ox += 100.0
+                if okey in ratings: odb.data(okey)['Rating'] = ratings.pop(okey)['Rating']
+            self.printLog('\r#JOIN','Joined ratings to occurrences: %s rating remain' % rje.iLen(ratings))
+
+            if ratings: rdb.saveToFile('mobicalc.norm.2018-05-14.no-rating.csv')
+
+            odb.indexReport('Rating')
+            odb.saveToFile('mobicalc.norm.2018-05-14.occ-rating.csv')
+
+        except:
+            self.log.errorLog('Error in rje_misc.occjoin(%s)' % self.info['Name'],printerror=True,quitchoice=True)
+#########################################################################################################################
+    def disJSON(self):
+        '''Compile MBG SNP tables.'''
+        try:### ~ [0] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            db = rje_db.Database(self.log,self.cmd_list+['tuplekeys=T'])
+            mfas = 'mobijson.fas'
+            mdb = db.addTable(name='mobiscore')
+            udb = db.addTable(filename='mobidb.uniprot.sequences.tdt',mainkeys=['accnum'],name='uniprot')
+            udb.dataFormat({'length':'int'})
+            pmethods = ['espN', 'iupl', 'glo', 'espD', 'espX', 'dis465', 'iups', 'jronn', 'vsl', 'disHL']
+            #i# name	desc	gene	spec	accnum	length
+
+            if mdb:
+                rje.mkDir(self,'MobiScores/',log=True)
+                MFAS = open(mfas,'w')
+                cacc = []; bacc = []
+                fx = 0; ax = 0; mx = 0; sx = 0
+                for mentry in mdb.entries():
+                    self.progLog('\r#SCORE','%s acc' % rje.iStr(ax))
+                    ax += 1
+                    acc = string.replace(mentry['acc'],'O60344','P0DPD8')
+                    #No disorder calculation for EFMT4_HUMAN__P0DPD7: disorder method "dishl" not recognised (strict=F)!
+                    #WARN     00:00:55        No disorder calculation for ECE2_HUMAN__P0DPD6: disorder method "dishl" not recognised (strict=F)!
+
+                    if acc in udb.dataKeys(): seqlen = udb.data(acc)['length']
+                    else:
+                        self.warnLog('No sequence for %s!' % mentry['acc']); mx +=1
+                        bacc.append(acc)
+
+                    mbase = 'MobiScores/%s' % acc
+                    complete = True
+                    for pred in ['espN', 'iupl', 'glo', 'espD', 'espX', 'dis465', 'iups', 'jronn', 'vsl', 'disHL']:
+                        plen = len(string.split(mentry[pred]))
+                        if plen != seqlen:
+                            self.warnLog('%s = %d aa but %s prediction length = %d' % (acc,seqlen,pred,plen))
+                            complete = False
+                        open('%s.%s.txt' % (mbase, pred.lower()),'w').write('%s\t%s\n' % (acc,mentry[pred]))
+                        fx += 1
+                    if mentry['sequence']:
+                        MFAS.write('>%s__%s v%s isoform:%s\n%s\n' % (mentry['id'],acc,mentry['version'],mentry['isoform'],mentry['sequence'])); sx += 1
+                    else:
+                        self.warnLog('No sequence for %s!' % mentry['acc']); mx +=1
+                    if complete:
+                        cacc.append(acc)
+                    else: bacc.append(acc)
+                self.printLog('\r#SCORE','Saved %s score files for %s acc to MobiScores/.' % (rje.iStr(fx),rje.iStr(ax)))
+                self.printLog('\r#FAS','%s sequences saved to %s: %s without sequences.' % (rje.iStr(sx),mfas,rje.iStr(mx)))
+                open('mobicomplete.acc','w').write('%s\n' % string.join(cacc,'\n'))
+                open('mobipartial.acc','w').write('%s\n' % string.join(bacc,'\n'))
+                self.printLog('#ACC','%s complete prediction sets: accnum output to mobicomplete.acc' % rje.iLen(cacc))
+                self.printLog('#ACC','%s incomplete prediction sets: accnum output to mobipartial.acc' % rje.iLen(bacc))
+                MFAS.close()
+
+
+            if mdb:
+                ### Generate score dictionaries
+                scores = {}
+                for pred in ['espN', 'iupl', 'glo', 'espD', 'espX', 'dis465', 'iups', 'jronn', 'vsl', 'disHL']:
+                    scores[pred] = {}
+                fx = 0; ax = 0; mx = 0; sx = 0
+                aax = 0
+                cacc = []
+                for mentry in mdb.entries():
+                    self.progLog('\r#SCORE','%s acc| %s aa' % (rje.iStr(ax),rje.iStr(aax)))
+                    ax += 1
+                    acc = string.replace(mentry['acc'],'O60344','P0DPD8')
+
+                    #No disorder calculation for EFMT4_HUMAN__P0DPD7: disorder method "dishl" not recognised (strict=F)!
+                    #No disorder calculation for ECE2_HUMAN__P0DPD6: disorder method "dishl" not recognised (strict=F)!
+
+                    if acc in udb.dataKeys():
+                        seqlen = udb.data(acc)['length']
+                        aax += seqlen
+                    else:
+                        self.warnLog('No sequence for %s!' % mentry['acc']); mx +=1
+                        continue
+
+                    complete = True
+                    for pred in ['espN', 'iupl', 'glo', 'espD', 'espX', 'dis465', 'iups', 'jronn', 'vsl', 'disHL']:
+                        plen = len(string.split(mentry[pred]))
+                        if plen != seqlen:
+                            self.warnLog('%s = %d aa but %s prediction length = %d' % (acc,seqlen,pred,plen))
+                            complete = False
+                        fx += 1
+
+                    if not complete:
+                        continue
+                    cacc.append(acc)
+                    sx += 1
+
+                    for pred in ['espN', 'iupl', 'glo', 'espD', 'espX', 'dis465', 'iups', 'jronn', 'vsl', 'disHL']:
+                        sdict = scores[pred]
+                        for val in string.split(mentry[pred]):
+                            num = float(val)
+                            if num in sdict: sdict[num] += 1
+                            else: sdict[num] = 1
+                self.printLog('\r#SCORE','%s acc| %s aa' % (rje.iStr(ax),rje.iStr(aax)))
+
+                ### Normalise
+                cdb = db.addEmptyTable('normalisation',['method','score','n','norm'],['method','score'],log=True)
+                for pred in ['espN', 'iupl', 'glo', 'espD', 'espX', 'dis465', 'iups', 'jronn', 'vsl', 'disHL']:
+                    sdict = scores[pred]
+                    totlen = sum(sdict.values())
+                    self.printLog('#%s' % pred.upper(),'%s values; %s aa' % (rje.iLen(sdict),rje.iStr(totlen)))
+
+                    cumx = 0.0
+                    nx = 0.0; ntot = len(sdict)
+                    for num in rje.sortKeys(sdict,revsort=True):
+                        self.progLog('\r#NORM','Normalising %s scores: %.2f%%' % (pred,nx/ntot)); nx += 100.0
+                        cumx += sdict[num]
+                        norm = '%.4f' % (1.0 - (cumx/totlen))
+                        cdb.addEntry({'method':pred,'score':num,'n':sdict[num],'norm':norm})
+                        sdict[num] = norm
+                    self.printLog('\r#NORM','Normalisation of %s scores complete.' % (pred))
+                cdb.saveToFile()
+
+                ### Save Normalisation
+                rje.mkDir(self,'MobiNorm/',log=True)
+                rje.mkDir(self,'MobiNormTables/',log=True)
+                ax = 0.0; atot = len(cacc)
+                for mentry in mdb.entries():
+                    acc = string.replace(mentry['acc'],'O60344','P0DPD8')
+                    if acc not in cacc: mdb.dropEntry(mentry); continue
+                    self.progLog('\r#NORM','Saving normalised scores: %.2f%%' % (ax/atot))
+                    ndb = db.addEmptyTable('norm',['pos']+pmethods,['pos'],log=False)
+                    #!# Add max, min, mean, median?
+                    ax += 100.0
+                    mbase = 'MobiNorm/%s' % acc
+                    seqlen = udb.data(acc)['length']
+                    for pos in range(seqlen): ndb.addEntry({'pos':pos+1})
+                    for pred in ['espN', 'iupl', 'glo', 'espD', 'espX', 'dis465', 'iups', 'jronn', 'vsl', 'disHL']:
+                        sdict = scores[pred]
+                        newscores = []; pos = 0
+                        for val in string.split(mentry[pred]):
+                            pos += 1
+                            norm = sdict[float(val)]
+                            newscores.append(norm)
+                            ndb.data(pos)[pred] = norm
+                        mentry[pred] = string.join(newscores)
+                        mfile = '%s.%s.txt' % (mbase, pred.lower())
+                        #if not os.path.exists(mfile):
+                        open(mfile,'w').write('%s\t%s\n' % (acc,mentry[pred]))
+                    ndb.saveToFile('MobiNormTables/%s.mobinorm.tdt' % acc,log=False)
+                    db.deleteTable(ndb)
+                self.printLog('\r#NORM','Saved normalised scores to MobiNorm/')
+
+                mdb.saveToFile('%s.normscore.tdt' % self.baseFile())
+
+                return True
+
+
+
+
+            jfile = 'analysis_data.json'
+            import json
+            self.progLog('#JSON','Loading...')
+            with open('analysis_data.json') as outfile:
+                protein_data = json.load(outfile)
+            self.printLog('#JSON','Data loaded')
+
+            #i# Data is in the format:
+            #i# protein_data[accession]['predictors'][predictor[u'method']]
+            mx = 0
+            mfile = 'mobidb.acc'
+            MFILE = open(mfile,'w')
+            for acc in rje.sortKeys(protein_data):
+                MFILE.write('%s\n' % str(acc)); mx += 1
+            MFILE.close()
+            self.printLog('#ACC','Saved %s of %s accnum to %s' % (rje.iStr(mx),rje.iLen(protein_data),mfile))
+
+            #i# [u'Regex', u'MobiDB', u'predictors', u'Sequence']
+            #i# u'Regex': {u'DEG_SCF_FBW7_1': [], u'DEG_SCF_FBW7_2': [], u'DEG_SCF_TIR1_1': [], u'DOC_USP7_MATH_2': [[92, 99]], ... }
+            #i# u'MobiDB': {u'status': u'Added', u'data':
+                    # {u'consensus':
+            #               {u'disprot': [],
+            # u'predictors': [{u'start': 1, u'ann': u'd', u'end': 31}, {u'start': 53, u'ann': u'd', u'end': 57}, {u'start': 69, u'ann': u'd', u'end': 71}, {u'start': 83, u'ann': u'd', u'end': 87}, {u'start': 112, u'ann': u'd', u'end': 122}, {u'start': 154, u'ann': u'd', u'end': 162}, {u'start': 253, u'ann': u'd', u'end': 258}],
+            #                u'long': []},
+            #       u'disprot': [],
+            #       u'lowcomplex': [{u'regions': [{u'start': 2, u'ann': u'd', u'end': 29}, {u'start': 235, u'ann': u'd', u'end': 247}], u'pred': u'seg'}, {u'regions': [], u'pred': u'pfilt'}], u'predictors': [{u'regions': [{u'start': 1, u'ann': u'd', u'end': 8}, {u'start': 27, u'ann': u'd', u'end': 31}, {u'start': 256, u'ann': u'd', u'end': 258}], u'pred': u'dis465'}, {u'regions': [{u'start': 1, u'ann': u'd', u'end': 1}, {u'start': 19, u'ann': u'd', u'end': 26}, {u'start': 53, u'ann': u'd', u'end': 57}, {u'start': 69, u'ann': u'd', u'end': 71}, {u'start': 83, u'ann': u'd', u'end': 87}, {u'start': 112, u'ann': u'd', u'end': 122}, {u'start': 256, u'ann': u'd', u'end': 258}], u'pred': u'disHL'}, {u'regions': [], u'pred': u'espD'}, {u'regions': [{u'start': 256, u'ann': u'd', u'end': 258}], u'pred': u'espN'}, {u'regions': [{u'start': 1, u'ann': u'd', u'end': 29}, {u'start': 254, u'ann': u'd', u'end': 258}], u'pred': u'espX'}, {u'regions': [], u'pred': u'iupl'}, {u'regions': [{u'start': 1, u'ann': u'd', u'end': 3}], u'pred': u'iups'}, {u'regions': [{u'start': 154, u'ann': u'd', u'end': 155}, {u'start': 161, u'ann': u'd', u'end': 161}, {u'start': 253, u'ann': u'd', u'end': 253}, {u'start': 256, u'ann': u'd', u'end': 256}], u'pred': u'glo'}, {u'regions': [{u'start': 1, u'ann': u'd', u'end': 5}, {u'start': 154, u'ann': u'd', u'end': 162}, {u'start': 256, u'ann': u'd', u'end': 258}], u'pred': u'vsl'}]}}
+            #i# u'predictors': {[u'espN', u'iupl', u'glo', u'espD', u'espX', u'dis465', u'iups', u'jronn', u'vsl', u'disHL' }
+            #i#     - score lists for each predictor
+            #i# u'Sequence': {u'id': u'PIGX_HUMAN', u'isoform': False, u'version': u'111', u'accession': u'Q8TBF5', u'sequence': u'MAARVAAVRAAAWLLLGAATGLTRGPAAAFTAARSDAGIRAMCSEIILRQEVLKDGFHRDLLIKVKFGESIEDLHTCRLLIKQDIPAGLYVDPYELASLRERNITEAVMVSENFDIEAPNYLSKESEVLIYARRDSQCIDCFQAFLPVHCRYHRPHSEDGEASIVVNNPDLLMFCDQEFPILKCWAHSEVAAPCALENEDICQWNKMKYKSVYKNVILQVPVGLTVHTSLVCSVTLLITILCSTLILVAVFKYGHFSL'}
+            mfields = ['acc','id','sequence','isoform','version']
+            mfields += ['espN', 'iupl', 'glo', 'espD', 'espX', 'dis465', 'iups', 'jronn', 'vsl', 'disHL']
+            mdb = db.addEmptyTable('mobiscore',mfields,['acc'],log=True)
+            #ddb = db.addEmptyTable('mobipred',['acc','method','start','end','ann'],['acc','method','start'],log=True)
+            ptot = len(protein_data)
+            px = 0.0
+            for acc in rje.sortKeys(protein_data):
+                self.progLog('\r#MOBI','Parsing MobiDB data: %.2f%%' % (px/ptot)); px += 100.0
+                modbdat = protein_data.pop(acc)
+                mentry = {'acc':str(acc)}
+                seqdat = modbdat[u'Sequence']
+                for udat in seqdat.keys():    # [u'id',u'Sequence',u'isoform',u'version']:
+                    try: mentry[str(udat).lower()] = seqdat[udat]
+                    except: self.warnLog('No %s for %s' % (udat,acc))
+                for upred in modbdat[u'predictors']:
+                    pred = str(upred)
+                    mentry[pred] = string.replace('%s' % modbdat[u'predictors'][upred],',','')[1:-1]
+                mdb.addEntry(mentry)
+                #dentry = {'acc':str(acc)}
+
+            self.printLog('\r#MOBI','Parsing MobiDB data complete.')
+            mdb.saveToFile()
+            #ddb.saveToFile()
+
+
+        except:
+            self.errorLog('Error in rje_misc.run(%s)' % self.info['Name'],printerror=True,quitchoice=True)
+#########################################################################################################################
+    def ancNorm(self):
+        '''ANCHOR score normalisation.'''
+        try:### ~ [0] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            db = rje_db.Database(self.log,self.cmd_list+['tuplekeys=T'])
+            self.baseFile('anchor')
+            indir = 'MobiScores/'
+            outdir = 'MobiNorm/'
+
+            #i# Read in raw scores and generate dictionary
+            sdict = {}
+            skipx = 0; accx = 0
+            for afile in glob.glob('%s*.anchor.txt' % indir):
+                self.progLog('\r#ANCHOR','%s anchor files read; %s skipped' % (rje.iStr(accx),rje.iStr(skipx)))
+                acc = rje.baseFile(afile,strip_path=True).split('.')[0]
+                adata = open(afile,'r').readline().split()
+                if acc not in adata[0]: skipx += 1; continue
+                accx += 1
+                for val in adata[1:]:
+                    num = float(val)
+                    if num in sdict: sdict[num] += 1
+                    else: sdict[num] = 1
+            self.printLog('#ANCHOR','%s anchor files read; %s skipped' % (rje.iStr(accx),rje.iStr(skipx)))
+
+            #i# Normalise
+            cdb = db.addEmptyTable('normalisation',['method','score','n','norm'],['method','score'],log=True)
+            pred = 'anchor'
+            totlen = sum(sdict.values())
+            self.printLog('#%s' % pred.upper(),'%s values; %s aa' % (rje.iLen(sdict),rje.iStr(totlen)))
+            cumx = 0.0
+            nx = 0.0; ntot = len(sdict)
+            for num in rje.sortKeys(sdict,revsort=True):
+                self.progLog('\r#NORM','Normalising %s scores: %.2f%%' % (pred,nx/ntot)); nx += 100.0
+                cumx += sdict[num]
+                norm = '%.4f' % (1.0 - (cumx/totlen))
+                cdb.addEntry({'method':pred,'score':num,'n':sdict[num],'norm':norm})
+                sdict[num] = norm
+            self.printLog('\r#NORM','Normalisation of %s scores complete.' % (pred))
+            cdb.saveToFile('anchor.normalisation.tdt')
+
+            ### Save Normalisation
+            skipx = 0; normx = 0
+            rje.mkDir(self,'MobiNormAnchor')
+            for afile in glob.glob('%s*.anchor.txt' % indir):
+                acc = rje.baseFile(afile,strip_path=True).split('.')[0]
+                adata = open(afile,'r').readline().split()
+                if acc not in adata[0]: skipx += 1; continue
+                normx += 1
+                ndata = adata[:1]
+                for val in adata[1:]:
+                    num = float(val)
+                    ndata.append(sdict[num])
+                nfile = '%s%s.anchor.txt' % (outdir,acc)
+                open(nfile,'w').write('%s\n' % string.join(ndata))
+                #NormTable
+                ntab = 'MobiNormTables/%s.mobinorm.tdt' % acc
+                if not rje.exists(ntab): continue
+                ndb = db.addTable(ntab,['pos'],name='mobinorm')
+                ndb.dataFormat({'pos':'int'})
+                ndb.addField('anchor')
+                for entry in ndb.entries():
+                    entry['anchor'] = ndata[entry['pos']]
+                ndb.saveToFile('MobiNormAnchor/%s.mobinorm.tdt' % acc)
+                db.deleteTable(ndb)
+            self.printLog('#ANCHOR','%s anchor files generated; %s skipped' % (rje.iStr(normx),rje.iStr(skipx)))
+
+        except:
+            self.errorLog('Error in rje_misc.run(%s)' % self.info['Name'],printerror=True,quitchoice=True)
+#########################################################################################################################
+    def pop00Freq(self): # Adjusts SNP Frequencies to be relative to Pop00
+        '''
+        1. Load in allsnpft.snpmap.tdt
+        2. Identify positions where CombFreq > 0.5
+        3. Swap REF and ALT.
+        4. Cycle through N|XX and XX pairs to invert allele counts and frequencies.
+        5. Update the Pops, Parents and Strains fields to include the new sets with the "variant".
+        6. Save to pop00snpft.snpmap.tdt.
+        '''
+        try:### ~ [0] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            parentstrains = ['mbg344', 'mbg461', 'mbg474', 'mbg475', 'mbg479', 'mbg481', 'mbg482', 'mbg541', 'mbg542', 'mbg549', 'mbg557', 'mbg558', 'mbg602']
+            snpfile = 'allsnpft.snpmap.tdt'  # Replace with argument
+            db = rje_db.Database(self.log,self.cmd_list+['tuplekeys=T'])
+            refstrain = 'Pop00'
+            #1. Load in allsnpft.snpmap.tdt
+            sdb = db.addTable(filename=snpfile,mainkeys=['Locus','Pos','REF','ALT','feature','locus_tag'],name='snp',expect=True)
+            if not sdb: raise IOError
+            mbgstrains = []
+            allstrains = []
+            snpformat = {'Pos':'int','CombFreq':'num'}
+            for field in sdb.fields():
+                if field.startswith('N|'):
+                    snpformat[field] = 'int'
+                    strain = string.split(field,'|')[1]
+                    allstrains.append(strain)
+                    if strain.startswith('mbg') and strain not in parentstrains: mbgstrains.append(strain)
+                    snpformat[strain] = 'num'
+
+            sdb.dataFormat(snpformat)
+            sdb.addField('Source',evalue='REF')
+            #2. Identify positions where refstrain > 0.5
+            snpx = 0
+            ex = 0; etot = sdb.entryNum()
+            for entry in sdb.entries():
+                if entry[refstrain] <= 0.5: continue
+                snpx += 1
+            #3. Swap REF and ALT.
+                [entry['REF'],entry['ALT']] = [entry['ALT'],entry['REF']]
+                entry['Source'] = refstrain
+            #4. Cycle through N|XX and XX pairs to invert allele counts and frequencies.
+                entry['Parents'] = []
+                entry['Strains'] = []
+                entry['Pops'] = []
+                for strain in allstrains:
+                    F = entry[strain]
+                    N = entry['N|%s' % strain]
+                    if F:
+                        #entry['N|%s' % strain] = int(0.1 + (1-F) * N/F)
+                        entry[strain] = (1-F)
+                    else:
+                        entry[strain] = 1.0
+            #5. Update the Pops, Parents and Strains fields to include the new sets with the "variant".
+                    if entry[strain] > 0:
+                        if strain in parentstrains: entry['Parents'].append(strain)
+                        elif strain in mbgstrains: entry['Strains'].append(strain)
+                        else: entry['Pops'].append(strain)
+                for field in ['Parents','Pops','Strains']:
+                    entry[field] = string.join(entry[field],'|')
+            self.printLog('#SNP','%s SNPs recalculated' % rje.iStr(snpx))
+
+            #6. Save to pop00snpft.snpmap.tdt.
+            sdb.saveToFile('allsnpft.%s.tdt' % refstrain.lower())
+
+
+        except:
+            self.log.errorLog('Error in rje_misc.run(%s)' % self.info['Name'],printerror=True,quitchoice=True)
+#########################################################################################################################
     def mbgSNP(self): # Compile MBG SNP tables
         '''Compile MBG SNP tables.'''
         try:### ~ [0] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            parentstrains = ['mbg344', 'mbg461', 'mbg474', 'mbg475', 'mbg479', 'mbg481', 'mbg482', 'mbg541', 'mbg542', 'mbg549', 'mbg557', 'mbg558', 'mbg602']
             db = rje_db.Database(self.log,self.cmd_list+['tuplekeys=T'])
             snptabs =  self.list['Batch']
             if not snptabs: raise ValueError('Need batch=SNPFiles')
@@ -817,7 +1231,8 @@ class OddJob(rje.RJE_Object):
             comdb.addFields(['CombFreq','Parents','Strains','Pops'])
             parents = []
             for field in comdb.list['Fields'][4:]:
-                if field[:3] == 'mbg' and field not in ['mbg11a','mbg1871','mbg2303','mbgag26','mbgag35','mbgh207']:
+                #if field[:3] == 'mbg' and field not in ['mbg11a','mbg1871','mbg2303','mbgag26','mbgag35','mbgh207']:
+                if field in parentstrains:
                     parents.append(field)
 
             for entry in comdb.entries():
@@ -837,7 +1252,7 @@ class OddJob(rje.RJE_Object):
                     except:
                         self.errorLog(field)
                     if field[:3] == 'mbg' and entry[field] > 0:
-                        if field in ['mbg11a','mbg1871','mbg2303','mbgag26','mbgag35','mbgh207']:
+                        if field not in parentstrains:  #['mbg11a','mbg1871','mbg2303','mbgag26','mbgag35','mbgh207']:
                             entry['Strains'].append(field)
                         else:
                             entry['Parents'].append(field)

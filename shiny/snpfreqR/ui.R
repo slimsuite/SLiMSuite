@@ -56,10 +56,16 @@ shinyUI(fluidPage(
           htmlOutput("plotoptmd"),
           textInput("title", "Plot title:", "SNPFreq"),
           selectInput("titlestyle", "Plot title style:", c("Standard","Pure","Info","None"), "Info", width='300px'),
-          selectInput("plottype", "Plot type:", c("Standard","Time Lapse"), width='300px'),   #i# ,"Time Lapse" does not work!
+          #selectInput("plottype", "Plot strategy:", c("Standard","Time Lapse","Chrom Cycle","All Chrom (PNG Only)","Monster (PNG Only)","Genome multi-plot","Time multi-plot"), width='300px'),   #i# ,"Time Lapse" does not work!
+          selectInput("plottype", "Plot strategy:", c("Standard","Time Lapse","Chrom Cycle","All Chrom (PNG Only)","Monster (PNG Only)"), width='300px'),   #i# ,"Time Lapse" does not work!
+          selectInput("plotfield", "Plot data:", c("SNPFreq","Starting SNPFreq","Ending SNPFreq","SNPFreq Change","Absolute SNPFreq Change"), width='300px'),   #i# ,"Time Lapse" does not work!
+          selectInput("plothist", "Plot type:", c("Scatterplot","Histogram","Histogram (all chrom)","TimeLine","TimeLine (all chrom)"), width='300px'),   #i# ,"Time Lapse" does not work!
+          selectInput("plotcol", "Plotting colours:", c("Direction","Parent","MBG Strain","Fixation","Strain 1 Selection","No Parent","SNPType Selection","SNPEffect Selection"), "Direction",width='300px'),
           checkboxInput("plotpos", "Plot positive freq changes", value=settings$plotpos),
           checkboxInput("plotneg", "Plot negative freq changes", value=settings$plotneg),
-          checkboxInput("plotfix", "Plot unchanged freq positions", value=settings$plotneg)
+          checkboxInput("plotfix", "Plot unchanged freq positions", value=settings$plotneg),
+          checkboxInput("plothighlights", "Backfill allele markers", value=TRUE),
+          checkboxInput("pauseplot", "Pause plotting (whilst changing options)", value=FALSE)
         ),
         conditionalPanel(
           condition = "input.plotzoom == true",
@@ -70,18 +76,23 @@ shinyUI(fluidPage(
         conditionalPanel(
           condition = "input.plotfilt == true",
           htmlOutput("filtoptmd"),
-          selectInput("parlist", "Restrict to Parents:", c("All","Any","None","mbg344","mbg461","mbg474","mbg475","mbg479","mbg481","mbg482","mbg541","mbg542","mbg549","mbg557","mbg558","mbg602"), "All",width='200px'),
-          checkboxInput("paruniq", "Restrict to parent-unique SNPs", value=FALSE),
-          checkboxInput("parinv", "Invert Parent selection", value=FALSE),
-          selectInput("strlist", "Restrict to MBG Strains:", c("All","Any","None",'mbg11a','mbg1871','mbg2303','mbgag26','mbgag35','mbgh207'), "All",width='200px'),
-          checkboxInput("struniq", "Restrict to strain-unique SNPs", value=FALSE),
-          checkboxInput("strinv", "Invert Strain selection", value=FALSE),
-          selectInput("poplist", "Restrict to Populations:", c("All","Any","None","Pop00","Pop04","Pop06","Pop09","Pop10","Pop11","Pop12","Pop13"), "All",width='200px'),
+          selectInput("poplist", "Restrict to Populations:", c("No Filter","All","Any","None","Pop00","Pop04","Pop06","Pop09","Pop10","Pop11","Pop12","Pop13"), "Any",width='200px'),
           checkboxInput("popuniq", "Restrict to population-unique SNPs", value=FALSE),
           checkboxInput("popinv", "Invert Population selection", value=FALSE),
+          selectInput("parlist", "Restrict to Parents:", c("No Filter","All","Any","None","mbg344","mbg461","mbg474","mbg475","mbg479","mbg481","mbg482","mbg541","mbg542","mbg549","mbg557","mbg558","mbg602"), "No Filter",width='200px'),
+          checkboxInput("paruniq", "Restrict to parent-unique SNPs", value=FALSE),
+          checkboxInput("parinv", "Invert Parent selection", value=FALSE),
+          #selectInput("strlist", "Restrict to MBG Strains:", c("All","Any","None",'mbg11a','mbg1871','mbg2303','mbgag26','mbgag35','mbgh207'), "All",width='200px'),
+          selectInput("strlist", "Restrict to MBG Strains (1):", c("No Filter","All","Any",strsplit(settings$mbgstrains,',',TRUE)[[1]]), "No Filter",width='200px'),
+          checkboxInput("struniq", "Restrict to strain-unique SNPs (not limited to list)", value=FALSE),
+          checkboxInput("strinv", "Invert Strain selection", value=FALSE),
+          checkboxInput("strcol", "Colour Strain selection only (single strains)", value=FALSE),
+          selectInput("str2list", "Restrict to MBG Strains (2):", c("No Filter","All","Any",'mbg11a','mbg1871','mbg2303'), "No Filter",width='200px'),
+          checkboxInput("str2uniq", "Restrict to strain-unique SNPs (not limited to list)", value=FALSE),
+          checkboxInput("str2inv", "Invert Strain selection", value=FALSE),
           selectInput("snplist", "Restrict to SNPType:", c("All"), "All",width='200px'),
-          selectInput("efflist", "Restrict to SNPEffect:", c("All","gene","mRNA","CDS","rRNA","tRNA","ncRNA","mobile","LTR","origin","centromere","telomere"), "All",width='200px'),
-          numericInput("fixfreq", "Frequency Buffer for fixation",0.05,min=0,max=1,step=0.005),
+          selectInput("efflist", "Restrict to SNPEffect:", c("All","gene","mRNA","CDS","rRNA","tRNA","ncRNA","mobile","LTR","origin","centromere","telomere"), "No Filter",width='200px'),
+          #numericInput("fixfreq", "Frequency Buffer for fixation",0.05,min=0,max=1,step=0.005),
           #Moved to plot tab: selectInput("freqfilter", "Final freq for SNPs to plot:", c("All","Fixed","Lost","Polymorphic"),"All",width='200px'),
           textInput("findft", "Restrict to Feature (locus_tag):", "")
         )
@@ -120,8 +131,8 @@ shinyUI(fluidPage(
         tabPanel("Plot", 
            conditionalPanel(
              condition = "input.plotfilt == true",
-             selectInput("freqfilter", "Final freq for SNPs to plot:", c("All","Fixed","Lost","Polymorphic"),"All",width='300px')
-             # numericInput("fixfreq", "Frequency Buffer for fixation",0.05,min=0,max=1,step=0.005)
+             selectInput("freqfilter", "Final freq for SNPs to plot:", c("All","Fixed","Lost","Polymorphic","Present","Start Polymorphic","Start Present"),"All",width='300px'),
+             numericInput("fixfreq", "Frequency Buffer for fixation",0.05,min=0,max=1,step=0.005)
            ),
            conditionalPanel(
              condition = "input.plotdata == true",
@@ -137,7 +148,13 @@ shinyUI(fluidPage(
                  checkboxInput("zoomfreqtable", "Restrict table to chromosome and zoom region", value=TRUE),
                  dataTableOutput("freqtable")
         ),
+        tabPanel("Timeline", 
+           checkboxInput("filtertimetable", "Filter SNPs in table", value=TRUE),
+           checkboxInput("zoomtimetable", "Restrict table to chromosome and zoom region", value=TRUE),
+           dataTableOutput("timetable")
+        ),
         tabPanel("Features", dataTableOutput("feattable")),
+        tabPanel("Log", verbatimTextOutput("activitylog")),
         #tabPanel("SNPMap", dataTableOutput("snptable")),
         tabPanel("Adv. Settings", 
                  # Input path settings
@@ -145,18 +162,23 @@ shinyUI(fluidPage(
                  conditionalPanel(
                    condition = "input.multiload == true",
                    #i# Edit this during testing. Current default path is set for Google Drive sharing
-                   textInput("freqpath", "Path to SNPFreq files:", settings$inputpath)
+                   textInput("freqpath", "Path to SNPFreq files:", settings$inputpath, width='600px'),
+                   textInput("freqbase", "Root filename for SNPFreq files:", "pop00Freq", width='300px')
                    #x#shinyDirButton("freqpath", "Chose directory", "Upload")
                  ),
+                 textInput("mbgstrainlist", "MBG strains (1):", settings$mbgstrains, width='600px'),
+                 textInput("mbgstrain2list", "MBG strains (2):", settings$mbgstrains, width='600px'),
+                 #textInput("multipoplist", "Population comparisons for multipanel population plots:", paste0(settings$popcomb,collapse=","), width='600px'),
+                 #textInput("multichromlist", "Chromosome prefixes for multipanel chromosome plots:", paste0(settings$multichrom,collapse=","), width='600px'),
                  
                  # PNG settings
                  htmlOutput("hr2"),
-                 checkboxInput("plotpng", "Show PNG output settings", value=TRUE),
+                 checkboxInput("plotpng", "Show PNG output settings", value=TRUE, width='600px'),
                  
                  conditionalPanel(
                    condition = "input.plotpng == true",
-                   textInput("pngpath", "PNG Path:", settings$pngpath),
-                   textInput("pngbase", "PNG Basefile:", "SNPFreq"),
+                   textInput("pngpath", "PNG Path:", settings$pngpath, width='600px'),
+                   textInput("pngbase", "PNG Basefile:", "SNPFreq", width='600px'),
                    numericInput("pngheight", "Height (px) for PNG:", settings$pngheight, min = 400, max = 2400, step = 100),
                    numericInput("pngwidth", "Width (px) for PNG:", settings$pngwidth, min = 400, max = 3600, step = 100),
                    numericInput("pointsize", "Point size for PNG text:", settings$pointsize, min = 1, max = 73, step = 1)
@@ -164,10 +186,11 @@ shinyUI(fluidPage(
                  
                  # Plot settings
                  htmlOutput("hr3"),
-                 checkboxInput("plotopt", "Show adv. plotting settings", value=FALSE),
+                 checkboxInput("plotadv", "Show adv. plotting settings", value=FALSE),
                  conditionalPanel(
-                   condition = "input.plotopt == true",
-                    numericInput("plotheight", "Plot height (px):", settings$plotheight, min = 100, max = 4800, step = 100),
+                   condition = "input.plotadv == true",
+                    #numericInput("plotheight", "Plot height (px):", settings$plotheight, min = 100, max = 4800, step = 100),
+                    numericInput("pcut", "Min change probability for shading:", settings$pcut, min = 0, max = 1, step = 0.01),
                     numericInput("ymin", "Min Freq (y-axis):", settings$ymin, min = 0, max = 1, step = 0.1),
                     numericInput("ymax", "Max Freq (y-axis):", settings$ymax, min = 0, max = 1, step = 0.1)
                  )

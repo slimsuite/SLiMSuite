@@ -19,8 +19,8 @@
 """
 Module:       rje_disorder
 Description:  Disorder Prediction Module
-Version:      0.8
-Last Edit:    06/08/14
+Version:      1.2.1
+Last Edit:    19/04/18
 Copyright (C) 2006  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -45,22 +45,32 @@ Function:
 
     For IUPred, the individual residue results are stored in Disorder.list['ResidueDisorder']. For both methods, the
     disordered regions are stored in Disorder.list['RegionDisorder'] as (start,stop) tuples.
+
+    V1.2.0 introduced the optional use of IUScoreDir/ to save and/or (re)load lists of disorder scores. These are files
+    named <ACC>.<DISORDER>.txt where <ACC> is the accession number of the protein. If `md5acc=T` then an md5 hash of the
+    sequence is used instead: `hashlib.md5(<SEQUENCE>).hexdigest()`.
     
 Commandline:
     ### General Options ###
-    disorder=X  : Disorder method to use (iupred/foldindex/anchor/parse) [iupred]
-    iucut=X     : Cut-off for IUPred/ANCHOR results [0.2]
-    iumethod=X  : IUPred method to use (long/short) [short]
-    sequence=X  : Sequence to predict disorder for (autorun) []
-    name=X      : Name of sequence to predict disorder for []
-    minregion=X : Minimum length of an ordered/disordered region [0]
+    disorder=X      : Disorder method to use (iupred/foldindex/anchor/parse) [iupred]
+    strict=T/F      : Whether to exit with error if disorder method not found [False]
+    iucut=X         : Cut-off for score-based method (e.g. IUPred/ANCHOR) results [0.2]
+    iumethod=X      : IUPred method to use (long/short) [short]
+    sequence=X      : Sequence to predict disorder for (autorun) []
+    name=X          : Name of sequence to predict disorder for []
+    minregion=INT   : Minimum length of an ordered/disordered region [0]
+    minorder=INT    : Minimum length of an ordered region; over-rides minregion if >-1 [-1]
+    smoothing=X     : Smoothing mode for minregion=X and minorder=X smoothing (foldfirst/sequence) [foldfirst]
+    iuscoredir=PATH : Path in which to save protein acc.DISORDER.txt score files for re-use []
+    discalculate=T/F: Whether to try to calculate disorder if existing score not loaded [True]
+    md5acc=T/F      : Whether to use md5sum hexdigest hashing of sequence in place of accession numbers [False]
 
     ### System Settings ###
-    iupath=PATH : The full path to the IUPred executable [c:/bioware/iupred/iupred.exe]
-    anchor=PATH : Full path to ANCHOR executable []
-    filoop=X    : Number of times to try connecting to FoldIndex server [10]
-    fisleep=X   : Number of seconds to sleep between attempts [2]
-    iuchdir=T/F : Whether to change to IUPred directory and run (True) or rely on IUPred_PATH env variable [False]
+    iupath=PATH     : The full path to the IUPred executable [c:/bioware/iupred/iupred.exe]
+    anchor=PATH     : Full path to ANCHOR executable []
+    filoop=INT      : Number of times to try connecting to FoldIndex server [10]
+    fisleep=INT     : Number of seconds to sleep between attempts [2]
+    iuchdir=T/F     : Whether to change to IUPred directory and run (True) or rely on IUPred_PATH env variable [False]
 
 Uses general modules: copy, os, string, sys, time, urllib2
 Uses RJE modules: rje
@@ -69,7 +79,7 @@ Other modules needed: None
 #########################################################################################################################
 ### SECTION I: GENERAL SETUP & PROGRAM DETAILS                                                                          #
 #########################################################################################################################
-import os, string, sys, time, urllib2
+import hashlib, os, random, string, sys, time, urllib2
 sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)),'../libraries/'))
 sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)),'../tools/'))
 ### User modules - remember to add *.__doc__ to cmdHelp() below ###
@@ -86,6 +96,9 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 0.6 - Added ANCHOR prediction.
     # 0.7 - Added globProportion calculation.
     # 0.8 - Added makeRegions() method.
+    # 1.0.0 - Added random disorder function and elevated to v1.x as fully functional for SLiMSuite
+    # 1.1.0 - Added strict option for disorder method selection. Added minorder=X.
+    # 1.2.0 - Added saving and loading scores to IUScoreDir/.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -94,12 +107,13 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
     # [Y] : Add a PrintLog option that controls whether printing to Log or not.
     # [ ] : Neaten and tidy
     # [ ] : Add domain-based disorder stuff?
-    # [ ] : Add option to store/re-read prediction data for later use.
+    # [Y] : Add option to store/re-read prediction data for later use.
+    # [Y] : Add reading data from IUScore directory.
     '''
 #########################################################################################################################
 def makeInfo():     ### Makes Info object
     '''Makes rje.Info object for program.'''
-    (program, version, last_edit, cyear) = ('RJE_DISORDER', '0.8', 'August 2014', '2008')
+    (program, version, last_edit, cyear) = ('RJE_DISORDER', '1.2.1', 'April 2018', '2008')
     description = 'Disorder Prediction Module'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.']
@@ -167,16 +181,22 @@ class Disorder(rje.RJE_Object):
     - Disorder = Disorder method to use (iupred/foldindex) [None]
     - IUPath = The full path to the IUPred exectuable [c:/bioware/iupred/iupred.exe]
     - IUMethod = IUPred method to use (long/short) [short]
+    - IUScoreDir=PATH : Path in which to save protein acc.DISORDER.txt score files for re-use [None]
+    - Smoothing = Smoothing mode for minregion=X and minorder=X smoothing (foldfirst/sequence) [foldfirst]
     
     Opt:boolean
+    - DisCalculate=T/F: Whether to try to calculate disorder if existing score not loaded [True]
     - Flat = whether ResidueDisorder is a "flat" 1/0 or graded (e.g. raw IUPred)
     - IUChDir = Whether to change to IUPred directory and run (True) or rely on IUPred_PATH env variable [False]
+    - MD5Acc=T/F      : Whether to use md5sum hexdigest hashing of sequence in place of accession numbers [True]
     - PrintLog = whether to print disorder prediction status to Log [False]
+    - Strict=T/F  : Whether to exit with error if disorder method not found [False]
 
     Stat:numeric
     - IUCut = Cut-off for IUPred results [0.2]
     - FILoop = Number of times to try connecting to FoldIndex server [10]
     - FISleep = Number of seconds to sleep between attempts [2]
+    - MinOrder=X  : Minimum length of an ordered region; over-rides minregion if >-1 [-1]
     - MinRegion = Minimum length of an ordered/disordered region [0]
     
     List:list
@@ -194,17 +214,18 @@ class Disorder(rje.RJE_Object):
     def _setAttributes(self):   ### Sets Attributes of Object
         '''Sets Attributes of Object.'''
         ### Basics ###
-        self.infolist = ['Sequence','Disorder','IUPath','IUMethod','ANCHOR']
-        self.optlist = ['Flat','PrintLog','IUChDir']
-        self.statlist = ['IUCut','FILoop','FISleep','MinRegion']
+        self.infolist = ['Sequence','Disorder','IUPath','IUMethod','ANCHOR','IUScoreDir']
+        self.optlist = ['DisCalculate','Flat','PrintLog','IUChDir','Strict','MD5Acc']
+        self.statlist = ['IUCut','FILoop','FISleep','MinOrder','MinRegion','Smoothing']
         self.listlist = ['ResidueDisorder','RegionDisorder','RegionFold']
         self.dictlist = []
         self.objlist = []
         ### Defaults ###
         self._setDefaults(info='',opt=False,stat=0.2,obj=None,setlist=True,setdict=True)
         self.setInfo({'IUPath':rje.makePath('c:/bioware/iupred/iupred.exe',wholepath=True),'IUMethod':'short',
-                      'Disorder':'iupred'})
-        self.setStat({'FILoop':10,'FISleep':2,'MinRegion':0,'IUCut':0.2})
+                      'Disorder':'iupred','Smoothing':'foldfirst','IUScoreDir':''})
+        self.setStat({'FILoop':10,'FISleep':2,'MinOrder':-1,'MinRegion':0,'IUCut':0.2})
+        self.setOpt({'MD5Acc':False,'DisCalculate':True})
 #########################################################################################################################
     def _cmdList(self):     ### Sets Attributes from commandline
         '''
@@ -214,15 +235,18 @@ class Disorder(rje.RJE_Object):
         for cmd in self.cmd_list:
             try:
                 self._generalCmd(cmd)
-                self._cmdReadList(cmd,'info',['Disorder','Name','Sequence','IUMethod'])
+                self._cmdReadList(cmd,'info',['Disorder','Name','Sequence','IUMethod','Smoothing'])
                 self._cmdRead(cmd,type='stat',att='IUCut')
                 self._cmdRead(cmd,type='fullpath',att='IUPath')
                 self._cmdRead(cmd,type='fullpath',att='ANCHOR')
-                self._cmdReadList(cmd,'int',['FILoop','FISleep','MinRegion'])
-                self._cmdReadList(cmd,'opt',['IUChDir'])                                        
+                self._cmdReadList(cmd,'int',['FILoop','FISleep','MinOrder','MinRegion'])
+                self._cmdReadList(cmd,'opt',['IUChDir','Strict','MD5Acc'])
+                self._cmdReadList(cmd,'path',['IUScoreDir'])
             except: self.log.errorLog('Problem with cmd:%s' % cmd)
         ### AutoRun ###
         if self.info['Sequence'].lower() not in ['none','']: self.disorder(self.info['Sequence'])
+#########################################################################################################################
+    def md5hash(self,sequence=''): return hashlib.md5(sequence).hexdigest()
 #########################################################################################################################
     ### <3> ### Disorder Prediction Methods                                                                             #
 #########################################################################################################################
@@ -235,19 +259,77 @@ class Disorder(rje.RJE_Object):
         try:### ~ [1] ~ Setup sequence and name ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             self.info['Sequence'] = string.join(string.split(sequence,'-'),'')
             if name: self.info['Name'] = name
+            sname = string.split(self.info['Name'])[0]
             if not self.info['Sequence']:
                 self.log.errorLog('Cannot calculate disorder: no AAs given in sequence!',printerror=False)
                 return False
-            ### ~ [2] ~ Run Disorder ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            ### ~ [2] ~ Load Disorder ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            loaded = self.loadDisorder()
+            #self.debug(loaded)
+            if loaded: return loaded
+            if not self.getBool('DisCalculate'):
+                self.warnLog('Failed to load %s %s disorder (discalculate=F)' % (sname,self.getStrLC('Disorder')))
+                return self.noDisorder()
+            ### ~ [3] ~ Run Disorder ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if self.info['Disorder'].lower() == 'iupred': return self.iuPred()
             elif self.info['Disorder'].lower() == 'foldindex': return self.foldIndex()
             elif self.info['Disorder'].lower() == 'anchor': return self.ANCHOR()
             elif self.info['Disorder'].lower() == 'parse': return self.parseDisorder()
+            elif self.info['Disorder'].lower() == 'random': return self.randomDisorder()
             else:
-                self.log.errorLog('Cannot calculate disorder: no disorder method given!',printerror=False)
-                return False
+                if self.getBool('Strict'):
+                    self.errorLog('Cannot calculate %s disorder: disorder method "%s" not recognised (strict=T)!' % (sname,self.info['Disorder'].lower()),printerror=False)
+                    return False
+                else:
+                    self.warnLog('No disorder calculation for %s: disorder method "%s" not recognised (strict=F)!' % (sname,self.info['Disorder'].lower()))
+                    return self.noDisorder()
         except:
             self.log.errorLog('Error in Disorder.disorder(%s)' % name,quitchoice=True)
+            return False
+#########################################################################################################################
+    def loadDisorder(self): ### Looks for existing disorder prediction results and loads if found.
+        '''Looks for existing disorder prediction results and loads if found.'''
+        try:### ~ [1] ~ Setup sequence and name ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            sname = string.split(self.getStr('Name'))[0]
+            if not self.getStrLC('IUScoreDir'): return False
+            sequence = self.getStrUC('Sequence')
+            if self.getBool('MD5Acc'): acc = self.md5hash(sequence)
+            else: acc = string.split(sname,'__',maxsplit=1)[-1]
+            ### ~ [2] ~ Look for file ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            ifile = '%s%s.%s.txt' % (self.getStr('IUScoreDir'),acc,self.getStrLC('Disorder'))
+            #self.debug(ifile)
+            if not os.path.exists(ifile): return False
+            ### ~ [3] ~ Parse file ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            self.list['ResidueDisorder'] = []
+            fline = open(ifile,'r').readline()
+            for dstr in string.split(fline)[1:]: self.list['ResidueDisorder'].append(string.atof(dstr))
+            if len(self.list['ResidueDisorder']) != len(sequence):
+                self.errorLog('%s Disorder score length mismatch (%d score vs %d pos)' % (sname,len(self.list['ResidueDisorder']),len(sequence)),printerror=False)
+                self.list['ResidueDisorder'] = []; return False
+            return True
+        except:
+            self.log.errorLog('Error in Disorder.loadDisorder(%s)' % sname,quitchoice=True)
+            return False
+#########################################################################################################################
+    def saveDisorder(self): ### Saves disorder prediction results to file.
+        '''Saves disorder prediction results to file.'''
+        try:### ~ [1] ~ Setup sequence and name ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            sname = string.split(self.getStr('Name'))[0]
+            if not self.getStrLC('IUScoreDir'): return False
+            sequence = self.getStrUC('Sequence')
+            if self.getBool('MD5Acc'): acc = self.md5hash(sequence)
+            else: acc = string.split(sname,'__',maxsplit=1)[-1]
+            ### ~ [2] ~ Set up file ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            ifile = '%s%s.%s.txt' % (self.getStr('IUScoreDir'),acc,self.getStrLC('Disorder'))
+            ### ~ [3] ~ Save to File ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            if self.list['ResidueDisorder']:  # Should have scores
+                dlist = []
+                for x in self.list['ResidueDisorder']:
+                    dlist.append('%f' % x)
+                rje.mkDir(self,ifile)
+                open(ifile,'w').write('%s\t%s\n' % (sname,string.join(dlist)))
+        except:
+            self.log.errorLog('Error in Disorder.loadDisorder(%s)' % sname,quitchoice=True)
             return False
 #########################################################################################################################
     def iuPred(self,retry=2):     ### Runs IUPred disorder prediction
@@ -290,6 +372,7 @@ class Disorder(rje.RJE_Object):
             if len(self.list['ResidueDisorder']) != len(sequence):
                 self.log.errorLog('%s: Sequence = %d aa but IUPred results stop at %s!' % (name,len(sequence),len(self.list['ResidueDisorder'])),printerror=False)
                 raise ValueError
+            self.saveDisorder()
 
             ### Make Regions ###
             self.list['RegionDisorder'] = []
@@ -407,6 +490,7 @@ class Disorder(rje.RJE_Object):
             if len(self.list['ResidueDisorder']) != len(sequence):
                 self.log.errorLog('%s: Sequence = %d aa but ANCHOR results stop at %s!' % (name,len(sequence),len(self.list['ResidueDisorder'])),printerror=False)
                 raise ValueError
+            self.saveDisorder()
             ### ~ [3] ~ Make Regions ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             self.list['RegionDisorder'] = []
             self.list['RegionFold'] = []
@@ -483,6 +567,7 @@ class Disorder(rje.RJE_Object):
                     self.list['RegionDisorder'].append((string.atoi(fm[0]),string.atoi(fm[1])))
                     for i in range(string.atoi(fm[0])-1,string.atoi(fm[1])):
                         self.list['ResidueDisorder'][i] = 1.0
+            self.saveDisorder()
             self.minRegion()
             if self.opt['PrintLog']: self.log.printLog('\r#DIS','FoldIndex Disorder prediction complete: %d disorder regions, %d disordered aa' % (len(self.list['RegionDisorder']),sum(self.list['ResidueDisorder'])))
             self.opt['Flat'] = True
@@ -513,11 +598,75 @@ class Disorder(rje.RJE_Object):
                     end = string.atoi(y)
                     for r in range(start,end): self.list['ResidueDisorder'][r] = score
                     if i == '#': self.list['RegionDisorder'].append((start,end))
+            self.saveDisorder()
             self.minRegion()
             if self.opt['PrintLog']: self.log.printLog('\r#DIS','DisProt Disorder parsing complete: %d disorder regions, %d disordered aa' % (len(self.list['RegionDisorder']),self.list['ResidueDisorder'].count(1.0)))
             return True
         except:
             self.log.errorLog('Error in Disorder.foldIndex(%s)' % self.info['Name'],quitchoice=True)
+            return False
+#########################################################################################################################
+    def noDisorder(self):    ### Generates list of 0.0 disorder scores.
+        '''Generates list of 0.0 disorder scores.'''
+        try:
+            ### Setup sequence ###
+            sequence = self.info['Sequence'].upper()
+
+            ### Generate Random Disorder ###
+            self.list['ResidueDisorder'] = [1.0] * len(sequence)
+
+            ### Make Regions ###
+            self.list['RegionDisorder'] = [(1,len(sequence))]
+            self.list['RegionFold'] = []
+            #if self.opt['PrintLog']: self.log.printLog('\r#DIS','No Disorder prediction: %d disorder regions, %d disordered aa' % (len(self.list['RegionDisorder']),dx))
+            return True
+        except:
+            self.log.errorLog('Error in Disorder.randomDisorder(%s)' % self.info['Name'],quitchoice=True)
+            return False
+#########################################################################################################################
+    def randomDisorder(self):    ### Generates random disorder scores.
+        '''Generates random disorder scores.'''
+        try:
+            ### Setup sequence ###
+            sequence = self.info['Sequence'].upper()
+
+            ### Generate Random Disorder ###
+            self.list['ResidueDisorder'] = []
+            for i in sequence:
+                score = random.random()
+                self.list['ResidueDisorder'].append(score)
+            self.saveDisorder()
+
+            ### Make Regions ###
+            self.list['RegionDisorder'] = []
+            self.list['RegionFold'] = []
+            start = 0
+            fstart = 0
+            i = 0
+            dx = 0
+            while i < len(sequence):
+                score = self.list['ResidueDisorder'][i]
+                i += 1
+                if not start and score > self.stat['IUCut']:    ### Start new disorder ###
+                    start = i
+                elif start and score <= self.stat['IUCut']:     ### End!
+                    self.list['RegionDisorder'].append((start,i-1))
+                    dx += i - start
+                    start = 0
+                if not fstart and score <= self.stat['IUCut']:    ### Start new fold ###
+                    fstart = i
+                elif fstart and score > self.stat['IUCut']:     ### End!
+                    self.list['RegionFold'].append((fstart,i-1))
+                    fstart = 0
+            if start:
+                self.list['RegionDisorder'].append((start,len(sequence)))
+                dx += len(sequence) + 1 - start
+            if fstart: self.list['RegionFold'].append((fstart,len(sequence)))
+            self.minRegion()
+            if self.opt['PrintLog']: self.log.printLog('\r#DIS','Random Disorder prediction complete: %d disorder regions, %d disordered aa' % (len(self.list['RegionDisorder']),dx))
+            return True
+        except:
+            self.log.errorLog('Error in Disorder.randomDisorder(%s)' % self.info['Name'],quitchoice=True)
             return False
 #########################################################################################################################
     def globProportion(self,absolute=False):    ### Returns the proportion that is globular
@@ -542,7 +691,9 @@ class Disorder(rje.RJE_Object):
     def minRegion(self):    ### Reduced self.list['RegionDisorder']/self.list['RegionFold'] using stat['MinRegion']
         '''Reduced self.list['RegionDisorder']/self.list['RegionFold'] using stat['MinRegion'].'''
         try:### ~ [1] ~ Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            if not self.list['RegionFold'] or not self.list['RegionDisorder'] or self.stat['MinRegion'] < 1: return 
+            if self.getStrLC('Smoothing') != 'sequence': return self.foldMinRegion()
+            if self.stat['MinOrder'] < 0: self.stat['MinOrder'] = self.stat['MinRegion']
+            if not self.list['RegionFold'] or not self.list['RegionDisorder'] or max(self.stat['MinRegion'],self.stat['MinOrder']) < 1: return
             foldbackup = self.list['RegionFold'][0:]
             disorderbackup = self.list['RegionDisorder'][0:]
             nterm = 'Disorder'                              # State of nterminus
@@ -570,6 +721,83 @@ class Disorder(rje.RJE_Object):
                 self.list['Region%s' % state].append((edges[0],edges[1]))
                 edges = edges[2:]
                 state = swap[state]            
+        except:
+            self.errorLog('Problem applying MinRegion(%d)' % self.stat['MinRegion'],quitchoice=self.dev() or self.debugging())
+            self.list['RegionFold'] = foldbackup
+            self.list['RegionDisorder'] = disorderbackup
+        #x#self.deBug('::\nOrd:%s\nDis:%s\n' % (self.list['RegionFold'],self.list['RegionDisorder']))
+#########################################################################################################################
+    def foldMinRegion(self):    ### Reduced self.list['RegionDisorder']/self.list['RegionFold'] using stat['MinRegion']
+        '''Reduced self.list['RegionDisorder']/self.list['RegionFold'] using stat['MinRegion'].'''
+        try:### ~ [1] ~ Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            if self.stat['MinOrder'] < 0: self.stat['MinOrder'] = self.stat['MinRegion']
+            if not self.list['RegionFold'] or not self.list['RegionDisorder'] or max(self.stat['MinRegion'],self.stat['MinOrder']) < 1: return
+            foldbackup = self.list['RegionFold'][0:]
+            disorderbackup = self.list['RegionDisorder'][0:]
+            nterm = 'Disorder'                              # State of nterminus
+            swap = {'Disorder':'Fold','Fold':'Disorder'}    # State swapper
+            if self.list['RegionFold'][0][0] == 1: nterm = 'Fold'
+            edges = []
+            for state in ['Fold','Disorder']:
+                for region in self.list['Region%s' % state]: edges += [(region[0],region[1],state)]
+            edges.sort()
+            #x#self.deBug('Ord:%s\nDis:%s' % (self.list['RegionFold'],self.list['RegionDisorder']))
+            ### ~ [2] ~ Remove small regions ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            self.bugPrint('%s' % edges)
+            for n in range(1,max(self.stat['MinRegion'],self.stat['MinOrder'])):   # Work up in size
+                if len(edges) == 1: break
+                #i# First, look at ordered regions
+                if n < self.stat['MinOrder']:
+                    self.bugPrint('>>> Fold:%d' % n)
+                    i = 0
+                    while i < len(edges):
+                        if edges[i][2] == 'Fold' and (edges[i][1] - edges[i][0] + 1) == n:    # This region is too small
+                            if i == 0:
+                                nterm = swap[nterm]
+                                edges[i+1] = (edges[i][0],edges[i+1][1],edges[i+1][2])
+                                edges = edges[i+1:]
+                                self.bugPrint('%s' % edges)
+                            elif (i+1) == len(edges):
+                                edges[i-1] = (edges[i-1][0],edges[i][1],edges[i-1][2])
+                                edges = edges[:i]
+                                self.bugPrint('%s' % edges)
+                            else:
+                                self.bugPrint('%d vs %d (%s)' % (i,len(edges),(i+1) == len(edges)))
+                                self.bugPrint(edges[i-1:i+2])
+                                edges[i-1] = (edges[i-1][0],edges[i+1][1],edges[i-1][2])
+                                edges = edges[:i] + edges[i+2:]
+                                self.bugPrint('%s' % edges)
+                        else: i += 1
+                #i# Next, look at disordered regions
+                if n < self.stat['MinRegion']:
+                    self.bugPrint('>>> Disorder:%d' % n)
+                    i = 0
+                    while i < len(edges):
+                        if edges[i][2] == 'Disorder' and (edges[i][1] - edges[i][0] + 1) == n:    # This region is too small
+                            if i == 0:
+                                nterm = swap[nterm]
+                                edges[i+1] = (edges[i][0],edges[i+1][1],edges[i+1][2])
+                                edges = edges[i+1:]
+                                self.bugPrint('%s' % edges)
+                            elif (i+1) == len(edges):
+                                edges[i-1] = (edges[i-1][0],edges[i][1],edges[i-1][2])
+                                edges = edges[:i]
+                                self.bugPrint('%s' % edges)
+                            else:
+                                edges[i-1] = (edges[i-1][0],edges[i+1][1],edges[i-1][2])
+                                edges = edges[:i] + edges[i+2:]
+                                self.bugPrint('%s' % edges)
+                        else: i += 1
+            #x#self.deBug(' => %s' % (edges))
+            ### ~ [3] ~ Regenerate Lists ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            self.list['RegionFold'] = []
+            self.list['RegionDisorder'] = []
+            state = nterm
+            while edges:
+                reg = edges.pop(0)
+                self.list['Region%s' % state].append((reg[0],reg[1]))
+                if reg[2] != state: raise ValueError
+                state = swap[state]
         except:
             self.errorLog('Problem applying MinRegion(%d)' % self.stat['MinRegion'],quitchoice=self.dev() or self.debugging())
             self.list['RegionFold'] = foldbackup

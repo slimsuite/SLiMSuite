@@ -65,7 +65,7 @@ Commandline: ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     megablam=T/F    : Whether to create and use all-by-all GABLAM results for (gablamdis) UPC generation [False]
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
     ### SearchDB Options I: Input Protein Sequence Masking ###
-    masking=T/F     : Master control switch to turn off all masking if False [False]
+    masking=T/F     : Master control switch to turn off all masking if False [True]
     dismask=T/F     : Whether to mask ordered regions (see rje_disorder for options) [False]
     consmask=T/F    : Whether to use relative conservation masking [False]
     ftmask=LIST     : UniProt features to mask out (True=EM,DOMAIN,TRANSMEM) []

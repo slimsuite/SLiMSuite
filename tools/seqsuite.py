@@ -19,8 +19,8 @@
 """
 Module:       SeqSuite
 Description:  Miscellaneous biological sequence analysis toolkit
-Version:      1.14.0
-Last Edit:    22/08/17
+Version:      1.19.1
+Last Edit:    19/06/18
 Copyright (C) 2014  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -43,7 +43,9 @@ SeqSuite tools:
     - ExTATIC = extatic.ExTATIC. !!! Development only. Not available in main download. !!!
     - FIESTA = fiesta.FIESTA. Fasta Input EST Analysis. Transcriptome annotation/querying.
     - GABLAM = gablam.GABLAM. Global Analysis of BLAST Local AlignMents
+    - GASP = gasp.GASP. Gapped Ancestral Sequence Prediction.
     - Genbank = rje_genbank.GenBank. Genbank fetching/parsing module.
+    - GFF = rje_gff.GFF. GFF File Parser and Manipulator.
     - GOPHER = gopher.GOPHER. Generation of Orthologous Proteins from Homology-based Estimation of Relationships.
     - HAQESAC = haqesac.HAQESAC. Homologue Alignment Quality, Establishment of Subfamilies and Ancestor Construction.
     - MITAB = rje_mitab.MITAB. MITAB PPI parser.
@@ -61,6 +63,9 @@ SeqSuite tools:
     - Uniprot = rje_uniprot.Uniprot. Uniprot download and parsing module.
     - XRef = rje_xref.XRef. Identifier cross-referencing module.
     - Zen - rje_zen.Zen. Random Zen wisdom generator and test code.
+
+Special run modes:
+    - summarise = run seqlist summarise on each file in `batchrun=FILELIST`
 
 Commandline:
     ### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -89,17 +94,17 @@ sys.path.append(os.path.join(slimsuitepath,'libraries/'))
 sys.path.append(os.path.join(slimsuitepath,'tools/'))
 sys.path.append(os.path.join(slimsuitepath,'extras/'))
 ### User modules - remember to add *.__doc__ to cmdHelp() below ###
-import rje, rje_obj, rje_zen
-import rje_dbase, rje_ensembl, rje_genbank, rje_mitab, rje_pydocs, rje_seq, rje_seqlist, rje_taxonomy, rje_tree, rje_uniprot, rje_xref
+import rje, rje_db, rje_obj, rje_zen
+import rje_dbase, rje_ensembl, rje_genbank, rje_gff, rje_mitab, rje_pydocs, rje_seq, rje_seqlist, rje_taxonomy, rje_tree, rje_uniprot, rje_xref
 import rje_blast_V2 as rje_blast
-import fiesta, gablam, gopher, haqesac, multihaq
+import fiesta, gablam, gasp, gopher, haqesac, multihaq
 import pingu_V4 as pingu
 import pagsat, smrtscape, snapper, snp_mapper, rje_samtools
 #########################################################################################################################
 # Dev modules (not in main download):
 try:
     sys.path.append(os.path.join(slimsuitepath,'dev/'))
-    import revert, extatic
+    import revert, extatic, rje_apollo
 except: print 'Note: Failed to import dev modules etc. Some experimental features unavailable.\n|--------------------------------------|'
 #########################################################################################################################
 def history():  ### Program History - only a method for PythonWin collapsing! ###
@@ -127,6 +132,13 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 1.12.1 - Fixed possible download run bug. (No dev/ modules?)
     # 1.13.0 - Changed GABLAM defaults to fullblast=T keepblast=T.
     # 1.14.0 - Added BLAST run object, particularly for qassemblefas running.
+    # 1.14.1 - Added zentest for testing the REST servers.
+    # 1.15.0 - Added GASP to REST servers.
+    # 1.16.0 - Add rje_gff.GFF to REST servers.
+    # 1.17.0 - Added batch summarise mode.
+    # 1.18.0 - Added rje_apollo.Apollo to REST servers.
+    # 1.19.0 - Tweaked the output of batch summarise, adding Gap% and reducing dp for some fields.
+    # 1.19.1 - Fixed GapPC summarise output to be a percentage, not a fraction.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -143,7 +155,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copy_right) = ('SeqSuite', '1.14.0', 'January 2017', '2014')
+    (program, version, last_edit, copy_right) = ('SeqSuite', '1.19.1', 'June 2018', '2014')
     description = 'Miscellaneous biological sequence analysis tools suite'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_obj.zen()]
@@ -191,10 +203,11 @@ def setupProgram(): ### Basic Setup of Program when called from commandline.
 #########################################################################################################################
 mod = {'seqlist':rje_seqlist,'rje_seqlist':rje_seqlist,'rje_seq':rje_seq,'seq':rje_seq,'xref':rje_xref,'rje_xref':rje_xref,
        'rje_blast':rje_blast,'blast':rje_blast,'blast+':rje_blast,
-       'rje_zen':rje_zen,'zen':rje_zen,'rje_mitab':rje_mitab,'mitab':rje_mitab,'pingu':pingu,
+       'rje_zen':rje_zen,'zen':rje_zen,'zentest':rje_zen,'rje_mitab':rje_mitab,'mitab':rje_mitab,'pingu':pingu,
        'dbase':rje_dbase,'database':rje_dbase,'uniprot':rje_uniprot,'rje_uniprot':rje_uniprot,
        'rje_taxonomy':rje_taxonomy,'taxonomy':rje_taxonomy,'rje_tree':rje_tree,'tree':rje_tree,
        'pydocs':rje_pydocs,'genbank':rje_genbank,'gopher':gopher,'gablam':gablam,'pagsat':pagsat,'smrtscape':smrtscape,
+       'gasp':gasp,'gff':rje_gff,'summarise':None,'apollo':rje_apollo,'rje_apollo':rje_apollo,'webapollo':rje_apollo,
        'samtools':rje_samtools,'snapper':snapper,'snp_mapper':snp_mapper,
        'ensembl':rje_ensembl,'rje_ensembl':rje_ensembl,'extatic':extatic,'pacbio':smrtscape,
        'fiesta':fiesta,'haqesac':haqesac,'multihaq':multihaq,'revert':revert}
@@ -299,6 +312,7 @@ class SeqSuite(rje_obj.RJE_Object):
     def run(self):  ### Main run method
         '''Main run method.'''
         try:### ~ [1] ~ Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            if self.getStrLC('Name') == 'summarise': return self.batchSummarise()
             if self.list['BatchRun']: return self.batchRun()
             if not self.setup(): return False
             slimobj = self.obj['Prog']
@@ -348,6 +362,8 @@ class SeqSuite(rje_obj.RJE_Object):
                 elif prog in ['revert']: self.obj['Prog'] = revert.REVERT(self.log,progcmd)
                 elif prog in ['fiesta']: self.obj['Prog'] = fiesta.FIESTA(self.log,progcmd)
                 elif prog in ['gablam']: self.obj['Prog'] = gablam.GABLAM(self.log,['fullblast=T','keepblast=T']+progcmd)
+                elif prog in ['gasp']: self.obj['Prog'] = gasp.GASP(self.log,progcmd)
+                elif prog in ['gff']: self.obj['Prog'] = rje_gff.GFF(self.log,progcmd)
                 elif prog in ['gopher']: self.obj['Prog'] = gopher.Gopher(self.log,progcmd)
                 elif prog in ['haqesac']: self.obj['Prog'] = haqesac.HAQESAC(self.log,progcmd)
                 elif prog in ['multihaq']: self.obj['Prog'] = multihaq.MultiHAQ(self.log,progcmd)
@@ -358,8 +374,9 @@ class SeqSuite(rje_obj.RJE_Object):
                 elif prog in ['samtools']: self.obj['Prog'] = rje_samtools.SAMtools(self.log,progcmd)
                 elif prog in ['snapper']: self.obj['Prog'] = snapper.Snapper(self.log,progcmd)
                 elif prog in ['snp_mapper']: self.obj['Prog'] = snp_mapper.SNPMap(self.log,progcmd)
-                elif prog in ['rje_zen','zen']: self.obj['Prog'] = rje_zen.Zen(self.log,progcmd)
+                elif prog in ['rje_zen','zen','zentest']: self.obj['Prog'] = rje_zen.Zen(self.log,progcmd)
                 elif prog in ['rje_blast','blast','blast+']: self.obj['Prog'] = rje_blast.BLASTRun(self.log,progcmd)
+                elif prog in ['rje_apollo','apollo','webapollo']: self.obj['Prog'] = rje_apollo.Apollo(self.log,progcmd)
 
             ### ~ [2] ~ Failure to recognise program ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if not self.obj['Prog']:
@@ -427,6 +444,39 @@ class SeqSuite(rje_obj.RJE_Object):
             self.list['BatchRun'] = batchfiles
             return batchobj
         except: self.errorLog('%s.batchRun error' % self); return False
+#########################################################################################################################
+    def batchSummarise(self):   ### Batch run seqlist summarise on batchrun=LIST files and output table of results
+        '''
+        Batch run seqlist summarise on batchrun=LIST files and output table of results
+        '''
+        try:### ~ [1] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            if not self.list['BatchRun']: raise ValueError('Need to provide batchrun=LIST files for summarise mode.')
+            db = rje_db.Database(self.log,self.cmd_list)
+            self.printLog('#BASE',db.baseFile())
+            sdb = None
+            if not self.force():
+                sdb = db.addTable(mainkeys=['File'],name='summarise',expect=False)
+            if not sdb: sdb = db.addEmptyTable('summarise',['File'],['File'])
+            ### ~ [2] Run Summarise ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            self.printLog('#BATCH','Batch summarising %s input files' % rje.iLen(self.list['BatchRun']))
+            for file in self.list['BatchRun']:
+                seqdata = rje_seqlist.SeqList(self.log,self.cmd_list+['seqin=%s' % file,'autoload=T','summarise=F']).summarise()
+                if seqdata:
+                    if 'GC' in seqdata:
+                        seqdata.pop('GC')
+                        seqdata['GCPC'] = '%.2f' % seqdata['GCPC']
+                    if 'GapLength' in seqdata: seqdata['GapPC'] = '%.2f' % (100.0*seqdata['GapLength']/seqdata['TotLength'])
+                    seqdata['MeanLength'] = '%.1f' % seqdata['MeanLength']
+                    for field in string.split('SeqNum, TotLength, MinLength, MaxLength, MeanLength, MedLength, N50Length, L50Count, GapLength, GapPC, GCPC',', '):
+                        if field in seqdata and field not in sdb.fields(): sdb.addField(field)
+                    for field in seqdata.keys():
+                        if field not in sdb.fields(): sdb.addField(field)
+                    sdb.addEntry(seqdata)
+                else: self.errorLog('Summarise failed for %s' % file,printerror=False)
+            ### ~ [3] Output Summarise ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            sdb.saveToFile()
+            return True
+        except: self.errorLog('%s.batchSummarise error' % self); return False
 #########################################################################################################################
     ### <4> ### Testing Methods                                                                                         #
 #########################################################################################################################

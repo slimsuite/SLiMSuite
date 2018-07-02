@@ -19,8 +19,8 @@
 """
 Program:      HAQESAC
 Description:  Homologue Alignment Quality, Establishment of Subfamilies and Ancestor Construction
-Version:      1.11.0
-Last Edit:    31/10/17
+Version:      1.12.0
+Last Edit:    20/03/18
 Citation:     Edwards et al. (2007), Nature Chem. Biol. 3(2):108-112. [PMID: 17220901]
 Copyright (C) 2007  Richard J. Edwards - See source code for GNU License Notice
 
@@ -84,6 +84,7 @@ Commandline Options:
     #!# filterseq=FILE  : Filters out sequences in given file (Log, Fasta or list of names)
     #!# filterspec=FILE : Filters out sequences according to species (codes) listed in given file
     unkspec=T/F     : Whether sequences of unknown species are allowed [True]
+    9spec=T/F       : Whether to treat 9XXXX species codes as actual species (generally higher taxa) [False]
     dblist=X,Y,..,Z : List of databases in order of preference (good to bad)
     dbonly=T/F      : Whether to only allow sequences from listed databases [False]
     #!# keepdesc=FILE   : Only keeps sequences with 1+ of text listed in given file in sequence description
@@ -226,6 +227,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 1.10.2 - Corrected typos and disabled buggy post-HAQESAC data reduction.
     # 1.10.3 - Added catching of bad query when i=-1.
     # 1.11.0 - Added resdir=PATH [./HAQESAC/] for d>0 outputs.
+    # 1.12.0 - 9spec=T/F   : Whether to treat 9XXXX species codes as actual species (generally higher taxa) [False]
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -240,11 +242,12 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
     # [ ] : Fix i=1 bug.
     # [ ] : Add REST output.
     # [ ] : Convert to new object type.
+    # [Y] : Add option to screen out 9XXXX species codes for duplication identification.
     '''
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, cyear) = ('HAQESAC', '1.11.0', 'October 2017', '2005')
+    (program, version, last_edit, cyear) = ('HAQESAC', '1.12.0', 'March 2018', '2005')
     description = 'Homologue Alignment Quality, Establishment of Subfamilies and Ancestor Construction'
     author = 'Dr Richard J. Edwards.'
     comments = ['Cite: Edwards RJ et al. (2007) Nature Chem. Biol. 3(2):108-112.']

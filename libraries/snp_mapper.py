@@ -320,6 +320,7 @@ class SNPMap(rje_obj.RJE_Object):
             #!# Replace with rje_genbank code? #!#
             if open(seqin,'r').readline()[:1] != '>': gbfile = seqin
             elif rje.exists('%s.gb' % seqin): gbfile = '%s.gb' % seqin
+            elif rje.exists('%s.gbk' % seqin): gbfile = '%s.gbk' % seqin
             else: gbfile = '%s.gb' %  rje.baseFile(seqin)
             #x#if open(seqin,'r').readline()[:1] != '>':   # Not fasta file: assume Genbank. Should have features file.
             if rje.exists(gbfile):   # Not fasta file: assume Genbank. Should have features file.

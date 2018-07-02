@@ -185,6 +185,7 @@ sys.path.append(os.path.join(slimsuitepath,'tools/'))
 ini_dir = os.path.join(slimsuitepath,'settings/')
 docs_dir = os.path.join(slimsuitepath,'docs/')
 #ini_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)),'../settings/')
+# SVN note: re02svnW
 #########################################################################################################################
 
 #########################################################################################################################
@@ -401,6 +402,7 @@ class RJE_Object_Shell(object):     ### Metaclass for inheritance by other class
                 newg = glob.glob(g); newg.sort()
                 self.list[att] += newg
         elif type in ['cdict','cdictlist']:   # Converts a CSV list into a dictionary
+            #i# cdictlist also puts the keys (in order) into a list object
             self.dict[att] = {}
             if type == 'cdictlist': self.list[att] = []
             clist = listFromCommand(value)
@@ -1882,6 +1884,7 @@ class Log(RJE_Object_Shell):
             if timeout: t = self.myRunTime(time.time() - self.stat['StartTime'])
             text = string.join(['\r'+id,t,string.strip(text,'\r\n')],'\t')
             if text[-1:] <> '\n' and newline: text += '\n'
+            text = text.replace(u'\xa0',' ')
             ### ~ [2] ~ Storage ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if self.opt['Webserver']: self.list['Log'].append(string.strip(text,'\r\n'))
             if warnlist and newline:
@@ -2011,6 +2014,10 @@ class Log(RJE_Object_Shell):
         return '%s:%s:%s' % (preZero(hour,24),preZero(mins,60),preZero(sec,60))
 #########################################################################################################################
     def name(self): return self.info['Name']
+#########################################################################################################################
+    def runDetails(self):
+        info = self.obj['Info']
+        return '%s V%s: run %s' % (info.program,info.version,time.asctime(time.localtime(info.start_time)))
 #########################################################################################################################
     ### <3> ### Summarise/Display Warnings/ErrorLog?                                                                    #
 #########################################################################################################################
@@ -2618,6 +2625,21 @@ def errorMsg(): ### Prints error message to screen and asks for death
 #########################################################################################################################
 ### Maths Functions                                                                                                     #
 #########################################################################################################################
+def median(numlist,avtie=True):    ### Returns median for a list of numbers
+    '''Returns median for a list of numbers.'''
+    if not numlist: return 0.0
+    n = len(numlist)
+    ncopy = numlist[0:]
+    ncopy.sort()
+    if isOdd(n) or not avtie: return ncopy[len(ncopy)/2]
+    return sum(ncopy[(len(ncopy)-1)/2:][:2]) / 2.0
+#########################################################################################################################
+def mean(numlist):    ### Returns mean for a list of numbers
+    '''Returns mean for a list of numbers.'''
+    if not numlist: return 0.0
+    n = len(numlist)
+    return float(sum(numlist)) / n
+#########################################################################################################################
 def meanse(numlist):    ### Returns (mean,standard error) for a list of numbers
     '''Returns (mean,standard error) for a list of numbers.'''
     if not numlist: return (0.0,0.0)
@@ -2640,6 +2662,13 @@ def meansd(numlist):    ### Returns (mean,standard deviation) for a list of numb
     variance /= n
     sd = math.sqrt(variance)
     return (mean,sd)
+#########################################################################################################################
+def safeDivide(numerator,denominator):  ### Converts to floats and divides or returns zero if denominator zero
+    '''Converts to floats and divides or returns zero if denominator zero.'''
+    numerator = float(numerator)
+    denominator = float(denominator)
+    if not denominator: return 0.0
+    return numerator / denominator
 #########################################################################################################################
 def modulus(num):   ### Returns modulus of number
     '''Returns modulus of number.'''
@@ -4393,6 +4422,8 @@ def setLog(info,out,cmd_list,printlog=True,fullcmd=True):  ### Makes Log Object 
                     log.warnLog(infowarn[1])
                 elif infowarn[0] == '#ERR':
                     log.errorLog(infowarn[1], printerror=False)
+                elif infowarn[0] == '#INI':
+                    if fullcmd: log.printLog(infowarn[0], infowarn[1], screen=False, error=True)
                 else:
                     log.printLog(infowarn[0], infowarn[1], screen=False, error=True)
             if fullcmd: log.printLog('#CMD','Full Command List: %s' % argString(tidyArgs(cmd_list)),screen=False)

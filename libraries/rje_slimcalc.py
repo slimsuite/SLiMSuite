@@ -19,8 +19,8 @@
 """
 Module:       rje_slimcalc
 Description:  SLiM Attribute Calculation Module
-Version:      0.9.3
-Last Edit:    27/09/17
+Version:      0.10.0
+Last Edit:    20/03/18
 Copyright (C) 2007  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -107,6 +107,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 0.9.1 - Modified combining of motif stats to handle expectString format for individual values.
     # 0.9.2 - Changed default conscore in docstring to RLC.
     # 0.9.3 - Changed fudge error to warning.
+    # 0.10.0 - Added extra disorder methods to slimcalc.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -117,10 +118,11 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
     # [ ] : Split into rje_seqcons, which should then be inherited by this module but usable by rje_seq alone.
     # [ ] : Add tree-weighted conservation. Generally tidy code.
     # [ ] : Add ANCHOR to slimcalc score output.
+    # [Y] : Add general disorder output "Dis" to scores to calculate and additional disorder scores
     '''
 #########################################################################################################################
 ### CONSTANTS ###                                                                                                     
-occstats = {'con':'Cons','cons':'Cons','sa':'SA','hyd':'Hyd','fold':'Fold','iup':'IUP','dis':'IUP','comp':'Comp',
+occstats = {'con':'Cons','cons':'Cons','sa':'SA','hyd':'Hyd','fold':'Fold','iup':'IUP','dis':'Dis','comp':'Comp',
             'chg':'Chg','charge':'Chg'}
 #########################################################################################################################
 ### END OF SECTION I                                                                                                    #
@@ -332,8 +334,10 @@ class SLiMCalc(rje.RJE_Object):
                 att = self.list['SLiMCalc'][i]
                 try: self.list['SLiMCalc'][i] = occstats[att].lower()
                 except:
-                    self.list['SLiMCalc'][i] = 'err'
-                    self.log.errorLog('SLiMCalc stat "%s" not recognised!' % att)
+                    self.list['SLiMCalc'][i] = self.list['SLiMCalc'][i].lower()
+                    self.printLog('#CALC','Treating "%s" as a disorder score method' % self.list['SLiMCalc'][i])
+                    #self.list['SLiMCalc'][i] = 'err'
+                    #self.log.errorLog('SLiMCalc stat "%s" not recognised!' % att)
             self.list['SLiMCalc'] = rje.sortUnique(self.list['SLiMCalc'],False,False)
             if 'err' in self.list['SLiMCalc']: self.list['SLiMCalc'].remove('err')
             ## ~ [1a] Percentiles ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
@@ -354,7 +358,8 @@ class SLiMCalc(rje.RJE_Object):
                         else: self.list['OccHeaders'] += ['%s_Cons' % taxa,'%s_HomNum' % taxa,'%s_GlobID' % taxa,'%s_LocID' % taxa]
                         if self.info['ConScore'] == 'all':
                             for method in ['Abs','Pos','Prob','Prop','Rel']: self.list['OccHeaders'].append('%s_Cons_%s' % (taxa,method))
-                else: self.list['OccHeaders'] += [occstats[att]]
+                elif att in occstats: self.list['OccHeaders'] += [occstats[att]]
+                else: self.list['OccHeaders'].append(att)
 
             ### ~ [3] Combined attribute Headers ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             for head in self.list['OccHeaders']:
@@ -397,6 +402,17 @@ class SLiMCalc(rje.RJE_Object):
                     self.obj['FoldIndex'].disorder(sequence=sequence,name=Seq.shortName())
                     calcdict['fold'] = self.obj['FoldIndex'].list['ResidueDisorder'][0:]
                     Seq.list['FoldIndex'] = self.obj['FoldIndex'].list['ResidueDisorder'][0:]
+            #i# Additional disorder methods
+            for att in calc:
+                if att == 'cons': continue  # Conservation is special and handled separately below.
+                if att not in calcdict:
+                    if att == 'dis': self.obj[att] = rje_disorder.Disorder(self.log,self.cmd_list)
+                    else: self.obj[att] = rje_disorder.Disorder(self.log,self.cmd_list+['disorder=%s' % att])
+                    self.debug(att)
+                    self.obj[att].disorder(sequence=sequence,name=Seq.shortName())
+                    calcdict[att] = self.obj[att].list['ResidueDisorder'][0:]
+                    Seq.list[att] = self.obj[att].list['ResidueDisorder'][0:]
+
             #!# seq_dom = seqDom(self,Seq,seq_dis) #!# Not yet implementd. See rje_motif_stats. #!#
             
             ### ~ [2] Calculation of Occurrence Attributes ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -411,7 +427,10 @@ class SLiMCalc(rje.RJE_Object):
                 ## ~ [2b] Calculate SA, Hyd, Charge, Complexity and disorder ~~~~~~~~~~~~~~~~~~~~~~ ##
                 for att in calc:
                     if att == 'cons': continue  # Conservation is special and handled separately below.
-                    stat = occstats[att]
+                    if att in occstats:
+                        stat = occstats[att]
+                    else:
+                        stat = att
                     ## Set window ##
                     win = self.stat['WinSize']    # Will return 0 if missing
                     if win >= 0: w = r - win

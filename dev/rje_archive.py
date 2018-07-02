@@ -19,8 +19,8 @@
 """
 Module:       rje_archive
 Description:  KDM Archive Manager
-Version:      0.4.0
-Last Edit:    11/09/17
+Version:      0.5.0
+Last Edit:    16/01/18
 Copyright (C) 2017  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -153,6 +153,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 0.3.1 - Fixed backups/backupdb bug.
     # 0.4.0 - Replaced module with uploadsh=X Full path for runnining upload.sh script ['/share/apps/unswdataarchive/2015-09-10/']
     # 0.4.1 - Added tryparent=T/F : Whether to try to run backup parent directory in case of failure [True]
+    # 0.5.0 - Updated to run on Mac with OSX=T.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -171,7 +172,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copy_right) = ('Archive', '0.4.1', 'September 2017', '2017')
+    (program, version, last_edit, copy_right) = ('Archive', '0.5.0', 'January 2018', '2017')
     description = 'KDM Archive Manager'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_obj.zen()]
@@ -394,6 +395,7 @@ class Archive(rje_obj.RJE_Object):
                 #self.getBool('TarGZ')
                 #self.getBool('RmDirs')
 
+
             ### ~ [3] Finish run ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             ## ~ [3a] Save updated projects ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             if self.getBool('Cleanup'):
@@ -519,7 +521,10 @@ class Archive(rje_obj.RJE_Object):
             dpath = os.path.expanduser(path)
             ### ~ [2] Parse details ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             # Total size of directory contents
-            size = int(string.split(os.popen('du %s --max-depth 1 --bytes' % dpath).readlines()[-1])[0])
+            if self.getBool('OSX'): #i# Will be in 512 byte blocks
+                size = int(string.split(os.popen('du -d 1 %s' % dpath).readlines()[-1])[0])
+            else:
+                size = int(string.split(os.popen('du %s --max-depth 1 --bytes' % dpath).readlines()[-1])[0])
             fnum = int(string.split(os.popen('ls -1p %s | grep "/$" -cv' % dpath).readlines()[-1])[0])
             dnum = int(string.split(os.popen('ls -1p %s | grep "/$" -c' % dpath).readlines()[-1])[0])
             project = self.getProject(dpath)

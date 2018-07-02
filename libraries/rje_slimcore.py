@@ -2496,6 +2496,7 @@ class SLiMCore(rje_obj.RJE_Object):
                         fline = ''; disobj.list['ResidueDisorder'] = []
                 if not fline and self.getStr('IUScoreDir'):    # Look for individual result
                     ifile = '%s%s.%s.txt' % (self.getStr('IUScoreDir'),acc,dkey)
+                    self.bugPrint(ifile)
                     if os.path.exists(ifile):
                         fline = open(ifile,'r').readline()
                         for dstr in string.split(fline)[1:]: disobj.list['ResidueDisorder'].append(string.atof(dstr))

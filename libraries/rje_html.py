@@ -19,8 +19,8 @@
 """
 Module:       RJE_HTML
 Description:  Module for generating HTML 
-Version:      0.2.1
-Last Edit:    28/01/15
+Version:      0.3.0
+Last Edit:    23/04/18
 Copyright (C) 2010  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -32,7 +32,8 @@ Commandline:
     border=X            : Border setting for tables [0]
     nobots=T/F          : Whether to add code to avoid Google Bots [True]
     analytics=X         : Google Analytics code to use with pages []
-    javascript=PATH     : Path to javascript files for tabs etc. ['http://www.southampton.ac.uk/~re1u06/javascript/']
+    javascript=PATH     : Path to javascript files for tabs etc. ['http://www.slimsuite.unsw.edu.au/javascript/']
+    jscripts=LIST       : List of javascript files to load ['stupidtable.js?dev']
     keywords=LIST       : List of keywords to put in page metadata []
     title=X             : Default title for HTML page []
     copyright=X         : Copyright statement for page ['RJ Edwards 2015']
@@ -58,6 +59,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 0.1 - Added additional commandline options, including Google Analytics
     # 0.2.0 - Added delimited text to HTML table conversion.
     # 0.2.1 - Updated default CSS to http://www.slimsuite.unsw.edu.au/stylesheets/slimhtml.css.
+    # 0.3.0 - Added optional loading of javascript files and stupidtable.js?dev default.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -67,7 +69,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, cyear) = ('RJE_HTML', '0.2.1', 'January 2015', '2010')
+    (program, version, last_edit, cyear) = ('RJE_HTML', '0.3.0', 'April 2018', '2010')
     description = 'RJE HTML Module'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_zen.Zen().wisdom()]
@@ -128,7 +130,7 @@ class HTML(rje.RJE_Object):
     Info:str
     - Analytics = Google Analytics code to use with pages []
     - Copyright = Copyright statement for page ['RJ Edwards 2012']
-    - Javascript = Path to javascript files for tabs etc. ['http://www.southampton.ac.uk/~re1u06/javascript/']
+    - Javascript = Path to javascript files for tabs etc. ['http://www.slimsuite.unsw.edu.au/javascript/']
     - Tabber = Tabber javascript file location ['tabber.js']
     - Title = Default title for HTML page []
     
@@ -139,6 +141,7 @@ class HTML(rje.RJE_Object):
     - Border = Border setting for tables [0]
 
     List:list
+    - JScripts=LIST       : List of javascript files to load ['stupidtable.js?dev']
     - Keywords = List of keywords to put in page metadata []
     - StyleSheets = List of CSS files to use [http://www.slimsuite.unsw.edu.au/stylesheets/slimhtml.css]
 
@@ -155,18 +158,19 @@ class HTML(rje.RJE_Object):
         self.infolist = ['Analytics','Copyright','Javascript','Tabber','Title']
         self.optlist = ['NoBots']
         self.statlist = ['Border']
-        self.listlist = ['Keywords','StyleSheets']
+        self.listlist = ['JScripts','Keywords','StyleSheets']
         self.dictlist = []
         self.objlist = []
         ### ~ Defaults ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         self._setDefaults(info='None',opt=False,stat=0.0,obj=None,setlist=True,setdict=True)
         self.HTMLdefaults()
     def HTMLdefaults(self):
-        self.setInfo({'Javascript':'http://www.southampton.ac.uk/~re1u06/javascript/','Tabber':'../tabber.js',
+        self.setInfo({'Javascript':'http://www.slimsuite.unsw.edu.au/javascript/','Tabber':'../tabber.js',
                       'Copyright':'RJ Edwards 2015'})
         self.setStat({'Border':0})
         self.setOpt({'NoBots':True})
         self.list['StyleSheets'] = ['http://www.slimsuite.unsw.edu.au/stylesheets/slimhtml.css']
+        self.list['JScripts'] = ['stupidtable.js?dev']
         ### ~ Other Attributes ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
 #########################################################################################################################
     def _cmdList(self):  self.HTMLcmdList()    ### Sets Attributes from commandline
@@ -181,7 +185,7 @@ class HTML(rje.RJE_Object):
                 ### Class Options ### 
                 self._cmdReadList(cmd,'info',['Analytics','Copyright','Javascript','Tabber','Title'])
                 self._cmdReadList(cmd,'int',['Border'])
-                self._cmdReadList(cmd,'list',['StyleSheets'])
+                self._cmdReadList(cmd,'list',['JScripts','StyleSheets'])
                 self._cmdReadList(cmd,'opt',['NoBots'])
             except: self.errorLog('Problem with cmd:%s' % cmd)
         if self.info['Analytics'].lower() in ['','none']: self.info['Analytics'] = ''
@@ -199,10 +203,10 @@ class HTML(rje.RJE_Object):
         #!# Add additional commandline options for keywords, title, javascript etc.
         if not title: title = self.getStr('Title')
         if not keywords: keywords = self.list['Keywords']
-        return htmlHead(title,self.list['StyleSheets'],tabber,frontpage,self.getOpt('NoBots'),keywords,self.info['Javascript'],self.info['Analytics'],redirect,refresh)
+        return htmlHead(title,self.list['StyleSheets'],tabber,frontpage,self.getOpt('NoBots'),keywords,self.info['Javascript'],self.info['Analytics'],redirect,refresh,self.list['JScripts'])
 #########################################################################################################################
-    def htmlTail(self,tabber=True):  ### Returns text for bottom of HTML
-        return htmlTail(self.getStr('Copyright'),tabber)
+    def htmlTail(self,tabber=True,stupidtable=False):  ### Returns text for bottom of HTML
+        return htmlTail(self.getStr('Copyright'),tabber,stupidtable)
 #########################################################################################################################
 ### End of SECTION II: HTML Class                                                                                       #
 #########################################################################################################################
@@ -212,7 +216,7 @@ class HTML(rje.RJE_Object):
 #########################################################################################################################
 ### SECTION III: MODULE METHODS                                                                                         #
 #########################################################################################################################
-def htmlHead(title,stylesheets=['../example.css','../redwards.css'],tabber=True,frontpage=False,nobots=True,keywords=[],javascript='../javascript/',analytics='',redirect='',refresh=0):    ### Returns text for top of HTML file
+def htmlHead(title,stylesheets=['../example.css','../redwards.css'],tabber=True,frontpage=False,nobots=True,keywords=[],javascript='../javascript/',analytics='',redirect='',refresh=0,jscripts=['stupidtable.js?dev']):    ### Returns text for top of HTML file
     '''
     Returns text for top of HTML file.
     >> title:str = Title of webpage.
@@ -224,6 +228,7 @@ def htmlHead(title,stylesheets=['../example.css','../redwards.css'],tabber=True,
     >> javascript:str ['../javascript/'] = Path to javascript files for tabber tabs
     >> redirect:str [''] = URL to redirect to.
     >> refresh:int [0] = Time to redirect
+    >> jscripts:list ['stupidtable.js?dev'] = List of javascript files to load.
     '''
     html = ['<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">',
             '<html lang="en">','','<!-- ~~~~~~~~~~~~~~~ HTML head data ~~~~~~~~~~~~~~~~~ -->','<head>',
@@ -247,12 +252,15 @@ def htmlHead(title,stylesheets=['../example.css','../redwards.css'],tabber=True,
                  '','(function() {',"  var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;",
                  "  ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';",
                  "  var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);",'})();','</script>']
+    if jscripts:
+        html += ['','<!-- ~~~~~~~~~~~ Google Analytics Script ~~~~~~~~~ -->']
+        for js in jscripts: html += ['<script src="%s%s"></script>' % (javascript,js)]
     if redirect: html.append(redirectToURL(redirect,refresh))
     html += ['</head>','<!-- ~~~~~~~~~~~~~~~ End of HTML head data ~~~~~~~~~~~~~~~~~ -->','','<body>','']
     #print string.join(html,'\n')
     return string.join(html,'\n')
 #########################################################################################################################
-def htmlTail(copyright='RJ Edwards 2012',tabber=True):  ### Returns text for bottom of HTML
+def htmlTail(copyright='RJ Edwards 2012',tabber=True,stupidtable=False):  ### Returns text for bottom of HTML
     '''
     Returns text for bottom of HTML.
     >> copyright:str = copyright text'
@@ -265,6 +273,9 @@ def htmlTail(copyright='RJ Edwards 2012',tabber=True):  ### Returns text for bot
     if tabber:
         html += ['<script type="text/javascript">','/* manualStartup=true so need to run it now */',
                  'tabberAutomatic(tabberOptions);','</script>','']
+    #!# Need to replace this with custom script options
+    if stupidtable:
+        html += ['<script>','$(".instances").stupidtable();','</script>','']
     html += ['</body>','</html>','<!-- ~~~~~~~~~~~~~~ End of HTML tail data ~~~~~~~~~~~~~~~~~ -->']
     #print string.join(html,'\n')
     return string.join(html,'\n')
@@ -474,7 +485,7 @@ def tableToHTML(delimtext,delimit,tabwidth='100%',tdwidths=[],tdalign=[],valign=
     html += '</table>\n\n'
     return html
 #########################################################################################################################
-def dbTableToHTML(table,fields=[],datakeys=[],tabwidth='100%',tdwidths=[],tdalign=[],tdtitles={},valign='center',thead=True,border=1,tabid=''):    # Makes HTML Table
+def dbTableToHTML(table,fields=[],datakeys=[],tabwidth='100%',tdwidths=[],tdalign=[],tdtitles={},valign='center',thead=True,border=1,tabid='',datasort={}):    # Makes HTML Table
     '''
     Converts delimited plain text into an HTML table.
     >> table:Database.Table object to convert
@@ -488,6 +499,7 @@ def dbTableToHTML(table,fields=[],datakeys=[],tabwidth='100%',tdwidths=[],tdalig
     >> thead:bool [True] = Whether first row should use th rather than td
     >> border:int [1] = Table border strength
     >> tabid:str [''] = Table ID setting (for CSS formatting)
+    >> datasort:dict {'*':'string'} = Dictionary of field:type for stupidtable.js sorting. (* = default)
     '''
     try:### [0] Setup Table ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         if tabid: html = '<table width="%s" id="%s">\n' % (tabwidth,tabid)
@@ -503,9 +515,12 @@ def dbTableToHTML(table,fields=[],datakeys=[],tabwidth='100%',tdwidths=[],tdalig
             ta = tdalign[0:]
             while headtext:
                 tag = 'th'
+                if headtext[0] in datasort: tag += ' data-sort="%s"' % datasort[headtext[0]]
+                elif '*' in datasort: tag += ' data-sort="%s"' % datasort['*']
                 if tw: tag += ' width="%s"' % tw.pop(0)
                 if ta: tag += ' align=%s' % ta.pop(0)
                 if headtext[0] in tdtitles: tag += ' title="%s"' % tdtitles[headtext[0]]
+                if headtext[0] in datasort or '*' in datasort: headtext[0] += ' <i class="fa fa-sort"></i>'
                 html += '<%s>%s</th>\n' % (tag,headtext.pop(0))
             html += '</tr>\n'
         ### [2] Main body ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###

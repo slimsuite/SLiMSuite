@@ -19,8 +19,8 @@
 """
 Module:       rje_blast
 Description:  BLAST+ Control Module
-Version:      2.18.0
-Last Edit:    30/10/17
+Version:      2.22.2
+Last Edit:    14/05/18
 Copyright (C) 2013  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -38,6 +38,7 @@ Function:
 Commandline:
     ## Search Options ##    
     blastprog=X     : BLAST program to use. blastp=X also recognised. (BLAST -p X) [blastp]
+    blasttask=X     : Flavour of blast to use (BLAST -task X) (NOTE: blastn default is megablast) [blast+ default]
     blasti=FILE     : Input file (BLAST -i FILE) [None]
     blastd=FILE     : BLAST database (BLAST -d FILE) [None]
     formatdb=T/F    : Whether to (re)format BLAST database [False]
@@ -83,7 +84,7 @@ Commandline:
     blasta=X        : Number of processors to use (BLAST -a X) [1]
     blastforce=T/F  : Whether to force regeneration of new BLAST results if already existing [False]
     ignoredate=T/F  : Ignore date stamps when deciding whether to regenerate files [False]
-    gzip=T/F        : Whether to gzip (and gunzip) BLAST results files if keeping (not Windows) [True]
+    blastgz=T/F     : Whether to gzip (and gunzip) BLAST results files if keeping (not Windows) [False]
 
 See also rje.py generic commandline options.
 """
@@ -126,6 +127,13 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 2.17.1 - Modified QAssembleFas output sequence names for better combining of hits. Added QFasDir.
     # 2.17.2 - Modified QAssembleFas output file names for better re-running. Fixed major QConsensus Bug.
     # 2.18.0 - Added REST output. Fixed QConsensus=Full bug.
+    # 2.19.0 - Added blastgz=T/F     : Whether to zip and unzip BLAST results files [False]
+    # 2.19.1 - Fixed erroneous i=-1 blastprog over-ride but not sure why it was happening.
+    # 2.20.0 - Added localGFF output
+    # 2.21.0 - Added blasttask=X setting for BLAST -task ['megablast']
+    # 2.22.0 - Added dust filter for blastn and setting blastprog based on blasttask
+    # 2.22.1 - Added trimLocal error catching for exonerate issues.
+    # 2.22.2 - Fixed GFF attribute case issue.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -160,7 +168,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, cyear) = ('RJE_BLAST', '2.18.0', 'October 2017', '2013')
+    (program, version, last_edit, cyear) = ('RJE_BLAST', '2.22.2', 'May 2018', '2013')
     description = 'BLAST+ Control Module'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.']
@@ -237,6 +245,7 @@ class BLASTRun(rje_obj.RJE_Object):
     - BLAST Path = path to blast programs
     - BLAST+ Path = path to blast+ programs
     - BLASTCmd = system command used to generate BLAST in self.blast()
+    - BLASTTask=X : Flavour of blastn to used (BLAST -task X) (blastn/blastn-short/dc-megablast/megablast/rmblastn) [megablast]
     - BLASTOpt = Additional BLAST options
     - RefType=X       : Whether to map SAM/GFF3 hits onto the Qry, Hit or Both [Hit]
 
@@ -244,9 +253,9 @@ class BLASTRun(rje_obj.RJE_Object):
     - Composition Statistics
     - Complexity Filter = (BLAST -F) [True]
     - BlastForce = Whether to force regeneration of new BLAST results if already existing [False]
+    - BlastGZ = Whether to (un)zip main BLAST results file if keeping [True]
     - FormatDB = whether to (re)format database before blasting
     - GappedBLAST = Gapped BLAST (BLAST -g X) [True]
-    - GZip = Whether to (un)zip main BLAST results file if keeping [True]
     - IgnoreDate = Ignore date stamps when deciding whether to regenerate files [False]
     - OldBLAST = Whether to run in "oldblast" mode using old BLAST commands etc. [False]
     - QAssemble = Whether to fully assemble query stats from all hits [False]
@@ -286,8 +295,8 @@ class BLASTRun(rje_obj.RJE_Object):
     def _setAttributes(self):   ### Sets Attributes of Object
         '''Sets Attributes of Object.'''
         ### ~ Basics ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-        self.strlist = ['Name','Type','DBase','InFile','OptionFile','QConsensus','QFasDir','BLAST Path','BLAST+ Path','BLASTCmd','BLASTOpt','RefType','REST']
-        self.boollist = ['Complexity Filter','FormatDB','Composition Statistics','GappedBLAST','IgnoreDate','GZip',
+        self.strlist = ['Name','Type','DBase','InFile','OptionFile','QConsensus','QFasDir','BLAST Path','BLAST+ Path','BLASTCmd','BLASTOpt','RefType','REST','BLASTTask']
+        self.boollist = ['Complexity Filter','FormatDB','Composition Statistics','GappedBLAST','IgnoreDate','BlastGZ',
                          'OldBLAST','QAssemble','SoftMask','SelfSum','BlastForce','QAssembleFas','QComplete']
         self.intlist = ['OneLine','HitAln','DBLen','DBNum','BLASTa','FragMerge','GablamFrag','LocalCut']
         self.numlist = ['E-Value','LocalIDCut']
@@ -325,7 +334,7 @@ class BLASTRun(rje_obj.RJE_Object):
                 self._cmdRead(type='file',att='InFile',arg='blasti',cmd=cmd)
                 self._cmdRead(type='bool',att='Complexity Filter',arg='blastf',cmd=cmd)
                 self._cmdRead(type='bool',att='Composition Statistics',arg='blastcf',cmd=cmd)
-                self._cmdReadList(cmd,'bool',['BlastForce','FormatDB','IgnoreDate','GZip','OldBLAST','QAssemble','SelfSum','SoftMask','RunField','QAssembleFas','QComplete'])
+                self._cmdReadList(cmd,'bool',['BlastForce','FormatDB','IgnoreDate','BlastGZ','OldBLAST','QAssemble','SelfSum','SoftMask','RunField','QAssembleFas','QComplete'])
                 self._cmdReadList(cmd,'int',['BLASTa','FragMerge','GablamFrag','LocalCut'])
                 self._cmdRead(type='bool',att='GappedBLAST',arg='blastg',cmd=cmd)
                 self._cmdRead(type='bool',att='OldBLAST',arg='legacy',cmd=cmd)
@@ -335,7 +344,7 @@ class BLASTRun(rje_obj.RJE_Object):
                 self._cmdRead(type='int',att='OneLine',arg='tophits',cmd=cmd)
                 self._cmdRead(type='int',att='HitAln',arg='tophits',cmd=cmd)
                 self._cmdRead(type='file',att='OptionFile',arg='blastopt',cmd=cmd)
-                self._cmdReadList(cmd,'str',['RefType','QConsensus','REST'])   # Normal strings
+                self._cmdReadList(cmd,'str',['RefType','QConsensus','REST','BLASTTask'])   # Normal strings
                 self._cmdReadList(cmd,'path',['QFasDir'])  # String representing directory path
                 #self._cmdReadList(cmd,'file',['Att'])  # String representing file path 
                 #self._cmdReadList(cmd,'bool',['Att'])  # True/False Booleans
@@ -350,6 +359,7 @@ class BLASTRun(rje_obj.RJE_Object):
                 #self._cmdReadList(cmd,'cdictlist',['Att']) # As cdict but also enters keys into list
             except: self.errorLog('Problem with cmd:%s' % cmd)
         ### ~ [2] ~ Check BLAST(+) Path settings ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+        if self.getStrLC('BLASTTask') == 'exonerate': return    #i# Don't perform checks: should be called from rje_exonerate
         pathfail = False
         if self.oldBLAST(): blast = 'BLAST'
         else: blast = 'BLAST+'
@@ -378,6 +388,7 @@ class BLASTRun(rje_obj.RJE_Object):
         if pathfail and not self.getStr('%s Path' % blast): self.warnLog('Installation of %s not detected and no path given. %s functions may fail. (Check %spath=PATH/).' % (blast,blast,blast.lower()),'blastpath',quitchoice=False)
         elif pathfail: self.warnLog('Cannot execute %s functions without correct %s Path (%spath=PATH/). Bad things might happen if you proceed.' % (blast,blast,blast.lower()),'fatal',quitchoice=True)
         ### ~ [3] ~ Special ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+        self.checkProgTask()
         if not rje.exists(self.getStr('OptionFile')): self.setStr({'BLASTOpt':self.getStr('OptionFile')})
         if self.getBool('FormatDB'):
             if self.getStr('Type') in ['blastn','tblastn','tblastx']: self.formatDB(protein=False,force=self.force())
@@ -399,6 +410,36 @@ class BLASTRun(rje_obj.RJE_Object):
         '''Returns appropriate BLAST Path.'''
         if self.getBool('OldBLAST') or self.getStr('BLAST+ Path').lower() in ['','none']: return self.getStr('BLAST Path')
         return self.getStr('BLAST+ Path')
+#########################################################################################################################
+    def checkProgTask(self):    ### Checks the blast program and task settings
+        '''Checks the blast program and task settings.'''
+        tasks = {'blastn':'blastn', 'blastn-short':'blastn', 'dc-megablast':'blastn','megablast':'blastn', 'rmblastn':'blastn',
+                 'blastp':'blastp', 'blastp-fast':'blastp', 'blastp-short':'blastp',
+                 'blastx':'blastx', 'blastx-fast':'blastx',
+                 'tblastx':'tblastx',
+                 'tblastn':'tblastn', 'tblastn-fast':'tblastn'}
+        myprog = self.getStr('Type')
+
+        if self.getStrLC('BLASTTask'):
+            if self.getStrLC('BLASTTask') not in tasks:
+                self.warnLog('blasttask=%s not recognised: will switch to default' % self.getStrLC('BLASTTask'))
+                self.setStr({'BLASTTask':''})
+                return self.checkProgTask()
+            taskprog = tasks[self.getStrLC('BLASTTask')]
+            if taskprog == myprog:  # Parent set OK
+                return True
+            elif self.getStrLC('BLASTTask') == myprog:
+                self.warnLog('blasttask=%s blastprog=%s: set blastprog=%s' % (self.getStrLC('BLASTTask'),myprog,taskprog))
+                self.setStr({'Type':taskprog})
+            else:
+                self.warnLog('blasttask=%s does not match blastprog=%s: set blastprog=%s' % (self.getStrLC('BLASTTask'),myprog,taskprog))
+                self.setStr({'Type':taskprog})
+        else:
+            if myprog in tasks.values(): return True
+            elif myprog in tasks:
+                self.setStr({'Type':tasks[myprog],'BLASTTask':myprog})
+                self.warnLog('blastprog=%s -> blastprog=%s blasttask=%s' % (myprog,self.getStr('Type'),self.getStrLC('BLASTTask')))
+            else: raise ValueError('blastprog=%s not recognised!' % myprog)
 #########################################################################################################################
     ### <2> ### Main Class Backbone                                                                                     #
 #########################################################################################################################
@@ -703,7 +744,9 @@ class BLASTRun(rje_obj.RJE_Object):
                 command += ' -db %s' % self.getStr('DBase')
                 command += ' -out %s' % self.getStr('Name')
                 if self.getStr('Type') in ['blastn']:
-                    if self.getBool('Complexity Filter'): self.warnLog('Cannot use Complexity Filter "seg" option in %s' % self.getStr('Type'),'segwarn',suppress=True)
+                    if self.getBool('Complexity Filter'): command += ' -dust yes'
+                    else: command += ' -dust no'
+                        #x#self.warnLog('Cannot use Complexity Filter "seg" option in %s' % self.getStr('Type'),'segwarn',suppress=True)
                     if self.getBool('Composition Statistics'): self.warnLog('Cannot use Composition Statistics "comp_based_stats" option in %s' % self.getStr('Type'),'comp_based_statswarn',suppress=True)
                 else:
                     if self.getBool('Complexity Filter'): command += ' -seg yes'
@@ -719,6 +762,9 @@ class BLASTRun(rje_obj.RJE_Object):
                 else: command += ' -num_alignments 0'
                 if not self.getBool('GappedBLAST'): command += ' -ungapped'
                 if self.getInt('BLASTa') > 1: command += ' -num_threads %d' % self.getInt('BLASTa')
+                if self.getStrLC('BLASTTask'): command += ' -task %s' % self.getStrLC('BLASTTask')
+                elif self.getStr('Type') == 'blastn':
+                    self.warnLog('No explicit blasttask=X set. Note: blastn defaults to megablast.')
             if self.getStr('BLASTOpt').lower() not in ['','none']: command = '%s %s' % (command,self.getStr('BLASTOpt'))
             if rje.exists(self.getStr('OptionFile')):
                 for line in open(self.getStr('OptionFile'),'r').readlines(): command = '%s %s' % (command,rje.chomp(line))
@@ -745,6 +791,13 @@ class BLASTRun(rje_obj.RJE_Object):
         try:### ~ [1] ~ Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             searchx = 0
             if resfile != None: self.str['Name'] = resfile
+            blastfile = self.str['Name']
+            # Unzip file if required
+            if self.getBool('BlastGZ'):
+                blastgz = rje.exists('%s.gz' % blastfile)
+                if blastgz:
+                    os.system('gunzip %s.gz' % blastfile)
+                    self.printLog('#GUNZIP','%s unzipped.' % blastfile)
             if not os.path.exists(self.str['Name']):
                 if logcheck and expect: self.printLog('#BLAST','Results file "%s" not found!' % self.str['Name'])
                 return None
@@ -823,7 +876,7 @@ class BLASTRun(rje_obj.RJE_Object):
                 if stype[:4] in ['prot','pept']: blastp = 'blastx'
                 elif stype[1:] == 'na': blastp = 'blastn'
             if blastp:
-                if self.i() < 0 or rje.yesNo('%s vs %s: switch BLAST program to %s?' % (qtype,stype,blastp)):
+                if self.i() >= 0 and rje.yesNo('%s vs %s: switch BLAST program to %s?' % (qtype,stype,blastp)):
                     self.str['Type'] = blastp
                     if log: self.printLog('#PROG','BLAST Program changed (%s): %s vs %s' % (self.str['Type'],qtype,stype))
                     return True
@@ -895,6 +948,9 @@ class BLASTRun(rje_obj.RJE_Object):
                 if self.i() < 1 or rje.yesNo('Delete results file: %s?' % self.str['Name']):
                     os.unlink(self.str['Name'])
                     self.printLog('#BLAST','Deleted BLAST results file: %s' % self.str['Name'])
+            elif self.getBool('BlastGZ'):
+                os.system('gzip %s' % self.str['Name'])
+                self.printLog('#GZIP','%s (re)zipped.' % self.str['Name'])
             return True
         except:
             if self.checkBLAST():
@@ -1616,6 +1672,7 @@ class BLASTRun(rje_obj.RJE_Object):
             ## Check formatting and BLASTing - might already have results
             needtoblast = self.force() or not rje.checkForFile(bfile)
             if needtoblast and not self.getBool('FormatDB'):
+                self.checkProgTask()
                 if self.getStr('Type') in ['blastn','tblastn','tblastx']: self.formatDB(protein=False,force=self.force())
                 else: self.formatDB(force=self.force())
             ### ~ [2] ~ BLAST ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -1843,7 +1900,30 @@ class BLASTRun(rje_obj.RJE_Object):
         except:
             self.errorLog(rje_zen.Zen().wisdom()); return qryseq
 #########################################################################################################################
-    def reduceLocal(self,locdb=None,queries=[],hits=[],sortfield='Identity',keepself=False,minloclen=0,minlocid=0):    ### Reduces local BLAST alignments to cover each hit region only once
+    def invertLocalEntry(self,entry):   ### Returns a local BLAST hit entry with Query and Hit reversed.
+        '''Returns a local BLAST hit entry with Query and Hit reversed. This does not affect the original.'''
+        try:### ~ [0] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            #i# The original fields are:
+            #i# ['Query','Hit','AlnID','BitScore','Expect','Length','Identity','Positives','QryStart','QryEnd','SbjStart','SbjEnd','QrySeq','SbjSeq','AlnSeq']
+            reventry = {'Query':entry['Hit'],'Hit':entry['Query']}
+            swapfields = ['Start','End','Seq','Len']
+            keepfields = ['AlnID','BitScore','Expect','Length','Identity','Positives']
+            ### ~ [1] Swap ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            for swap in swapfields:
+                for qh in [('Qry','Hit'),('Hit','Qry')]:
+                    fields = ('%s%s' % (qh[0],swap),'%s%s' % (qh[1],swap))
+                    if fields[0] in entry: reventry[fields[1]] = entry[fields[0]]
+            for keep in keepfields:
+                if keep in entry: reventry[keep] = entry[keep]
+            #i# Reverse complement reverse hits
+            if entry['QryStart'] > entry['QryEnd']:
+                [entry['QryStart'],entry['QryEnd'],entry['SbjStart'],entry['SbjEnd']] = [entry['QryEnd'],entry['QryStart'],entry['SbjEnd'],entry['SbjStart']]
+                entry['QrySeq'] = rje_sequence.reverseComplement(entry['QrySeq'])
+                entry['SbjSeq'] = rje_sequence.reverseComplement(entry['SbjSeq'])
+            return reventry
+        except: self.errorLog('%s.invertLocalEntry() error' % self.prog())
+#########################################################################################################################
+    def reduceLocal(self,locdb=None,queries=[],hits=[],sortfield='Identity',keepself=False,minloclen=1,minlocid=0,byqry=False):    ### Reduces local BLAST alignments to cover each hit region only once
         '''
         Reduces local BLAST alignments to cover each hit region only once. Local alignments are sorted by identity
         (unless sortfield=X changed) and processed in order. Other local alignments that overlap are truncated and
@@ -1855,11 +1935,45 @@ class BLASTRun(rje_obj.RJE_Object):
         @param keepself:bool [False] = Whether to include self query-hit pairs in assessment.
         @param minloclen:int [0] = Minimum local length to keep.
         @param minlocid:pc [0] = Minimum local %identity (0-100) to keep.
+        @param byqry:bool [False] = Whether to reduce Local table by Query rather than hit
         @return: copy of local table, filtered and reduced.
         '''
         try:### ~ [0] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            self.printLog('#~~#','## ~~~~~ BLAST Local Alignment Reduction ~~~~~ ##')
             if not locdb: locdb = self.db('Local')
+            ## ~ [0a] Invert and run if byqry=True ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            if byqry:
+                # Create Query-unique tables by inverting Qry and Sbj
+                refdb = self.db().copyTable(locdb,'qry.%s' % locdb.name())
+                refdb.dataFormat({'AlnID':'int','BitScore':'num','Expect':'num','Identity':'int','QryStart':'int','QryEnd':'int','SbjStart':'int','SbjEnd':'int','Length':'int'})
+                # Invert the Query and Hit data
+                self.printLog('#INVERT','Inverting local BLAST hits for qryunique=T reduction')
+                for entry in refdb.entries():
+                    #self.deBug(entry)
+                    [entry['Query'],entry['Hit'],entry['QryStart'],entry['QryEnd'],entry['QrySeq'],entry['SbjStart'],entry['SbjEnd'],entry['SbjSeq']] = [entry['Hit'],entry['Query'],entry['SbjStart'],entry['SbjEnd'],entry['SbjSeq'],entry['QryStart'],entry['QryEnd'],entry['QrySeq']]
+                    if entry['QryStart'] > entry['QryEnd']:
+                        [entry['QryStart'],entry['QryEnd'],entry['SbjStart'],entry['SbjEnd']] = [entry['QryEnd'],entry['QryStart'],entry['SbjEnd'],entry['SbjStart']]
+                        entry['AlnSeq'] = entry['AlnSeq'][::-1]
+                        entry['QrySeq'] = rje_sequence.reverseComplement(entry['QrySeq'])
+                        entry['SbjSeq'] = rje_sequence.reverseComplement(entry['SbjSeq'])
+                #self.debug(refdb.indexKeys('Query'))
+                refudb = self.reduceLocal(refdb,hits,queries,sortfield,keepself,minloclen,minlocid)
+                self.db().deleteTable(refdb)
+                if not refudb: raise ValueError('Reference BLAST.reduceLocal() failed.')
+                #self.debug(refudb.indexKeys('Query'))
+                # Re-invert the Query and Hit data
+                self.printLog('#INVERT','Inverting local BLAST hits following qryunique=T reduction')
+                for entry in refudb.entries():
+                    [entry['Query'],entry['Hit'],entry['QryStart'],entry['QryEnd'],entry['QrySeq'],entry['SbjStart'],entry['SbjEnd'],entry['SbjSeq']] = [entry['Hit'],entry['Query'],entry['SbjStart'],entry['SbjEnd'],entry['SbjSeq'],entry['QryStart'],entry['QryEnd'],entry['QrySeq']]
+                    if entry['QryStart'] > entry['QryEnd']:
+                        [entry['QryStart'],entry['QryEnd'],entry['SbjStart'],entry['SbjEnd']] = [entry['QryEnd'],entry['QryStart'],entry['SbjEnd'],entry['SbjStart']]
+                        entry['QrySeq'] = rje_sequence.reverseComplement(entry['QrySeq'])
+                        entry['SbjSeq'] = rje_sequence.reverseComplement(entry['SbjSeq'])
+                        entry['AlnSeq'] = entry['AlnSeq'][::-1]
+                refudb.setStr({'Name':refudb.name()[4:]})
+                #self.debug(refudb.indexKeys('Query'))
+                return refudb
+            ## ~ [0b] Setup local hit reduction ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            self.printLog('#~~#','## ~~~~~ BLAST Local Alignment Reduction ~~~~~ ##')
             if sortfield not in locdb.fields():
                 raise ValueError('"%s" is not a valid Local hit table field (%s)' % (sortfield,string.join(locdb.fields(),'|')))
             # Create a copy to protect initial data
@@ -1982,12 +2096,22 @@ class BLASTRun(rje_obj.RJE_Object):
             if trimend == 'Start': trimto += sdir  # For Start trim, want to go beyond trimto for alignment split
             ### ~ [1] Trim ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             ## ~ [1a] Locate trimto ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-            self.bugPrint(rje.combineDict({'QrySeq':'','SbjSeq':'','AlnSeq':''},lentry,overwrite=False,replaceblanks=False))
-            self.bugPrint('Fwd:%s Scan %d pos until %d reaches %s' % (fwd,len(lentry['SbjSeq']),spos,trimto))
+            #self.bugPrint(rje.combineDict({'QrySeq':'','SbjSeq':'','AlnSeq':''},lentry,overwrite=False,replaceblanks=False))
+            #self.bugPrint(lentry)
+            #self.bugPrint('Fwd:%s Scan %d pos until %d reaches %s' % (fwd,len(lentry['SbjSeq']),spos,trimto))
             while (fwd and spos < trimto) or (not fwd and spos > trimto):
                 ai += 1
-                if lentry['SbjSeq'][ai] != '-': spos += sdir
-            self.bugPrint('Reached AlnPos %d = SbjPos %d => Trim %s' % (ai,spos,trimend))
+                try:
+                    if lentry['SbjSeq'][ai] != '-': spos += sdir
+                except:
+                    wdict = rje.combineDict({'QrySeq':len(lentry['QrySeq']),'SbjSeq':len(lentry['SbjSeq']),'AlnSeq':len(lentry['AlnSeq'])},lentry,overwrite=False,replaceblanks=False)
+                    if fwd:
+                        self.warnLog('Unexpectedly reached end of SbjSeq during fwd local reduction trimming to %d: %s; Dropped alignment' % (trimto,wdict))
+                    else:
+                        self.warnLog('Unexpectedly reached end of SbjSeq during rev local reduction trimming to %d: %s; Dropped alignment' % (trimto,wdict))
+                    lentry['Length'] = -1
+                    return lentry
+            #self.bugPrint('Reached AlnPos %d = SbjPos %d => Trim %s' % (ai,spos,trimend))
             ## ~ [1b] Split sequence and update stats ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             if trimend == 'Start':  # Removing Start
                 lentry['QryStart'] += len(lentry['QrySeq'][:ai]) - lentry['QrySeq'][:ai].count('-')
@@ -2103,7 +2227,7 @@ class BLASTRun(rje_obj.RJE_Object):
 #########################################################################################################################
     ### <6> ### Local Hit Reformatting                                                                                  #
 #########################################################################################################################
-    def saveGFF(self,filename=None,locdb=None,ftype='gff3',queries=[],hits=[],reftype='Hit',attributes=['*'],append=False):    ### Outputs local table to GFF format
+    def saveGFF(self,filename=None,locdb=None,ftype='gff3',queries=[],hits=[],reftype='Hit',source='',fttype=None,attributes=['*'],append=False,cdsmode=False):    ### Outputs local table to GFF format
         '''
         Outputs local table to GFF format.
         @param filename:str [self.basefile().locdb.ftype] = Output filename.
@@ -2112,8 +2236,11 @@ class BLASTRun(rje_obj.RJE_Object):
         @param queries:list = Restrict analysis to search queries.
         @param hits:list = Restrict analysis to search hits.
         @param reftype:str = The field defining the genome that would be loaded in IGV.
+        @param source:str [self.prog()] = Contents of the source field.
+        @param fttype:str [None] = Contents of the type field. Will use locdb name if None
         @param attributes:list ['*'] = List of table fields to populate attributes field, '*' = all "extra" fields.
         @param append:bool [False] = Whether to append rather than write to a new file.
+        @param cdsmode:bool [False] = Whether to treat the query as the CDS of a gene
         @return: True/False
 
         GFF3 format is defined as follows:
@@ -2177,11 +2304,126 @@ class BLASTRun(rje_obj.RJE_Object):
         NOTE: Can add col=X for colouring features in IGV.
         '''
         try:### ~ [0] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            raise ValueError('GFF output currently not available!')
-            #if reftype.lower() == 'both':
+            if not reftype: reftype = self.getStr('RefType')    # Default=Hit
+            if not filename: filename = '%s.gff3' % self.baseFile()
+            if not source: source = self.prog()
+            if reftype.lower() == 'both':
+                self.saveGFF('%s.qry.gff3' % rje.baseFile(filename),locdb,ftype,queries,hits,'Qry',source,fttype,attributes,append=False)
+                return self.saveGFF('%s.hit.gff3' % rje.baseFile(filename),locdb,ftype,queries,hits,'Hit',source,fttype,attributes,append=False)
+            elif reftype.lower() == 'combined':
+                self.saveGFF(filename,locdb,ftype,queries,hits,'Qry',source,fttype,attributes,append=False)
+                #!# NOTE: This will currently not generate the right headers
+                return self.saveGFF(filename,locdb,ftype,queries,hits,'Hit',source,fttype,attributes,append=True)
             db = self.db()
+            qdb = self.db('Search')
+            hdb = self.db('Hit')
+            ## ~ [0a] Generate GFF Table ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             if not locdb: locdb = self.db('Local')
-            locdb.dataFormat({'QryStart':'int','QryEnd':'int','SbjStart':'int','SbjEnd':'int'})
+            if not fttype:
+                if cdsmode: fttype = 'CDS'
+                else: fttype = 'match_part' #x#locdb.name()
+            gffdb = db.copyTable(locdb,'gff')
+            if 'Query' in gffdb.fields(): gffdb.renameField('Query','Qry')
+            if 'AlnNum' in gffdb.fields(): gffdb.renameField('AlnNum','AlnID')
+            gffdb.newKey(['Qry','Hit','AlnID'])
+            if reftype.lower() in ['query','qry']: reftype = 'Qry'
+            elif reftype.lower() in ['hit']: reftype = 'Hit'
+            else: raise ValueError('reftype=%s not recognised' % reftype)
+            qrytype = {'Hit':'Qry','Qry':'Hit'}[reftype]
+            ## ~ [0b] Cleanup GFF Table ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            if queries: gffdb.dropEntriesDirect('Qry',queries,inverse=True,log=self.debugging(),force=False)
+            if hits: gffdb.dropEntriesDirect('Hit',hits,inverse=True,log=self.debugging(),force=False)
+            gffdb.dataFormat({'QryStart':'int','QryEnd':'int','SbjStart':'int','SbjEnd':'int','Identity':'int'})
+            gffdb.renameField('SbjStart','HitStart')
+            gffdb.renameField('SbjEnd','HitEnd')
+            gffdb.renameField('SbjSeq','HitSeq')
+            if '*' in attributes: attributes = gffdb.fields()
+            # Generate GFF format fields:
+            # seqid source type start end score strand phase attributes
+            #i# seqid, start and end created later
+            gffdb.addField('source',evalue=source)
+            gffdb.addField('type',evalue=fttype)
+            gffdb.addField('strand',evalue='+')
+            gffdb.addField('phase',evalue=0)
+            gffdb.addField('ID')
+            gffdb.addField('attributes',evalue='')
+            gffdb.addField('QryLen',evalue=0)
+            gffdb.addField('HitLen',evalue=0)
+            gffdb.addField('SeqLen',evalue=0)
+            fullgff = {}    # Dictionary of {(qry,hit):gffentry}
+            for entry in gffdb.sortedEntries('Identity',reverse=True):
+                self.bugPrint(entry)
+                if qdb: entry['QryLen'] = int(qdb.data(entry['Qry'])['Length'])
+                if hdb: entry['HitLen'] = int(hdb.data((entry['Qry'],entry['Hit']))['Length'])
+                entry['SeqLen'] = entry['%sLen' % qrytype]
+                revhit = entry['HitStart'] > entry['HitEnd']
+                qlen = max(entry['SeqLen'],entry['%sStart' % qrytype],entry['%sEnd' % qrytype])
+                #i# If the Reference Genome is the Hit, rev hits need to be reversed
+                if revhit: entry['strand'] = '-'
+                if revhit and reftype == 'Hit':
+                    (entry['QryStart'],entry['QryEnd']) = (entry['QryEnd'],entry['QryStart'])
+                    (entry['HitStart'],entry['HitEnd']) = (entry['HitEnd'],entry['HitStart'])
+                #i# Could make a better ID?
+                entry['ID'] = '%s:aln' % entry[qrytype]
+                entry['Name'] = '%s.%s-%s' % (entry[qrytype],rje.preZero(entry['%sStart' % qrytype],qlen),rje.preZero(entry['%sEnd' % qrytype],qlen))
+                # Add notes
+                for field in ['ID','Name']:
+                    entry['attributes'] += '%s=%s;' % (field,entry[field])
+                if cdsmode: entry['attributes'] += 'Parent=%s;' % entry[qrytype]
+                for field in ['BitScore','Expect','Length','Identity','AlnID']:
+                    entry['attributes'] += '%s=%s;' % (field.lower(),entry[field])
+                entry['attributes'] += 'qstart=%s;' % min(entry['%sStart' % qrytype],entry['%sEnd' % qrytype])
+                entry['attributes'] += 'qend=%s;' % max(entry['%sStart' % qrytype],entry['%sEnd' % qrytype])
+                if entry['SeqLen']:
+                    field = 'SeqLen'
+                    entry['attributes'] += '%s=%s;' % (field.lower(),entry[field])
+                if cdsmode:
+                    astart = min(entry['%sStart' % qrytype],entry['%sEnd' % qrytype])
+                    if self.getStr('Type') != 'tblastn':
+                        entry['phase'] = (astart - 1) % 3
+                entry['attributes'] = entry['attributes'][:-1]
+                self.debug(entry)
+                qh = (entry['Qry'],entry['Hit'])
+                if qh in fullgff:
+                    fullgff[qh]['%sStart' % reftype] = min(fullgff[qh]['%sStart' % reftype],entry['%sStart' % reftype])
+                    fullgff[qh]['%sEnd' % reftype] = max(fullgff[qh]['%sEnd' % reftype],entry['%sEnd' % reftype])
+                    if revhit:
+                        fullgff[qh]['%sStart' % qrytype] = max(fullgff[qh]['%sStart' % qrytype],entry['%sStart' % qrytype])
+                        fullgff[qh]['%sEnd' % qrytype] = min(fullgff[qh]['%sEnd' % qrytype],entry['%sEnd' % qrytype])
+                    else:
+                        fullgff[qh]['%sStart' % qrytype] = min(fullgff[qh]['%sStart' % qrytype],entry['%sStart' % qrytype])
+                        fullgff[qh]['%sEnd' % qrytype] = max(fullgff[qh]['%sEnd' % qrytype],entry['%sEnd' % qrytype])
+                else:
+                    fullgff[qh] = rje.combineDict({'Name':entry[qrytype],'ID':entry[qrytype],'AlnID':0,'attributes':''},entry,overwrite=False,replaceblanks=False)
+                    if cdsmode: fullgff[qh]['type'] = 'Gene'
+                    else: fullgff[qh]['type'] = 'match' #qrytype
+                    if hdb: fullgff[qh]['Expect'] = int(hdb.data((entry['Qry'],entry['Hit']))['E-Value'])
+                    else: fullgff[qh]['Expect'] = '.'
+            for entry in fullgff.values():
+                for field in ['ID','Name']: #!# Add hit table details
+                    entry['attributes'] += '%s=%s;' % (field,entry[field])
+                entry['attributes'] += 'qstart=%s;' % min(entry['%sStart' % qrytype],entry['%sEnd' % qrytype])
+                entry['attributes'] += 'qend=%s;' % max(entry['%sStart' % qrytype],entry['%sEnd' % qrytype])
+                if entry['SeqLen']:
+                    field = 'SeqLen'
+                    entry['attributes'] += '%s=%s;' % (field.lower(),entry[field])
+                entry['attributes'] += 'evalue=%s;' % (entry['Expect'])
+                entry['attributes'] = entry['attributes'][:-1]
+                gffdb.addEntry(entry)
+            gffdb.renameField('%sStart' % reftype,'start')
+            gffdb.renameField('%sEnd' % reftype,'end')
+            gffdb.renameField(reftype,'seqid')
+            gffdb.renameField('Expect','score')
+
+            # Tidy fields
+            gfields = string.split('seqid source type start end score strand phase attributes')
+            gffdb.newKey(['seqid','start','AlnID','end','type','source','attributes'])
+            gffdb.keepFields(gfields+['AlnID'])
+            ### ~ [2] Output GFF File ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            gcomments = ['##gff-version 3','#Generated by %s' % self.log.runDetails()]
+            gcomments.append('#Full Command List: %s' % rje.argString(rje.tidyArgs(self.log.cmd_list)))
+            gffdb.saveToFile(filename,delimit='\t',backup=True,append=append,savefields=gfields,log=True,headers=False,comments=gcomments)
+
         except: self.errorLog('%s.saveGFF() error' % self.prog()); return None
 #########################################################################################################################
     def saveSAM(self,filename=None,locdb=None,queries=[],hits=[],reftype=None,cigar=True,sequence=True,append=False):    ### Outputs local table to GFF format
@@ -2252,7 +2494,7 @@ class BLASTRun(rje_obj.RJE_Object):
             samdb.addField('TLEN',evalue=0) #!# At some point, learn how to make multi-segment mappings
             samdb.addField('SEQ',evalue='*')
             samdb.addField('QUAL',evalue='*')
-            samdb.addField('NOTES',evalue='')
+            samdb.addField('NOTES',evalue='al:Z:')
             qlist = []
             for entry in samdb.sortedEntries('Identity',reverse=True):
                 self.bugPrint(entry)
@@ -2284,8 +2526,10 @@ class BLASTRun(rje_obj.RJE_Object):
                 if seqfields and sequence: entry['SEQ'] = string.replace(entry['%sSeq' % qrytype],'-','')
                 # Add notes
                 for field in ['BitScore','Expect','Length','Identity']:
-                    entry['NOTES'] += '%s=%s;' % (field.lower(),entry[field])
-                self.debug(entry)
+                    entry['NOTES'] += '%s=%s;' % (field,entry[field])
+                entry['NOTES'] = entry['NOTES'][:-1]
+                #entry['NOTES'] = ''     # This seems to give samtools errors.
+                #self.debug(entry)
             samdb.renameField('%sStart' % reftype,'POS')
             #samdb.renameField(qrytype,'QNAME')
             samdb.renameField(reftype,'RNAME')
@@ -2294,7 +2538,24 @@ class BLASTRun(rje_obj.RJE_Object):
             samdb.newKey(['RNAME','POS','QNAME','AlnID'])
             samdb.keepFields(samfields+['AlnID'])
             ### ~ [2] Output SAM File ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            samdb.saveToFile(filename,delimit='\t',backup=True,append=append,savefields=samfields,log=True,headers=False)
+            ## ~ [2a] Generate SAMfile headers ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            if append: shead = []
+            else:
+                seqlen = {}
+                qdb = self.db('Search')
+                hdb = self.db('Hit')
+                if reftype == 'Qry' and qdb:
+                    for entry in qdb.entries(): seqlen[entry['Query']] = entry['Length']
+                elif reftype == 'Hit' and hdb:
+                    for entry in hdb.entries(): seqlen[entry['Hit']] = entry['Length']
+                shead = ['@HD\tVN:1.5.0\tSO:coordinate']
+                for refseq in samdb.indexKeys('RNAME'):
+                    sq = '@SQ\tSN:%s' % refseq
+                    if rje.matchExp('^\S+_\S+__(\S+)$',refseq): sq += '\tAN:%s' % rje.matchExp('^\S+_\S+__(\S+)$',refseq)[0]
+                    if refseq in seqlen: sq += '\tLN:%s' % seqlen[refseq]
+                    shead.append(sq)
+            ## ~ [2b] Save to file ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            samdb.saveToFile(filename,delimit='\t',backup=True,append=append,savefields=samfields,log=True,headers=False,comments=shead)
         except: self.errorLog('%s.saveSAM() error' % self.prog()); return None
 #########################################################################################################################
     def aln2CIGAR(self,qryseq,trgseq):    ### Convert alignment into CIGAR string and returns.

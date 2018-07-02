@@ -19,8 +19,8 @@
 """
 Module:       SLiMFarmer
 Description:  SLiMSuite HPC job farming control program
-Version:      1.7.0
-Last Edit:    09/05/17
+Version:      1.9.0
+Last Edit:    30/05/18
 Copyright (C) 2014  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -91,6 +91,7 @@ Commandline:
     modules=LIST    : List of modules to add in job file e.g. blast+/2.2.31,clustalw []
     modpurge=T/F    : Whether to purge loaded modules in qsub job file prior to loading [True]
     precall=LIST    : List of additional commands to run between module loading and program call []
+    daisychain=X    : Chain together a set of qsub runs of the same call that depend on the previous job.
 
     ### ~ Main SLiMFarmer Options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     farm=X          : Execute a special SLiMFarm analysis on HPC [batch]
@@ -101,6 +102,7 @@ Commandline:
     hpcmode=X       : Mode to be used for farming jobs between nodes (rsh/fork) [fork]
     forks=X         : Number of forks to be used when hpcmode=fork and qsub=F. [1]
     jobini=FILE     : Ini file to pass to the farmed SLiMSuite run. (Also used for SLiMFarmer options if qsub=T.) [None]
+    jobforks=X      : Number of forks to pass to farmed out run if >0 [0]
 
     ### ~ Standard HPC Options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     subsleep=X      : Sleep time (seconds) between cycles of subbing out jobs to hosts [1]
@@ -154,6 +156,8 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 1.5.0 - mailstart=T/F : Whether to email user at start of run [False]
     # 1.6.0 - modpurge=T/F : Whether to purge loaded modules in qsub job file prior to loading [True]
     # 1.7.0 - precall=LIST : List of additional commands to run between module loading and program call []
+    # 1.8.0 - jobforks=X : Number of forks to pass to farmed out run if >0 [0]
+    # 1.9.0 - daisychain=X : Chain together a set of qsub runs of the same call that depend on the previous job.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -176,7 +180,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copy_right) = ('SLiMFarmer', '1.7.0', 'May 2017', '2014')
+    (program, version, last_edit, copy_right) = ('SLiMFarmer', '1.9.0', 'May 2018', '2014')
     description = 'SLiMSuite HPC job farming control program'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_obj.zen()]
@@ -253,6 +257,8 @@ class SLiMFarmer(rje_hpc.JobFarmer):
     - SortRun = Whether to sort input files by size and run big -> small to avoid hang at end [True]
 
     Int:integer
+    - DaisyChain=X    : Chain together a set of qsub runs of the same call that depend on the previous job.
+    - JobForks = Number of forks to pass to farmed out run if >0 [0]
     - KeepFree = Number of processors to keep free on head node [1]
     - Modules = List of modules to add in job file []
 
@@ -272,7 +278,7 @@ class SLiMFarmer(rje_hpc.JobFarmer):
         ### ~ Basics ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         self.strlist = ['Farm','HPC','HPCMode','Job','JobINI','PickHead','PyPath','StartFrom','ResFile','RunID','ResDir']
         self.boollist = ['QSub','SLiMSuite','SeqBySeq','Pickup','RjePy','SortRun','LoadBalance']
-        self.intlist = ['IOLimit','KeepFree','SubSleep']
+        self.intlist = ['DaisyChain','IOLimit','JobForks','KeepFree','SubSleep']
         self.numlist = ['MemFree']
         self.listlist = ['Hosts','SubJobs','OutList','Modules']
         self.dictlist = ['Running']
@@ -283,7 +289,7 @@ class SLiMFarmer(rje_hpc.JobFarmer):
                      'PyPath':slimsuitepath})
         self.setBool({'QSub':False,'SLiMSuite':True,'SeqBySeq':False,'Pickup':True,'SortRun':True,'LoadBalance':True,
                       'RjePy':True})
-        self.setInt({'IOLimit':50,'KeepFree':1,'SubSleep':1})
+        self.setInt({'IOLimit':50,'JobForks':0,'KeepFree':1,'SubSleep':1})
         self.setNum({})
         self.list['Modules'] = []
         ### ~ Other Attributes ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -307,7 +313,7 @@ class SLiMFarmer(rje_hpc.JobFarmer):
                 self._cmdReadList(cmd,'basefile',['ResFile'])  # String representing file path
                 self._cmdReadList(cmd,'basepath',['ResDir'])  # String representing file path
                 self._cmdReadList(cmd,'bool',['QSub','SLiMSuite','SeqBySeq','Pickup','SortRun','LoadBalance'])  # True/False Booleans
-                self._cmdReadList(cmd,'int',['KeepFree'])   # Integers
+                self._cmdReadList(cmd,'int',['DaisyChain','JobForks','KeepFree'])   # Integers
                 #self._cmdReadList(cmd,'float',['Att']) # Floats
                 #self._cmdReadList(cmd,'min',['Att'])   # Integer value part of min,max command
                 #self._cmdReadList(cmd,'max',['Att'])   # Integer value part of min,max command
@@ -396,7 +402,9 @@ class SLiMFarmer(rje_hpc.JobFarmer):
                                 self.setBool({'SLiMSuite':False})
                                 program = self.getStr('Farm')
                 else: program = 'python %stools/slimfarmer.py %s' % (self.getStr('PyPath'),string.join(sys.argv[1:]))
-                if self.getBool('SLiMSuite'): program += ' forks=%d qsub=F i=-1 v=-1 newlog=F' % qsub.getInt('PPN')
+                if self.getBool('SLiMSuite'):
+                    if self.getInt('JobForks'): program += ' forks=%d qsub=F i=-1 v=-1 newlog=F' % self.getInt('JobForks')
+                    else: program += ' forks=%d qsub=F i=-1 v=-1 newlog=F' % qsub.getInt('PPN')
             else: program = self.getStr('Farm')
             #x#if self.getStrLC('JobINI'): program += ' ini=%s' % self.getStr('JobINI')
             self.printLog('#QSUB',program)
@@ -408,6 +416,17 @@ class SLiMFarmer(rje_hpc.JobFarmer):
                 qsub.setNum({'Walltime':rje.getFloat('New walltime (hours)?',default='12',confirm=True)})
             ### ~ [2] Run QSub ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if self.dev(): return os.system(program)
+            ## ~ [2a] Special daisychain mode ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            #i# Chain together a set of qsub runs of the same call that depend on the previous job. [0]
+            if self.getInt('DaisyChain') > 0:
+                qid = ''
+                for q in range(self.getInt('DaisyChain')):
+                    job = '%s.%sof%d' % (self.getStr('Job'),rje.preZero(q+1,self.getInt('DaisyChain')),self.getInt('DaisyChain'))
+                    qsub.setStr({'Job':job})
+                    qid = qsub.qsub()
+                    qsub.list['Depend'] = [qid]
+                return qid
+            ## ~ [2b] Normal qsub ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             return qsub.qsub()
         except: self.errorLog('SLiMFarmer.qSub() error')
 #########################################################################################################################
@@ -459,6 +478,7 @@ class SLiMFarmer(rje_hpc.JobFarmer):
             hpcmd = ['rjepy=T','rsh=F']     # Set up an extended cmdlist which will be propagated to special runs
             if farm in ['gopher','slimsearch','unifake']:   #!# Add these to SLiMFarmer
                 hpcmd += ['irun=%s' % farm,'pypath=%stools/' % self.getStr('PyPath'),'iini=%s' % self.getStr('JobINI')]
+                if self.getInt('JobForks'): hpcmd += ['forks=%d' % (self.getInt('JobForks'))]
             elif farm == 'batch': hpcmd[0] = 'rjepy=F'
             else:
                 self.printLog('#SYS',farm)
@@ -721,6 +741,7 @@ class SLiMFarmer(rje_hpc.JobFarmer):
                 job = '%s pickup=F batch= basefile= seqin=%s i=-1 v=-1 runid=%s' % (job,next,self.getStr('RunID'))
                 if self.getStrLC('ResDir'): job = '%s resdir=%s' % (job,self.getStr('ResDir'))
                 job = '%s resfile=%s log=%s' % (job,jdict['Res'],jdict['Log'])
+                if self.getInt('JobForks'): job = '%s forks=%d' % (job,self.getInt('JobForks'))
                 if self.str['Farm'].startswith('slim'): job = '%s noforks=T' % job
             rsh = "rsh %s '%s %s'" % (self.list['Hosts'][host_id],initial_cmds,job)
             if self.getBool('RSH'): self.printLog('#RSH',rsh)

@@ -210,7 +210,7 @@ class Forker(rje_obj.RJE_Object):
     def run(self):  ### Main run method
         '''Main run method.'''
         try:### ~ [1] ~ Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            forkx = len(self.list['Forked'])
+            forkx = len(self.list['ToFork'])
             self.setup()
             ### ~ [2] ~ Add main run code here ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             self.forking()

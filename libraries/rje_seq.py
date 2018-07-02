@@ -19,8 +19,8 @@
 """
 Program:      RJE_SEQ
 Description:  DNA/Protein sequence list module
-Version:      3.24.0
-Last Edit:    02/12/15
+Version:      3.25.0
+Last Edit:    20/03/18
 Copyright (C) 2005  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -75,6 +75,7 @@ Sequence Filtering Options:
                       [sprot,ipi,uniprot,trembl,ens_known,ens_novel,ens_scan]
     dbonly=T/F      : Whether to only allow sequences from listed databases [False]
     unkspec=T/F     : Whether sequences of unknown species are allowed [True]
+    9spec=T/F       : Whether to treat 9XXXX species codes as actual species (generally higher taxa) [False]
     accnr=T/F       : Check for redundant Accession Numbers/Names on loading sequences. [True]
     seqnr=T/F       : Make sequences Non-Redundant [False]
     nrid=X          : %Identity cut-off for Non-Redundancy (GABLAMO) [100.0]
@@ -198,6 +199,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 3.22.1 - Fixed problem if seqin is blank, triggering odd Uniprot download.
     # 3.23.0 - Add speclist to reformat options.
     # 3.24.0 - Added REST seqout output.
+    # 3.25.0 - 9spec=T/F   : Whether to treat 9XXXX species codes as actual species (generally higher taxa) [False]
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -246,7 +248,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo():     ### Makes Info object
     '''Makes rje.Info object for program.'''
-    (program, version, last_edit, cyear) = ('RJE_SEQ', '3.24.0', 'December 2015', '2005')
+    (program, version, last_edit, cyear) = ('RJE_SEQ', '3.25.0', 'March 2018', '2005')
     description = 'RJE Sequence Dataset Manipulation Module'
     author = 'Dr Richard J. Edwards.'
     comments = ['Please report bugs to r.edwards@soton.ac.uk']
@@ -389,7 +391,8 @@ class SeqList(rje.RJE_Object):
     - SeqNR = Make sequences Non-Redundant [False]
     - SpecNR = Non-Redundancy within same species only
     - TidyGap = Removes any columns from alignments that are 100% gap [True]
-    - UnkSpec = Whether sequences of unknown species are allowed [True]    
+    - UnkSpec = Whether sequences of unknown species are allowed [True]
+    - 9SPEC=T/F   : Whether to treat 9XXXX species codes as actual species (generally higher taxa) [False]
     - NR Align = Use ALIGN for non-redundancy calculations rather than GABLAMO [False]
     - UseCase = Whether to output sequences in mixed case rather than converting all to upper case [False]
     - ReplaceChar = Whether to replace characters not found in the given alphabet with 'X' [True]
@@ -493,7 +496,7 @@ class SeqList(rje.RJE_Object):
         self.optlist = ['AutoFilter','AutoLoad','Align','Aligned','GapFilter','Gapped','LogRem','SpecNR','AccNR',
                         'GeneSpAcc','TidyGap','RNAtoDNA','SeqNR','DBOnly','UnkSpec','Degap','NR Align','ReplaceChar',
                         'UseCase','StripNum','DNA','MakePNG','QueryNR','Mixed','NoSplice','NRKeepAnn','Special',
-                        'CountSpec','KeepBlast']
+                        'CountSpec','KeepBlast','9SPEC']
         self.objlist = ['QuerySeq','PWAln ID','PWAln Sim','MSA ID','MSA Gaps','MSA Extra','PAM Dis','UniProt']
         self.listlist = ['Alphabet','GoodAcc','GoodSeq','GoodSpec','GoodDB','GoodDesc','BadAcc','BadSeq','BadSpec',
                          'BadDB','BadDesc','Case','Blast2Fas']
@@ -512,7 +515,7 @@ class SeqList(rje.RJE_Object):
                           'PAGAN':rje.makePath('pagan',wholepath=True),
                           'ClustalO':rje.makePath('clustalo',wholepath=True)})
         self.setOpt({'AccNR':True,'TidyGap':True,'UnkSpec':True,'AutoFilter':True,'AutoLoad':True,'GapFilter':False,
-                     'LogRem':True,'ReplaceChar':True,'StripNum':True,'QueryNR':True,'NRKeepAnn':False})
+                     'LogRem':True,'ReplaceChar':True,'StripNum':True,'QueryNR':True,'NRKeepAnn':False,'9SPEC':False})
         self.setStat({'NR ID':100.0,'NR Sim':0.0,'RelConWin':30,'MinPoly':20,'NTrim':0.0})
         self.setInfo({'DBList':default_db,'AlnProg':'clustalo','SeqName':'short'})    #,'Type':'Protein'})
         ### <c> ### Other Attributes
@@ -540,7 +543,7 @@ class SeqList(rje.RJE_Object):
                 ### Loading/Formatting Options ###
                 self._cmdReadList(cmd,'opt',['AutoFilter','AutoLoad','GapFilter','Align','ReplaceChar','UseCase',
                                              'StripNum','DNA','Degap','Mixed','NoSplice','NRKeepAnn','Special',
-                                             'KeepBlast'])
+                                             'KeepBlast','9SPEC'])
                 self._cmdRead(cmd,type='opt',att='GeneSpAcc',arg='gnspacc')
                 self._cmdRead(cmd,type='info',att='Type',arg='seqtype')
                 self._cmdRead(cmd,type='info',att='Type')
@@ -622,7 +625,7 @@ class SeqList(rje.RJE_Object):
                 self._cmdRead(cmd,type='stat',att='NR Sim',arg='nrsim')
                 self._cmdRead(cmd,type='opt',att='NR Align',arg='nralign')
                 self._cmdRead(cmd,type='clist',att='DBList')
-                self._cmdReadList(cmd,'opt',['LogRem','DBOnly','UnkSpec','AccNR','SeqNR','SpecNR','QueryNR'])
+                self._cmdReadList(cmd,'opt',['LogRem','DBOnly','UnkSpec','AccNR','SeqNR','SpecNR','QueryNR','9SPEC'])
                 for filt in ['Acc','Seq','Spec','DB','Desc']:
                     self._cmdRead(cmd,type='list',att='Good%s' % filt)
                     self._cmdRead(cmd,type='list',att='Bad%s' % filt)
@@ -1204,12 +1207,14 @@ class SeqList(rje.RJE_Object):
             if self.opt['DBOnly'] and newseq.info['DBase'].lower() not in string.split(self.info['DBList'].lower(),','):
                 self.printLog('\r#REM','Sequence %s excluded as not from given database list.' % newseq.shortName())
                 return
-            elif not self.opt['UnkSpec'] and newseq.info['SpecCode'] == 'UNK':
+            elif not self.opt['UnkSpec'] and (newseq.info['SpecCode'] == 'UNK' or (newseq.getStr('SpecCode').startswith('9') and not self.getBool('9SPEC'))):
                 if self.stat['Interactive'] >= 1:
                     newseq.info['SpecCode'] = rje.choice('Enter Species Code for %s. (Blank to Exclude.)' % newseq.info['Name'],default='')
                 if newseq.info['SpecCode'] in ['UNK','']:
                     self.printLog('\r#REM','Sequence %s excluded as Species Unknown and unkspec=F.' % newseq.shortName())
                     return
+                elif newseq.getStr('SpecCode').startswith('9') and not self.getBool('9SPEC'):
+                    self.printLog('\r#REM','Sequence %s excluded as 9XXXX species code and unkspec=F 9spec=F.' % newseq.shortName())
             ### ~ [3] ~ Replace characters in sequence ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             ## ~ [3a] ~ Termination * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             if self.opt['ReplaceChar'] and newseq.info['Sequence'][-1:] == '*':
@@ -4067,11 +4072,11 @@ def Blast2Fas(seqlist,outdir='./'): ### Will blast sequences against list of dat
             dbnum = SeqCount(seqlist,dbase)
             bcmd = ['blastv=%d' % dbnum,'blastb=%d' % dbnum] + seqlist.cmd_list + ['blastd=%s' % dbase,'blasti=%s' % seqlist.getStr('Name')]
             blast = rje_blast.blastObj(log=seqlist.log,cmd_list=bcmd,type='Dev')
-            blast.setStr({'Name':'%s.%s.blast' % (rje.baseFile(seqlist.info['Name'],True),rje.baseFile(dbase,True))})
+            blast.setStr({'Name':'%s%s.%s.blast' % (outdir,rje.baseFile(seqlist.info['Name'],True),rje.baseFile(dbase,True))})
             if blast.getStr('Type') in ['blastn','tblastx','tblastn']: blast.formatDB(protein=False,force=False)  
             else: blast.formatDB(force=False)
             seqlist.printLog('#BLAST','BLASTing %s vs %s (%s; e=%s)' % (seqlist.info['Name'],dbase,blast.getStr('Type'),blast.getNum('E-Value')),log=True)
-            blast.blast()
+            blast.blast(use_existing=not blast.force())
             if not blast.readBLAST(clear=True,unlink=not seqlist.getBool('KeepBlast')): raise ValueError
             tmpseq = SeqList(log=seqlist.log,cmd_list=['append=T']+seqlist.cmd_list+['seqin=None'])
             ## ~ [1a] Old BLAST method ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##

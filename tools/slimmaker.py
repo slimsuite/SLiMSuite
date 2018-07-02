@@ -381,9 +381,11 @@ class SLiMMaker(rje_obj.RJE_Object):
 #########################################################################################################################
     def restSetup(self):    ### Sets up self.dict['Output'] and associated output options if appropriate.
         '''
+        ### Running SLiMMaker:
         Run with &rest=help for general options. Run with &rest=full to get full server output as text or &rest=format
         for more user-friendly formatted output. Individual outputs can be identified/parsed using &rest=OUTFMT for:
 
+        ### Available REST Outputs:
         slim = Short Linear Motif pattern returned
         match = Number of input peptides matched by the SLiM
         peptides = Original input peptides

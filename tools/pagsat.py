@@ -19,8 +19,8 @@
 """
 Module:       PAGSAT
 Description:  Pairwise Assembled Genome Sequence Analysis Tool
-Version:      2.3.3
-Last Edit:    23/06/17
+Version:      2.4.0
+Last Edit:    12/04/18
 Copyright (C) 2015  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -95,6 +95,7 @@ Commandline:
     compare=FILES   : Compare assemblies selected using a list of *.Summary.tdt files (wildcards allowed). []
     fragcov=LIST    : List of coverage thresholds to count min. local BLAST hits (checks integrity) [50,90,95,99]
     chromcov=LIST   : Report no. of chromosomes covered by a single contig at different %globID (GABLAM table) [95,98,99]
+    compile=FILES   : Compile reference chromosome comparisons for a set of *.report.html files []
     ### ~ Assembly Tidy/Edit Options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     mapfas=T/F      : Output assembly *.map.fasta file with RevComp contigs based on initial (automatic) mapping [True]
     tidy=T/F        : Execute semi-automated assembly tidy/edit mode to complete draft assembly [False]
@@ -169,6 +170,8 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 2.3.1 - Minor bug fixes.
     # 2.3.2 - Updated the synteny mappings to be m::n instead of m:n for Excel compatibility.
     # 2.3.3 - Fixed bad assembly sequence name bug.
+    # 2.3.4 - Fixed full.fas request bug.
+    # 2.4.0 - Added PAGSAT compile mode to generate comparisons of reference chromosomes across assemblies.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -222,7 +225,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copy_right) = ('PAGSAT', '2.3.3', 'June 2017', '2015')
+    (program, version, last_edit, copy_right) = ('PAGSAT', '2.4.0', 'April 2018', '2015')
     description = 'Pairwise Assembled Genome Sequence Analysis Tool'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_obj.zen()]
@@ -329,6 +332,7 @@ class PAGSAT(rje_obj.RJE_Object):
     List:list
     - ChromCov=LIST   : Report no. of chromosomes covered by a single contig at different %globID (GABLAM table) [95,98,99]
     - Compare=FILES   : Special mode to compare a list of *.Summary.tdt files (wildcards allowed). []
+    - Compile=FILES   : Compile reference chromosome comparisons for a set of *.report.html files []
     - FragCov=LIST    : List of coverage thresholds to count min. local BLAST hits (checks integrity) [50,90,95,99]
 
     Dict:dictionary
@@ -350,7 +354,7 @@ class PAGSAT(rje_obj.RJE_Object):
         self.intlist = ['JoinMargin','MinContigLen','MinLocLen','MinQV','MinUnique']
         self.numlist = ['MinLocID','TopHitBuffer']
         self.filelist = []
-        self.listlist = ['ChromCov','Compare','FragCov']
+        self.listlist = ['ChromCov','Compare','Compile','FragCov']
         self.dictlist = ['QV']
         self.objlist = ['DB','Features']
         ### ~ Defaults ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -392,7 +396,7 @@ class PAGSAT(rje_obj.RJE_Object):
                 #self._cmdReadList(cmd,'list',[])  # List of strings (split on commas or file lines)
                 self._cmdReadList(cmd,'ilist',['ChromCov','FragCov'])  # List of strings (split on commas or file lines)
                 #self._cmdReadList(cmd,'clist',['Att']) # Comma separated list as a *string* (self.str)
-                self._cmdReadList(cmd,'glist',['Compare']) # List of files using wildcards and glob
+                self._cmdReadList(cmd,'glist',['Compare','Compile']) # List of files using wildcards and glob
                 #self._cmdReadList(cmd,'cdict',['Att']) # Splits comma separated X:Y pairs into dictionary
                 #self._cmdReadList(cmd,'cdictlist',['Att']) # As cdict but also enters keys into list
             except: self.errorLog('Problem with cmd:%s' % cmd)
@@ -432,6 +436,7 @@ class PAGSAT(rje_obj.RJE_Object):
             if not self.setup(): return False
             ### ~ [2] ~ Add main run code here ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if self.list['Compare']: return self.compare()
+            if self.list['Compile']: return self.compile()
             if self.getBool('Tidy'): return self.tidy()
             elif self.getBool('Report'): return self.report()
             else: return self.assessment()
@@ -457,7 +462,7 @@ class PAGSAT(rje_obj.RJE_Object):
             self.printLog('#~~#','## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ PAGSAT Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##')
             self.obj['DB'] = rje_db.Database(self.log,self.cmd_list+['tuplekeys=T'])
             ## ~ [0b] Check for Compare Mode and cancel rest of setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-            if self.list['Compare']:
+            if self.list['Compare'] or self.list['Compile']:
                 if not self.basefile(return_none=''): self.basefile('pagsat')
                 return True
 
@@ -472,7 +477,9 @@ class PAGSAT(rje_obj.RJE_Object):
             else: gbfile = '%s.gb' % self.getStr('RefBase')
             ## ~ [1b] Establish whether Genbank processing of RefGenome needs to be performed ~~~~~ ##
             rungb = False   # Whether to run rje_genbank on RefGenome
-            for rfile in ['full.fas','gene.fas','prot.fas','Feature.tdt']:
+            gbcheck = ['gene.fas','prot.fas','Feature.tdt']
+            if string.split(self.getStr('RefGenome'),'.')[-1] in ['gb','gbk']: gbcheck.append('full.fas')
+            for rfile in gbcheck:
                 gfile = '%s.%s' % (self.getStr('RefBase'),rfile)
                 self.printLog('#CHECK','%s: %s' % (gfile,{True:'Found.',False:'Missing!'}[os.path.exists(gfile)]))
                 rungb = rungb or not os.path.exists(gfile)
@@ -496,10 +503,12 @@ class PAGSAT(rje_obj.RJE_Object):
             #!# Need to add reformatting here #!#
             if string.split(self.getStr('RefGenome'),'.')[-1] in ['gb','gbk']:  # Look for *.fas
                 self.setStr({'RefGenome':'%s.fas' % self.getStr('RefBase')})
-            if not self.getStr('RefGenome').endswith('.fas') or not rje.exists(self.getStr('RefGenome')):
-                self.printLog('#NAMES','%s.full.fas sequence names will not be suitable.' % self.getStr('RefBase'))
-                self.printLog('#NAMES','Please modify gene names in %s.full.fas (e.g. ChrX) and save as %s.fas.' % (self.getStr('RefBase'),self.getStr('RefBase')))
-                self.printLog('#NAMES','Then re-run with refgenome=%s.fas.' % self.getStr('RefBase'))
+            if not rje.exists(self.getStr('RefGenome')) or open(self.getStr('RefGenome'),'r').readline()[:1] != '>':
+                self.printLog('#REF','%s missing or not recognised fasta.' % self.getStr('RefGenome'))
+                if rje.exists('%s.full.fas' % self.getStr('RefBase')):
+                    self.printLog('#NAMES','%s.full.fas sequence names will not be suitable.' % self.getStr('RefBase'))
+                    self.printLog('#NAMES','Please modify gene names in %s.full.fas (e.g. ChrX) and save as %s.fas.' % (self.getStr('RefBase'),self.getStr('RefBase')))
+                    self.printLog('#NAMES','Then re-run with refgenome=%s.fas.' % self.getStr('RefBase'))
                 return False
             self.printLog('#REF','Reference genome fasta: %s' % self.getStr('RefGenome'))
             if not rje.exists(self.getStr('RefGenome')): raise IOError('Cannot find RefGenome: %s!' % self.getStr('RefGenome'))
@@ -1383,7 +1392,7 @@ class PAGSAT(rje_obj.RJE_Object):
             blast = rje_blast.blastObj(self.log,self.cmd_list+['blastp=blastn'])
             blast.readBLAST(resfile=blastfile,clear=False,gablam=False,unlink=False,local=True,screen=True,log=False,keepaln=True)
             # (Re)zip BLAST file if required
-            if blastgz:
+            if blastgz and rje.exists(blastfile):
                 os.system('gzip %s' % blastfile)
                 self.printLog('#GZIP','%s (re)zipped.' % blastfile)
             ## Use data from:
@@ -3916,6 +3925,78 @@ class PAGSAT(rje_obj.RJE_Object):
 
 
         except: self.errorLog('%s.compare error' % self.prog())
+#########################################################################################################################
+    def compile(self):  ### Generates summary HTML wil reference chromosomes piled up.
+        '''Generates summary HTML wil reference chromosomes piled up.'''
+        try:### ~ [0] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            if not self.dev(): raise ValueError('Compile mode only works in dev mode: contact the author to use')
+            self.devLog('#RUN','Compile')
+            self.printLog('#~~#','## ~~~~~ PAGSTAT Compile mode (%d files) ~~~~~ ##' % len(self.list['Compile']))
+            html = rje_html.HTML(self.log,self.cmd_list)
+
+            acclist = []; acchtml = {}; asslist = []; accname = {}; acctitle = {}
+            chrlist = []
+            ### ~ [1] Parse ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            for rfile in self.list['Compile']:
+                ass = rje.baseFile(rfile,True)
+                if ass not in asslist: asslist.append(ass)
+                for rdata in string.split(open(rfile,'r').read(),'<hr width="80%">'):
+                    if not rdata.startswith('<a name=') or rdata.startswith('<a name="MBG'): continue
+                    acc = rje.matchExp('<a name="(\S+)">',rdata)[0]
+                    if acc not in acclist:
+                        acclist.append(acc)
+                        accname[acc] = acc
+                        if rje.matchExp('chromosome (\S+),',rdata):
+                            accname[acc] = 'chr%s' % rje.matchExp('chromosome (\S+),',rdata)[0]
+                        acctitle[acc] = string.split(rje.matchExp('h3 title="(.+)"',rdata)[0],'"')[0]
+                        chrlist.append(accname[acc])
+                        if accname[acc] not in acchtml:
+                            acchtml[accname[acc]] = ''
+                    if len(string.split(rdata,'<p>Assembly: <a href=')) > 1:
+                        rdata = string.split(rdata,'<p>Assembly: <a href=')[0]
+                        acchtml[accname[acc]] += '%s\n<hr width="80%%">\n\n' % rdata
+                        break
+                    else:
+                        acchtml[accname[acc]] += '%s\n<hr width="80%%">\n\n' % rdata
+            self.debug(acclist)
+            self.debug(chrlist)
+
+
+            ### ~ [2] Output ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            tabbed = len(self.list['Compile']) < 10
+
+            if tabbed:
+                hfile = '%s.html' % self.baseFile()
+                rje.backup(self,hfile)
+                HTML = open(hfile,'w')
+                HTML.write(html.htmlHead(title='%s Compilation' % self.baseFile(),tabber=True,keywords=[]))
+                HTML.write('<h1>PAGSAT Compilation</h1>\n')
+                HTML.write('<p>Click on tabs to view all parsed version of reference chromosome.</p>\n\n')
+                HTML.write('<p>Assembly order: <code>%s</code></p>\n\n' % string.join(asslist,'</code> <code>'))
+                #Tab per chromosome
+                tablist = []
+                for acc in acclist:
+                    tablist.append( (accname[acc], acchtml[accname[acc]], acctitle[acc]) )
+
+                HTML.write(html.tabberHTML('chr',tablist))
+                #tabid:str = Identifier for Tabber object
+                #tablist:list = List of (tab_id, tab_html_text[, tab_title]) tuples
+                HTML.write(html.htmlTail(tabber=True))
+                self.printLog('#HTML','Compiled HTML output to %s' % hfile)
+
+            else:
+                for acc in acclist:
+                    hfile = '%s.%s.html' % (self.baseFile(),accname[acc])
+                    rje.backup(self,hfile)
+                    HTML = open(hfile,'w')
+                    HTML.write(html.htmlHead(title='%s %s Compilation' % (self.baseFile(),accname[acc]),tabber=False,keywords=[]))
+                    HTML.write('<h1>PAGSAT %s Compilation</h1>\n' % acctitle[acc])
+                    HTML.write('<p>Assembly order: <code>%s</code></p>\n\n' % string.join(asslist,'</code> <code>'))
+                    HTML.write(acchtml[accname[acc]])
+                    HTML.write(html.htmlTail(tabber=False))
+                    self.printLog('#HTML','Compiled %s HTML output to %s' % (accname[acc],hfile))
+
+        except: self.errorLog('%s.compile error' % self.prog())
 #########################################################################################################################
 ### End of SECTION II: PAGSAT Class                                                                                     #
 #########################################################################################################################

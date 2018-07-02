@@ -19,8 +19,8 @@
 """
 Program:      MultiHAQ
 Description:  Multi-Query HAQESAC controller
-Version:      1.3.0
-Last Edit:    08/09/17
+Version:      1.4.1
+Last Edit:    26/03/18
 Citation:     Jones, Edwards et al. (2011), Marine Biotechnology 13(3): 496-504. [PMID: 20924652]
 Copyright (C) 2009  Richard J. Edwards - See source code for GNU License Notice
 
@@ -60,6 +60,7 @@ Commandline:
 
     ### ~~~ OUTPUT OPTIONS ~~~~ ###
     haqdir=PATH     : Directory in which to output HAQESAC files and perform run [seqin_HAQESAC]
+    haqblastdir=PATH: Directory in which MultiHAQ BLAST2FAS BLAST runs will be performed [./HAQBLAST/]
 
 See also haqesac.py commands and rje.py generic commandline options.
 
@@ -75,6 +76,7 @@ import os, string, sys, time
 sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)),'../libraries/'))
 sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)),'../tools/'))
 import haqesac, rje, rje_seq, rje_zen
+import slimfarmer
 #########################################################################################################################
 def history():  ### Program History - only a method for PythonWin collapsing! ###
     '''
@@ -86,6 +88,8 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 1.2.1 - Updated documentation to include the HAQESAC reference.
     # 1.2.2 - Switched default to keepblast=T. Added forking blasta=X command to BLAST.
     # 1.3.0 - MultiCut : Restrict BLAST to the top X hits from each database [100]
+    # 1.4.0 - Added SLiMFarmer batch forking if autoskip=F and i=-1.
+    # 1.4.1 - Added haqblastdir=PATH: Directory in which MultiHAQ BLAST2FAS BLAST runs will be performed [./HAQBLAST/]
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -99,7 +103,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, cyear) = ('MULTIHAQ', '1.3.0', 'September 2017', '2009')
+    (program, version, last_edit, cyear) = ('MULTIHAQ', '1.4.1', 'March 2018', '2009')
     description = 'Multi-Query HAQESAC controller'
     author = 'Dr Richard J. Edwards.'
     comments = ['Please cite: Jones, Edwards et al. (2011), Marine Biotechnology 13(3): 496-504.',
@@ -161,6 +165,7 @@ class MultiHAQ(rje.RJE_Object):
 
     Info:str
     - HaqDir = Directory in which to output HAQESAC files and perform run [seqin_HAQESAC]
+    - HAQBLASTDir=PATH: Directory in which MultiHAQ BLAST2FAS BLAST runs will be performed [./HAQBLAST/]
     
     Opt:boolean
     - AddQueries = Whether to add query database to blast2fas list [True]
@@ -181,6 +186,7 @@ class MultiHAQ(rje.RJE_Object):
 
     Obj:RJE_Objects
     - SeqList = Main query sequence input SeqList object
+    - SLiMFarmer = SLiMFarmer batch forking object.
     '''
 #########################################################################################################################
     def name(self): return self.obj['SeqList'].info['Name']
@@ -192,7 +198,7 @@ class MultiHAQ(rje.RJE_Object):
     def _setAttributes(self):   ### Sets Attributes of Object
         '''Sets Attributes of Object.'''
         ### ~ Basics ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-        self.infolist = ['HaqDir']
+        self.infolist = ['HaqDir','HAQBLASTDir']
         self.optlist = ['AddQueries','AutoSkip','Chaser','HAQESAC','MultiHAQ','ScreenQry']
         self.statlist = ['BlastCut','MultiCut']
         self.listlist = []
@@ -202,6 +208,7 @@ class MultiHAQ(rje.RJE_Object):
         self._setDefaults(info='None',opt=True,stat=0.0,obj=None,setlist=True,setdict=True)
         self.basefile('MultiHAQ')
         self.setOpt({'Chaser':False,'AutoSkip':False})
+        self.setStr({'HAQBLASTDir':rje.makePath('./HAQBLAST/')})
         ### ~ Other Attributes ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         self._setForkAttributes()   # Delete if no forking
 #########################################################################################################################
@@ -215,7 +222,7 @@ class MultiHAQ(rje.RJE_Object):
                 self._generalCmd(cmd)   ### General Options ### 
                 self._forkCmd(cmd)  # Delete if no forking
                 ### Class Options ### 
-                self._cmdReadList(cmd,'path',['HaqDir'])
+                self._cmdReadList(cmd,'path',['HaqDir','HAQBLASTDir'])
                 self._cmdReadList(cmd,'int',['BlastCut','MultiCut'])
                 self._cmdReadList(cmd,'opt',['AddQueries','AutoSkip','Chaser','HAQESAC','MultiHAQ','ScreenQry'])
             except: self.errorLog('Problem with cmd:%s' % cmd)
@@ -229,7 +236,11 @@ class MultiHAQ(rje.RJE_Object):
             ### ~ [2] ~ Add main run code here ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             blast2fas = not self.opt['Chaser'] and self.blast2fas()
             if not self.opt['Chaser']: self.haqBatch(force=blast2fas)
-            if self.opt['HAQESAC']: self.multiHAQ(secondrun=self.opt['Chaser'])
+            if self.opt['HAQESAC']:
+                if self.i() < 0 and not self.getBool('AutoSkip'):
+                    self.farmHAQ()
+                else:
+                    self.multiHAQ(secondrun=self.opt['Chaser'])
         except:
             self.errorLog(rje_zen.Zen().wisdom())
             raise   # Delete this if method error not terrible
@@ -271,11 +282,12 @@ class MultiHAQ(rje.RJE_Object):
             if self.getInt('MultiCut'): self.obj['SeqList'].cmd_list += ['blastb=%d' % self.getInt('MultiCut'),'blastv=%d' % self.getInt('MultiCut')]
             elif self.getInt('BlastCut'): self.obj['SeqList'].cmd_list += ['blastb=%d' % self.getInt('BlastCut'),'blastv=%d' % self.getInt('BlastCut')]
             if self.getInt('Forks'): self.obj['SeqList'].cmd_list += ['blasta=%d' % self.getInt('Forks')]
-            rje_seq.Blast2Fas(self.obj['SeqList'])
+            rje_seq.Blast2Fas(self.obj['SeqList'],self.getStr('HAQBLASTDir'))
             for seq in self.seqs():
-                if os.path.exists('%s.blast.fas' % seq.info['AccNum']):
+                sbfile = '%s%s.blast.fas' % (self.getStr('HAQBLASTDir'),seq.info['AccNum'])
+                if os.path.exists(sbfile):
                     hfile = rje.makePath('%s%s.fas' % (self.info['HaqDir'],seq.info['AccNum']),wholepath=True)
-                    os.rename('%s.blast.fas' % seq.info['AccNum'],hfile)
+                    os.rename(sbfile,hfile)
                     if os.path.exists('%s.pickle' % rje.baseFile(hfile)): os.unlink('%s.pickle' % rje.baseFile(hfile))
                     if os.path.exists('%s.pickle.gz' % rje.baseFile(hfile)): os.unlink('%s.pickle.gz' % rje.baseFile(hfile))
                 else: open(null_file,'a').write('%s\n' % seq.info['AccNum']); nx += 1
@@ -378,6 +390,73 @@ class MultiHAQ(rje.RJE_Object):
             ### ~ [2] MultiHAQ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if not finalrun: self.printLog('#MULTI','Executing second round of multiHAQ'); self.multiHAQ(True)
         except: self.errorLog('Major problem with MultiHAQ.multiHAQ',quitchoice=True)
+#########################################################################################################################
+    def farmHAQ(self):  ### Uses SLiMFarmer to farm out the HAQESAC runs
+        '''Uses SLiMFarmer to farm out the HAQESAC runs.'''
+        try:### ~ [0] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            batfile = os.path.abspath(rje.makePath('%shaqesac.bat' % self.info['HaqDir'],wholepath=True))
+            self.printLog('#FARM',batfile)
+            if not rje.exists(batfile): raise IOError('Cannot find %s' % batfile)
+            farmcmd = ['subjobs=%s' % batfile,'farm=batch','qsub=F','i=-1','runpath=%s' % os.path.abspath(self.info['HaqDir'])]
+            if self.opt['MultiHAQ']:
+                haqfarm = ['First round','Second round']
+            else: haqfarm = ['Complete run']
+
+            ### ~ [1] Peform HAQESAC runs ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            for farmrun in haqfarm:
+                self.printLog('#CHDIR','Changing directory for %s farming: %s' % (farmrun,self.info['HaqDir']))
+                os.chdir(self.info['HaqDir'])
+                farmer = slimfarmer.SLiMFarmer(self.log,self.cmd_list+farmcmd)
+                farmer.slimFarm()
+                os.chdir(self.info['RunPath'])
+                self.printLog('#CHDIR','Changed directory post-farming: %s' % self.info['RunPath'])
+                self.printLog('#FARM','HAQESAC %s farming complete.' % farmrun)
+            return True
+
+            #!# Add identifying and skipping of partial runs.
+
+            for seq in self.seqs():
+                ## ~ [1a] Check AutoSkip ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+                acc = seq.info['AccNum']
+                if finalrun and acc in processed and (self.opt['AutoSkip'] or (self.i() >=0 and rje.yesNo('%s already covered by previous HAQESAC. Skip?' % seq.shortName()))):
+                    self.printLog('#SKIP','%s already covered by previous HAQESAC: Skipped' % seq.shortName()); continue
+                ## ~ [1b] Check Whether to run (re-runs and low sequence number) ~~~~~~~~~~~~~~~~~~ ##
+                logfile = rje.makePath('%s%s.log' % (self.info['HaqDir'],acc),wholepath=True)
+                infile = rje.makePath('%s%s.fas' % (self.info['HaqDir'],acc),wholepath=True)
+                pkfile = rje.makePath('%s%s.pickle' % (self.info['HaqDir'],acc),wholepath=True)
+                pkzfile = rje.makePath('%s%s.pickle.gz' % (self.info['HaqDir'],acc),wholepath=True)
+                if not os.path.exists(infile): self.printLog('#SKIP','%s input file %s not found: Skipped' % (seq.shortName(),infile)); continue
+                if not finalrun and not self.opt['Force'] and rje.isYounger(pkzfile,infile) == pkzfile:
+                    self.printLog('#SKIP','%s run detected: Skipped' % seq.shortName()); continue
+                if not finalrun and not self.opt['Force'] and rje.isYounger(pkfile,infile) == pkfile:
+                    self.printLog('#SKIP','%s run detected: Skipped' % seq.shortName()); continue
+                inseqx = rje_seq.SeqCount(self,infile)
+                if inseqx < 2: self.printLog('#SKIP','Only one sequence found in %s: Skipped' % (infile)); continue
+                ## ~ [1c] Pause if running in Chaser Mode and no Pickle ~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+                pickled = os.path.exists(pkfile) or os.path.exists('%s.gz' % pkfile); tm = 0
+                while secondrun and self.opt['Chaser'] and not pickled:
+                    self.progLog('#WAIT','No %s pickle. Sleeping for %d min.' % (acc,tm))
+                    time.sleep(60*tm); tm += 1
+                    pickled = os.path.exists(pkfile) or os.path.exists('%s.gz' % pkfile)
+                    if not pickled:
+                        try: rje.choice('Press <ENTER> to try again, or <CTRL+C> to Quit')
+                        except:
+                            self.printLog('#PICKLE','No %s pickle.' % (acc,tm))
+                            self.printLog('\r#MULTI','Exiting multiHAQ "Chaser" run.'); return
+                ## ~ [1d] Run HAQESAC ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+                runhaqesac = True
+                pngfile = rje.makePath('%s%s.png' % (self.info['HaqDir'],acc),wholepath=True)
+                if not self.force() and rje.exists(pngfile):
+                    self.printLog('#SKIP','Found evidence of completed run: %s (force=F). Skipping.' % pngfile)
+                    runhaqesac = False
+                ancfile = rje.makePath('%s%s.anc.fas' % (self.info['HaqDir'],acc),wholepath=True)
+                if not self.force() and rje.exists(ancfile):
+                    self.printLog('#SKIP','Found evidence of completed run: %s (force=F). Skipping.' % ancfile)
+                    runhaqesac = False
+
+        except:
+            os.chdir(self.info['RunPath'])
+            self.errorLog('Major problem with MultiHAQ.farmHAQ',quitchoice=True)
 #########################################################################################################################
 ### End of SECTION II: MultiHAQ Class                                                                                   #
 #########################################################################################################################
