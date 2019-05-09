@@ -42,3 +42,6 @@ shiny/template/.Rhistory
 shiny/slimsuite-shiny/.Rhistory
 .Rhistory
 .Rproj.user
+settings/rje.ini
+dev/genomeark2.py
+data/example.fas.index

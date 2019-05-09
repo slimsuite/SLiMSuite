@@ -19,8 +19,8 @@
 """
 Module:       SMRTSCAPE
 Description:  SMRT Subread Coverage & Assembly Parameter Estimator
-Version:      2.2.2
-Last Edit:    05/02/18
+Version:      2.2.3
+Last Edit:    11/07/18
 Copyright (C) 2017  Richard J. Edwards - See source code for GNU License Notice
 
 Summary:
@@ -287,6 +287,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 2.2.0 - Updated to work with fasta files generated from Sequel BAM files. (No RQ values.)
     # 2.2.1 - Fixed printLog typo bug.
     # 2.2.2 - Added dna=T to all SeqList object generation.
+    # 2.2.3 - Fixed bug where SMRT subreads are not returned by seqlist in correct order. Fixed RQ=0 bug.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -332,7 +333,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copy_right) = ('SMRTSCAPE', '2.2.2', 'February 2018', '2017')
+    (program, version, last_edit, copy_right) = ('SMRTSCAPE', '2.2.3', 'July 2018', '2017')
     description = 'SMRT Subread Coverage & Assembly Parameter Estimator'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_obj.zen()]
@@ -965,6 +966,7 @@ class SMRTSCAPE(rje_obj.RJE_Object):
                 for seq in seqlist.seqs():
                     self.progLog('\r#SUB','Processing subreads: %.2f%%' % (sx/stot)); sx += 100.0
                     (name,sequence) = seqlist.getSeq(seq)
+                    self.debug(name)
                     #!# Add additional format checks
                     zdata = string.split(string.replace(name,'/',' '))
                     try: [smrt,zmw,pos] = zdata[:3]
@@ -977,7 +979,9 @@ class SMRTSCAPE(rje_obj.RJE_Object):
                     rn += 1
                     try: rq = rje.matchExp('RQ=(\S+)',rq)[0]
                     except: rq = 1.0 - self.getNum('ErrPerBase'); norqx += 1
-                    zdb.addEntry({'SMRT':smrt,'ZMW':zmw,'RN':rn,'Len':len(sequence),'Pos':pos,'RQ':rq,'Seq':seq})
+                    zentry = {'SMRT':smrt,'ZMW':zmw,'RN':rn,'Len':len(sequence),'Pos':pos,'RQ':rq,'Seq':seq}
+                    while zdb.makeKey(zentry) in zdb.dict['Data']: zentry['RN'] += 1; rn += 1
+                    zdb.addEntry(zentry)
                 self.printLog('\r#SUB','Processed %s subreads (-> %d SMRT cells)' % (rje.iStr(stot),len(cells)))
                 if norqx: self.warnLog('No RQ values read for %s of %s reads: used 1-ErrPerBase (%f)' % (rje.iStr(norqx),rje.iStr(rn),1.0 - self.getNum('ErrPerBase')))
             zdb.dataFormat({'RN':'int','Len':'int','RQ':'float','ZMW':'int'})
@@ -1063,10 +1067,13 @@ class SMRTSCAPE(rje_obj.RJE_Object):
                 meanrq = sumrq / rqzlentot
                 self.progLog('\r#RQ','Processing RQ=%s (Mean=%.3f) ' % (rq,meanrq))
                 if rq > 1: raise ValueError('RQ = %s' % rq)
-                x = 1
-                while ((1-rq) ** x) > self.getNum('TargetErr'): x += 1
-                meanx = 1
-                while ((1-meanrq) ** meanx) > self.getNum('TargetErr'): meanx += 1
+                x = meanx = 0
+                if rq > 0:
+                    x = 1
+                    while ((1-rq) ** x) > self.getNum('TargetErr'): x += 1
+                    meanx = 1
+                    while ((1-meanrq) ** meanx) > self.getNum('TargetErr'): meanx += 1
+                else: self.warnLog('%s subreads have RQ=0!' % rqz[rq])
                 rentry = {'RQ':rq,'xerr':x,'subreads':rqz[rq],'unique':0,'f.subreads':rqzfreq[rq],'f.unique':0,
                           'cum.subreads':rqzlentot,'x.subreads':rqzlentot/self.getNum('GenomeSize'),
                           'MeanRQ':meanrq,'Mean.XErr':meanx}
@@ -1236,11 +1243,12 @@ class SMRTSCAPE(rje_obj.RJE_Object):
             self.printLog('#MAXRQ','Max. RQ=%.3f' % self.getNum('MaxRQ'))
             rqstep = max(0.001,self.getNum('RQStep'))
             rq = self.getNum('MinRQ')
+            rqcutoffs = [rq]
             while rq <= self.getNum('MaxRQ'):
                 rqcut = rje.dp(rq,3)    # Reduce to 3dp
                 if rqcut not in udb.indexKeys('RQ'):
                     self.warnLog('Failed to find RQ=%s in ZMW file.' % rqcut)
-                elif rqcut not in rqcutoffs: rqcutoffs.append(rqcut)
+                if rqcut not in rqcutoffs: rqcutoffs.append(rqcut)
                 rq += rqstep
 
             #!# For each `RQ` cutoff, `TargetErr` is used to establish the min. required anchor read Xdepth (`AnchorMinX`).

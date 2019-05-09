@@ -12,15 +12,16 @@
 # You should have received a copy of the GNU General Public License along with this program; if not, write to 
 # the Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #
-# Author contact: <redwards@cabbagesofdoom.co.uk> / School of Biological Sciences, University of Southampton, UK.
+# Author contact: <redwards@cabbagesofdoom.co.uk>
+# School of Biotechnology and Biomolecular Sciences, University of New South Wales, Australia.
 #
 # To incorporate this module into your own programs, please see GNU Lesser General Public License disclaimer in rje.py
 
 """
 Module:       SLiMSuite
 Description:  Short Linear Motif analysis Suite
-Version:      1.7.1
-Last Edit:    08/05/17
+Version:      1.8.0
+Last Edit:    09/05/19
 Citation:     Edwards RJ & Palopoli N (2015): Methods Mol Biol. 1268:89-141. [PMID: 25555723]
 Copyright (C) 2014  Richard J. Edwards - See source code for GNU License Notice
 
@@ -58,6 +59,7 @@ Please also see the SeqSuite documentation for additional utilities, which can b
 Commandline:
     ### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     prog=X      # Identifies the tool to be used. Will load defaults from X.ini (before slimsuite.ini) [help]
+    test=T/F    # Trigger test function for program X, if implemented. If `prog=test` a general test will run. [False]
     help=T/F    # Return the help documentation for program X. [False]
     ### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
 See also rje.py generic commandline options.
@@ -103,6 +105,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 1.6.0 - Removed SLiMCore as default. Default will now show help.
     # 1.7.0 - Updated to work with symbolic link in main slimsuite/ path.
     # 1.7.1 - Added error raising for protected REST alias data.
+    # 1.8.0 - Added BUSCOMP and basic test function.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -117,7 +120,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copy_right) = ('SLiMSuite', '1.7.1', 'May 2017', '2014')
+    (program, version, last_edit, copy_right) = ('SLiMSuite', '1.8.0', 'May 2017', '2014')
     description = 'Short Linear Motif analysis Suite'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',
@@ -154,6 +157,7 @@ def setupProgram(argcmd,fullcmd=True): ### Basic Setup of Program when called fr
     '''
     try:### ~ [1] ~ Initial Command Setup & Info ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         info = makeInfo()                                   # Sets up Info object with program details
+        if len(sys.argv) == 2 and sys.argv[1] in ['version','-version','--version']: print('%s v%s' % (info.program,info.version)); sys.exit(0)
         cmd_list = rje.getCmdList(argcmd,info=info)         # Reads arguments and load defaults from program.ini
         out = rje.Out(cmd_list=cmd_list)                    # Sets up Out object for controlling output to screen
         out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2 
@@ -187,6 +191,7 @@ class SLiMSuite(rje_obj.RJE_Object):
 
     Bool:boolean
     - Help = Show the help documentation for program X. (Note that  [False]
+    - Test = Trigger test function for program X, if implemented. If `prog=test` a general test will run. [False]
 
     Int:integer
 
@@ -211,7 +216,7 @@ class SLiMSuite(rje_obj.RJE_Object):
         '''Sets Attributes of Object.'''
         ### ~ Basics ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         self.strlist = ['Name']
-        self.boollist = ['Help']
+        self.boollist = ['Help','Test']
         self.intlist = []
         self.numlist = []
         self.listlist = []
@@ -220,7 +225,7 @@ class SLiMSuite(rje_obj.RJE_Object):
         ### ~ Defaults ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         self._setDefaults(str='None',bool=False,int=0,num=0.0,obj=None,setlist=True,setdict=True)
         #self.setStr({'Name':'slimcore'})
-        if sys.argv[1:] and sys.argv[1] in mod.keys() + seqsuite.mod.keys(): self.setStr({'Name':sys.argv[1]})
+        if sys.argv[1:] and sys.argv[1] in mod.keys() + seqsuite.mod.keys() + ['test']: self.setStr({'Name':sys.argv[1]})
         self.setBool({})
         self.setInt({})
         self.setNum({})
@@ -244,7 +249,7 @@ class SLiMSuite(rje_obj.RJE_Object):
                 #self._cmdReadList(cmd,'path',['Att'])  # String representing directory path
                 #self._cmdReadList(cmd,'file',['Att'])  # String representing file path
                 #self._cmdReadList(cmd,'date',['Att'])  # String representing date YYYY-MM-DD
-                self._cmdReadList(cmd,'bool',['Help'])  # True/False Booleans
+                self._cmdReadList(cmd,'bool',['Help','Test'])  # True/False Booleans
                 #self._cmdReadList(cmd,'int',['Att'])   # Integers
                 #self._cmdReadList(cmd,'float',['Att']) # Floats
                 #self._cmdReadList(cmd,'min',['Att'])   # Integer value part of min,max command
@@ -256,7 +261,7 @@ class SLiMSuite(rje_obj.RJE_Object):
                 #self._cmdReadList(cmd,'cdictlist',['Att']) # As cdict but also enters keys into list
             except: self.errorLog('Problem with cmd:%s' % cmd)
         if not self.getStrLC('Name'):
-            if sys.argv[1:] and sys.argv[1] not in mod.keys() + seqsuite.mod.keys() + ['help','-h']:
+            if sys.argv[1:] and sys.argv[1] not in mod.keys() + seqsuite.mod.keys() + ['help','-h','help=T']:
                 self.printLog('#CORE','Argument "%s" not recognised as SLiMSuite program.' % sys.argv[1])
             #else: self.printLog('#CORE','No SLiMSuite program given: default to SLiMCore.')
             self.setStr({'Name':'help'})
@@ -267,6 +272,7 @@ class SLiMSuite(rje_obj.RJE_Object):
         '''Main run method.'''
         try:### ~ [1] ~ Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if not self.setup(rest): return False
+            if self.getStrLC('Name') == 'test': return self.test()
             slimobj = self.obj['Prog']
             self.obj['Info'] = self.log.obj['Info']
             slimobj.log.obj['Info'] = info = self.obj['ProgInfo']
@@ -290,6 +296,12 @@ class SLiMSuite(rje_obj.RJE_Object):
                     #slimobj.printLog('#LOG', '%s V:%s End: %s\n' % (info.program,info.version,time.asctime(time.localtime(time.time()))))
                 #slimobj.log.obj['Info'] = info
                 return slimobj     # Calling program should call restOutput()
+            ## ~ [2a] Special test run ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            if self.getBool('Test'):
+                try: return slimobj.test()
+                except:
+                    self.printLog('#TEST','No test mode implemented for %s' % info.program)
+                    return False
             ### ~ [3] ~ Regular run code ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if self.getStrLC('Name') == 'haqesac': slimobj.run(setobjects=True)
             else: slimobj.run()
@@ -310,7 +322,7 @@ class SLiMSuite(rje_obj.RJE_Object):
             if prog in mod:
                 i = self.obj['ProgInfo'] = mod[prog].makeInfo()
                 self.printLog('#PROG','%s V%s: %s' % (i.program,i.version,i.description))
-                progcmd = rje.getCmdList([],info=i) + self.cmd_list + ['newlog=F']
+                progcmd = rje.getCmdList(['basefile=%s' % prog],info=i) + self.cmd_list + ['newlog=F']
                 out = rje.Out(cmd_list=progcmd)
                 out.printIntro(i)
                 if self.getBool('Help'): progcmd = mod[prog].cmdHelp(i,out,['help']+progcmd)
@@ -336,6 +348,10 @@ class SLiMSuite(rje_obj.RJE_Object):
                 self.obj['Prog'] = seqsuiteobj.setup()
                 self.obj['ProgInfo'] = seqsuiteobj.obj['ProgInfo']
                 self.obj['Prog'].dict['Output']['help'] = seqsuite.mod[prog].__doc__
+            elif prog == 'test':
+                self.obj['Prog'] = self
+                self.obj['ProgInfo'] = self.obj['ProgInfo']
+                self.obj['Prog'].dict['Output']['help'] = __doc__
 
             ### ~ [2] ~ Failure to recognise program ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if not self.obj['Prog']:

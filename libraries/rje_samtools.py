@@ -19,8 +19,8 @@
 """
 Module:       rje_samtools
 Description:  RJE SAMtools parser and processor
-Version:      1.20.0
-Last Edit:    22/03/18
+Version:      1.20.2
+Last Edit:    17/10/18
 Copyright (C) 2013  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -148,7 +148,7 @@ Commandline:
     readlen=T/F         : Include read length data for the readcheck file (if depthplot=T) [True]
     dirnlen=X           : Include directional read length data at X bp intervals (readlen=T; 0=OFF) [500]
     minsoftclip=INT     : If set, will generate *.clipped.* output for reads with terminal soft clipping above INT [0]
-    maxsoftclip=INT     : If set, will generate *.noclip.* output for reads with less terminal soft clipping than INT [200]
+    maxsoftclip=INT     : If set, will generate *.noclip.* output for reads with less terminal soft clipping than INT [0]
     minreadlen=INT      : Minimum read length to include in depth plots (all reads will be in RID file) [0]
     depthsmooth=X       : Smooth out any read plateaus < X nucleotides in length [200]
     peaksmooth=X        : Smooth out Xcoverage peaks < X depth difference to flanks (<1 = %Median) [0.05]
@@ -208,6 +208,8 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 1.19.1 - Fixed AltLocus SNP table bug.
     # 1.19.2 - Updated forker parsing to hopefully fix bug.
     # 1.20.0 - Added parsing of BAM file - needs samtools on system. Added minsoftclip=X, maxsoftclip=X and minreadlen=X.
+    # 1.20.1 - Fixed mlen bug. Added catching of unmapped reads in SAM file. Fixed RLen bug. Changed softclip defaults.
+    # 1.20.2 - Fixed readlen coverage bug and acut bug.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -249,7 +251,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copyyear) = ('rje_samtools', '1.20.0', 'March 2018', '2013')
+    (program, version, last_edit, copyyear) = ('rje_samtools', '1.20.2', 'October 2018', '2013')
     description = 'RJE SAMtools parser and processor'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_zen.Zen().wisdom()]
@@ -344,7 +346,7 @@ class SAMtools(rje_obj.RJE_Object):
     - MinCut=X        : Minimum read count for minor allele (proportion if <1) [1]
     - MinReadLen=INT      : Minimum read length to include in depth plots (all reads will be in RID file) [0]
     - MinSoftClip=INT : If set, will generate *.clipped.* output for reads with terminal soft clipping above INT [0]
-    - MaxSoftClip=INT : If set, will generate *.noclip.* output for reads with less terminal soft clipping than INT [200]
+    - MaxSoftClip=INT : If set, will generate *.noclip.* output for reads with less terminal soft clipping than INT [0]
     - MinQN = Min. number of reads meeting qcut (QN) for output [10]
     - PeakSmooth=X        : Smooth out Xcoverage peaks < X depth difference to flanks [5]
     - QCut = Min. quality score for a call to include [30]
@@ -388,7 +390,7 @@ class SAMtools(rje_obj.RJE_Object):
                       'IgnoreRef':False,'Indels':True,'MajDif':False,'MajFocus':True,'MajMut':True,'MajRef':False,
                       'RID':True,'SNPTableOut':False})
         self.setInt({'DepthSmooth':200,'DirnLen':500,'PeakSmooth':0.05,'QCut':30,'MinQN':10,'AbsMinCut':2,
-                     'MaxSoftClip':200,'MinSoftClip':0,'MinReadLen':0})
+                     'MaxSoftClip':0,'MinSoftClip':0,'MinReadLen':0})
         self.setNum({'FullCut':0.9,'MajCut':0.0,'MinFreq':0.001,'MinCut':1,'SigCut':0.05,'FDRCut':1.0})
         self.list['Batch'] = [] #x# glob.glob('*.pileup')
         self.list['CheckFlanks'] = [0,100,500,1000]
@@ -469,6 +471,12 @@ class SAMtools(rje_obj.RJE_Object):
                     self.setBool({'RID':True})
                     self.parsePileup(ridfile)
                     ridfile = '%s.rid.tdt' % (ridbase)  #?# Should this strip path? Probably not!
+                    if not rje.exists(ridfile):
+                        ridbase = rje.baseFile(self.getStr('ReadCheck'),strip_path=False)
+                        ridfile = '%s.rid.tdt' % (ridbase)  #?# Should this strip path? Probably not!
+                    if not rje.exists(ridfile):
+                        self.warnLog('Cannot find "%s" (or path-stripped version)' % ridfile)
+                        ridfile = None
                 if self.db('rid'): ridfile = None   # Use existing data
                 self.coverageFromRID(ridfile,depthplot=self.getBool('DepthPlot'))
                 if self.db('rid'): ridfile = None   # Use existing data
@@ -622,13 +630,15 @@ class SAMtools(rje_obj.RJE_Object):
             else: SAM = open(filename,'r')
             rid = 0          # Read counter (ID counter)
             ### ~ [2] Process each entry ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            oldblasrwarn = ''; xwarnx = 0
+            oldblasrwarn = ''; xwarnx = 0; unmappedx = 0
             for line in SAM:
                 ## ~ [2a] Parse pileup data into dictionary ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
                 if line.startswith('@'): continue
                 samdata = string.split(line)
                 if len(samdata) < 11: continue
-                self.progLog('\r#PARSE','Parsing %s: %s reads...' % (filename,rje.iStr(rid)),rand=0.1)
+                self.progLog('\r#PARSE','Parsing %s: %s reads (+ %s unmapped)...' % (filename,rje.iStr(rid),rje.iStr(unmappedx)),rand=0.1)
+                cigstr = samdata[5]
+                if cigstr == '*': unmappedx += 1; continue
                 rid += 1
                 rname = samdata[0]
                 zdata = string.split(string.replace(rname,'/',' '))
@@ -639,11 +649,11 @@ class SAMtools(rje_obj.RJE_Object):
                 except: rlen = 0
                 locus = samdata[2]
                 rpos = int(samdata[3])
-                cigstr = samdata[5]
                 clip5 = 0
                 if rje.matchExp('^(\d+)S',cigstr): clip5 = int(rje.matchExp('^(\d+)S',cigstr)[0])
                 clip3 = 0
                 if rje.matchExp('(\d+)S$',cigstr): clip5 = int(rje.matchExp('(\d+)S$',cigstr)[0])
+                mlen = len(samdata[9]) - clip5 - clip3
                 if len(samdata) > 22:
                     oldblasr = samdata[13].startswith('XS:i:')
                     oldblasr = oldblasr and samdata[14].startswith('XE:i:')
@@ -666,10 +676,15 @@ class SAMtools(rje_obj.RJE_Object):
                         rlen = len(samdata[9])
                         mlen = len(samdata[9]) - clip5 - clip3
                 #!# Add filter for terminal nnnnS softclipping > self.getInt('MinSoftClip')
-                cigdata = parseCigar(cigstr)
+                try:
+                    cigdata = parseCigar(cigstr)
+                except:
+                    self.errorLog('Problem with cigar string (RID:%d): "%s"' % (rid,cigstr))
+
 
                 rje.writeDelimit(RIDOUT,outlist=[rid,locus,rpos,rpos+cigarAlnLen(cigdata)-1,rlen,mlen,clip5,clip3],delimit='\t')
             self.printLog('#RID','Parsed %s: %s read start/end positions output to %s' % (filename,rje.iStr(rid),ridfile))
+            if unmappedx: self.printLog('#SAM','Parsed and rejected %s unmapped reads.' % (rje.iStr(unmappedx)))
             if oldblasrwarn: self.warnLog(oldblasrwarn)
             if xwarnx: self.warnLog('%s reads did not have compatible XS+XL=XE data' % rje.iStr(xwarnx))
             RIDOUT.close()
@@ -847,6 +862,7 @@ class SAMtools(rje_obj.RJE_Object):
             #i# SNPOnly=T filtering should NOT be applied if performing snpfreq analysis
             snponly = self.getBool('SNPOnly') and not self.getBool('SNPFreq')
             self.bugPrint('%s: %s' % (entry,snponly))
+            acut = 0
             if snponly:             # Parsing allele mincut values for comparison; quick bypass of non-SNP sites.
                 aset = set(qread.values())
                 self.bugPrint('%s' % aset)
@@ -865,7 +881,6 @@ class SAMtools(rje_obj.RJE_Object):
                 for allele in [entry['Ref']] + entry['ALT']:
                     alleles[allele] = 0
                     allrid[allele] = []
-                acut = 0
             ### ~ [1] Parse Alleles (and corresponding Read IDs) from entry ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             for rid in rje.sortKeys(qread):
                 read = qread[rid]
@@ -2041,6 +2056,7 @@ class SAMtools(rje_obj.RJE_Object):
                 centry = {'Locus':locus,'Length':0,'MeanX':0.0}
                 if locus in seqdict: centry['Length'] = seqlist.seqLen(seqdict[locus])
                 else: centry['Length'] = max(rdb.indexDataList('Locus',locus,'End',sortunique=False))
+                self.debug('%s: %s (%s)' % (locus,centry['Length'],type(centry['Length'])))
                 if depthplot: depth[locus] = [0] * centry['Length']
                 dirpos = [] # DirnLen assay points
                 if dirdb:
@@ -2057,7 +2073,7 @@ class SAMtools(rje_obj.RJE_Object):
                 partpos = [[],[]]   # [Start,End] of RID with MLen/RLen failing the 'FullCut' threshold (1-L)
                 for rentry in rdb.indexEntries('Locus',locus):
                     self.progLog('\r#COV','Calculating %s coverage: %.2f%% (Locus %d of %d)' % (readdesc,rx/rtot,lx,ltot),rand=0.01); rx += 100
-                    if rentry['RLen'] < self.getInt('MinReadLen'): minfiltx += 1; continue
+                    if 'RLen' in rdb.fields() and rentry['RLen'] < self.getInt('MinReadLen'): minfiltx += 1; continue
                     #!# Filter based on clip or noclip and 'Clip5' not in rdb.fields(): clip = noclip = False
                     if clip:
                         if max(rentry['Clip5'],rentry['Clip3']) < self.getInt('MinSoftClip'): continue

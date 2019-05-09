@@ -19,8 +19,8 @@
 """
 Module:       rje_genbank
 Description:  RJE GenBank Module
-Version:      1.5.3
-Last Edit:    18/12/17
+Version:      1.5.4
+Last Edit:    10/10/18
 Copyright (C) 2011  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -76,6 +76,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 1.5.1 - Fixed logskip append locus sequence file bug.
     # 1.5.2 - Fixed addtag(s) bug.
     # 1.5.3 - Fixed https genbank download issue.
+    # 1.5.4 - Added recognition of *.gbff for genbank files.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -88,7 +89,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copy_right) = ('RJE_GenBank', '1.5.3', 'December 2017', '2011')
+    (program, version, last_edit, copy_right) = ('RJE_GenBank', '1.5.4', 'October 2018', '2011')
     description = 'RJE GenBank Module'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_zen.Zen().wisdom()]
@@ -258,7 +259,7 @@ class GenBank(rje_obj.RJE_Object):
         '''Main class setup method.'''
         try:### ~ [1] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if self.getStr('Basefile').lower() in ['','none']:
-                self.setBasefile(rje.baseFile(self.getStr('SeqIn'),strip_path=False,extlist=['gbk','gb']))
+                self.setBasefile(rje.baseFile(self.getStr('SeqIn'),strip_path=False,extlist=['gbk','gb','gbff']))
                 self.cmd_list.append('basefile=%s' % self.getStr('Basefile'))
             self.list['Features'] = string.split(string.join(self.list['Features']).lower())
             locdb = self.db().addEmptyTable('Locus',['locus','length','type','definition','accession','version','gi','organism','spcode'],['locus'])
@@ -393,7 +394,7 @@ class GenBank(rje_obj.RJE_Object):
             if not rje.checkForFile(filename):
                 try: raise IOError
                 except: self.errorLog('Genbank file "%s" not found!' % filename); return False
-            loadtxt = 'GenBank file %s' % rje.baseFile(filename,strip_path=True,extlist=['gbk'])
+            loadtxt = 'GenBank file %s' % rje.baseFile(filename,strip_path=True,extlist=['gbk','gb','gbff'])
             ftdic = {}  # Counts of feature types
             if self.getStrLC('TaxDir'):
                 self.obj['Taxonomy'].log.no_suppression.append("Invented SpCode")
@@ -419,7 +420,8 @@ class GenBank(rje_obj.RJE_Object):
                     if cntd: entry[ltype.lower()] = string.join([entry[ltype.lower()]] + data)
                     else: entry[ltype.lower()] = string.join(data[1:])
                 elif ltype == 'VERSION' and not cntd:
-                    entry['version'] = data[1]
+                    try: entry['version'] = data[1]
+                    except: entry['version'] = ''; self.warnLog('No version for %s!' % entry['locus'])
                     try: entry['gi'] = string.split(data[2],'GI:')[1]
                     except: entry['gi'] = '-'
                 elif ltype in ['ORGANISM'] and not cntd: entry[ltype.lower()] = string.join(data[1:])
@@ -863,7 +865,7 @@ def genbankFile(filename):  ### Looks for associated *.gb or *.gbk file and retu
     << genbank file name or None if not found.
     '''
     files = [filename,rje.baseFile(filename)]
-    exts = ['gb','gbk']
+    exts = ['gb','gbk','gbff']
     for gbase in files:
         for ext in exts:
             gfile = '%s.%s' % (gbase,ext)

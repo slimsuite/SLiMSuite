@@ -19,8 +19,8 @@
 """
 Module:       Snapper
 Description:  Genome-wide SNP Mapper
-Version:      1.6.1
-Last Edit:    05/04/18
+Version:      1.7.0
+Last Edit:    30/01/19
 Copyright (C) 2016  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -68,6 +68,8 @@ Function:
     designed for identifying unique and best-matching homologous contigs from whole genome assemblies, where seqin=FILE
     and reference=FILE are the same. In this case, it is recommended to increase the `localmin=X` cutoff.
 
+    Version 1.7.0 add the option to use minimap2 instead of BLAST+ for speed, using `mapper=minimap`.
+
 Commandline:
     ### ~ Input/Output options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     seqin=FASFILE   : Input genome to identify variants in []
@@ -79,6 +81,7 @@ Commandline:
     makesnp=T/F     : Whether or not to generate Query vs Reference SNP tables [True]
     localsAM=T/F    : Save local (and unique) hits data as SAM files in addition to TDT [False]
     filterself=T/F  : Filter out self-hits prior to Snapper pipeline (e.g for assembly all-by-all) [False]
+    mapper=X        : Program to use for mapping files against each other (blast/minimap) [blast]
     ### ~ Reference Feature Options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     spcode=X        : Overwrite species read from file (if any!) with X if generating sequence file from genbank [None]
     ftfile=FILE     : Input feature file (locus,feature,position,start,end) [*.Feature.tdt]
@@ -126,6 +129,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 1.6.0 - filterself=T/F  : Filter out self-hits prior to Snapper pipeline (e.g for assembly all-by-all) [False]
     # 1.6.0 - Added renaming of alt sequences that are found in the Reference for self-comparisons.
     # 1.6.1 - Fixed bug for reducing to unique-unique pairings that was over-filtering.
+    # 1.7.0 - Added mapper=minimap setting, compatible with GABLAM v2.30.0 and rje_paf v0.1.0.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -152,11 +156,14 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
     # [ ] : Add method to generate SNP Frequency plot from table.
     # [ ] : Tidy up the run() method comments and documentation.
     # [ ] : Add CDS GFF output: see https://github.com/The-Sequence-Ontology/Specifications/blob/master/gff3.md for gaps
+    # [ ] : Check that the snp.tdt CN fields are giving the correct output.
+    # [Y] : Update to use rje_paf.py once in place.
+    # [ ] : Update to use --cs output from minimap2 when mapper=minimap, rather than rje_paf conversion.
     '''
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copy_right) = ('Snapper', '1.6.1', 'April 2018', '2016')
+    (program, version, last_edit, copy_right) = ('Snapper', '1.7.0', 'January 2019', '2016')
     description = 'Genome-wide SNP Mapper'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_obj.zen()]
@@ -292,6 +299,7 @@ class Snapper(rje_obj.RJE_Object):
                 #self._cmdReadList(cmd,'cdict',['Att']) # Splits comma separated X:Y pairs into dictionary
                 #self._cmdReadList(cmd,'cdictlist',['Att']) # As cdict but also enters keys into list
             except: self.errorLog('Problem with cmd:%s' % cmd)
+        if self.debugging(): self.printLog('#CMD','Snapper Commandlist: %s' % string.join(self.cmd_list))
 #########################################################################################################################
     ### <2> ### Main Class Backbone                                                                                     #
 #########################################################################################################################
@@ -311,7 +319,7 @@ class Snapper(rje_obj.RJE_Object):
             gcmd = ['seqin=%s' % snpmap.getStr('SeqIn'),'searchdb=%s' % self.getStr('SeqIn'),'basefile=%s' % self.baseFile()]
             # Add commands for generating correct data tables
             gcmd += ['local=T','localunique=T','snptable=F','nrseq=F','fullblast=T','localaln=T','dismat=F','distrees=F','reftype=both']
-            if self.dev(): gcmd += ['debug=F']
+            #if self.dev(): gcmd += ['debug=F']
             # Run GABLAM to generate local and unique tables
             # Recognise and load intermediate tables
             rungablam = False
@@ -329,24 +337,36 @@ class Snapper(rje_obj.RJE_Object):
                         rungablam = True
                         db.list['Tables'] = []
                         self.printLog('#GABLAM','Need QrySeq and AlnSeq for SNP Table: re-running GABLAM.')
-                    else: db.addTable(name='unique',mainkeys=['Query','Hit','AlnID'],delimit='\t')
+                    else:
+                        #!# Update to recongnise Qry, Hit, AlnNum keys
+                        db.addTable(name='unique',mainkeys=['Query','Hit','AlnID'],delimit='\t')
                     self.warnLog('Using %s (force=F): check filterself=T/F settings.' % ufile)
                 except: self.errorLog('Unique Table present but processing error!'); rungablam = True
             else: rungablam = True
+            # Setup GABLAM object - handles some parameters as well as running GABLAM if needed
+            gabobj = self.obj['GABLAM'] = gablam.GABLAM(self.log,['qryacc=F','dna=T','blastp=blastn','localmin=10','selfhit=T']+self.cmd_list+gcmd)
+            if self.i() >= 0 and gabobj.getInt('LocalMin') < 10:
+                gabobj.setInt({'LocalMin':rje.getInt('Recommended min local length >=10 for LocalUnique SNP Table',default='0',confirm=True)})
+            #i# FilterSelf currently works by switching selfhit=F. Need to check whether this works sufficiently.
+            gabobj.setBool({'SelfHit':not self.getBool('FilterSelf')})
+
+            ## Run GABLAM if required
             if rungablam:
-                gabobj = self.obj['GABLAM'] = gablam.GABLAM(self.log,['qryacc=F','dna=T','blastp=blastn','localmin=10','selfhit=T']+self.cmd_list+gcmd)
-                if self.i() >= 0 and gabobj.getInt('LocalMin') < 10:
-                    gabobj.setInt({'LocalMin':rje.getInt('Recommended min local length >=10 for LocalUnique SNP Table',default='0',confirm=True)})
-                #i# FilterSelf currently works by switching selfhit=F. Need to check whether this works sufficiently.
-                gabobj.setBool({'SelfHit':not self.getBool('FilterSelf')})
                 gabobj.run()
+                self.debug('GABLAM has run!')
                 blast = gabobj.obj['BLAST']
                 db = self.obj['DB'] = blast.obj['DB']    # NB. GABLAM does not have a DB object! Handled by BLAST.
                 locdb = blast.db('Local')
+                if not locdb: locdb = blast.db('local')
             ftdb = snpmap.db('Feature')
             if ftdb: db.list['Tables'].append(ftdb)
             #self.bugPrint(blast.db().tables())
             #self.debug(blast.db().tableNames())
+
+            ## Make sure data formatting is correct
+            dformat = {'AlnID':'int','BitScore':'num','Expect':'num','Identity':'int','QryStart':'int','QryEnd':'int',
+            'SbjStart':'int','SbjEnd':'int','Length':'int','Positives':'int','AlnNum':'int','QryLen':'int','HitLen':'int'}
+            for table in db.tables(): table.dataFormat(dformat)
 
             ### ~ [3] ~ Rename Alt sequence found in the Reference ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             #i# Need to rename awkward sequence names: adding "alt" prefix
@@ -367,7 +387,7 @@ class Snapper(rje_obj.RJE_Object):
                     altloci.append('alt%s' % sname)
                     self.warnLog('AltSeq %s in Reference. Renamed alt%s to avoid issues.' % (sname,sname))
                 else: altloci.append(sname)
-            self.printLog('#SNAME','%s of %s Alt sequence names found in Reference' % (rje.iLen(newname),rje.iLen(altloci)))
+            self.printLog('#SNAME','%s of %s Alt sequence names also found in Reference' % (rje.iLen(newname),rje.iLen(altloci)))
             ## ~ [3b] ~ Replace duplicate names ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             for table in db.list['Tables']:
                 if not newname or 'Hit' not in table.fields(): continue

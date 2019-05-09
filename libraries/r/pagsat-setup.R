@@ -57,10 +57,15 @@ for(cmd in names(arglist)){
 (settings)  # This contains settings read in from arguments
 
 ## ~ Setup base filenames for inputs and outputs ~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+#i# basefile is the path to the *.PAGSAT directory, plus the basename for output files
+#i# e.g. "MBG479P01H.sgd.PAGSAT/MBG479P01H.sgd.L250ID95"
 settings$basename = strsplit(basefile,'/')[[1]]
+#i# generate settings$gablamdir from basefile: assembly vs reference gablam files
 settings$gablamdir = paste0(settings$basename[1:length(settings$basename)-1],collapse="/")
 settings$gablamdir = strsplit(settings$gablamdir,'[.]')[[1]]
+(settings$pagdir = paste0(c(settings$gablamdir[1:length(settings$gablamdir)-1],'PAGSAT/'),collapse="."))
 (settings$gablamdir = paste0(c(settings$gablamdir[1:length(settings$gablamdir)-1],'GABLAM/'),collapse="."))
+#i# settings$basename is the path-stripped basefile
 (settings$basename = settings$basename[length(settings$basename)])
 (settings$pngbase = paste(basefile,".Plots/",settings$basename,sep=""))
 if(file.exists(paste(basefile,".Plots/",sep=""))==FALSE){
@@ -207,7 +212,12 @@ if(file.exists(uniqfile)){
 (idlen = strsplit(settings$basename,'[.]')[[1]])
 (idlen = idlen[length(idlen)])
 (asslocfile = paste(assbase,idlen,"local.tdt",sep="."))
-asslocdb = read.table( asslocfile, header = T, stringsAsFactors = T, sep = '\t', quote = '', comment.char="")
+(paflocfile = paste(assbase,"paf",idlen,"local.tdt",sep="."))
+if(file.exists(asslocfile)){
+    asslocdb = read.table( asslocfile, header = T, stringsAsFactors = T, sep = '\t', quote = '', comment.char="")
+}else{
+    asslocdb = read.table( paflocfile, header = T, stringsAsFactors = T, sep = '\t', quote = '', comment.char="")
+}
 asslocdb = asslocdb[asslocdb$Length >= settings$minloclen,]
 asslocdb$Dirn = "Fwd"
 if(length(asslocdb[asslocdb$SbjStart > asslocdb$SbjEnd,]$Dirn) > 0){

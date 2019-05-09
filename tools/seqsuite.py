@@ -19,8 +19,8 @@
 """
 Module:       SeqSuite
 Description:  Miscellaneous biological sequence analysis toolkit
-Version:      1.19.1
-Last Edit:    19/06/18
+Version:      1.22.0
+Last Edit:    09/05/19
 Copyright (C) 2014  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -50,6 +50,7 @@ SeqSuite tools:
     - HAQESAC = haqesac.HAQESAC. Homologue Alignment Quality, Establishment of Subfamilies and Ancestor Construction.
     - MITAB = rje_mitab.MITAB. MITAB PPI parser.
     - MultiHAQ = multihaq.MultiHAQ. Multi-Query HAQESAC controller.
+    - PAF = rje_paf.PAF. Minimap2 PAF to GABLAM format converter.
     - PAGSAT = pagsat.PAGSAT. Pairwise Assembled Genome Sequence Analysis Tool. (Development only)
     - PINGU = pingu_V4.PINGU. Protein Interaction Network & GO Utility.
     - PyDocs = rje_pydocs.PyDoc. Python Module Documentation & Distribution.
@@ -95,9 +96,9 @@ sys.path.append(os.path.join(slimsuitepath,'tools/'))
 sys.path.append(os.path.join(slimsuitepath,'extras/'))
 ### User modules - remember to add *.__doc__ to cmdHelp() below ###
 import rje, rje_db, rje_obj, rje_zen
-import rje_dbase, rje_ensembl, rje_genbank, rje_gff, rje_mitab, rje_pydocs, rje_seq, rje_seqlist, rje_taxonomy, rje_tree, rje_uniprot, rje_xref
+import rje_dbase, rje_ensembl, rje_genbank, rje_gff, rje_mitab, rje_paf, rje_pydocs, rje_seq, rje_seqlist, rje_taxonomy, rje_tree, rje_uniprot, rje_xref
 import rje_blast_V2 as rje_blast
-import fiesta, gablam, gasp, gopher, haqesac, multihaq
+import buscomp, fiesta, gablam, gasp, gopher, haqesac, multihaq
 import pingu_V4 as pingu
 import pagsat, smrtscape, snapper, snp_mapper, rje_samtools
 #########################################################################################################################
@@ -139,6 +140,9 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 1.18.0 - Added rje_apollo.Apollo to REST servers.
     # 1.19.0 - Tweaked the output of batch summarise, adding Gap% and reducing dp for some fields.
     # 1.19.1 - Fixed GapPC summarise output to be a percentage, not a fraction.
+    # 1.20.0 - Added rje_paf.PAF.
+    # 1.21.0 - Added NG50 and LG50 to batch summarise.
+    # 1.22.0 - Added BUSCOMP to programs.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -155,7 +159,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copy_right) = ('SeqSuite', '1.19.1', 'June 2018', '2014')
+    (program, version, last_edit, copy_right) = ('SeqSuite', '1.22.0', 'May 2019', '2014')
     description = 'Miscellaneous biological sequence analysis tools suite'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_obj.zen()]
@@ -202,10 +206,11 @@ def setupProgram(): ### Basic Setup of Program when called from commandline.
     except: print 'Problem during initial setup.'; raise
 #########################################################################################################################
 mod = {'seqlist':rje_seqlist,'rje_seqlist':rje_seqlist,'rje_seq':rje_seq,'seq':rje_seq,'xref':rje_xref,'rje_xref':rje_xref,
-       'rje_blast':rje_blast,'blast':rje_blast,'blast+':rje_blast,
+       'rje_blast':rje_blast,'blast':rje_blast,'blast+':rje_blast,'buscomp':buscomp,
        'rje_zen':rje_zen,'zen':rje_zen,'zentest':rje_zen,'rje_mitab':rje_mitab,'mitab':rje_mitab,'pingu':pingu,
        'dbase':rje_dbase,'database':rje_dbase,'uniprot':rje_uniprot,'rje_uniprot':rje_uniprot,
        'rje_taxonomy':rje_taxonomy,'taxonomy':rje_taxonomy,'rje_tree':rje_tree,'tree':rje_tree,
+       'paf':rje_paf,'rje_paf':rje_paf,
        'pydocs':rje_pydocs,'genbank':rje_genbank,'gopher':gopher,'gablam':gablam,'pagsat':pagsat,'smrtscape':smrtscape,
        'gasp':gasp,'gff':rje_gff,'summarise':None,'apollo':rje_apollo,'rje_apollo':rje_apollo,'webapollo':rje_apollo,
        'samtools':rje_samtools,'snapper':snapper,'snp_mapper':snp_mapper,
@@ -367,6 +372,7 @@ class SeqSuite(rje_obj.RJE_Object):
                 elif prog in ['gopher']: self.obj['Prog'] = gopher.Gopher(self.log,progcmd)
                 elif prog in ['haqesac']: self.obj['Prog'] = haqesac.HAQESAC(self.log,progcmd)
                 elif prog in ['multihaq']: self.obj['Prog'] = multihaq.MultiHAQ(self.log,progcmd)
+                elif prog in ['paf','rje_paf']: self.obj['Prog'] = rje_paf.PAF(self.log,progcmd)
                 elif prog in ['pingu']: self.obj['Prog'] = pingu.PINGU(self.log,progcmd)
                 #elif prog in ['pacbio']: self.obj['Prog'] = rje_pacbio.PacBio(self.log,progcmd)
                 elif prog in ['pagsat']: self.obj['Prog'] = pagsat.PAGSAT(self.log,progcmd)
@@ -377,6 +383,7 @@ class SeqSuite(rje_obj.RJE_Object):
                 elif prog in ['rje_zen','zen','zentest']: self.obj['Prog'] = rje_zen.Zen(self.log,progcmd)
                 elif prog in ['rje_blast','blast','blast+']: self.obj['Prog'] = rje_blast.BLASTRun(self.log,progcmd)
                 elif prog in ['rje_apollo','apollo','webapollo']: self.obj['Prog'] = rje_apollo.Apollo(self.log,progcmd)
+                elif prog in ['buscomp']: self.obj['Prog'] = buscomp.BUSCOMP(self.log,progcmd)
 
             ### ~ [2] ~ Failure to recognise program ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if not self.obj['Prog']:
@@ -467,7 +474,7 @@ class SeqSuite(rje_obj.RJE_Object):
                         seqdata['GCPC'] = '%.2f' % seqdata['GCPC']
                     if 'GapLength' in seqdata: seqdata['GapPC'] = '%.2f' % (100.0*seqdata['GapLength']/seqdata['TotLength'])
                     seqdata['MeanLength'] = '%.1f' % seqdata['MeanLength']
-                    for field in string.split('SeqNum, TotLength, MinLength, MaxLength, MeanLength, MedLength, N50Length, L50Count, GapLength, GapPC, GCPC',', '):
+                    for field in string.split('SeqNum, TotLength, MinLength, MaxLength, MeanLength, MedLength, N50Length, L50Count, NG50Length, LG50Count, GapLength, GapPC, GCPC',', '):
                         if field in seqdata and field not in sdb.fields(): sdb.addField(field)
                     for field in seqdata.keys():
                         if field not in sdb.fields(): sdb.addField(field)

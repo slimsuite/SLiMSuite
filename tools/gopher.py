@@ -19,8 +19,8 @@
 '''
 Program:      GOPHER
 Description:  Generation of Orthologous Proteins from Homology-based Estimation of Relationships
-Version:      3.4.3
-Last Edit:    22/06/18
+Version:      3.5.2
+Last Edit:    30/04/19
 Citation:     Davey, Edwards & Shields (2007), Nucleic Acids Res. 35(Web Server issue):W455-9. [PMID: 17576682]
 Copyright (C) 2005 Richard J. Edwards - See source code for GNU License Notice
 
@@ -103,6 +103,7 @@ Commandline:
     ### Basic Input/Output ###
     seqin=FILE      : Fasta file of 'query' sequences for orthology discovery (over-rides uniprotid=LIST) []
     uniprotid=LIST  : Extract IDs/AccNums in list from Uniprot into BASEFILE.fas and use as seqin=FILE. []
+    acc=LIST        : Synonym for uniprotid=LIST []
     orthdb=FILE     : Fasta file with pool of sequences for orthology discovery []. Should contain query sequences.
     startfrom=X     : Accession Number / ID to start from. (Enables restart after crash.) [None]
     dna=T/F         : Whether to analyse DNA sequences (not optimised) [False]
@@ -188,6 +189,9 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 3.4.1 - Fixed stripXGap issue. (Why was this being implemented anyway?). Added REST output.
     # 3.4.2 - Removed GOPHER System Exit on IOError to prevent breaking of REST server.
     # 3.4.3 - Added checking and warning if no bootstraps for orthtree.
+    # 3.5.0 - Added separate outputs for trees with different alignment programs.
+    # 3.5.1 - Added capacity to run DNA GOPHER with tblastx. (Not tested!)
+    # 3.5.2 - Added acc=LIST as alias for uniprotid=LIST and updated docstring for REST to make it clear that rest=X needed.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -216,7 +220,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo():     ### Makes Info object
     '''Makes rje.Info object for program.'''
-    (program, version, last_edit, cyear) = ('GOPHER', '3.4.2', 'June 2015', '2005')
+    (program, version, last_edit, cyear) = ('GOPHER', '3.5.2', 'April 2019', '2005')
     description = 'Generation of Orthologous Proteins from Homology-based Estimation of Relationships'
     author = 'Dr Richard J. Edwards.'
     comments = ['Please cite SLiMDisc webserver paper. (Davey, Edwards & Shields 2007)']
@@ -317,7 +321,7 @@ class Gopher(rje.RJE_Object):
     def _setAttributes(self):   ### Sets Attributes of Object
         '''Sets Attributes of Object.'''
         ### Basics ###
-        self.infolist = ['Name','OrthDB','StartFrom','Gopher','StiggID','GopherDir','UniSpec']
+        self.infolist = ['Acc','Name','OrthDB','StartFrom','Gopher','StiggID','GopherDir','UniSpec']
         self.statlist = []
         self.optlist = ['FullForce','IgnoreDate','DNA','Child','Sticky','DropOut','Organise','OldBLAST']
         self.listlist = ['UniprotID']
@@ -341,13 +345,18 @@ class Gopher(rje.RJE_Object):
                 self._forkCmd(cmd)  
                 ### ~ [2] Specific Class Options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ### 
                 self._cmdRead(cmd,type='file',att='Name',arg='seqin')
+                #self._cmdRead(cmd,type='list',att='UniprotID',arg='acc')
                 self._cmdReadList(cmd,'opt',['FullForce','IgnoreDate','DNA','Sticky','DropOut','Organise','OldBLAST'])
                 self._cmdReadList(cmd,'file',['OrthDB','Gopher','UniSpec'])  
                 self._cmdReadList(cmd,'path',['GopherDir'])  
                 self._cmdReadList(cmd,'list',['UniprotID'])
-                self._cmdReadList(cmd,'info',['StartFrom','StiggID'])
+                self._cmdReadList(cmd,'info',['Acc','StartFrom','StiggID'])
             except: self.log.errorLog('Problem with cmd [%s]:' % cmd)
         self.cmd_list += ['seqin=None']     # Other objects should not use seqin!
+        if self.getStrLC('Acc') and not self.list['UniprotID']:
+            self.printLog('#ACC','No UniprotID list given but acc=X recognised: setting uniprotid=%s' % self.getStr('Acc'))
+            self.list['UniprotID'] = [self.getStr('Acc')]
+            self.cmd_list += ['uniprotid=%s' % self.getStr('Acc')]
 #########################################################################################################################
     ### <2> ### Main Forker Method                                                                                      #
 #########################################################################################################################
@@ -360,7 +369,8 @@ class Gopher(rje.RJE_Object):
             gopherblast.setInt({'HitAln':0})
             #!# Temporary fix for hitaln:0 problem crashing BLAST. Why? Possible change to default gopher=T/F?
             #gopherblast.setInt({'HitAln':gopherblast.getInt('OneLine')})
-            if self.opt['DNA']: gopherblast.setStr({'Type':'blastn'})
+            if self.getBool('DNA') and gopherblast.getStr('Type') not in ['blastn','tblastx']:
+                gopherblast.setStr({'Type':'blastn'})
             ### ~ [2] FormatDB ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if not os.path.exists(self.getStr('OrthDB')):
                 self.errorLog('Database file %s missing!' % self.getStr('OrthDB'),printerror=False)
@@ -435,14 +445,14 @@ class Gopher(rje.RJE_Object):
             if self.setMode() == 'orthtree':
                 self.warnLog('Default bootstrap value is 0: use bootstraps=X to set.')
                 # Check boot
-                tree = rje_tree.Tree(log=self.log,cmd_list=['root=mid']+self.cmd_list+['autoload=F','savetree=%s' % tfile])
+                tree = rje_tree.Tree(log=self.log,cmd_list=['root=mid']+self.cmd_list+['autoload=F'])
                 # Option to set higher
                 if not tree.getInt('Bootstraps') and self.i() >= 0:
                     if rje.yesNo('Set new bootstrap value for trees?',default='N'):
                         newboot = rje.getInt(text='Number of bootstraps for trees?:',blank0=True,default='100',confirm=True)
                         if newboot:
                             self.cmd_list.append('bootstraps=%d' % newboot)
-                            tree = rje_tree.Tree(log=self.log,cmd_list=['root=mid']+self.cmd_list+['autoload=F','savetree=%s' % tfile])
+                            tree = rje_tree.Tree(log=self.log,cmd_list=['root=mid']+self.cmd_list+['autoload=F'])
                             self.printLog('#BOOT','Set bootstraps=%d' % tree.getInt('Bootstraps'))
                 # Warn if zero
                 if not tree.getInt('Bootstraps'):
@@ -487,7 +497,9 @@ class Gopher(rje.RJE_Object):
                         # Prep Sequence for run
                         gopherdir = self.gopherDir(nextseq)
                         # Check BLAST object not messed up #
-                        if self.opt['DNA']: gopherblast.setStr({'Type':'blastn'})
+                        if self.getBool('DNA'):
+                            if gopherblast.getStr('Type') not in ['blastn','tblastx']:
+                                gopherblast.setStr({'Type':'blastn'})
                         else: gopherblast.setStr({'Type':'blastp'})
                         # Add new fork (or not!)
                         vtext = 'Sequence %s: %s' % (rje.integerString(gseqx), nextseq.shortName())
@@ -768,31 +780,32 @@ class Gopher(rje.RJE_Object):
         Run with &rest=help for general options. Run with &rest=full to get full server output as text or &rest=format
         for more user-friendly formatted output. Individual outputs can be identified/parsed using &rest=OUTFMT for:
 
-        ## ~ OrthBLAST outputs ~ ##
+        ### OrthBLAST outputs:
         qry = Query file
         blast = BLAST results file
         blastid = BLAST hit ID file
 
-        ## ~ Orthologue Identification ~ ##
+        ### Orthologue Identification:
         orthfas = Unaligned fasta file of GOPHER orthologues
         orthid = ID list of GOPHER orthologues
 
-        ## ~ Orthologue alignment ~ ##
+        ### Orthologue alignment:
         alnfas = Aligned fasta file of GOPHER orthologues
 
-        ## ~ Orthologue tree ~ ##
+        ### Orthologue tree:
         nwk = Tree of GOPHER orthologues in Newick format
         tree = Tree of GOPHER orthologues in plain text format
         png = Tree of GOPHER orthologues in PNG format
 
-        ## ~ Paralogues ~ ##
+        ### Paralogues:
         parafas = Unaligned fasta file of GOPHER paralogues
         paraid = ID list of GOPHER paralogues
         paralnfas = Aligned fasta file of GOPHER paralogues
 
+        ### Special GOPHER REST call:
         Note that individual outputs can be requested for single proteins using the special REST call:
 
-            http://rest.slimsuite.unsw.edu.au/gopher&acc=X&spcode=X
+            http://rest.slimsuite.unsw.edu.au/gopher&acc=X&spcode=X&rest=X
 
         If this protein has already been processed by GOPHER, the relevant output will be returned directly as plain
         text. If not, a jobid will be returned, which will have the desired output once run.
@@ -957,6 +970,7 @@ class GopherFork(rje.RJE_Object):
         '''Returns full path including OUTPATH and AccNum: self.info['OutPath']/subdir/AccNum.extension.'''
         if not acc: acc = self.obj['Sequence'].info['AccNum']
         if 'ALN' in subdir and self.opt['Organise']: subdir = self.info['AlnProg'] + subdir
+        if 'TREE' in subdir and self.opt['Organise']: subdir = self.info['AlnProg'] + subdir
         #subdir = string.replace(rje.makePath(subdir),'ORTH',self.info['OrthID'].upper())
         subdir = rje.makePath(subdir)
         extension = string.replace(extension,'orth',self.info['OrthID'].lower())

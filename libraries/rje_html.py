@@ -527,6 +527,9 @@ def dbTableToHTML(table,fields=[],datakeys=[],tabwidth='100%',tdwidths=[],tdalig
         for dkey in datakeys:
             entry = table.data(dkey)
             tabtext = []
+            if not type(entry) == dict:
+                table.warnLog('Table "%s" entry skipped for HTML - not a dictionary!: "%s"' % (dkey,entry))
+                continue
             for field in fields: tabtext.append(entry[field])
             html += '<tr>\n'
             tw = tdwidths[0:]

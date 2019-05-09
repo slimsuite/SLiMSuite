@@ -19,8 +19,8 @@
 """
 Program:      GABLAM
 Description:  Global Analysis of BLAST Local AlignMents
-Version:      2.29.0
-Last Edit:    04/04/18
+Version:      2.30.1
+Last Edit:    01/04/19
 Citation:     Davey, Shields & Edwards (2006), Nucleic Acids Res. 34(12):3546-54. [PMID: 16855291]
 Copyright (C) 2006  Richard J. Edwards - See source code for GNU License Notice
 
@@ -115,6 +115,10 @@ Versions/Updates:
     unique table GFF3 output. This will activate the `qryunique=T` option, which reduced local BLAST hits to non-
     overlapping query regions rather than non-overlapping hit regions. This mode is only possible for `blastn` searches.
 
+    ### ~ Version 2.30: Minimap2 PAF parsing ~ ###
+    Version 2.30.x introduces a developmental option to replace BLAST with Minimap2 for generating the main GABLAM
+    tables: HitSum, Local and GABLAM. Other GABLAM outputs are currently unavailable with this option.
+
 Commandline:
     ### ~ Input/Search Options ~ ###
     seqin=FILE      : Query dataset file [infile.fas]
@@ -127,12 +131,15 @@ Commandline:
     cutfocus=X      : Focus for gablamcut. Can be Query/Hit/Either/Both. [Either]
     localcut=X      : Cut-off length for local alignments contributing to global GABLAM stats [0]
     localidcut=PERC : Cut-off local %identity for local alignments contributing to global GABLAM stats [0.0]
+    mapper=X        : Program to use for mapping files against each other (blast/minimap) [blast]
+    mapopt=CDICT    : Dictionary of updated minimap2 options [N:250,p:0.0001,x:asm20]
 
     ### ~ General Output Options ~ ###
     append=T/F      : Whether to append to output file or not. (Not available for blastres=FILE or fullblast=F) [False]
     fullres=T/F     : Whether to output full GABLAM results table [True]
     hitsum=T/F      : Whether to output the BLAST Hit Summary table [True]
     local=T/F       : Whether to output local alignment summary stats table [True]
+    localaln=T/F    : Whether to output local alignments in Local Table [False]
     localsam=T/F    : Save local (and unique) hits data as SAM files in addition to TDT [False]
     localgff=T/F    : Save local (and unique) hits data as GFF3 files in addition to TDT [False]
     cdsgff=T/F      : Whether the query should be treated as the (in-frame) CDS of a gene (also sets qryunique=T) [False]
@@ -221,12 +228,14 @@ Commandline:
 #########################################################################################################################
 import copy, os, re, string, sys, time
 sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)),'../libraries/'))
+sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)),'../dev/'))
 sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)),'../tools/'))
 #########################################################################################################################
 ### User modules - remember to add *.__doc__ to cmdHelp() below
 import rje, rje_db, rje_ppi, rje_seq, rje_seqlist, rje_tree
 import rje_blast_V2 as rje_blast
 import rje_dismatrix_V2 as rje_dismatrix
+import rje_paf
 #########################################################################################################################
 ### History
 #########################################################################################################################
@@ -285,7 +294,9 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 2.28.1 - Fixed missing combinedfas when using existing blastres.
     # 2.28.2 - Minor bug fix for NRSeq manual choice when i=-1.
     # 2.28.3 - Fixed NRSeq query sorting bug.
-    # 2.29.0 - Added localGFF=T/F output
+    # 2.29.0 - Added localGFF=T/F output.
+    # 2.30.0 - Added mapper=X : Program to use for mapping files against each other (blast/minimap) [blast]
+    # 2.30.1 - Fixed BLAST LocalIDCut error for GABLAM and QAssemble stat filtering.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -330,7 +341,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo():     ### Makes Info object
     '''Makes rje.Info object for program.'''
-    (program, version, last_edit, copyyear) = ('GABLAM', '2.29.0', 'April 2018', '2006')
+    (program, version, last_edit, copyyear) = ('GABLAM', '2.30.1', 'April 2019', '2006')
     description = 'Global Analysis of BLAST Local AlignMents'
     author = 'Dr Richard J. Edwards.'
     comments = ['Please cite: Davey, Shields & Edwards (2006), Nucleic Acids Res. 34(12):3546-54. [PMID: 16855291]']
@@ -380,6 +391,8 @@ def setupProgram(): ### Basic Setup of Program
         print 'Problem during initial setup.'
         raise
 #########################################################################################################################
+paf_defaults = {'N':'250','p':'0.0001','x':'asm20'}
+#########################################################################################################################
 ### END OF SECTION I                                                                                                    #
 #########################################################################################################################
 
@@ -408,6 +421,7 @@ class GABLAM(rje.RJE_Object):
     - DisMatOut = Name of Local alignment stat output file (by default seqin.vs.searchdb.dis.tdt) [None]
     - DisKey = GABLAM Output Key to be used for distance matrix ['Qry_AlnID']
     - OutStats = Whether to output just GABLAM, GABLAMO or All [All]
+    - Mapper=X        : Program to use for mapping files against each other (blast/minimap) [blast]
     - NRStat=X        : Stat for nrcut (eg. AlnLen or OrderedAlnSim. See above for full list) [OrderedAlnID]
     - LocalSort=X     : Local hit field used to sort local alignments for localunique reduction [Identity]
 
@@ -495,7 +509,7 @@ class GABLAM(rje.RJE_Object):
         ### Basics ###
         self.infolist = ['Name','QueryDB','SearchDB','BlastRes','StartFrom','FasDir','CutStat','CutFocus','BlastDir',
                          'GablamOut','HitSumOut','OutStats','BLASTP','LocalOut','DisMatOut','DisKey','NRStat',
-                         'LocalSort']
+                         'LocalSort','Mapper']
         self.optlist = ['AlnStats','Singletons','GlobID','SelfHit','SelfSum','QryAcc','MySQL','FasOut','FullRes',
                         'PercRes','HitSum','KeepBlast','PosInfo','Local','LocalAln','LocalAlnFas','DisMat','FragFas','CheckType',
                         'CombinedFas','Clusters','SaveUPC','DisTrees','DisGraph','DotPlots','FullBlast','FragRevComp',
@@ -510,7 +524,7 @@ class GABLAM(rje.RJE_Object):
         self._setDefaults(info='None',opt=False,stat=0.0,obj=None,setlist=True,setdict=True)
         self.setInfo({'QueryDB':'infile.fas','FasDir':rje.makePath('BLASTFAS'),'CutStat':'OrderedAlnID','BlastDir':'',
                       'CutFocus':'Either','OutStats':'All','BLASTP':'blastp','DisKey':'Qry_AlnID',
-                      'NRStat':'OrderedAlnID','LocalSort':'Identity'})
+                      'NRStat':'OrderedAlnID','LocalSort':'Identity','Mapper':'blast'})
         self.setOpt({'AlnStats':True,'MemSaver':True,'SelfHit':True,'QryAcc':True,'FullRes':True,'HitSum':True,'CheckType':True,
                      'PercRes':True,'PosInfo':True,'Local':True,'DisMat':True,'DisTrees':True,'DisGraph':False,
                      'NRSeq':False,'NRSameSpec':False,'NRKeepAnn':False,'SNPTable':False,'LocalAln':False,
@@ -541,7 +555,7 @@ class GABLAM(rje.RJE_Object):
                 self._cmdReadList(cmd,'path',['FasDir','BlastDir'])
                 self._cmdReadList(cmd,'file',['QueryDB','SearchDB','BlastRes'])
                 self._cmdReadList(cmd,'info',['StartFrom','CutStat','CutFocus','OutStats','BLASTP','DisKey','NRStat',
-                                              'LocalSort'])
+                                              'LocalSort','Mapper'])
                 self._cmdReadList(cmd,'opt',['AlnStats','Singletons','GlobID','SelfHit','SelfSum','QryAcc','MySQL','DotPlots',
                                              'FasOut','FullRes','FragFas','FragRevComp','SaveUPC','HitSum','PercRes','KeepBlast','CheckType',
                                              'PosInfo','Local','LocalAln','LocalAlnFas','DisMat','DisTrees','DisGraph','CombinedFas','Clusters',
@@ -568,6 +582,12 @@ class GABLAM(rje.RJE_Object):
         if self.stat['LocalIDMin'] < 1.0: self.stat['LocalIDMin'] *= 100.0
         if self.getBool('DotPlots'): self.setBool({'FullRes':True,'Local':True})
         if self.getBool('QAssemble'): self.setBool({'HitSum':True})
+        ### Mapper ###
+        self.setStr({'Mapper':self.getStrLC('Mapper')})
+        if self.getStr('Mapper') not in ['minimap','minimap2','blast']:
+            self.warnLog('mapper=%s not recognised (blast/minimap): switched to blast' % self.getStr('Mapper'))
+            self.setStr({'Mapper':'blast'})
+        if self.getStr('Mapper') != 'blast': self.setBool({'FullBlast':True})
         ### Update options for FullBlast=True ###
         #!# Need to neaten this up somewhat! #!#
         if not self.getBool('Local') and self.getBool('SNPTable'):
@@ -639,6 +659,7 @@ class GABLAM(rje.RJE_Object):
         self.printLog('#MODE','FullBLAST=%s; KeepBLAST=%s.' % (self.getBool('FullBlast'),self.getBool('KeepBlast')))
         #self.deBug(self.info)
         #self.debug(self.opt)
+        if self.debugging(): self.printLog('#CMD','GABLAM Commandlist: %s' % string.join(self.cmd_list))
 #########################################################################################################################
     ### <2> ### Run Setup Section                                                                                       #
 #########################################################################################################################
@@ -1017,6 +1038,28 @@ class GABLAM(rje.RJE_Object):
             ## ~ [1d] ~ Results Files ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             self.setupResultsFiles()
             ### ~ [2] ~ Run GABLAM and Output results ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            ## ~ [2a] ~ Minimap ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            if self.getStr('Mapper') in ['minimap','minimap2']:
+                pafin = '%s.paf' % self.baseFile()
+                paf = rje_paf.PAF(self.log, self.cmd_list+['pafin=%s' % pafin,'basefile=%s' % self.baseFile()])
+                defaults = paf_defaults
+                paf.dict['MapOpt'] = rje.combineDict(defaults,paf.dict['MapOpt'],overwrite=True)
+                paf.setup()
+                if not rje.exists(pafin) or self.force():
+                    rje.backup(self,pafin)
+                    paf.minimap2()
+                    #!# Add localaln=T to PAF #!#
+                paf.run()
+                paf.db('hitunique').rename('unique')
+                #!# Change code to handle Qry and AlnNum #!#
+                paf.db('unique').renameField('Qry','Query')
+                paf.db('unique').renameField('AlnNum','AlnID')
+                paf.db('unique').saveToFile()
+                self.obj['BLAST'] = rje_blast.BLASTRun(log=self.log,cmd_list=['blastf=F']+self.cmd_list)
+                self.obj['BLAST'].obj['DB'] = self.obj['DB'] = paf.db()
+                self.debug('PAF to GABLAM conversion complete')
+                return True
+            ## ~ [2b] ~ BLAST !!!!~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             if (self.getBool('FullBlast') and self.fullBlastGABLAM()) or (not self.getBool('FullBlast') and self.bamForker()):
                 if self.getBool('DotPlots'): self.pngDotPlots()
                 if self.getBool('DisMat'): self.disMatrixOut()

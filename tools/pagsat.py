@@ -19,8 +19,8 @@
 """
 Module:       PAGSAT
 Description:  Pairwise Assembled Genome Sequence Analysis Tool
-Version:      2.4.0
-Last Edit:    12/04/18
+Version:      2.6.8
+Last Edit:    08/04/19
 Copyright (C) 2015  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -32,10 +32,10 @@ Function:
 
 Input:
     Main input for PAGSAT is an assembled genome in fasta format (`assembly=FILE`) and a reference genome in fasta format
-    (`refgenome=FILE` or `reference=FILE`) with corresponding `*.gb` or `*.gbk` genbank download for feature extraction.
-    For full function, a features table plus protein and gene sequences should be provided. (These will be parsed from
-    a Genbank reference file.) Basic contig-reference mapping and plotting will still be performed with a pure sequence
-    reference that lacks features or gene sequences.
+    (`refgenome=FILE` or `reference=FILE`) with corresponding `*.gb`, `*.gbk` or `*.gbff` genbank download for feature
+    extraction. For full function, a features table plus protein and gene sequences should be provided. (These will be
+    parsed from a Genbank reference file.) Basic contig-reference mapping and plotting will still be performed with a
+    pure sequence reference that lacks features or gene sequences.
 
     ### ~ Reference Sequence Naming ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     PAGSAT expects a particular naming format for assembly sequences, which is a bit more constrained that most programs.
@@ -44,6 +44,12 @@ Input:
     (Generally `XX` and `YY` will match but this is not a requirement.) `ACCBASE` could be the same for all sequences, or
     it could be sequence-specific. It can also include `.` characters: only the final `.` element must be unique. `YY`
     must end with numbers. (These are expected to be contig numbers, possibly with a prefix.)
+
+Sequence mapping:
+    Version 2.6 introduced a `mapper=minimap` option for using minimap2 in place of BLAST+ for mapping the assembly and
+    reference against each other (and themselves). This should be considered a "quick and dirty" version of PAGSAT, with
+    much faster run times but missing a lot of small repeat sequences and more divergent matches. It is primarily for
+    initial assessment and triage of different assemblies before picking a cleaner/tidier one for further analysis.
 
 Output:
     Main output is a number of delimited text files and PNG graphics made with R. Details to follow.
@@ -81,11 +87,14 @@ Commandline:
     minunique=X     : Minimum number of "Unique-mapping" nucleotides to retain a contig-chromosome link [250]
     snapper=T/F     : Run Snapper to generate "best" unique mapping of assembly contigs to Reference [True]
     makesnp=T       : Generate the full set of SNP outputs for Snapper [False]
+    mapper=X        : Program to use for mapping files against each other (blast/minimap) [blast]
+    mapopt=CDICT    : Dictionary of updated minimap2 options [N:250,p:0.0001,x:asm20]
     ### ~ Output Options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     basefile=X      : Basename for output files and directories. [assembly+ref]
     rgraphics=T/F   : Whether to generate PNG graphics using R. (Needs R installed and setup) [True]
     dotplots=T/F    : Whether to use gablam.r to output dotplots for all ref vs assembly. [False]
-    report=T/F      : Whether to generate HTML report [True]
+    assessment=T/F  : Whether to perform full reference versus assembly assessment [False]
+    report=T/F      : Whether to generate HTML report. Also sets assessment=T (default function). [False]
     genetar=T/F     : Whether to tar and zip the GeneHits/ and ProtHits/ folders (if generated & Mac/Linux) [True]
     chromalign=T/F  : [Discontinued] Whether to perform crude chromosome-contig alignment [False]
     orderedfas=T/F  : Whether to generate crude ordered contig output for e.g. Progressive Mauve [False]
@@ -97,10 +106,11 @@ Commandline:
     chromcov=LIST   : Report no. of chromosomes covered by a single contig at different %globID (GABLAM table) [95,98,99]
     compile=FILES   : Compile reference chromosome comparisons for a set of *.report.html files []
     ### ~ Assembly Tidy/Edit Options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-    mapfas=T/F      : Output assembly *.map.fasta file with RevComp contigs based on initial (automatic) mapping [True]
+    mapfas=T/F      : Output assembly *.map.fasta file with RevComp contigs based on initial (automatic) mapping [False]
     tidy=T/F        : Execute semi-automated assembly tidy/edit mode to complete draft assembly [False]
     newacc=X        : New base for edited contig accession numbers (None will keep old accnum) [None]
     newchr=X        : Code to replace "chr" in new sequence names for additional PAGSAT compatibility [ctg]
+    spcode=X        : Species code for renaming assembly sequences [PAGSAT]
     refchr=X        : Code used in place of "chr" for reference sequence names [chr]
     orphans=T/F     : Whether to include and process orphan contigs [True]
     joinsort=X      : Whether to sort potential chromosome joins by `Length` or `Identity` [Identity]
@@ -172,7 +182,18 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 2.3.3 - Fixed bad assembly sequence name bug.
     # 2.3.4 - Fixed full.fas request bug.
     # 2.4.0 - Added PAGSAT compile mode to generate comparisons of reference chromosomes across assemblies.
-    '''
+    # 2.5.0 - Reduced the executed code when mapfas=T assessment=F. (Recommended first run.) Added renaming.
+    # 2.5.1 - Added recognition of *.gbff for genbank files.
+    # 2.6.0 - Added mapper=X : Program to use for mapping files against each other (blast/minimap) [blast]
+    # 2.6.1 - Switch failure to find key report files to a long warning, not program exit.
+    # 2.6.2 - Fixed bugs with mapper=minimap mode and started adding more internal documentation.
+    # 2.6.3 - Fixed default behaviour to run report=T mode.
+    # 2.6.4 - Fixed summary table merge bug.
+    # 2.6.5 - Fixed compile path bug.
+    # 2.6.6 - Fixed BLAST LocalIDCut error for GABLAM and QAssemble stat filtering.
+    # 2.6.7 - Generalised compile path bug fix.
+    # 2.6.8 - Added ChromXcov fields to PAGSAT Compare.
+   '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
     '''
@@ -221,11 +242,13 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
     # [2.3.0] : Add running "open *.assembly.html" option (Y/N) - No gives firefox option?
     # [2.3.0] : Update preassembly message to mention assembly.html not report.html. (Or both?)
     # [ ] : Update compare mode to assess coverage based on Snapper output.
+    # [ ] : Tidy up assessment of blast outputs etc. if using mapper=minimap.
+    # [ ] : Fix covplot output for mapper=minimap runs.
     '''
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copy_right) = ('PAGSAT', '2.4.0', 'April 2018', '2015')
+    (program, version, last_edit, copy_right) = ('PAGSAT', '2.6.8', 'April 2019', '2015')
     description = 'Pairwise Assembled Genome Sequence Analysis Tool'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_obj.zen()]
@@ -291,14 +314,17 @@ class PAGSAT(rje_obj.RJE_Object):
     - GABLAMDir       : Parent directory for all BLAST and GABLAM searches.
     - JoinMerge=X     : Merging mode for joining chromosomes (consensus/long/end) [end]
     - JoinSort=X      : Whether to sort potential chromosome joins by `Length` or `Identity` [Length]
+    - Mapper=X        : Program to use for mapping files against each other (blast/minimap) [blast]
     - NewAcc=X        : New base for edited contig accession numbers (None will keep old accnum) [None]
     - NewChr=X        : Code to replace "chr" in new sequence names for additional PAGSAT compatibility [ctg]
     - RefBase=X       : Basefile for reference genome for assessment (*.gb) [None]
     - RefChr=X        : Code used in place of "chr" for reference sequence names [chr]
     - RefGenome=FILE  : Fasta file of reference genome for assessment (also *.gb for full functionality) [None]
     - ResDir          : Results directory = BASEFILE.PAGSAT/
+    - SpCode=X        : Species code for non-gnspacc format sequences [PAGSAT]
 
     Bool:boolean
+    - Assessment=T/F  : Whether to perform full reference versus assembly assessment (default function) [True]
     - CaseFilter=T/F  : Whether to filter leading/trailing lower case (low QV) sequences [True]
     - ChromAlign=T/F  : Whether to align chromosomes with contigs (slow!) [False]
     - Diploid=T/F     : Whether to treat assembly as a diploid [False]
@@ -348,9 +374,9 @@ class PAGSAT(rje_obj.RJE_Object):
         '''Sets Attributes of Object.'''
         ### ~ Basics ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         self.strlist = ['Assembly','BaseBase','CaseFilter','ChrMap','CutBase','GABLAMDir','JoinMerge','JoinSort',
-                        'NewAcc','NewChr','RefBase','RefChr','RefGenome','ResDir']
-        self.boollist = ['ChromAlign','Diploid','DisMatrix','DotPlots','Features','GeneSummary','GeneTar','MapFas',
-                        'Orphans','ProtSummary','RGraphics','Report','Snapper','Tidy']
+                        'Mapper','NewAcc','NewChr','RefBase','RefChr','RefGenome','ResDir']
+        self.boollist = ['Assessment','ChromAlign','Diploid','DisMatrix','DotPlots','Features','GeneSummary','GeneTar',
+                         'MapFas','Orphans','ProtSummary','RGraphics','Report','Snapper','Tidy']
         self.intlist = ['JoinMargin','MinContigLen','MinLocLen','MinQV','MinUnique']
         self.numlist = ['MinLocID','TopHitBuffer']
         self.filelist = []
@@ -360,10 +386,11 @@ class PAGSAT(rje_obj.RJE_Object):
         ### ~ Defaults ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         self._setDefaults(str='None',bool=False,int=0,num=0.0,obj=None,setlist=True,setdict=True,setfile=True)
         self.setStr({'ChrMap':'unique','GABLAMDir':rje.makePath('GABLAM/'),'JoinMerge':'mid','JoinSort':'Identity',
-                     'NewChr':'ctg','RefChr':'chr'})
-        self.setBool({'CaseFilter':True,'ChromAlign':False,'Diploid':False,'DisMatrix':False,'DotPlots':False,'Features':True,
-                      'GeneSummary':True,'GeneTar':True,'MapFas':True,'OrderedFas':False,'Orphans':True,
-                      'ProtSummary':True,'RGraphics':True,'Report':True,'Snapper':True,'Tidy':False})
+                     'Mapper':'blast','NewChr':'ctg','RefChr':'chr'})
+        self.setBool({'Assessment':False,'CaseFilter':True,'ChromAlign':False,
+                      'Diploid':False,'DisMatrix':False,'DotPlots':False,'Features':True,
+                      'GeneSummary':True,'GeneTar':True,'MapFas':False,'OrderedFas':False,'Orphans':True,
+                      'ProtSummary':True,'RGraphics':True,'Report':False,'Snapper':True,'Tidy':False})
         self.setInt({'JoinMargin':10,'MinLocLen':250,'MinQV':20,'MinContigLen':1000,'MinUnique':250})
         self.setNum({'MinLocID':95.0,'TopHitBuffer':1.0})
         self.list['ChromCov'] = [95,98,99]
@@ -375,6 +402,12 @@ class PAGSAT(rje_obj.RJE_Object):
         '''
         Sets attributes according to commandline parameters:
         - see .__doc__ or run with 'help' option
+
+        The following command over-rides will be executed:
+
+        * If `win32=$` then `genetar` is set to `False`.
+        * If the assembly file is `*.map.$EXT` then `mapfas` will be set to `False`.
+        * ... complete
         '''
         for cmd in self.cmd_list:
             try:
@@ -382,12 +415,12 @@ class PAGSAT(rje_obj.RJE_Object):
                 self._forkCmd(cmd)  # Delete if no forking
                 ### Class Options (No need for arg if arg = att.lower()) ### 
                 #self._cmdRead(cmd,type='str',att='Att',arg='Cmd')  # No need for arg if arg = att.lower()
-                self._cmdReadList(cmd,'str',['ChrMap','JoinMerge','JoinSort','NewAcc','NewChr','RefChr'])   # Normal strings
+                self._cmdReadList(cmd,'str',['ChrMap','JoinMerge','JoinSort','Mapper','NewAcc','NewChr','RefChr'])   # Normal strings
                 #self._cmdReadList(cmd,'path',['Att'])  # String representing directory path 
                 self._cmdReadList(cmd,'file',['Assembly','RefGenome'])  # String representing file path
                 self._cmdRead(cmd,type='file',att='RefGenome',arg='reference')  # No need for arg if arg = att.lower()
                 #self._cmdReadList(cmd,'date',['Att'])  # String representing date YYYY-MM-DD
-                self._cmdReadList(cmd,'bool',['CaseFilter','ChromAlign','Diploid','DisMatrix','DotPlots','GeneSummary','GeneTar','MapFas',
+                self._cmdReadList(cmd,'bool',['Assessment','CaseFilter','ChromAlign','Diploid','DisMatrix','DotPlots','GeneSummary','GeneTar','MapFas',
                                               'OrderedFas','Orphans','ProtSummary','RGraphics','Report','Snapper','Tidy'])  # True/False Booleans
                 self._cmdReadList(cmd,'int',['JoinMargin','MinContigLen','MinLocLen','MinQV','MinUnique'])   # Integers
                 self._cmdReadList(cmd,'float',['TopHitBuffer']) # Floats
@@ -401,7 +434,7 @@ class PAGSAT(rje_obj.RJE_Object):
                 #self._cmdReadList(cmd,'cdictlist',['Att']) # As cdict but also enters keys into list
             except: self.errorLog('Problem with cmd:%s' % cmd)
         if self.win32() and self.getBool('GeneTar'):
-            self.printLog('#WIN32','Cannot use targz on Windows: GeneTar=Fals.')
+            self.printLog('#WIN32','Cannot use targz on Windows: GeneTar=False.')
             self.setBool({'GeneTar':False})
         if self.getBool('MapFas') and rje.baseFile(self.getStr('Assembly')).endswith('.map') and (self.i() < 0 or rje.yesNo('Assembly file seems to be a mapping output file (*.map.fasta): switch mapfas=F')):
             self.printLog('#CMD','Assembly file seems to be a mapping output file (*.map.fasta): switched mapfas=F')
@@ -413,6 +446,12 @@ class PAGSAT(rje_obj.RJE_Object):
             elif rje.yesNo('Switch mapfas=F?'):
                 self.printLog('#CMD','Switching mapfas=False.')
                 self.setBool({'MapFas':False})
+        if self.getBool('Tidy') and not self.getBool('Assessment'):
+            self.printLog('#CMD','Tidy mode: switching assessment=True.')
+            self.setBool({'Assessment':True})
+        if self.getBool('Report') and not self.getBool('Assessment'):
+            self.printLog('#CMD','Report mode: switching assessment=True.')
+            self.setBool({'Assessment':True})
         if self.getBool('Tidy') and (self.getBool('GeneSummary') or self.getBool('ProtSummary')):
             self.printLog('#TIDY','PAGAT Tidy mode selected with: GeneSummary:%s; ProtSummary:%s' % (self.getBool('GeneSummary'),self.getBool('ProtSummary')))
             self.printLog('#TIDY','Switching genesummary=F protsummary=F will make Tidy Quicker.')
@@ -426,11 +465,47 @@ class PAGSAT(rje_obj.RJE_Object):
         if self.getStrLC('ResDir'):
             self.warnLog('ResDir=X does not function with PAGSAT. (Ignored.)')
             self.deBug(self.getStrLC('ResDir'))
+        ### Mapper ###
+        self.setStr({'Mapper':self.getStrLC('Mapper')})
+        if self.getStr('Mapper') not in ['minimap','minimap2','blast']:
+            self.warnLog('mapper=%s not recognised (blast/minimap): switched to blast' % self.getStr('Mapper'))
+            self.setStr({'Mapper':'blast'})
+            self.cmd_list.append('mapper=blast')
+        if self.getStr('Mapper') in ['minimap2']: self.setStr({'Mapper':'minimap'})
+#########################################################################################################################
+    def pafMode(self): return self.getStr('Mapper') in ['minimap','minimap2']
 #########################################################################################################################
     ### <2> ### Main Class Backbone                                                                                     #
 #########################################################################################################################
     def run(self):  ### Main run method
-        '''Main run method.'''
+        '''# PAGSAT Overview
+
+        PAGSAT has six basic run modes. In each case, the setup will be run first. For `compare` and `compile` modes,
+        this sets the `basefile` for output and initiates the internal Database object. All other modes will set up the
+        reference and assembly genomes, along with key output directories and file names.
+
+        The six run modes, in reverse order of precedence are:
+
+        1. **MapFas** (`mapfas=T`). Output assembly `*.map.fasta` file with RevComp contigs based on initial (automatic)
+        mapping but do not perform any additional assessment or analysis. This is best-suited for a pre-run before `tidy`
+        mode. This can be combined with any assessment mode.
+
+        2. **Assessment** (`assessment=T`). Perform the basic PAGSAT function of full reference versus assembly
+        assessment. PNG graphics will be generated if `rgraphics=T`.
+
+        3. **Report** (`report=T`). Peform PAGSAT assessment and generate additional `*.report.html` HTML report output.
+
+        4. **Tidy** (`tidy=T`). Perform PAGAST report (if not found) and generate additional `*.assembly.html` contig vs.
+        contig graphics, along with interactive options for tidying the assembly (deleting/joining contigs, etc.)
+
+        5. **Compile** (`compile=FILES`). Compile reference chromosome comparisons for a set of `*.report.html` files for
+        a detailed chromosome-by-chromosome comparison of assebmlies.
+
+        6. **Compare** (`compare=FILES`). Compare assemblies selected using a list of `*.Summary.tdt` files (wildcards
+        allowed) and additional calculate values, to compile a table of statistics.
+
+        If no acceptable run mode is detected, the option to run **Report** mode will be given.
+        '''
         try:### ~ [1] ~ Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             self.devLog('#RUN','Run',debug=False)
             if not self.setup(): return False
@@ -438,8 +513,16 @@ class PAGSAT(rje_obj.RJE_Object):
             if self.list['Compare']: return self.compare()
             if self.list['Compile']: return self.compile()
             if self.getBool('Tidy'): return self.tidy()
-            elif self.getBool('Report'): return self.report()
-            else: return self.assessment()
+            if self.getBool('Report'): return self.report()
+            if self.getBool('Assessment'): return self.assessment()
+            if self.getBool('MapFas'): return self.pureMapFas()
+            ### ~ [3] ~ Add default run mode here ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            #!# Replace with menu at some point #!#
+            self.printLog('#RUN','No PAGSAT run mode (mapfas/assessment/report/tidy/compare/compile) detected.')
+            if self.i() < 0  or rje.yesNo('No PAGSAT run mode (mapfas/assessment/report/tidy/compare/compile) detected. Run report mode?'):
+                self.printLog('#RUN','Set report=T.')
+                self.setBool({'Report':True,'Assessment':True})
+                return self.report()
         except:
             self.errorLog(self.zen())
             raise   # Delete this if method error not terrible
@@ -448,7 +531,7 @@ class PAGSAT(rje_obj.RJE_Object):
         '''
         Main class setup method. This sets up the main Database object.
 
-        In Compare mode, nothing else is done beyond checking/setting basefile.
+        In Compare or Compile mode, nothing else is done beyond checking/setting basefile.
 
         Other modes go through a series of setup stages:
         1. Set up Reference Genome.
@@ -472,13 +555,15 @@ class PAGSAT(rje_obj.RJE_Object):
             #i# RefBase will include the path to the reference genomes
             if rje.exists('%s.gb' % self.getStr('RefGenome')): self.setStr({'RefBase':self.getStr('RefGenome')})
             elif rje.exists('%s.gbk' % self.getStr('RefGenome')): self.setStr({'RefBase':self.getStr('RefGenome')})
+            elif rje.exists('%s.gbff' % self.getStr('RefGenome')): self.setStr({'RefBase':self.getStr('RefGenome')})
             else: self.setStr({'RefBase':rje.baseFile(self.getStr('RefGenome'))})
             if rje.exists('%s.gbk' % self.getStr('RefBase')): gbfile = '%s.gbk' % self.getStr('RefBase')
+            elif rje.exists('%s.gbff' % self.getStr('RefBase')): gbfile = '%s.gbff' % self.getStr('RefBase')
             else: gbfile = '%s.gb' % self.getStr('RefBase')
             ## ~ [1b] Establish whether Genbank processing of RefGenome needs to be performed ~~~~~ ##
             rungb = False   # Whether to run rje_genbank on RefGenome
             gbcheck = ['gene.fas','prot.fas','Feature.tdt']
-            if string.split(self.getStr('RefGenome'),'.')[-1] in ['gb','gbk']: gbcheck.append('full.fas')
+            if string.split(self.getStr('RefGenome'),'.')[-1] in ['gb','gbk','gbff']: gbcheck.append('full.fas')
             for rfile in gbcheck:
                 gfile = '%s.%s' % (self.getStr('RefBase'),rfile)
                 self.printLog('#CHECK','%s: %s' % (gfile,{True:'Found.',False:'Missing!'}[os.path.exists(gfile)]))
@@ -501,33 +586,72 @@ class PAGSAT(rje_obj.RJE_Object):
             self.bugPrint('Features: %s' % self.getBool('Features'))
             ## ~ [1d] Check sequence naming and offer reformatting options ~~~~~~~~~~~~~~~~~~~~~~~~ ##
             #!# Need to add reformatting here #!#
-            if string.split(self.getStr('RefGenome'),'.')[-1] in ['gb','gbk']:  # Look for *.fas
+            if string.split(self.getStr('RefGenome'),'.')[-1] in ['gb','gbk','gbff']:  # Look for *.fas
                 self.setStr({'RefGenome':'%s.fas' % self.getStr('RefBase')})
             if not rje.exists(self.getStr('RefGenome')) or open(self.getStr('RefGenome'),'r').readline()[:1] != '>':
                 self.printLog('#REF','%s missing or not recognised fasta.' % self.getStr('RefGenome'))
                 if rje.exists('%s.full.fas' % self.getStr('RefBase')):
                     self.printLog('#NAMES','%s.full.fas sequence names will not be suitable.' % self.getStr('RefBase'))
-                    self.printLog('#NAMES','Please modify gene names in %s.full.fas (e.g. ChrX) and save as %s.fas.' % (self.getStr('RefBase'),self.getStr('RefBase')))
-                    self.printLog('#NAMES','Then re-run with refgenome=%s.fas.' % self.getStr('RefBase'))
-                return False
+                    #!# Add option to rename manually #!#
+                    if self.i() >=0 and rje.yesNo('Modify gene names now?'):
+                        tmpseqlist = rje_seqlist.SeqList(self.log,self.cmd_list+['seqin=%s.full.fas' % self.getStr('RefBase'),'autoload=T','seqmode=file'])
+                        self.setStr({'RefGenome':'%s.fas' % self.getStr('RefBase')})
+                        if rje.yesNo('Auto-rename with incrementing %s (refchr=X)?' % self.getStr('RefChr')):
+                            tmpseqlist.setStr({'NewAcc':'None'})
+                            tmpseqlist.setStr({'NewGene':self.getStr('RefChr')})
+                            tmpseqlist.setStr({ 'SeqOut':self.getStr('RefGenome') })
+                            tmpseqlist.setBool({'AutoFilter':False})
+                            tmpseqlist.rename(genecounter=True)
+                        else:
+                            if not self.yesNo('Manually edit gene names with consistent labels (e.g. ChrX)'):
+                                self.printLog('#NAMES','Please modify gene names in %s.full.fas (e.g. ChrX) and save as %s.fas.' % (self.getStr('RefBase'),self.getStr('RefBase')))
+                                self.printLog('#NAMES','Then re-run with refgenome=%s.fas.' % self.getStr('RefBase'))
+                                return False
+                            tmpseqlist.edit()
+                            os.rename(tmpseqlist.getStr('EditFile'),self.getStr('RefGenome'))
+                        self.printLog('#REF','Reference genome replaced with renamed fasta file: %s' % self.getStr('RefGenome'))
+                    else:
+                        self.printLog('#NAMES','Please modify gene names in %s.full.fas (e.g. ChrX) and save as %s.fas.' % (self.getStr('RefBase'),self.getStr('RefBase')))
+                        self.printLog('#NAMES','Then re-run with refgenome=%s.fas.' % self.getStr('RefBase'))
+                if not rje.exists(self.getStr('RefGenome')): return False
             self.printLog('#REF','Reference genome fasta: %s' % self.getStr('RefGenome'))
             if not rje.exists(self.getStr('RefGenome')): raise IOError('Cannot find RefGenome: %s!' % self.getStr('RefGenome'))
 
             ### ~ [2] Assembly ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if not rje.exists(self.getStr('Assembly')): raise IOError('Cannot find Assembly: %s!' % self.getStr('Assembly'))
-            assseqlist = rje_seqlist.SeqList(self.log,self.cmd_list+['seqin=%s' % self.getStr('Assembly'),'autoload=T','seqmode=file'])
-            ## ~ [2a] Check assembly gene names. Should be unique. ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-            #?# Should not match Reference either?
-            #!# Add reformatting of assembly genes if not acceptable.
-            #!# Add checking versus reference genes if required.
-            assgenes = []   # These should be unique for later processing
-            while assseqlist.nextSeq():
-                agene = assseqlist.seqGene()
-                if agene in assgenes:
-                    self.printLog('#NAMES','%s sequence names will not be suitable.' % self.getStr('Assembly'))
-                    self.printLog('#NAMES','Please modify gene names in %s to be unique (e.g. CtgX) and re-run.' % (self.getStr('Assembly')))
-                    return False
-                else: assgenes.append(agene)
+            while True:
+                assseqlist = rje_seqlist.SeqList(self.log,self.cmd_list+['seqin=%s' % self.getStr('Assembly'),'autoload=T','seqmode=file'])
+                ## ~ [2a] Check assembly gene names. Should be unique. ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+                #?# Should not match Reference either?
+                #!# Add reformatting of assembly genes if not acceptable.
+                #!# Add checking versus reference genes if required.
+                assgenes = []   # These should be unique for later processing
+                goodnames = True
+                while assseqlist.nextSeq():
+                    gnspacc = rje.matchExp('^(\S+)_(\S+)__(\S+)',assseqlist.seqName())
+                    agene = assseqlist.seqGene()
+                    if agene in assgenes or not gnspacc:
+                        self.debug('%s -> %s: %s %s' % (assseqlist.seqName(), agene, agene in assgenes, gnspacc))
+                        self.printLog('#NAMES','%s sequence names will not be suitable.' % self.getStr('Assembly'))
+                        if self.i() < 0 or rje.yesNo('Rename sequences using newacc=X and newchr=X?'):
+                            #i# Rename sequences
+                            if not assseqlist.getStrLC('SpCode'): assseqlist.setStr({'SpCode':'PAGSAT'})
+                            if not assseqlist.getStrLC('NewAcc'): newacc = rje.baseFile(self.getStr('Assembly'),True).upper()
+                            else: newacc = assseqlist.getStr('NewAcc')
+                            if not newacc.endswith('.'): newacc = '%s.' % newacc
+                            assseqlist.setStr({'NewAcc':newacc})
+                            assseqlist.setStr({'NewGene':self.getStr('NewChr')})
+                            assseqlist.setStr({'SeqOut':'%s.renamed.fas' % self.baseFile()}) # rje.baseFile(self.getStr('Assembly'),True)})
+                            self.setStr({ 'Assembly':assseqlist.getStr('SeqOut') })
+                            assseqlist.setBool({'AutoFilter':False})
+                            assseqlist.rename(genecounter=True)
+                            self.printLog('#ASSFAS','Assembly replaced with renamed fasta file: %s' % self.getStr('Assembly'))
+                            goodnames = False
+                            break
+                        self.printLog('#NAMES','Please modify gene names in %s to be unique (e.g. CtgX) and re-run.' % (self.getStr('Assembly')))
+                        return False
+                    else: assgenes.append(agene)
+                if goodnames: break
             ## ~ [2b] Check for QV data and perform QV filtering ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             qvfile = '%s.qv.csv' % rje.baseFile(self.getStr('Assembly'))    # QV data file
             qvcut = self.getInt('MinQV')                                    # QV cutoff
@@ -619,7 +743,7 @@ class PAGSAT(rje_obj.RJE_Object):
             ridfile = '%s.rid.tdt' % assbase
             depfile = '%s.depthplot.tdt' % assbase
             if self.i() > -1 and not (rje.exists(samfile) or rje.exists(ridfile) or rje.exists(depfile)):
-                if not rje.yesNo('SAM, RID or depthplot.tdt file needed for read depth plots. (Not found.) Copy files into assembly directory, proceed without them or "N" to Quit. Proceed?'):
+                if not rje.yesNo('SAM, RID or depthplot.tdt file needed for read depth plots. (Not found.) Proceed without them (not required), copy files into assembly directory first, or "N" to Quit. Proceed?'):
                     return False
             if rje.exists(samfile) or rje.exists(ridfile) or rje.exists(depfile):
                 #!# Why is this not picking up the files in the assembly directory? Had to move to run directory!
@@ -646,7 +770,9 @@ class PAGSAT(rje_obj.RJE_Object):
             self.printLog('#GABDIR',self.getStr('GABLAMDir'))   # Directory for GABLAM and BLAST output
             self.printLog('#PAGDIR',self.getStr('ResDir'))      # Directory for PAGSAT output
             # Primary basefile is PAGSAT directory with additional cut-off information added
-            self.baseFile('%s%s.L%dID%d' % (basedir,os.path.basename(self.baseFile()),minloclen,int(minlocid)))
+            if self.getStr('Mapper') == 'minimap':
+                self.baseFile('%s%s.paf.L%dID%d' % (basedir,os.path.basename(self.baseFile()),minloclen,int(minlocid)))
+            else: self.baseFile('%s%s.L%dID%d' % (basedir,os.path.basename(self.baseFile()),minloclen,int(minlocid)))
             self.setStr({'CutBase':os.path.basename(self.baseFile())})
             self.printLog('#BASE',self.getStr('BaseBase'))      # Root basefile
             self.printLog('#PAGOUT','%s.*' % self.baseFile())   # Primary output basefile
@@ -704,7 +830,9 @@ class PAGSAT(rje_obj.RJE_Object):
             if gtype == 'Self': blastbase = string.join(string.split(basefile,'.')[:-1],'.')
             else: blastbase = self.fileBase('GABLAM','Base',gtype)
             ### ~ [1] Run GABLAM, processing BLAST file as required ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            blastfile = '%s.blast' % blastbase
+            if self.pafMode():
+                blastfile = '%s.paf' % blastbase
+            else: blastfile = '%s.blast' % blastbase
             # Unzip file if required
             if rje.exists('%s.gz' % blastfile) and blastgz:
                 os.system('gunzip %s.gz' % blastfile)
@@ -718,10 +846,17 @@ class PAGSAT(rje_obj.RJE_Object):
             self.debug('%s: %s' % (runsnapper and self.getBool('Snapper'),gabcmd))
             if runsnapper and self.getBool('Snapper'): snapper.Snapper(self.log,gabcmd).run()
             else: gablam.GABLAM(self.log,gabcmd).run()
-            # Rename BLAST file if kept
-            if rje.exists('%s.blast' % basefile) and blastbase != basefile:
-                os.rename('%s.blast' % basefile,blastfile)
-                self.printLog('#BLAST','%s.blast -> %s' % (basefile,blastfile))
+
+            if self.pafMode():
+                # Rename BLAST file if kept
+                if rje.exists('%s.paf' % basefile) and blastbase != basefile:
+                    os.rename('%s.paf' % basefile,blastfile)
+                    self.printLog('#PAF','%s.paf -> %s' % (basefile,blastfile))
+            else:
+                # Rename BLAST file if kept
+                if rje.exists('%s.blast' % basefile) and blastbase != basefile:
+                    os.rename('%s.blast' % basefile,blastfile)
+                    self.printLog('#BLAST','%s.blast -> %s' % (basefile,blastfile))
             # (Re)zip BLAST file if required
             if rje.exists(blastfile) and blastgz:
                 os.system('gzip %s' % blastfile)
@@ -735,11 +870,11 @@ class PAGSAT(rje_obj.RJE_Object):
         >> gtype:str ['qassemble'] = type of GABLAM to run (Reference/Assembly/Genes/Proteins/Genes.Reciprocal/Proteins.Reciprocal)
         '''
         try:### ~ [0] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            self.devLog('#RUN','qAssembleGABLAM',debug=False)
+            self.devLog('#RUN','qAssembleGABLAM',debug=True)
             ## ~ [0a] Set up basefiles for outputs ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             refbase = self.getStr('RefBase')        # Used for searches of genes and proteins
             gdir = self.getStr('GABLAMDir')         # GABLAMDir. Also used as BLAST directory
-            if gtype in ['Reference','Assembly']:   # These searches used cutoff data
+            if gtype in ['Reference','Assembly','RefMap']:   # These searches used cutoff data
                 gbase = self.fileBase('GABLAM','Cut',gtype)
             else:                                   # Other searches do not need cutoffs.
                 gbase = self.fileBase('GABLAM','Base',gtype)
@@ -748,10 +883,11 @@ class PAGSAT(rje_obj.RJE_Object):
             ## ~ [0b] Check for existing GABLAM output files ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             if not self.force():
                 runfound = True
-                if gtype == 'Reference' and not rje.exists('%s.hitsum.tdt' % gbase): runfound = False
-                if gtype == 'Reference' and not rje.exists('%s.gablam.tdt' % gbase): runfound = False
-                if gtype == 'Reference' and not rje.exists('%s.local.tdt' % gbase): runfound = False
-                if gtype != 'Reference' and not rje.exists('%s.hitsum.tdt' % (gbase)): runfound = False
+                if gtype in ['Reference','Assembly','RefMap'] and not rje.exists('%s.hitsum.tdt' % gbase): runfound = False
+                if gtype in ['Reference','Assembly','RefMap'] and not rje.exists('%s.gablam.tdt' % gbase): runfound = False
+                if gtype in ['Reference','Assembly','RefMap'] and not rje.exists('%s.local.tdt' % gbase): runfound = False
+                if gtype in ['Reference','Assembly','RefMap'] and not rje.exists('%s.hitsum.tdt' % (gbase)): runfound = False
+                #!# Add Snapper output check for Reference and RefMap
                 self.printLog('#GABLAM','%s GABLAM %s.* found: %s' % (gtype,gbase,runfound))
                 if runfound: return True
             ## ~ [0c] Setup GABLAM options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
@@ -768,12 +904,13 @@ class PAGSAT(rje_obj.RJE_Object):
 
             ### ~ [1] Perform different GABLAM searches ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             # 1. QAssemble GABLAM of the reference genome against the assembly to get full genome coverage.
-            if gtype == 'Reference':
+            if gtype in ['Reference','RefMap']:
                 if self.getBool('Snapper'):
                     #i# Note that Snapper performs the GABLAM search "backwards" which is a bit confusing!
                     gcmd = ['seqin=%s' % self.getStr('Assembly'),'reference=%s' % self.getStr('RefGenome'),'dna=T','blastp=blastn']
                     #!# Possibly add SNP Frequency output at some point? #!#
-                    gcmd = ['localsam=T','nocopyfas=F'] + gcmd + ['reftype=both']
+                    if gtype in ['Reference']: gabcmd = ['localsam=T'] + gabcmd
+                    gcmd = ['nocopyfas=F'] + gcmd + ['reftype=both']
                     self.runGABLAM(gabcmd + gcmd,gtype,runsnapper=True)
                 else:
                     gcmd = ['seqin=%s' % self.getStr('RefGenome'),'searchdb=%s' % self.getStr('Assembly'),'dna=T','blastp=blastn','dotplots=%s' % self.getBool('DotPlots'),'dotlocalmin=%s' % self.getInt('MinLocLen')]
@@ -785,7 +922,8 @@ class PAGSAT(rje_obj.RJE_Object):
             # 3. QAssemble GABLAM of the reference genes (from Genbank annotation) to assess accuracy in terms of annotated features.
             if gtype == 'Genes':
                 fasdir = '%s.GeneHits/' % gbase
-                gcmd = fascmd + ['seqin=%s.gene.fas' % refbase,'searchdb=%s' % self.getStr('Assembly'),'dna=T','blastp=blastn','fasdir=%s.GeneHits/'% gbase,'localsam=T','reftype=hit','fragrevcomp=F','dotplots=F']
+                gabcmd = ['localsam=T'] + gabcmd
+                gcmd = fascmd + ['seqin=%s.gene.fas' % refbase,'searchdb=%s' % self.getStr('Assembly'),'dna=T','blastp=blastn','fasdir=%s.GeneHits/'% gbase,'reftype=hit','fragrevcomp=F','dotplots=F']
                 self.runGABLAM(gabcmd + gcmd,gtype)
                 if rje.exists(fasdir) and self.getBool('GeneTar'):
                     rje.targz(self,fasdir)
@@ -826,7 +964,10 @@ class PAGSAT(rje_obj.RJE_Object):
         try:### ~ [0] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             self.devLog('#RUN','selfQAssemble',debug=False)
             if not genome: genome = self.getStr('RefGenome')
-            genbase = '%s.L%dID%d' % (rje.baseFile(genome),self.getInt('MinLocLen'),self.getInt('MinLocID'))
+            #if self.getStr('Mapper') == 'minimap':
+            if self.pafMode():
+                genbase = '%s.paf.L%dID%d' % (rje.baseFile(genome),self.getInt('MinLocLen'),self.getInt('MinLocID'))
+            else: genbase = '%s.L%dID%d' % (rje.baseFile(genome),self.getInt('MinLocLen'),self.getInt('MinLocID'))
             #i# This is using its own Database object
             selfdb = rje_db.Database(self.log,self.cmd_list+['basefile=%s' % genbase])
             ## ~ [1] Check for existing run data ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
@@ -846,7 +987,7 @@ class PAGSAT(rje_obj.RJE_Object):
             gabcmd += ['seqin=%s' % genome,'dna=T','blastp=blastn','basefile=%s' % genbase,'selfhit=T','selfsum=T',
                        'localmin=%d' % self.getInt('MinLocLen'),'localidmin=%f' % self.getNum('MinLocID'),
                        'localcut=%d' % self.getInt('MinLocLen'),'localidcut=%f' % self.getNum('MinLocID'),
-                       'localsam=T','reftype=hit']
+                       'localsam=T','reftype=hit','reference=%s' % genome]
             if self.getBool('Snapper'): gabcmd += ['makesnp=F']
             self.runGABLAM(gabcmd,'Self')
             hdb = selfdb.addTable(mainkeys=['Qry'],name='hitsum',expect=False)
@@ -918,6 +1059,202 @@ class PAGSAT(rje_obj.RJE_Object):
         except: self.errorLog('Major problem with %s.disMatrixOut' % self)
 #########################################################################################################################
     ### <4> ### PAGSAT Assessment Methods                                                                               #
+#########################################################################################################################
+    def pureMapFas(self):   ### Generate partial GABLAM analyses and assembly fasta mapping.
+        '''Generate partial GABLAM analyses and assembly fasta mapping.'''
+        try:### ~ [0] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            self.devLog('#RUN','mapfas')
+            self.printLog('#~~#','## =========================== PAGSAT FASTA MAPPING MODE ============================ ##')
+            db = self.db()
+            if not self.force():
+                wanted = ['map.fasta']  #i# *.fasta for SAMTools etc.
+                complete = True
+                for wext in wanted:
+                    wfile = '%s.%s' % (self.baseFile(),wext)
+                    self.printLog('#CHECK','%s: %s.' % (wfile,os.path.exists(wfile)))
+                    complete = complete and os.path.exists(wfile)
+                if complete:
+                    self.printLog('#SKIP','Fasta mapping found (force=F).')
+                    return True
+
+            #i# This is a reduced assessment run that only needs to compare the assembly to the reference
+            #i# unidirectionally: we are interested in where the dominant unique matches of the assembled contigs match.
+
+
+            ## ~ [0a] Load & Summarise Sequence files ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            # Read in reference and assembly to seqlists then combine in Sequences table
+            # Generate summary tables: db('Sequences'): ['name','desc','gene','spec','accnum','length'],['name']
+            self.obj['Reference'] = refseqlist = rje_seqlist.SeqList(self.log,self.cmd_list+['seqin=%s' % self.getStr('RefGenome'),'autoload=T','seqmode=filedb'])
+            self.obj['Reference'].summarise(sumdb=True,save=False)
+            refseqlist.saveSeq(seqfile='%s.combined.fas' % self.baseFile(),append=False,backup=False)
+            self.obj['Assembly'] = assseqlist = rje_seqlist.SeqList(self.log,self.cmd_list+['seqin=%s' % self.getStr('Assembly'),'autoload=T','seqmode=filedb'])
+            self.obj['Assembly'].summarise(sumdb=True,save=False)
+            assseqlist.saveSeq(seqfile='%s.combined.fas' % self.baseFile(),append=True,backup=False)
+            seqdb = db.addEmptyTable('Sequences',['Locus','Name','Chrom','Spec','Length','Source','Desc'],['Locus'])
+            oldfields = ['name','desc','gene','spec','accnum','length']
+            newfields = ['Name','Desc','Chrom','Spec','Locus','Length']
+            for seqobj in ['Reference','Assembly']:
+                objdb = self.obj[seqobj].db('sequences')
+                for i in range(len(oldfields)): objdb.renameField(oldfields[i],newfields[i],log=False)
+                objdb.addField('Source',evalue=seqobj)
+                for entry in objdb.entries(): seqdb.addEntry(entry)
+            seqdb.indexReport('Source')
+            #x#seqdb.saveToFile()
+            #?# Does this need any additional data? Could combine with Coverage files? Maybe "BestMatch" field? And/or ChromID?
+            #?# Should Chrom be I-XVI and Contig be the full name? Or have ChromID be I-XVI ?
+            #!# Add ChromID and data from the *.coverage.tdt files.
+            #!# Will need a method to extract chromosome ID. Will have trouble with numbers, so stick to I-XVI for now?
+            #!# Can add other letter/numbering systems later. May not need to keep genes unique once R script updated.
+
+            ### ~ [1] All-by-all GABLAM files including Reciprocal Self-Searches ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            #i# NOTE: Cannot do a combined reference+assembly self-GABLAM as QAssemble stats would be messed up.
+            #i# This is actually better in some ways as reference self-search can be re-used!
+            ## ~ [1c] Load/Generate Reference versus Assembly GABLAM Tables ~~~~~~~~~~~~~~~~~~~~~~~ ##
+            self.printLog('#~~#','## ~~~~~~~~~~~~~~~~~~~~ Assembly vs Reference GABLAM Searches ~~~~~~~~~~~~~~~~~~~~ ##')
+            gbase = self.fileBase('GABLAM','Cut')
+            db.baseFile(gbase)
+            # Look to add QAssemble GABLAM tables: run qAssembleGABLAM() if force/missing.
+            #i# I think this is the only one we need for mapfas output
+            #self.qAssembleGABLAM('Reference')
+            #success = self.db(table='Reference.hitsum',add=True,forcecheck=True,mainkeys=['Qry'])
+            #success = success and self.db(table='Reference.gablam',add=True,forcecheck=True,mainkeys=['Qry','Hit'])
+            #success = success and self.db(table='Reference.local',add=True,forcecheck=True,mainkeys=['Qry','Hit','AlnNum'])
+            success = True
+            if self.getBool('Snapper'):
+                self.qAssembleGABLAM('RefMap')
+                success = success and self.db(table='RefMap.unique',add=True,forcecheck=True,mainkeys=['Query','Hit','AlnID'])
+                if not success: raise IOError('Failed to generate %s.RefMap Snapper' % self.db().baseFile())
+                self.db('RefMap.unique').rename('RefSnap.local')
+                self.db('RefSnap.local').renameField('AlnID','AlnNum')
+                self.db('RefSnap.local').renameField('Query','Qry')
+                # Want to use this for the *.assembly.png images. This is mapping contigs onto chromosomes?
+                # Therefore want to swap Query and Hit? Or do we want to make contig assembly files too? (Yes)
+                # Therefore we need two versions of the table:
+                # |-- 1. The unique contigs mapped onto Reference
+                # |-- 2. The "clean" unique mapping data that has good chromosomes for each contig.
+                #       -> This one will want to have the non-unique Chrom Hits in place of "HitNum"
+                refsnapdb = db.copyTable(self.db('RefSnap.local'),'AssSnap.local')
+                for entry in refsnapdb.entries():
+                    (entry['Qry'],entry['Hit']) = (entry['Hit'],entry['Qry'])
+                    (entry['QryStart'],entry['SbjStart']) = (entry['SbjStart'],entry['QryStart'])
+                    (entry['QryEnd'],entry['SbjEnd']) = (entry['SbjEnd'],entry['QryEnd'])
+                    if int(entry['QryEnd']) < int(entry['QryStart']):
+                        (entry['QryStart'],entry['QryEnd']) = (entry['QryEnd'],entry['QryStart'])
+                        (entry['SbjStart'],entry['SbjEnd']) = (entry['SbjEnd'],entry['SbjStart'])
+                refsnapdb.remakeKeys()
+                #refsnapdb.indexReport('Qry')
+                #self.db('RefSnap.local').indexReport('Qry')
+                #self.debug('<<REF|ASS>>')
+                #self.db('AssSnap.local').indexReport('Qry')
+                #self.debug('?')
+                #!# Swap Qry and Hit fields
+                #!# Change use of Unique below
+            else:
+                self.qAssembleGABLAM('Assembly')
+                success = self.db(table='Assembly.hitsum',add=True,forcecheck=True,mainkeys=['Qry'])
+                success = success and self.db(table='Assembly.local',add=True,forcecheck=True,mainkeys=['Qry','Hit','AlnNum'])
+                if not success: raise IOError('Failed to generate %s.Assembly GABLAM' % self.db().baseFile())
+
+            #if not self.getBool('Snapper'): db.copyTable(self.db('Assembly.local'),'Unique.local')
+            # Format local tables
+            minloclen = self.getInt('MinLocLen')
+            self.printLog('#LOCLEN','Checking local hits for len < %d' % minloclen)
+            minid = self.getNum('MinLocID') / 100.0
+            self.printLog('#LOCID','Checking local hits for identity < %s' % minid)
+            if self.getBool('Snapper'): loctables = ['AssSnap']
+            else: loctables = ['Assembly']
+            for ctype in loctables:
+                locdb = self.db('%s.local' % ctype)
+                locdb.dataFormat({'Length':'int','Identity':'int','QryStart':'int','QryEnd':'int','SbjStart':'int','SbjEnd':'int'})
+                locdb.dropField('Positives')
+                locdb.makeField('1.0*Identity/Length','Local')
+                for entry in locdb.entries():
+                    if entry['Local'] < minid:  self.bugPrint(entry)
+                    if entry['Length'] < minloclen:  self.bugPrint(entry)
+                #self.debug('%s: %s' % (locdb,locdb.indexEntries('Qry','fcu03_MBGISH__FC170203U.03')))
+                predropx = locdb.entryNum()
+                #if self.dev():
+                #    locdb.dropEntries(['Local<%f' % minid,'Length<%d' % minloclen],inverse=True,log=True,logtxt='Removing poor local hits')
+                #    self.debug(locdb.entries())
+                locdb.dropEntries(['Local<%f' % minid,'Length<%d' % minloclen],inverse=False,log=True,logtxt='Removing poor local hits')
+                if predropx != locdb.entryNum(): self.warnLog('%s poor local hits removed. (Expected if running on V1.x data.)' % rje.iStr(predropx-locdb.entryNum()),quitchoice=False)
+
+
+            ### ~ [5] Contig-Chromosome Mapping ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            ## ~ [5a] Directional coverage of Assembly Contigs ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            #># 'Qry','Pos','FwdHitAln','FwdChrom','RevHitAln','RevChrom','HitChrom','Class'
+            #x#self.dirnCoveragePlot('Assembly')
+            #i# Now use Unique.local for assembly dircov etc. Will be from Snapper if called, else is Assembly.local.
+            self.obj['Ass'] = self.obj['Assembly']
+            self.obj['Ref'] = self.obj['Reference']
+            if self.getBool('Snapper'):
+                self.dirnCoveragePlot('AssSnap')
+            else: self.dirnCoveragePlot('Assembly')
+            ## ~ [5b] Table of unique mapping based on sorted dircov tables ~~~~~~~~~~~~~~~~~~~~~~~ ##
+            #i# Needs tuplekeys=T for sorting.
+            #i# This is currently used for assembly tidy mapping. Sorts out mapping and direction based on dirnCoveragePlot().
+            maptables = ['Assembly']
+            if self.getBool('Snapper'):
+                maptables = ['AssSnap']
+                self.printLog('#MAP','Using Snapper unique.tdt data for Assembly.mapping')
+            for ctype in maptables:
+                ctgdb = self.db('%s.dircov' % ctype)
+                if ctype == 'RefRec': mapdb = db.addEmptyTable('RefBench.mapping',['Qry','Chrom','Fwd','Rev'],['Qry','Chrom'])
+                else: mapdb = db.addEmptyTable('Assembly.mapping',['Qry','Chrom','Fwd','Rev'],['Qry','Chrom'])
+                for contig in ctgdb.index('Qry'):
+                    ckeys = ctgdb.index('Qry')[contig][0:]
+                    while ckeys:    # These should be in pairs!
+                        cstart = cend = ctgdb.data(ckeys.pop(0))
+                        if cstart['Class'] != 'U': continue
+                        while ckeys and ctgdb.data(ckeys[0])['HitChrom'] == cstart['HitChrom'] and ctgdb.data(ckeys[0])['Class'] == 'U':
+                            cend = ctgdb.data(ckeys.pop(0))
+                        if (len(string.split(cstart['HitChrom'],';')) + cstart['FwdChrom'] + cstart['RevChrom']) != 2:
+                            raise ValueError(cstart)
+                        if (len(string.split(cend['HitChrom'],';')) + cend['FwdChrom'] + cend['RevChrom']) != 2:
+                            raise ValueError(cend)
+                        # Now have a region mapping to a single chromosome
+                        chrom = cstart['HitChrom']
+                        cpair = (contig,chrom)
+                        mentry = mapdb.data(cpair)
+                        if not mentry: mentry = mapdb.addEntry({'Qry':contig,'Chrom':chrom,'Fwd':0,'Rev':0})
+                        mentry['Fwd'] += (cend['Pos'] - cstart['Pos'] + 1) * cstart['FwdChrom']
+                        mentry['Rev'] += (cend['Pos'] - cstart['Pos'] + 1) * cstart['RevChrom']
+                ## Update with Unique rating and Rank to use for mapping.
+                mapdb.makeField(formula='Fwd+Rev',fieldname='Unique')
+                mapdb.dropEntries('Unique<%d' % self.getInt('MinUnique'))
+                mapdb.rankFieldByIndex('Qry','Unique',newfield='Rank',rev=True,absolute=True,lowest=True)
+                mapdb.makeField(formula='Fwd-Rev',fieldname='Dirn') #i# Will be <0 if Bwd match best
+                mapdb.dataFormat({'Fwd':'int','Rev':'int','Unique':'int','Dirn':'int'})
+                mapdb.saveToFile()
+
+            ### ~ [6] Update Sequences Table ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            #i# This uses the Assembly.mapping file to add MapDirn to sequences table.
+            seqdb = self.db('Sequences')
+            seqdb.setFields(string.split('Locus,Name,Chrom,MapChrom,MapUniq,MapDirn,Spec,Source,Desc,HitNum,MaxScore,EVal,Length,Coverage,Identity,Positives,Missing,Different,Perfect',','))
+            ## ~ [6b] Add MapChrom ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            for sentry in seqdb.entries():
+                if sentry['Source'] == 'Reference': continue
+                else: mapdb = self.db('Assembly.mapping')
+                for mentry in mapdb.entries():
+                    if mentry['Qry'] != sentry['Name']: continue
+                    if mentry['Rank'] > 1: continue
+                    if sentry['MapChrom']: self.warnLog('%s maps to two MapChrom equally!' % sentry['Name']); continue
+                    sentry['MapChrom'] = string.split(mentry['Chrom'],'_')[0]
+                    #i# Unique gets the unique mapped nucloetides for the top ranked match. (Not sure what benefit this is!)
+                    sentry['MapUniq'] = mentry['Unique']
+                    sentry['MapDirn'] = 'Fwd'
+                    if mentry['Dirn'] < 0: sentry['MapDirn'] = 'Rev'
+                # Fill in Orphans
+                if not sentry['MapChrom']:
+                    sentry['MapChrom'] = 'Orphan'
+                    sentry['MapUniq'] = 0
+                    sentry['MapDirn'] = 'NA'
+            seqdb.saveToFile()
+
+            ### ~ [7] Generate MapFas output ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            if self.getBool('MapFas'): self.mapFas() #i# *.fasta for SAMTools etc.
+
+        except: self.errorLog('%s.pureMapFas error' % self.prog())
 #########################################################################################################################
     def assessment(self):   ### Generate GABLAM analyses and summarise assembly assessment.
         '''Generate GABLAM analyses and summarise assembly assessment.'''
@@ -1220,7 +1557,10 @@ class PAGSAT(rje_obj.RJE_Object):
         except: self.errorLog('%s.assessment error' % self.prog())
 #########################################################################################################################
     def mapFas(self):   ### Generates Revcomp-updated assembly file based on Mapping
-        '''Generates Revcomp-updated assembly file based on Mapping.'''
+        '''
+        Generates Revcomp-updated assembly file based on Mapping. Uses MapDirn in self.db('Sequences').
+        Also updates the coverage plot tables.
+        '''
         try:### ~ [0] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             self.printLog('#~~#','## ~~~~~ PAGSAT Mapped Contig Output ~~~~~ ##')
             seqdb = self.db('Sequences')    #i# Key is Locus = AccNum
@@ -1381,22 +1721,32 @@ class PAGSAT(rje_obj.RJE_Object):
             assseqlist = self.obj['Assembly']
             ### ~ [1] Reference vs Assembly local BLAST ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             ## Read BLAST into local database table including alignments
-            blastfile = '%s.blast' % self.fileBase('GABLAM','Base','Reference')
+            if self.pafMode():
+                blastfile = '%s.paf' % self.fileBase('GABLAM','Base','Reference')
+            else: blastfile = '%s.blast' % self.fileBase('GABLAM','Base','Reference')
             # Unzip file if required
             blastgz = rje.exists('%s.gz' % blastfile)
             if blastgz:
                 os.system('gunzip %s.gz' % blastfile)
                 self.printLog('#GUNZIP','%s unzipped.' % blastfile)
-            if not rje.exists(blastfile): raise IOError('#BLAST','%s not found.' % (blastfile))
-            # Better to re-read in the original BLAST
-            blast = rje_blast.blastObj(self.log,self.cmd_list+['blastp=blastn'])
-            blast.readBLAST(resfile=blastfile,clear=False,gablam=False,unlink=False,local=True,screen=True,log=False,keepaln=True)
+
+            if self.pafMode():
+                if not rje.exists(blastfile): raise IOError('#PAF','%s not found.' % (blastfile))
+                #?# Will this read in the local hits table? Try it!
+                blast = rje_blast.blastObj(self.log,self.cmd_list+['blastp=blastn'])
+                blast.readBLAST(resfile=blastfile,clear=False,gablam=False,unlink=False,local=True,screen=True,log=False,keepaln=True)
+            else:
+                if not rje.exists(blastfile): raise IOError('#BLAST','%s not found.' % (blastfile))
+                # Better to re-read in the original BLAST
+                blast = rje_blast.blastObj(self.log,self.cmd_list+['blastp=blastn'])
+                blast.readBLAST(resfile=blastfile,clear=False,gablam=False,unlink=False,local=True,screen=True,log=False,keepaln=True)
             # (Re)zip BLAST file if required
             if blastgz and rje.exists(blastfile):
                 os.system('gzip %s' % blastfile)
                 self.printLog('#GZIP','%s (re)zipped.' % blastfile)
             ## Use data from:
             bdb = blast.db('Local')
+            self.debug(bdb.entryNum())
             # ['Query','Hit','AlnID','BitScore','Expect','Length','Identity','Positives','QryStart','QryEnd','SbjStart','SbjEnd','QrySeq','SbjSeq','AlnSeq'],
             bdb.dataFormat({'Identity':'int','QryStart':'int','QryEnd':'int','SbjStart':'int','SbjEnd':'int','Length':'int'})
             predropx = bdb.entryNum()
@@ -1664,6 +2014,7 @@ class PAGSAT(rje_obj.RJE_Object):
                     if not entry['Missing'] and not entry['Different']: entry['Perfect'] = 1
                 #x#if tname in ['RefRec','Reference','Assembly']: table.saveToFile()
                 if tname in ['RefRec']: table.saveToFile()
+                table.dropFields(['CovHit','QryStart','QryEnd','Qry_AlnLen','Qry_AlnID'])
                 sumtab.append(db.copyTable(table,string.replace(table.name(),'.coverage','')))
             # Add chromAlign data if performed
             adb = self.db('ChromAlign')
@@ -1685,13 +2036,14 @@ class PAGSAT(rje_obj.RJE_Object):
                 if covdb: db.mergeTables(covdb,table)
                 else: covdb = table; table.setStr({'Name':'Summary'})
             covdb.renameField('HitNum','HitSeq')
+            covdb.keepFields(['Summary','HitNum','Length','Coverage','Identity','Missing','Different','Perfect','N'])
             covdb.saveToFile()
         except: self.errorLog('%s.pagsatSummary error' % self.prog()); raise
 #########################################################################################################################
     def coveragePlot(self,ctype='Reference'):    ### Generate coverage plotting data
         '''Generate coverage plotting data.'''
         try:### ~ [0] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            self.devLog('#RUN','coveragePlot',debug=False)
+            self.devLog('#RUN','coveragePlot',debug=True)
             self.printLog('#~~#','## ~~~~~~~~~~~~~~~~~~~~ PAGSAT %s Coverage Plot Data ~~~~~~~~~~~~~~~~~~~~~ ##' % ctype)
             db = self.db()
             qryseqlist = self.obj[ctype[:3]]
@@ -1707,8 +2059,12 @@ class PAGSAT(rje_obj.RJE_Object):
             selfdb = self.db('%sRec.local' % ctype[:3])     # This is the chromosome versus chromosome plot
             ## ~ [0c] Reference vs Assembly local table ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             #?# Why is this failing for AssSnap?
-            debugme = False #x#ctype == 'AssSnap'
+            debugme = True #x#ctype == 'AssSnap'
             locdb = self.db('%s.local' % ctype)
+
+            #!# This is having trouble for PAF mode, so work out what these tables are and document properly somewhere
+            for table in [selfdb,locdb]: self.debug('%s: %d' % (table.name(),table.entryNum()))
+
             #i# NOTE: This used to use Reference.local for both files. The Assembly.local search would have used Hit and
             #i# SbjStart/SbjEnd rather than Qry data. In this case, SbjStart and End must be swapped if there is a
             #i# reverse hit. See PAGSAT_V1 for details.
@@ -1767,7 +2123,10 @@ class PAGSAT(rje_obj.RJE_Object):
         except: self.errorLog('%s.coveragePlot error' % self.prog()); raise
 #########################################################################################################################
     def dirnCoveragePlot(self,ctype='Reference'):    ### Generate directional coverage plotting data
-        '''Generate directional coverage plotting data. (For contig mapping, not plotting at present.)'''
+        '''
+        Generate directional coverage plotting data. (For contig mapping, not plotting at present.)
+        Adds Dirn to ctype.local table, and generates ctype.dircov table.
+        '''
         try:### ~ [0] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             self.devLog('#RUN','dirnCoveragePlot')
             self.printLog('#~~#','## ~~~~~~~~~~~~~~~~~ PAGSAT %s Directional Coverage Data ~~~~~~~~~~~~~~~~~ ##' % ctype)
@@ -1966,7 +2325,9 @@ class PAGSAT(rje_obj.RJE_Object):
                 self.printLog('#CHECK','%s: Found.' % wfile)
             for wext in wanted:
                 wfile = '%s.%s' % (self.baseFile(),wext)
-                if not os.path.exists(wfile): raise IOError('Cannot find %s!' % wfile)
+                if not os.path.exists(wfile):
+                    #raise IOError('Cannot find %s!' % wfile)
+                    self.warnLog('Cannot find %s! Report output may be missing data or graphics.' % wfile)
             ## ~ [0c] Setup HTML ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             #!# Consider making an HTML table where each entry is a section, with fields:
             #!# |-- Section, Order, Link, LinkDesc, HTML
@@ -3580,7 +3941,61 @@ class PAGSAT(rje_obj.RJE_Object):
     ### <7> ### PAGSAT Comparison Methods                                                                               #
 #########################################################################################################################
     def compare(self):  ### Generates summary of statistics across multiple PAGSAT runs.
-        '''Generates summary of statistics across multiple PAGSAT runs.'''
+        '''## PAGSAT Compare mode
+
+        The `compare=FILES` run mode generates summary of statistics across multiple PAGSAT runs. For input, it will take
+        a list of `*.Summary.tdt` files, from which PAGSAT will extrapolate the run paths to find the other files it
+        needs. (PAGSAT assumes these files have not been moved or rearrange since the original run. If they have, you
+        will need to mimic the original directory structure.
+
+        For each PAGSAT run, PASGAT Compare will use:
+
+        *
+
+        In addition, PAGSAT will use a `*.Features.tdt` table associated with the reference genome to identify repeat
+        features to exclude from "Unique" output stats (see below).
+
+
+            fragcov = self.list['FragCov']   # = [50,90,95,99] List of coverage thresholds to count (local table)
+            chromcov = self.list['ChromCov'] # = [95,98,99] No. of chromosomes covered by a single contig (GABLAM table)
+
+
+            compfields = ['Assembly','N','%AssCov','%AssAcc','%AssAlnCov','%AssAlnAcc','Multiplicity','Parsimony','%RefCov','%RefAcc','%GlobRefAcc','%RefAlnCov','%RefAlnAcc','%GlobAlnAcc','Missing','Different','Extra','Duplicate','TreeLen','WtTreeLen']
+            if ftdb: compfields += ['UniqCov','UniqCtg','UniqDup','RepeatFT']
+            for chromx in chromcov: compfields.append('Chrom%d' % chromx)
+            for fragx in fragcov:
+                compfields.append('Frag%d' % fragx)
+                if ftdb: compfields.append('UniqFrag%d' % fragx)
+            compdb = db.addEmptyTable('compare',compfields,['Assembly'])   # Table of final comparison data
+            if self.getBool('GeneSummary'): compdb.addFields(['%GeneCov','%GeneAcc'])#,'%GeneIntegrity'])
+            if self.getBool('ProtSummary'): compdb.addFields(['%ProtCov','%ProtAcc'])#,'%ProtIntegrity'])
+
+        ### Output statistics
+
+        * Assembly = The assembly being assessed
+        * N = Number of contigs/scaffolds
+        * %AssCov = Percentage of assembly nucleotides mapping onto reference
+        * %AssAcc = Percentage of mapped assembly nucleotides identical to reference
+        * Multiplicity = Assembly coverage / Reference coverage
+        * Parsimony = Assembly length / Reference coverage
+        * %RefCov = Percentage of reference nucleotides mapping onto assembly
+        * %RefAcc = Percentage of mapped reference nucleotides identical to assembly
+        * %GlobRefAcc = Percentage of total reference nucleotides identical to assembly
+        * Missing = Number of reference nucleotides not mapped onto assembly
+        * Different = Number of mapped nucleotides mismatched in reference vs assembly
+        * Extra = Number of assembly nucleotides not mapped onto reference
+        * Duplicate = Flawed statistic. Ignore!
+        * TreeLen = Total length of branches in chromosome/contig tree
+        * WtTreeLen = Total length of branches in chromosome/contig tree, weighted by chromsome/contig length
+        * UniqCov = Proportion of "unique" reference regions covered by assembly (see RepeatFT). [Needs checking]
+        * UniqCtg = Proportion of "unique" reference regions covered uniquely by one assembly contig (see RepeatFT). [Needs checking]
+        * UniqDup = Flawed statistic. Ignore!
+        * RepeatFT = "Repeat" features in reference; "Unique" regions are those outside these features.
+        * ChromXX = The number of reference chromosomes with >= XX% global identity in assembly.
+        * FragXX = The number assembly chunks needed for >=XX% global coverage of reference. [Needs checking]
+        * UniqFragXX = The number assembly chunks needed for >=XX% global coverage of "unique" reference regions (see RepeatFT). [Needs checking]
+
+        '''
         try:### ~ [0] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             self.devLog('#RUN','compare')
             self.printLog('#~~#','## ~~~~~ PAGSTAT Compare mode (%d files) ~~~~~ ##' % len(self.list['Compare']))
@@ -3591,10 +4006,11 @@ class PAGSAT(rje_obj.RJE_Object):
             # - no. contigs
             # - optional gene/protein data if present
             ## ~ [0a] Load Reference Feature Table (if refgenome given) ~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            #!# Add RepeatFT=list option along with docs of how to make Features table.
             repeatft = ['rRNA','mobile','LTR','centromere','telomere']   # self.list['RepeatFT']
             repeatft.sort()
+            ftdb = None
             if repeatft: ftdb = self.ftdb()
-            else: ftdb = None
             if ftdb:
                 ftdb.dropEntriesDirect('feature',repeatft,inverse=True)
                 self.printLog('#RPTFT','%s repeat features to exclude in "Uniq" outputs.' % rje.iStr(ftdb.entryNum()))
@@ -3611,6 +4027,7 @@ class PAGSAT(rje_obj.RJE_Object):
             compfields = ['Assembly','N','%AssCov','%AssAcc','%AssAlnCov','%AssAlnAcc','Multiplicity','Parsimony','%RefCov','%RefAcc','%GlobRefAcc','%RefAlnCov','%RefAlnAcc','%GlobAlnAcc','Missing','Different','Extra','Duplicate','TreeLen','WtTreeLen']
             if ftdb: compfields += ['UniqCov','UniqCtg','UniqDup','RepeatFT']
             for chromx in chromcov: compfields.append('Chrom%d' % chromx)
+            for chromx in chromcov: compfields.append('Chrom%dcov' % chromx)
             for fragx in fragcov:
                 compfields.append('Frag%d' % fragx)
                 if ftdb: compfields.append('UniqFrag%d' % fragx)
@@ -3624,17 +4041,21 @@ class PAGSAT(rje_obj.RJE_Object):
                 self.printLog('#FILE',pfile)
                 ppath = os.path.split(pfile)[0]
                 self.printLog('#PATH',ppath)
+                basedir = '%s/' % ppath
                 [ppath,pcheck] = os.path.split(ppath)
                 ## ~ [1a] Load and Process Summary Table ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
                 pbase = rje.baseFile(pfile,strip_path=True)
                 if pbase.endswith('.Summary'): pbase = string.join(string.split(pbase,'.')[:-1],'.')     # Strip Summary
+
                 #!# Need to add parent directories if required!
-                basedir = rje.makePath('%s.PAGSAT/' % string.join(string.split(pbase,'.')[:-1],'.'))
-                if basedir != rje.makePath(pcheck): self.warnLog('Expect %s but file in %s!' % (rje.makePath(pcheck),basedir))
-                gabdir = rje.makePath('%s.GABLAM/' % string.join(string.split(pbase,'.')[:-1],'.'))
-                if ppath:
-                    basedir = rje.makePath('%s/%s' % (ppath,basedir))
-                    gabdir = rje.makePath('%s/%s' % (ppath,gabdir))
+                #basedir = rje.makePath('%s.PAGSAT/' % string.join(string.split(pbase,'.')[:-1],'.'))
+                #if basedir != rje.makePath(pcheck): self.warnLog('Expect %s but file in %s!' % (rje.makePath(pcheck),basedir))
+
+                #gabdir = rje.makePath('%s.GABLAM/' % string.join(string.split(pbase,'.')[:-1],'.'))
+                #if ppath:
+                #    basedir = rje.makePath('%s/%s' % (ppath,basedir))
+                #    gabdir = rje.makePath('%s/%s' % (ppath,gabdir))
+                gabdir = rje.makePath('%s.GABLAM/' % string.join(string.split(basedir,'.')[:-1],'.'))
                 self.setStr({'GABLAMDir':gabdir,'ResDir':basedir,'BaseBase':string.join(string.split(pbase,'.')[:-1],'.'),'CutBase':pbase})
                 try: pdb = db.addTable(pfile,['Summary'],name=pbase,expect=True)
                 except: self.errorLog('Cannot load PAGSAT Summary table "%s": check format' % pfile); continue
@@ -3683,6 +4104,10 @@ class PAGSAT(rje_obj.RJE_Object):
                 ## ~ [1b] Load and process CovPlot Table ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
                 #MBG8150.SP16481.hcq.sgd.srt.1000.covplot.chrom.tdt
                 #!# Should this be Reference or RefSnap
+
+                #!# if self.getBool('Snapper'): - can use *Snap for unique coverage. I think this should be it!
+                #!# Otherwise could take square root on assumption that each dupl should hit each other?! #!#
+
                 cfile = string.replace(pfile,'Summary','Reference.covplot')
                 if not rje.exists(cfile): self.warnLog('Could not locate %s' % cfile); continue
                 try: cdb = db.addTable(cfile,['Qry','Pos'],name='covplot',expect=True)
@@ -3890,12 +4315,17 @@ class PAGSAT(rje_obj.RJE_Object):
                 try: gdb = db.addTable(gfile,['Qry','Hit'],name='gablam',expect=True)
                 except: self.errorLog('Cannot load GABLAM table "%s": check format' % gfile); continue
                 gdb.dropEntriesDirect('Rank',['1'],inverse=True)
+
+                #!# Should this be converted to coverage? Or also calculated as coverage? #!#
                 gxfield = 'Qry_AlnID'   # Could also use Qry_AlnLen
                 gdb.dataFormat({gxfield:'float'})
                 for chromx in chromcov:
                     centry['Chrom%d' % chromx] = 0
                     for gentry in gdb.entries():
                         if gentry[gxfield] >= chromx: centry['Chrom%d' % chromx] += 1
+                    centry['Chrom%dcov' % chromx] = 0
+                    for gentry in gdb.entries():
+                        if gentry[gxfield] >= chromx: centry['Chrom%dcov' % chromx] += 1
 
                 db.deleteTable(gdb)
 
@@ -3940,9 +4370,23 @@ class PAGSAT(rje_obj.RJE_Object):
             for rfile in self.list['Compile']:
                 ass = rje.baseFile(rfile,True)
                 if ass not in asslist: asslist.append(ass)
+                asplit = string.split(ass,'.')
+                i = len(asplit)
+                while i:
+                    pagdir = string.join(asplit[:1],'.') + '.PAGSAT'
+                    ppath = os.path.split(rfile)[0] + '/' + pagdir
+                    if os.path.exists(ppath): break
+                    i -= 1
+                self.printLog('#PDIR','%s -> %s' % (pagdir,ppath))
+                if not os.path.exists(ppath): self.warnLog('%s not found: images won\'t show for %s' % (ppath, rfile))
                 for rdata in string.split(open(rfile,'r').read(),'<hr width="80%">'):
                     if not rdata.startswith('<a name=') or rdata.startswith('<a name="MBG'): continue
                     acc = rje.matchExp('<a name="(\S+)">',rdata)[0]
+                    if pagdir in rdata:
+                        rdata = string.replace(rdata,'./%s' % pagdir,ppath)
+                    # Update internal links
+                    rdata = string.replace(rdata,'<a href="#','<a href="%s#' % rfile)
+                    # Set up title etc.
                     if acc not in acclist:
                         acclist.append(acc)
                         accname[acc] = acc
@@ -3952,11 +4396,13 @@ class PAGSAT(rje_obj.RJE_Object):
                         chrlist.append(accname[acc])
                         if accname[acc] not in acchtml:
                             acchtml[accname[acc]] = ''
+                    #?# What is this if statement for?
                     if len(string.split(rdata,'<p>Assembly: <a href=')) > 1:
                         rdata = string.split(rdata,'<p>Assembly: <a href=')[0]
                         acchtml[accname[acc]] += '%s\n<hr width="80%%">\n\n' % rdata
                         break
                     else:
+                        acchtml[accname[acc]] += '<a name="%s"></a><h2>%s: %s ~ [<a href="#Top" title="Jump to top of compile page">Reports</a>]</h2>\n\n' % (ass,ass,accname[acc])
                         acchtml[accname[acc]] += '%s\n<hr width="80%%">\n\n' % rdata
             self.debug(acclist)
             self.debug(chrlist)
@@ -3990,8 +4436,11 @@ class PAGSAT(rje_obj.RJE_Object):
                     rje.backup(self,hfile)
                     HTML = open(hfile,'w')
                     HTML.write(html.htmlHead(title='%s %s Compilation' % (self.baseFile(),accname[acc]),tabber=False,keywords=[]))
-                    HTML.write('<h1>PAGSAT %s Compilation</h1>\n' % acctitle[acc])
-                    HTML.write('<p>Assembly order: <code>%s</code></p>\n\n' % string.join(asslist,'</code> <code>'))
+                    HTML.write('<a name="Top"></a><h1>PAGSAT %s Compilation</h1>\n' % acctitle[acc])
+                    HTML.write('<p>Click on PAGSAT run names to jump to chromosome output for that run. Click ["Reports"] to return to here. NOTE: hyperlinks within each chromosome report will open the original <code>*.html</code> file - you will probably want to do this in a new tab.</p>\n\n')
+                    codelist = []
+                    for ass in asslist: codelist.append('<a href="#%s">%s</a>' % (ass,ass))
+                    HTML.write('<p>Assembly order: <code>%s</code></p>\n\n<hr width="80%%">\n\n' % string.join(codelist,'</code> <code>'))
                     HTML.write(acchtml[accname[acc]])
                     HTML.write(html.htmlTail(tabber=False))
                     self.printLog('#HTML','Compiled %s HTML output to %s' % (accname[acc],hfile))
@@ -4023,7 +4472,7 @@ def runMain():
     except: print 'Unexpected error during program setup:', sys.exc_info()[0]; return
     
     ### ~ [2] ~ Rest of Functionality... ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-    try: PAGSAT(mainlog,cmd_list).run()
+    try: PAGSAT(mainlog,['taxdir=None']+cmd_list).run()
 
     ### ~ [3] ~ End ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     except SystemExit: return  # Fork exit etc.

@@ -37,6 +37,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 1.0 - Initial Compilation based on "25 september version". (Probably not!)
     # 1.1 - Minor bug fixes for SLiMFinder 4.5 SigV and SigPrime implementation.
     # 1.2 - Replaced depracated Set module.
+    # 1.2.1 = Updated to work with newer module styles.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -210,7 +211,7 @@ class rankByDistribution:
                 else: poslist.append(part)
                 ## Calculate multiplier ##
                 if wild:
-                    (minx,maxx) = (self.slimFinderObj.stat['MaxWild'],0)
+                    (minx,maxx) = (self.slimFinderObj.getStat('MaxWild'),0)
                     for x in part:
                         minx = min(minx,int(x))
                         maxx = max(maxx,int(x))
@@ -224,7 +225,7 @@ class rankByDistribution:
                     N = self.slimFinderObj.dict['AAFreq'][upc]['Total']   # Number of possible sites for SLiM to occur
                     p = 1.0                                 # Probability of SLiM at each position
                     k = 1                                   # Number of successful trials (occurrences)
-                    if self.slimFinderObj.opt['SeqOcc'] and self.slimFinderObj.slimOccNum(slim,upc) > 1: k = self.slimFinderObj.slimOccNum(slim,upc)
+                    if self.slimFinderObj.getBool('SeqOcc') and self.slimFinderObj.slimOccNum(slim,upc) > 1: k = self.slimFinderObj.slimOccNum(slim,upc)
                     ## Calculate p and N from AAFreq and DimFreq ##
                     
                     for pos in poslist:     # AA position
@@ -255,7 +256,7 @@ class rankByDistribution:
     def sigSlimDist(self,slim,score):     ### Adds Score to dictionary and checks against significance cutoff
         '''Adds Score to dictionary and checks against significance cutoff.'''
         self.slimFinderObj.dict['Slim'][slim]["Normf."] = score
-        if score <= self.slimFinderObj.stat['ProbCut']: self.slimFinderObj.stat['NormSig'] += 1; return True
+        if score <= self.slimFinderObj.getStat('ProbCut'): self.slimFinderObj.setStat({'NormSig': self.slimFinderObj.getStat('NormSig')+1}); return True
         return False
 #########################################################################################################################
     def reformatMotif(self,motif):
@@ -340,7 +341,7 @@ class motifMaker:
     def createMotifsList(self,slimfinderObj):    ### Creates Motif Space
         '''Creates Motif Space.'''
         try:### ~ [1] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            self.options["maxLength"] = slimfinderObj.stat['SlimLen']
+            self.options["maxLength"] = slimfinderObj.getStat('SlimLen')
             aaOcc = ['A','R','N','D','C','E','G','H','I','L','K','M','F','P','S','T','W','Y','V','Q']
             motifCounter = {}
             ### ~ [2] Calculate motif space for each range of motif            
@@ -610,7 +611,7 @@ class Distribution_creator:
     def multList(self,listM,counts,length,SLiMFinderObject):
         prod = 1.0
         for x in listM:
-            prod *= (1 - x)**(counts[x][0][2]*pow(SLiMFinderObject.stat['MaxWild']-SLiMFinderObject.stat['MinWild']+1,(length-1)))
+            prod *= (1 - x)**(counts[x][0][2]*pow(SLiMFinderObject.getStat('MaxWild')-SLiMFinderObject.getStat('MinWild')+1,(length-1)))
         return prod
 #########################################################################################################################
     def findIndex(self,p,sorter,index_start,index_end):
@@ -702,8 +703,8 @@ class Distribution_creator:
                     #print mal,len(sorter),
                     #print last
                     try:
-                        d = ((1 - cum_p)**(shuffleMatrix[length][cum_p][0][2]*pow(SLiMFinderObject.stat['MaxWild']-SLiMFinderObject.stat['MinWild']+1,(length-1))))
-                        m = (1 - last[-1])**(last[0]*pow(SLiMFinderObject.stat['MaxWild']-SLiMFinderObject.stat['MinWild']+1,(length-1)))
+                        d = ((1 - cum_p)**(shuffleMatrix[length][cum_p][0][2]*pow(SLiMFinderObject.getStat('MaxWild')-SLiMFinderObject.getStat('MinWild')+1,(length-1))))
+                        m = (1 - last[-1])**(last[0]*pow(SLiMFinderObject.getStat('MaxWild')-SLiMFinderObject.getStat('MinWild')+1,(length-1)))
                         #print  "%1.5e"%m,"%1.5e"%d,mul,self.multList(sorter,shuffleMatrix[length],length,SLiMFinderObject)
                         if count%500 == 0:
                             mul = self.multList(sorter,shuffleMatrix[length],length,SLiMFinderObject)

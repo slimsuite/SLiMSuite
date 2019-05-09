@@ -19,8 +19,8 @@
 """
 Module:       rje_obj
 Description:  Contains revised General Object templates for Rich Edwards scripts and bioinformatics programs
-Version:      2.2.2
-Last Edit:    19/01/17
+Version:      2.4.0
+Last Edit:    07/03/19
 Copyright (C) 2011  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -37,6 +37,7 @@ General Commandline:
     log=FILE        : Redirect log to FILE [Default = calling_program.log]
     newlog=T/F      : Create new log file. [Default = False: append log file]
     silent=T/F      : If set to True will not write to screen or log. [False]
+    quiet=T/F       : If set to True will not write to screen or log except for errors. [False]
     errorlog=FILE   : If given, will write errors to an additional error file. [None]
     help            : Print help to screen
 
@@ -111,6 +112,8 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 2.2.0 - Added screenwrap=X.
     # 2.2.1 - Improved handling of integer parameters when given bad commands.
     # 2.2.2 - Updated error handling for full REST output.
+    # 2.3.0 - Added quiet mode to object and stderr output.
+    # 2.4.0 - Added vLog() and bugLog() methods.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -278,6 +281,9 @@ class RJE_Object(object):     ### Metaclass for inheritance by other classes
     def debugging(self): return self.getBool('DeBug')
     def win32(self): return self.getBool('Win32')
     def osx(self): return self.getBool('OSX')
+    def silence(self): return self.log.silence()
+    def quiet(self): return self.log.quiet()
+    def talk(self): return self.log.talk()
 #########################################################################################################################
     def getStrLC(self,key,return_none=False):
         if not key: return ''
@@ -369,9 +375,10 @@ class RJE_Object(object):     ### Metaclass for inheritance by other classes
         if self.dev() and warn: self.printLog('#DEV','Code calling getOpt() for new %s object' % self)
         return self.getBool(key,default,checkdata)
 #########################################################################################################################
-    def yesNo(self,text='',default='Y',confirm=False,i=0):
+    def yesNo(self,text='',default='Y',confirm=False,i=0,log=True):
+        if default in [True,False]: default = {True:'Y',False:'N'}
         if self.i() < i:
-            self.printLog('#AUTO','%s: %s' % (text,default.upper()))
+            if log: self.printLog('#AUTO','%s: %s' % (text,default.upper()))
             return {'Y':True,'N':False}[default.upper()]
         else: return rje.yesNo(text,default,confirm)
 #########################################################################################################################
@@ -635,6 +642,8 @@ class RJE_Object(object):     ### Metaclass for inheritance by other classes
 #########################################################################################################################
      ### <4> ### Input/Output                                                                                            #
 #########################################################################################################################
+    def bugProg(self, id='#ERR', text='Log Text Missing!',screen=True,rand=0.0,clear=0):
+        return self.progLog(id, text,screen and self.debugging(),rand,clear)
     def progLog(self, id='#ERR', text='Log Text Missing!',screen=True,rand=0.0,clear=0):
         if self.v() < 1: return
         if rand > 0 and random.random() > rand: return
@@ -642,6 +651,10 @@ class RJE_Object(object):     ### Metaclass for inheritance by other classes
         else: return False
     def printLog(self, id='#ERR', text='Log Text Missing!', timeout=True, screen=True, log=True, newline=True, clear=0):
         return self.log.printLog(id,text,timeout,screen and not self.getBool('Silent'),log and not self.getBool('Silent'),newline,clear=clear)
+    def bugLog(self, id='#ERR', text='Log Text Missing!', timeout=True, screen=True, log=True, newline=True, clear=0):
+        return self.log.printLog(id,text,timeout,screen and not self.getBool('Silent') and self.debugging(),log and not self.getBool('Silent') and self.debugging(),newline,clear=clear)
+    def vLog(self, id='#ERR', text='Log Text Missing!', timeout=True, screen=True, log=True, newline=True, clear=0,v=1):
+        return self.log.printLog(id,text,timeout,screen and not self.getBool('Silent') and self.v() >= v,log and not self.getBool('Silent') and self.v() >= v,newline,clear=clear)
     def errorLog(self, text='Missing text for errorLog() call!',quitchoice=False,printerror=True,nextline=True,log=True,errorlog=True,warnlist=True):
         return self.log.errorLog(text,quitchoice,printerror,nextline,log,errorlog,warnlist)
     def devLog(self, lid='#DEV', text='Log Text Missing!', debug=True):
@@ -649,7 +662,24 @@ class RJE_Object(object):     ### Metaclass for inheritance by other classes
         self.printLog(lid,text)
         if debug: self.debug('')
 #########################################################################################################################
-    def vPrint(self,text,v=1): return self.verbose(v,text=text)  
+    def headLog(self,text,line='~',hash='#',width=0,minside=4):  # Generates a header-style printLog command
+        '''
+        Generates a header-style printLog command.
+        >> text: header text
+        >> line: str for lines
+        >> hash:str [#] = borders for main text
+        >> width: total width for the printed message
+        >> minside: shortest
+        '''
+        if not width and line in '~-=': width = {'=':90,'-':75,'~':60}[line]
+        strlist = [hash,line*minside,text,line*minside,hash]
+        while len(string.join(strlist)) < width:
+            strlist[1] += line
+            strlist[3] += line
+        if len(string.join(strlist)) == width + 1 and len(strlist[1]) > minside: strlist[1] = strlist[1][:-1]
+        self.printLog('%s%s%s%s' % (hash,line,line,hash),string.join(strlist))
+#########################################################################################################################
+    def vPrint(self,text,v=1): return self.verbose(v,text=text)
 #########################################################################################################################
     def verbose(self,v=0,i=None,text='',newline=1):     ### Prints text to screen and maybe pauses program.
         '''

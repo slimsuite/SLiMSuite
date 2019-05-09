@@ -1,0 +1,6 @@
+[KR]R.
+^.{0,3}.[^FHWY][ILM][^P][^FHILVWYP][DHFM][FMY]..
+Q.[^FHWY][ILM][^P][^FHILVWYP][DHFM][FMY]..
+.[DE].[ST][ILFWMVA]..
+R.R..([ST])...
+F...W..[LIV]

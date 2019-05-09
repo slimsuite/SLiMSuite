@@ -1,0 +1,194 @@
+---
+title: "Pop Summary"
+author: "Richard Edwards"
+date: "28/06/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+modfile = "/Users/redwards/OneDrive - UNSW/projects/MBGEvolution-Feb17/analysis/2017-11-27.SNPFreq/pop00Freq.evolplot.csv"
+if(file.exists(modfile)){
+  timedb = read.csv(modfile)
+}else{
+  timedb = read.csv("/Users/redwards/OneDrive - UNSW/projects/MBGEvolution-Feb17/analysis/2017-11-27.SNPFreq/pop00Freq.timeline.tdt")
+  timedb = timedb[! timedb$Pops %in% c("Bad00",""),]
+  timedb = timedb[! timedb$SNPType %in% c("SNP"),]
+  timedb = timedb[! timedb$Locus %in% c("sgdMT_YEAST__KP263414","sgdP_YEAST__YSCPLASM"),]
+  timedb$Parents = as.character(timedb$Parents)
+  timedb[timedb$Parents == "",]$Parents = "mutation"
+  #timedb[regexpr("mbg",timedb$Parents,fixed=TRUE) < 0,]$Parents = "mutation"
+  for(field in c("Locus","SNPType","SNPEffect","Pops","Parents")){
+    timedb[[field]] = as.factor((as.character(timedb[[field]])))
+  }
+  (parents = levels(timedb$Parents)[regexpr("|",as.character(levels(timedb$Parents)),fixed=TRUE) < 0])
+}
+summary(timedb)
+dim(timedb)
+```
+
+```{r mbg, echo=FALSE}
+if(! file.exists(modfile)){
+
+  backdb = timedb
+  
+  timedb$ParN = 0
+  for(mbg in parents){
+    timedb[[mbg]] = 0
+  }
+  timedb$Parents = as.character(timedb$Parents)
+  for(i in 1:dim(timedb)[1]){
+    parlist = strsplit(timedb[i,"Parents"],"|",fixed=TRUE)[[1]]
+    timedb[i,"ParN"] = length(parlist)
+    parx = 1 / length(parlist)
+    for(mbg in parlist){
+      timedb[i,mbg] = parx
+    }
+  }
+  timedb$Parents = as.factor(timedb$Parents)
+  summary(timedb)
+  write.csv(timedb,modfile,row.names=FALSE,quote=FALSE)
+}
+```
+
+
+## Including Plots
+
+Variation across the genome:
+
+```{r pressure, echo=FALSE}
+backdb = timedb
+timedb$Chr = ""
+for(locus in levels(timedb$Locus)){
+  timedb[timedb$Locus==locus,]$Chr = strsplit(as.character(locus),"_")[[1]][1]
+}
+barplot(table(timedb$Chr),horiz=TRUE,las=1)
+```
+
+Want to generate a plot of the number of mutations at each population:
+
+* Standing varation: Total and NonSyn
+* New mutations: Total and Nonsyn
+
+```{r popvar, echo=FALSE}
+pcol = list(MutSyn=rgb(1,0,0,0.5),MutNS=rgb(1,0,0,0.8),VarSyn=rgb(0,0,1,0.5),VarNS=rgb(0,0,1,0.8))
+
+popvar = data.frame(Pop=colnames(timedb)[5:12])
+popvar$MutSyn = 0
+popvar$MutNS = 0
+popvar$VarNS = 0
+popvar$VarSyn = 0
+rownames(popvar) = popvar$Pop
+for(pop in colnames(timedb)[5:12]){
+  popvar[pop,"MutSyn"] = sum(timedb[[pop]] > 0 & timedb$Parents == "mutation" & timedb$SNPType == "SYN")
+  popvar[pop,"MutNS"] = sum(timedb[[pop]] > 0 & timedb$Parents == "mutation" & timedb$SNPType != "SYN")
+  popvar[pop,"VarSyn"] = sum(timedb[[pop]] > 0 & timedb$Parents != "mutation" & timedb$SNPType == "SYN")
+  popvar[pop,"VarNS"] = sum(timedb[[pop]] > 0 & timedb$Parents != "mutation" & timedb$SNPType != "SYN")
+}
+barplot(t(as.matrix(popvar[8:1,c(4:5,2:3)])),beside=FALSE,horiz=TRUE,las=1,legend=TRUE,col=c(pcol$VarNS,pcol$VarSyn,pcol$MutNS,pcol$MutSyn),main="Numbers of variants in population")
+popvar$Mut = popvar$MutNS + popvar$MutSyn
+popvar$Var = popvar$VarNS + popvar$VarSyn
+popvar$Total = popvar$Mut + popvar$Var
+
+popperc = popvar
+popperc$MutNS = 100 * popperc$MutNS / (popperc$MutNS + popperc$MutSyn)
+popperc$VarNS = 100 * popperc$VarNS / (popperc$VarNS + popperc$VarSyn)
+popperc$TotNS = 100 * (popvar$VarNS + popvar$MutNS)   / (popvar$Tot)
+popperc$Mut = 100 * (popvar$Mut)   / (popvar$Tot)
+barplot(t(as.matrix(popperc[8:1,c(3:4)])),beside=TRUE,horiz=TRUE,las=1,main="Percentage nonsynonymous variants",col=c(pcol$MutNS,pcol$VarNS),xlim=c(0,60))
+legend(x=2,y=5,legend=c("Mutations","Parental"),fill=c(pcol$MutNS,pcol$VarNS))
+```
+
+```{r popfix, echo=FALSE}
+pcol = list(MutSyn=rgb(1,0,0,0.5),MutNS=rgb(1,0,0,0.8),VarSyn=rgb(0,0,1,0.5),VarNS=rgb(0,0,1,0.8))
+
+popfix = data.frame(Pop=colnames(timedb)[5:12])
+popfix$MutSyn = 0
+popfix$MutNS = 0
+popfix$VarNS = 0
+popfix$VarSyn = 0
+rownames(popfix) = popfix$Pop
+for(pop in colnames(timedb)[5:12]){
+  popfix[pop,"MutSyn"] = sum(timedb[[pop]] == 1 & timedb$Parents == "mutation" & timedb$SNPType == "SYN")
+  popfix[pop,"MutNS"] = sum(timedb[[pop]] == 1 & timedb$Parents == "mutation" & timedb$SNPType != "SYN")
+  popfix[pop,"VarSyn"] = sum(timedb[[pop]] == 1 & timedb$Parents != "mutation" & timedb$SNPType == "SYN")
+  popfix[pop,"VarNS"] = sum(timedb[[pop]] == 1 & timedb$Parents != "mutation" & timedb$SNPType != "SYN")
+}
+barplot(t(as.matrix(popfix[8:1,c(4:5,2:3)])),beside=FALSE,horiz=TRUE,las=1,legend=TRUE,col=c(pcol$VarNS,pcol$VarSyn,pcol$MutNS,pcol$MutSyn),main="Numbers of fixed variants")
+
+fixperc = popfix
+fixperc$MutNS = 100 * fixperc$MutNS / (fixperc$MutNS + fixperc$MutSyn)
+fixperc$VarNS = 100 * fixperc$VarNS / (fixperc$VarNS + fixperc$VarSyn)
+barplot(t(as.matrix(fixperc[8:1,c(3:4)])),beside=TRUE,horiz=TRUE,las=1,main="Percentage fixed nonsynonymous variants",col=c(pcol$MutNS,pcol$VarNS),xlim=c(0,60))
+legend(x=2,y=5,legend=c("Mutations","Parental"),fill=c(pcol$MutNS,pcol$VarNS))
+```
+```{r mutations, echo=FALSE}
+
+mutvar = data.frame(Pop=c(colnames(timedb)[5:12],"All"))
+mutvar$MutSyn = 0
+mutvar$MutNS = 0
+mutvar$VarNS = 0
+mutvar$VarSyn = 0
+rownames(mutvar) = mutvar$Pop
+for(pop in colnames(timedb)[5:12]){
+  mutvar[pop,"MutSyn"] = sum(timedb[[pop]] > 0 & timedb$Parents == "mutation" & timedb$SNPType == "SYN")
+  mutvar[pop,"MutNS"] = sum(timedb[[pop]] > 0 & timedb$Parents == "mutation" & timedb$SNPType != "SYN")
+  mutvar[pop,"VarSyn"] = sum(timedb[[pop]] > 0 & timedb$Parents != "mutation" & timedb$SNPType == "SYN")
+  mutvar[pop,"VarNS"] = sum(timedb[[pop]] > 0 & timedb$Parents != "mutation" & timedb$SNPType != "SYN")
+}
+pop = "All"
+mutvar[pop,"MutSyn"] = sum(timedb$Parents == "mutation" & timedb$SNPType == "SYN")
+mutvar[pop,"MutNS"] = sum(timedb$Parents == "mutation" & timedb$SNPType != "SYN")
+mutvar[pop,"VarSyn"] = sum(timedb$Parents != "mutation" & timedb$SNPType == "SYN")
+mutvar[pop,"VarNS"] = sum(timedb$Parents != "mutation" & timedb$SNPType != "SYN")
+
+barplot(t(as.matrix(mutvar[c(8:1,9),c(4:5,2:3)])),beside=FALSE,horiz=TRUE,las=1,col=c(pcol$VarNS,pcol$VarSyn,pcol$MutNS,pcol$MutSyn),main="Numbers of variants in population")
+mutvar$Mut = mutvar$MutNS + mutvar$MutSyn
+mutvar$Var = mutvar$VarNS + mutvar$VarSyn
+mutvar$Total = mutvar$Mut + mutvar$Var
+mutvar
+
+```
+
+```{r lastpop,echo=FALSE}
+backdb = timedb
+
+timedb$FirstPop = "None"
+timedb$LastPop = "None"
+
+for(pop in colnames(timedb)[5:12]){
+  timedb[timedb[[pop]]>0 & timedb$FirstPop == "None",]$FirstPop = pop
+  timedb[timedb[[pop]]>0,]$LastPop = pop
+}
+
+table(timedb$FirstPop)
+table(timedb$LastPop)
+
+```
+
+```{r mutantgenes, echo=FALSE}
+allsnp = read.delim("/Users/redwards/OneDrive - UNSW/projects/MBGEvolution-Feb17/analysis/2017-11-27.SNPFreq/allsnpft.pop00.tdt")
+mutdb = allsnp[allsnp$Pop00 == 0,]
+mutdb = mutdb[! mutdb$Pops %in% c("","Bad00"), ]
+mutdb = mutdb[mutdb$Pop13 > 0,]
+mutdb = mutdb[mutdb$SNPType != "SNP",]
+(fixloci = levels(as.factor(as.character(mutdb[mutdb$SNPType != "SYN" & mutdb$Pop13 == 1,]$locus_tag))))
+write.csv(fixloci,"/Users/redwards/OneDrive - UNSW/presentations/2018-06.BABS/fixloci.txt",quote=FALSE,row.names=FALSE)
+(mutloci = levels(as.factor(as.character(mutdb[mutdb$SNPType != "SYN",]$locus_tag))))
+write.csv(mutloci,"/Users/redwards/OneDrive - UNSW/presentations/2018-06.BABS/mutloci.txt",quote=FALSE,row.names=FALSE)
+allloci = levels(as.factor(as.character(allsnp$locus_tag)))
+write.csv(allloci,"/Users/redwards/OneDrive - UNSW/presentations/2018-06.BABS/allloci.txt",quote=FALSE,row.names=FALSE)
+
+
+
+```
+

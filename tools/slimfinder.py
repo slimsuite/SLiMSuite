@@ -19,8 +19,8 @@
 """
 Program:      SLiMFinder
 Description:  Short Linear Motif Finder
-Version:      5.3.4
-Last Edit:    18/05/18
+Version:      5.3.5
+Last Edit:    09/05/19
 Citation:     Edwards RJ, Davey NE & Shields DC (2007), PLoS ONE 2(10): e967. [PMID: 17912346]
 ConsMask Citation: Davey NE, Shields DC & Edwards RJ (2009), Bioinformatics 25(4): 443-50. [PMID: 19136552]
 SigV/SigPrime Citation: Davey NE, Edwards RJ & Shields DC (2010), BMC Bioinformatics 11: 14. [PMID: 20055997]
@@ -295,6 +295,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 5.3.2 - Tweaked REST output format presentation.
     # 5.3.3 - Updated resfile to be set by basefile if no resfile=X setting given
     # 5.3.4 - Fixed terminal (^/$) musthave bug.
+    # 5.3.5 - Fixed slimcheck and advanced stats models bug.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -336,7 +337,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo():     ### Makes Info object
     '''Makes rje.Info object for program.'''
-    (program, version, last_edit, copyyear) = ('SLiMFinder', '5.3.4', 'May 2018', '2007')
+    (program, version, last_edit, copyyear) = ('SLiMFinder', '5.3.5', 'May 2019', '2007')
     description = 'Short Linear Motif Finder'
     author = 'Richard J. Edwards, Norman E. Davey & Denis C. Shields'
     comments = ['Cite: Edwards, Davey & Shields (2007), PLoS ONE 2(10): e967. [PMID: 17912346]',
@@ -701,7 +702,7 @@ class SLiMFinder(rje_slimcore.SLiMCore):
             if self.getBool('Randomise') and not batch: return self.randomise()
             ### DisMask ###
             if not batch and not self.getBool('DisMask'):
-                if self.i() >= 0 and rje.yesNo('Disorder masking is strongly recommended for best results. DisMask=F is only default due to reliance on having IUPred installed. Switch on disorder masking?'):
+                if self.i() >= 0 and 'dismask=F' not in self.cmd_list and rje.yesNo('Disorder masking is strongly recommended for best results. DisMask=F is only default due to reliance on having IUPred installed. Switch on disorder masking?'):
                     self.setBool({'DisMask':True})
                     self.cmd_list.append('dismask=T')
                 self.warnLog('No disorder masking. Recommended setting: dismask=T.')
@@ -3021,7 +3022,7 @@ class SLiMFinder(rje_slimcore.SLiMCore):
             self.obj['SlimCheck'] = rje_slimlist.SLiMList(self.log,self.cmd_list+['motifs=%s' % self.getStr('SlimCheck')])
             self.obj['SlimCheck'].loadMotifs()
             if not self.obj['SlimCheck'].motifs(): return
-            if self.getStrLC('ResFile'):
+            if not self.getStrLC('ResFile'):
                 self.errorLog('Cannot check SLiMs without resfile=FILE',printerror=False)
                 return
 
@@ -3083,7 +3084,7 @@ class SLiMFinder(rje_slimcore.SLiMCore):
             for Motif in self.obj['SlimCheck'].motifs():
                 slim = Motif.slim()
                 pattern = patternFromCode(slim)
-                datadict = {'Dataset':self.dataset(),'RunID':self.getStr('RunID'),
+                datadict = {'Dataset':self.dataset(),'RunID':self.getStr('RunID'),'Chance':self.chanceText(),
                             'Masking':masking,'Build':self.buildText(),'RunTime':self.getStr('RunTime'),
                             'SeqNum':self.seqNum(),'UPNum':self.UPNum(),'AANum':totalaa,
                             'MotNum':len(self.dict['Slim']),'Rank':'*',

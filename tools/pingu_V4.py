@@ -19,8 +19,8 @@
 """
 Module:       PINGU
 Description:  Protein Interaction Network & GO Utility
-Version:      4.9.0
-Last Edit:    18/01/17
+Version:      4.9.1
+Last Edit:    02/05/19
 Copyright (C) 2013  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -156,6 +156,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 4.7.0 - Added ppidbreport=T/F : Summary output for PPI compilation of evidence/PPIType/DB overlaps [True]
     # 4.8.0 - Fixed report duplication issue and added additional summary output.
     # 4.9.0 - Updated HINT download and parsing details.
+    # 4.9.1 - Fixed Pairwise parsing and filtering for more flexibility of input. Fixed fasid=X bug and ppiseqfile names.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -184,7 +185,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copyyear) = ('PINGU', '4.8.0', 'May 2016', '2013')
+    (program, version, last_edit, copyyear) = ('PINGU', '4.9.1', 'May 2019', '2013')
     description = 'Protein Interaction Network & GO Utility'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',
@@ -359,7 +360,7 @@ class PINGU(rje_obj.RJE_Object):
                 self._generalCmd(cmd)   ### General Options ### 
                 self._forkCmd(cmd)  # Delete if no forking
                 ### Class Options (No need for arg if arg = att.lower()) ### 
-                self._cmdReadList(cmd,'str',['UniField','XRefData'])   # Normal strings
+                self._cmdReadList(cmd,'str',['FasID','UniField','XRefData'])   # Normal strings
                 self._cmdReadList(cmd,'date',['SourceDate'])   # String representing date YYYY-MM-DD
                 self._cmdReadList(cmd,'path',['HPRD','SourcePath','ResDir'])  # String representing directory path
                 self._cmdReadList(cmd,'file',['PPISource','QueryPPI','QuerySeq',
@@ -490,7 +491,8 @@ class PINGU(rje_obj.RJE_Object):
             if self.dict['PPICompile']: return self.compilePPI()
 
             ### ~ [2] Download and Process Pairwise PPI Data ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            self.printLog('#~~#','# ~~~~~~~~~~~~~~~~~~~~~~~ SETUP SOURCE ~~~~~~~~~~~~~~~~~~~~~~~~~~~ #')
+            #self.printLog('#~~#','# ~~~~~~~~~~~~~~~~~~~~~~~ SETUP SOURCE ~~~~~~~~~~~~~~~~~~~~~~~~~~~ #')
+            self.headLog('SETUP SOURCE',line='=')
             supported_db = ['HINT']
             setup_ppi = setup_ppi or setup_dmi
             if self.getStr('PPISource') not in supported_db:
@@ -600,7 +602,8 @@ class PINGU(rje_obj.RJE_Object):
                     if domdb: sdb.data('DomPPI.%s' % spec)['Entries'] = domdb.entryNum()
 
             ### ~ [2] Summarise ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            self.printLog('#~~#','# ~~~~~~~~~~~~~~~~~~~~~~~ SOURCE SUMMARY ~~~~~~~~~~~~~~~~~~~~~~~~~~~ #')
+            #self.printLog('#~~#','# ~~~~~~~~~~~~~~~~~~~~~~~ SOURCE SUMMARY ~~~~~~~~~~~~~~~~~~~~~~~~~~~ #')
+            self.headLog('SOURCE SUMMARY')
             for entry in sdb.entries():
                 if entry['Entries'] == '': self.printLog('#SOURCE','%s (%s): %s' % (entry['Name'],entry['File'],entry['Status']))
                 else: self.printLog('#SOURCE','%s %s (%s): %s' % (rje.iStr(entry['Entries']),entry['Name'],entry['File'],entry['Status']))
@@ -807,6 +810,7 @@ class PINGU(rje_obj.RJE_Object):
         try:### ~ [0] ~ Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             pdb = self.db('pairwise')
             if not pdb: return None
+            if 'HubTaxID' not in pdb.fields() and 'Evidence' not in pdb.fields() and 'IType' not in pdb.fields(): return pdb
             filt = {'TaxID':0,'BadDB':0,'GoodDB':0,'BadPPI':0,'GoodPPI':0}; fx = 0.0
             needtofilter = self.list['TaxID'] and not self.dict['PPICompile']
             for fkey in rje.sortKeys(filt)[:-1]:
@@ -819,29 +823,32 @@ class PINGU(rje_obj.RJE_Object):
                 self.progLog('\r#FILT','Filtering PPI: %.2f%%' % (fx/prex)); fx += 100.0
                 entry = pdb.data(pkey)
                 ## ~ [1a] Filter by TaxID ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-                if self.list['TaxID'] and not self.dict['PPICompile']:
-                    if entry['HubTaxID'] not in self.list['TaxID'] and entry['SpokeTaxID'] not in self.list['TaxID']:
-                        filt['TaxID'] += 1; pdb.dict['Data'].pop(pkey); continue
+                if 'HubTaxID' in pdb.fields():
+                    if self.list['TaxID'] and not self.dict['PPICompile']:
+                        if entry['HubTaxID'] not in self.list['TaxID'] and entry['SpokeTaxID'] not in self.list['TaxID']:
+                            filt['TaxID'] += 1; pdb.dict['Data'].pop(pkey); continue
                 ## ~ [1b] Filter by PPIType ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-                itypes = string.split(entry['IType'],'|')
-                if self.list['GoodPPI'] and not rje.listIntersect(self.list['GoodPPI'],itypes):
-                    filt['GoodPPI'] += 1; pdb.dict['Data'].pop(pkey); continue
-                if self.list['BadPPI']:
-                    itypes = rje.listDifference(itypes,self.list['BadPPI'])
-                    if itypes: entry['IType'] = string.join(itypes,'|')
-                    else: filt['BadPPI'] += 1; pdb.dict['Data'].pop(pkey); continue
+                if 'IType' in pdb.fields():
+                    itypes = string.split(entry['IType'],'|')
+                    if self.list['GoodPPI'] and not rje.listIntersect(self.list['GoodPPI'],itypes):
+                        filt['GoodPPI'] += 1; pdb.dict['Data'].pop(pkey); continue
+                    if self.list['BadPPI']:
+                        itypes = rje.listDifference(itypes,self.list['BadPPI'])
+                        if itypes: entry['IType'] = string.join(itypes,'|')
+                        else: filt['BadPPI'] += 1; pdb.dict['Data'].pop(pkey); continue
                 ## ~ [1c] Filter by DB ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-                evidence = string.split(entry['Evidence'],'|')
-                goodev = []
-                for dbmethod in evidence[0:]:
-                    db = string.split(dbmethod,':')[0]
-                    if self.list['GoodDB'] and db not in self.list['GoodDB']: continue
-                    if self.list['BadDB'] and db in self.list['BadDB']: continue
-                    goodev.append(dbmethod)
-                if goodev: entry['Evidence'] = string.join(goodev,'|')
-                elif self.list['GoodDB']: filt['GoodDB'] += 1; pdb.dict['Data'].pop(pkey); continue
-                elif self.list['BadDB']: filt['BadDB'] += 1; pdb.dict['Data'].pop(pkey); continue
-                else: self.warnLog('Fiddlesticks!')
+                if 'Evidence' in pdb.fields():
+                    evidence = string.split(entry['Evidence'],'|')
+                    goodev = []
+                    for dbmethod in evidence[0:]:
+                        db = string.split(dbmethod,':')[0]
+                        if self.list['GoodDB'] and db not in self.list['GoodDB']: continue
+                        if self.list['BadDB'] and db in self.list['BadDB']: continue
+                        goodev.append(dbmethod)
+                    if goodev: entry['Evidence'] = string.join(goodev,'|')
+                    elif self.list['GoodDB']: filt['GoodDB'] += 1; pdb.dict['Data'].pop(pkey); continue
+                    elif self.list['BadDB']: filt['BadDB'] += 1; pdb.dict['Data'].pop(pkey); continue
+                    else: self.warnLog('Fiddlesticks!')
             self.printLog('\r#FILT','Filtered PPI: %s of %s PPI retained.' % (rje.iStr(pdb.entryNum()),rje.iStr(prex)),log=False)
             for fkey in rje.sortKeys(filt):
                 if filt[fkey]: self.printLog('#FILT','%s PPI filtered on %s' % (rje.iStr(filt[fkey]),fkey))
@@ -1144,11 +1151,11 @@ class PINGU(rje_obj.RJE_Object):
             sdb = self.db('Source')
             self.list['HubList'].sort()
             delimit = rje.delimitFromExt(filename=dbfile)
+            headers = rje.readDelimit(open(dbfile,'r').readline(),delimit)
             ### ~ [1] Load data ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             #!# Add expandppi=X looping to increase hublist. (Might be easier to read whole in and then remove)
-            if self.list['HubList']:
+            if self.list['HubList'] and headers[0] == 'Hub':
                 ex = 0
-                headers = rje.readDelimit(open(dbfile,'r').readline(),delimit)
                 #self.file['pairwise'] = open(dbfile,'r')
                 self.setStr({'pairwise':dbfile})
                 ppdb = self.db().addEmptyTable('pairwise',headers,['Hub','Spoke'])
@@ -1163,8 +1170,14 @@ class PINGU(rje_obj.RJE_Object):
                 self.printLog('\r#PPI','Read in %s pairwise PPI for %s hubs (hubonly=%s) from %s.' % (rje.iStr(ppdb.entryNum()),rje.iLen(self.list['HubList']),self.getBool('HubOnly'),dbfile))
                 ppdb.saveToFile('%s.pairwise.tdt' % self.baseFile())
             else:
-                ppdb = self.db().addTable(dbfile,mainkeys=['Hub','Spoke'],name='pairwise')
+                if 'InteractionID' in headers:  #APID data
+                    ppdb = self.db().addTable(dbfile,mainkeys=['InteractionID'],name='pairwise')
+                else: ppdb = self.db().addTable(dbfile,mainkeys=['Hub','Spoke'],name='pairwise')
                 self.printLog('\r#PPI','Reading %s pairwise PPI from %s.' % (rje.iStr(ppdb.entryNum()),dbfile))
+                if self.list['HubList']:
+                    ppdb.dropEntriesDirect('Hub',self.list['HubList'],inverse=True)
+                    if self.getBool('HubOnly'):
+                        ppdb.dropEntriesDirect('Spoke',self.list['HubList'],inverse=True)
             ### ~ [2] Entry data ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             sdb.data('PPISource')['Entries'] = ppdb.entryNum()
             return ppdb
@@ -1218,6 +1231,7 @@ class PINGU(rje_obj.RJE_Object):
                 if self.getBool('CombinePPI'):
                     #basename = rje.baseFile(self.baseFile(),strip_path=True)
                     ppiseqfile = '%s%s.%s.fas' % (datadir,spec,self.getStr('FasID'))
+                    ppiseqfile = rje.fileSafeString(ppiseqfile,'-')
                     if not self.getBool('CombinePPI') and rje.exists(ppiseqfile) and not force:
                         self.printLog('#SKIP','%s file %s found (force=F).' % (spec,ppiseqfile))
                         continue
@@ -1228,6 +1242,7 @@ class PINGU(rje_obj.RJE_Object):
                     if not self.getBool('CombinePPI'):
                         if self.getBool('XHubPPI'): ppiseqfile = '%s%s.%s.%shub.fas' % (datadir,spec,self.getStr('FasID'),hub)
                         else: ppiseqfile = '%s%s.%s.fas' % (datadir,hub,self.getStr('FasID'))
+                        ppiseqfile = rje.fileSafeString(ppiseqfile,'-')
                         if rje.exists(ppiseqfile) and not force: seqfilex += 1; continue
                     if not unimap:    # This is done here to save time if all files are made
                         #ppuni = rje_uniprot.UniProt(self.log,self.cmd_list)

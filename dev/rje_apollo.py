@@ -19,8 +19,8 @@
 """
 Module:       rje_apollo
 Description:  WebApollo genome search program
-Version:      0.6.1
-Last Edit:    02/07/18
+Version:      0.6.2
+Last Edit:    26/11/18
 Webserver:    http://www.slimsuite.unsw.edu.au/servers/apollo.php
 Copyright (C) 2018  Richard J. Edwards - See source code for GNU License Notice
 
@@ -82,6 +82,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 0.5.0 - Added QryDesc to exonerate GFF output.
     # 0.6.0 - Added cdict parsing to genomeid.
     # 0.6.1 - Debugging genomeID dict and fixed cdict parsing bug.
+    # 0.6.2 - Added QryDesc to HTML output.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -99,7 +100,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copy_right) = ('RJE_APOLLO', '0.6.1', 'July 2018', '2018')
+    (program, version, last_edit, copy_right) = ('RJE_APOLLO', '0.6.2', 'November 2018', '2018')
     description = 'WebApollo genome search program'
     author = 'Dr Richard J. Edwards & Timothy G. Amos'
     comments = ['This program is still in development and has not been published.',rje_obj.zen()]
@@ -499,7 +500,7 @@ class Apollo(rje_obj.RJE_Object):
                 #i# Local phase makes sense for protein but not hitsums, which will be protein positions?
                 if self.getStrLC('QryType') in ['cds']: sfields.append('Phase')
                 hdb = self.db().copyTable(vdb,'html')
-                hdb.setFields(sfields)
+                hdb.setFields(sfields+['QryDesc'])
                 vdb.saveToFile('%s.hitsum.tdt' % (self.baseFile()),savefields=sfields)
                 self.dict['Output']['locgff'] = '%s.gff3' % (self.baseFile())
                 exobj.gff3(ldb,vdb,exmodel,self.dict['Output']['locgff'])
@@ -556,7 +557,7 @@ class Apollo(rje_obj.RJE_Object):
                 HTML = open(hfile,'w')
                 HTML.write(html.htmlHead(title=self.baseFile(),tabber=False,frontpage=True,keywords=[],redirect='',refresh=0))
                 #HTML.write('<a name="head"><h1>%s Hits</h1></a>\n\n' % self.baseFile())
-                HTML.write('<p>Click on the <code>Hit</code> field entries to be taken to the WebApollo genome browser. Login may be required.</p>')
+                HTML.write('<p>Click on the <code>Hit</code> field entries to be taken to the WebApollo genome browser. Login may be required. Note that if you already have the WebApollo browser open, you should first navigate to the correct species. (There seems to be a bug in Apollo that will not change species and navigate to the correct location.)</p>')
                 #!# Add a brief description of what should happen when clicking the links
                 fieldsort = {'*':'string','Score':'int','Rank':'int','QryStart':'int','QryEnd':'int','HitStart':'int','HitEnd':'int','AlnID':'string','HitStrand':'int','Length':'int','Identity':'int'}
                 #x#fieldsort = {}

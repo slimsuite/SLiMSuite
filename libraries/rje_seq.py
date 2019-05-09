@@ -19,8 +19,8 @@
 """
 Program:      RJE_SEQ
 Description:  DNA/Protein sequence list module
-Version:      3.25.0
-Last Edit:    20/03/18
+Version:      3.25.1
+Last Edit:    30/04/19
 Copyright (C) 2005  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -200,6 +200,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 3.23.0 - Add speclist to reformat options.
     # 3.24.0 - Added REST seqout output.
     # 3.25.0 - 9spec=T/F   : Whether to treat 9XXXX species codes as actual species (generally higher taxa) [False]
+    # 3.25.1 - Fixed -long_seqids retrieval bug.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -248,7 +249,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo():     ### Makes Info object
     '''Makes rje.Info object for program.'''
-    (program, version, last_edit, cyear) = ('RJE_SEQ', '3.25.0', 'March 2018', '2005')
+    (program, version, last_edit, cyear) = ('RJE_SEQ', '3.25.1', 'April 2019', '2005')
     description = 'RJE Sequence Dataset Manipulation Module'
     author = 'Dr Richard J. Edwards.'
     comments = ['Please report bugs to r.edwards@soton.ac.uk']
@@ -1425,8 +1426,8 @@ class SeqList(rje.RJE_Object):
             id = string.join(id,',')
             if not dbase: dbase = self.info['Name']
             blastpath = rje.makePath(self.info['BLAST+ Path']) + 'blastdbcmd'
-            if self.opt['Win32']: BLASTDBCMD = os.popen("%s -entry \"%s\" -db %s" % (blastpath,id,dbase))
-            else: BLASTDBCMD = os.popen('%s -entry "%s" -db %s' % (blastpath,id,dbase))
+            if self.opt['Win32']: BLASTDBCMD = os.popen("%s -entry \"%s\" -db %s -long_seqids" % (blastpath,id,dbase))
+            else: BLASTDBCMD = os.popen('%s -entry "%s" -db %s -long_seqids' % (blastpath,id,dbase))
             ### ~ [2] Extract details and add sequences ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###            
             lastline = 'BLASTDBCMD'; sx = 0
             (blastseq,lastline) = self.nextFasSeq(BLASTDBCMD,lastline,raw=True)

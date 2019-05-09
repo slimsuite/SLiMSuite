@@ -19,8 +19,8 @@
 """
 Module:       SLiMCore
 Description:  SLiMSuite core module
-Version:      2.9.0
-Last Edit:    19/10/17
+Version:      2.10.0
+Last Edit:    14/09/18
 Copyright (C) 2007  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -47,6 +47,7 @@ Commandline: ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     seqin=FILE      : Sequence file to search. Over-rules batch mode (and uniprotid=LIST). [None]
     batch=LIST      : List of files to search, wildcards allowed. [*.dat,*.fas]
     uniprotid=LIST  : Extract IDs/AccNums in list from Uniprot into BASEFILE.dat and use as seqin=FILE. []
+    seqfilter=T/F   : Whether to apply sequence filtering options (goodX, badX etc.) to input [False]
     maxseq=X        : Maximum number of sequences to process [0]
     maxupc=X        : Maximum UPC size of dataset to process [0]
     sizesort=X      : Sorts batch files by size prior to running (+1 small->big; -1 big->small; 0 none) [0]
@@ -182,6 +183,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 2.8.0 - Added map and failed output to REST servers and standalone uniprotid=LIST input runs.
     # 2.8.1 - Updated resfile to be set by basefile if no resfile=X setting given
     # 2.9.0 - Added separate IUPred long suffix for reusing predictions
+    # 2.10.0 - Added seqfilter=T/F   : Whether to apply sequence filtering options (goodX, badX etc.) to input [False]
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -205,7 +207,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo():     ### Makes Info object
     '''Makes rje.Info object for program.'''
-    (program, version, last_edit, copyyear) = ('SLiMCore', '2.9.0', 'October 2017', '2007')
+    (program, version, last_edit, copyyear) = ('SLiMCore', '2.10.0', 'September 2018', '2007')
     description = 'SLiMSuite Core Module'
     author = 'Richard J. Edwards'
     comments = ['Please report bugs to Richard.Edwards@UNSW.edu.au']
@@ -317,6 +319,7 @@ class SLiMCore(rje_obj.RJE_Object):
     - PTMData = File containing PTM data, including AccNum, ModType, ModPos, ModAA, ModCode
     - PTMod = Whether any of the sequences have been modified by PTMs
     - Randomise = Randomise UPC within batch files [False]
+    - SeqFilter=T/F   : Whether to apply sequence filtering options (goodX, badX etc.) to input [False]
     - SlimBuild = Whether to build motifs with SLiMBuild. (For combination with motifseq only.) [True]
     - SLiMMutant=T/F : Whether to ignore '.p.\D\d+\D' at end of accnum.
     - SmearFreq = Whether to "smear" AA frequencies across UPC rather than keep separate AAFreqs [False]
@@ -385,7 +388,7 @@ class SLiMCore(rje_obj.RJE_Object):
         self.boollist = ['BuildProb','DisMask','Force','MaskFreq','Test','LogMask','MaskM','Masked','Masking','EFilter',
                         'SlimBuild','Randomise','Extras','TarGZ','SmearFreq','OccStatsCalculated','DNA','ConsMask',
                         'FakeMask','MaskPickle','Webserver','FUPC','MegaGABLAM','MegaSLiMFix','SLiMMutant','ProtScores',
-                        'PTMod']
+                        'PTMod','SeqFilter']
         self.intlist = ['MaxSeq','SaveSpace','MaxUPC','HomCut','Extras','SizeSort','EquivCut','MegaSLiMdp']
         self.numlist = ['StartTime','MST','WallTime']
         self.listlist = ['AAMask','Alphabet','Batch','FTMask','IMask','SigSlim','UP','Headers','Warning',
@@ -408,7 +411,7 @@ class SLiMCore(rje_obj.RJE_Object):
                      'Force':False,'SmearFreq':False,'DisMask':False,'Test':False,'OccStatsCalculated':False,'Append':True,
                      'LogMask':True,'DNA':False,'ConsMask':False,'Pickle':True,'FakeMask':False,'MaskPickle':False,
                      'Webserver':False,'FUPC':False,'MegaGABLAM':False,'MegaSLiMFix':False,'SLiMMutant':False,
-                     'ProtScores':False,'PTMod':False})
+                     'ProtScores':False,'PTMod':False,'SeqFilter':False})
         for lkey in ['AAMask','Alphabet','Batch','FTMask','IMask','SigSlim','UP','Headers','Warning','QRegion']: self.list[lkey] = []
         self.list['FTMask'] = []
         self.list['Batch'] = ['*.dat','*.fas']
@@ -447,7 +450,7 @@ class SLiMCore(rje_obj.RJE_Object):
                 self._cmdReadList(cmd,'bool',['DisMask','Force','MaskFreq','Extras','Test','LogMask','Randomise','MaskM',
                                              'EFilter','TarGZ','Masking','SlimBuild','SmearFreq','DNA','ConsMask',
                                              'Pickle','FakeMask','MaskPickle','Webserver','FUPC','MegaGABLAM',
-                                             'MegaSLiMFix','SLiMMutant','ProtScores'])
+                                             'MegaSLiMFix','SLiMMutant','ProtScores','SeqFilter'])
                 self._cmdRead(cmd,'bool','MaskM','metmask')
                 self._cmdRead(cmd,'bool','MegaGABLAM','megablam')
                 self._cmdRead(cmd,'list','FTMask','featuremask')
@@ -709,6 +712,7 @@ class SLiMCore(rje_obj.RJE_Object):
     def setupSeqIn(self):   ### Sets up SeqIn, using UniprotID list if appropriate
         '''Sets up SeqIn, using UniprotID list if appropriate.'''
         seqcmd = ['gnspacc=T','usecase=T','accnr=F','seqnr=F'] + self.cmd_list + ['autoload=T','query=None','autofilter=F']
+        if self.getBool('SeqFilter'): seqcmd[-1] = 'autofilter=T'
         if self.getStrLC('Basefile'): datfile = '%s.dat' % self.baseFile(runpath=True)
         else: datfile = '%s%s.dat' % (self.getStr('RunPath'),self.prog().lower())
         if self.list['UniprotID'] and not rje.exists(self.getStr('SeqIn')):

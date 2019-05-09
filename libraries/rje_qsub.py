@@ -19,8 +19,8 @@
 """
 Module:       rje_qsub
 Description:  QSub Generating module
-Version:      1.9.2
-Last Edit:    30/05/18
+Version:      1.9.3
+Last Edit:    27/04/19
 Copyright (C) 2006  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -78,6 +78,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 1.9.0 - Added precall=LIST  : List of additional commands to run between module loading and program call []
     # 1.9.1 - Removed default module list: causing conflicts. Better to have in INI file.
     # 1.9.2 - Modified qsub() to return job ID.
+    # 1.9.3 - Updates the order of the qsub -S /bin/bash flag.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -89,7 +90,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo():     ### Makes Info object
     '''Makes rje.Info object for program.'''
-    (program, version, last_edit, copy_right) = ('RJE_QSUB', '1.9.2', 'May 2018', '2006')
+    (program, version, last_edit, copy_right) = ('RJE_QSUB', '1.9.3', 'April 2019', '2006')
     description = 'QSub Generating module'
     author = 'Dr Richard J. Edwards.'
     comments = [rje_zen.Zen().wisdom()]
@@ -273,11 +274,12 @@ class QSub(rje.RJE_Object):
             self.printLog('#DIR',self.info['QPath'])
             self.printLog('#RUN',jlist[-1])
             #qsub = 'qsub %s -S /bin/sh -l walltime=%d:%d:00,nodes=%d:ppn=2' % (job,hr,min,self.stat['Nodes'])
-            qsub = 'qsub %s -S /bin/bash' % (job)
+            qsub = 'qsub -S /bin/bash'
             if self.list['Depend']:
                 qsub += ' -W depend=afterany'
                 #for id in self.list['Depend']: qsub += ':%s.bio-server' % id
                 for id in self.list['Depend']: qsub += ':%s.%s' % (id,self.getStr('DependHPC'))
+            qsub += ' %s' % (job)
             self.printLog('#JOB',qsub)
             if self.test():
                 self.printLog('#TEST','Test mode: will not place job in queue.')

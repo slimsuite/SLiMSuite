@@ -19,8 +19,8 @@
 """
 Module:       rje_exonerate
 Description:  Runs Exonerate and parses output
-Version:      0.5.0
-Last Edit:    15/05/18
+Version:      0.5.1
+Last Edit:    14/09/18
 Copyright (C) 2016  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -56,6 +56,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 0.4.0 - Added MemSaver mode.
     # 0.4.1 - Fixed bug in GFF output that had ID and Name uniqueness swapped.
     # 0.5.0 - Added QryDesc to GFF output.
+    # 0.5.1 - Fixed bug in hitsum combined score.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -70,7 +71,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copy_right) = ('RJE_EXONERATE', '0.5.0', 'May 2018', '2018')
+    (program, version, last_edit, copy_right) = ('RJE_EXONERATE', '0.5.1', 'Sept 2018', '2018')
     description = 'Runs Exonerate and parses output'
     author = 'Dr Richard J. Edwards & Timothy G. Amos.'
     comments = ['This program is still in development and has not been published.',rje_obj.zen()]
@@ -600,7 +601,7 @@ class Exonerate(rje_obj.RJE_Object):
             for entry in vdb.entries():
                 if entry['HitStart'] > entry['HitEnd']:
                     [entry['HitStart'], entry['HitEnd']] = [entry['HitEnd'],entry['HitStart']]
-            rules = {'Score':'sum','QryLen':'max','QryStart':'min','QryEnd':'max','HitStart':'min','HitEnd':'max','AlnID':'list','HitStrand':'list','Length':'sum','Identity':'sum','AlnNum':'sum'}
+            rules = {'Score':'max','QryLen':'max','QryStart':'min','QryEnd':'max','HitStart':'min','HitEnd':'max','AlnID':'list','HitStrand':'list','Length':'sum','Identity':'sum','AlnNum':'sum'}
             vdb.compress(['Qry','Rank','Hit'],rules,'text')
             vdb.setFields(sfields)
             vdb.dataFormat({'Score':'int','QryLen':'int','QryStart':'int','QryEnd':'int','HitStart':'int','HitEnd':'int','Length':'int','Identity':'int'})

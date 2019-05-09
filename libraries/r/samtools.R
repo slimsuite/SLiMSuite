@@ -147,7 +147,11 @@ rjesource("rje_genomics.r")
 depfile = list(samdepth="depthplot.tdt",samunzip="depthplot.tdt",samreadlen="readlenplot.tdt",sampart="depthplot.tdt")
 depthdb = list()
 # Three fields: Locus, Pos, X
-depthdb$Basefile = read.table( paste(sambase,depfile[[rtype]],sep="."), header = T, stringsAsFactors = T, sep = '\t', quote = '', comment.char="")
+dtdtfile = paste(sambase,depfile[[rtype]],sep=".")
+if(! file.exists(dtdtfile)){
+  dtdtfile = paste(basefile,depfile[[rtype]],sep=".")
+}  
+depthdb$Basefile = read.table( dtdtfile, header = T, stringsAsFactors = T, sep = '\t', quote = '', comment.char="")
 #colnames(depthdb$Basefile) = c("Locus",'Pos','X')
 summary(depthdb$Basefile)
 
@@ -173,6 +177,11 @@ for(xtype in c("haplotigs")){
   if(file.exists(dfile)){
     depthdb[[xtype]] = read.table( dfile, header = T, stringsAsFactors = T, sep = '\t', quote = '', comment.char="")
     colnames(depthdb[[xtype]]) = c("Locus",'Pos','X')
+    depthdb[[xtype]]$HapAcc = as.character(depthdb[[xtype]]$Locus)
+    #!# Make this more efficient by cycling through Locus levels!
+    for(i in 1:nrow(depthdb[[xtype]])){
+      depthdb[[xtype]]$HapAcc[i] = strsplit(depthdb[[xtype]]$HapAcc[i],"__")[[1]][2]
+    }
     summary(depthdb[[xtype]])
   }
   # Read readlenplot data for haplotigs if it exists
@@ -199,6 +208,9 @@ xfile = list(samdepth="coverage.tdt",samunzip="coverage.tdt",samreadlen="readlen
 xcovdb = list()
 # Should have MedianX
 xcovfile = paste(sambase,xfile[[rtype]],sep=".")
+if(! file.exists(xcovfile)){
+  xcovfile = paste(basefile,xfile[[rtype]],sep=".")
+}  
 xcovdb$Basefile = read.table( xcovfile, header = T, stringsAsFactors = T, sep = '\t', quote = '', comment.char="")
 summary(xcovdb$Basefile)
 (medianx = median(xcovdb$Basefile$MedianX))

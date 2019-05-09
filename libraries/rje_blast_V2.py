@@ -19,8 +19,8 @@
 """
 Module:       rje_blast
 Description:  BLAST+ Control Module
-Version:      2.22.2
-Last Edit:    14/05/18
+Version:      2.22.3
+Last Edit:    01/04/19
 Copyright (C) 2013  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -134,6 +134,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 2.22.0 - Added dust filter for blastn and setting blastprog based on blasttask
     # 2.22.1 - Added trimLocal error catching for exonerate issues.
     # 2.22.2 - Fixed GFF attribute case issue.
+    # 2.23.3 - Fixed LocalIDCut error for GABLAM and QAssemble stat filtering.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -150,7 +151,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
     # |- [ ] : Locate which classes/methods call BLASTRun.hitToSeq and look to improve reporting etc.
     # |- [ ] : Fix DNA implementation of GABLAM to allow Ordered GABLAM in either direction.
     # |- [ ] : Add positional information to GABLAM dictionary - start and end of aligned portions
-    # |- [ ] : Add oritentation of Query and Hit for DNA GABLAM
+    # |- [ ] : Add orientation of Query and Hit for DNA GABLAM
     # |- [ ] : Check/fix the database format checking of DNA databases
     # |- [Y] : Update to new Module Structre (V2.0)
     # |- [ ] : Check and Tidy this To Do list!
@@ -168,7 +169,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, cyear) = ('RJE_BLAST', '2.22.2', 'May 2018', '2013')
+    (program, version, last_edit, cyear) = ('RJE_BLAST', '2.23.3', 'April 2019', '2013')
     description = 'BLAST+ Control Module'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.']
@@ -399,6 +400,7 @@ class BLASTRun(rje_obj.RJE_Object):
             if tabtype.lower() in restab: self.list['ResTab'].append(tabtype)
         if self.getBool('Force') and not self.force(): self.warnLog('force=T blastforce=F. BLAST results will not be regenerated.',warntype='blastforce',suppress=True)
         if self.getNum('LocalIDCut') < 1.0: self.num['LocalIDCut'] *= 100.0
+        if self.debugging(): self.printLog('#CMD','BLAST Commandlist: %s' % string.join(self.cmd_list))
 #########################################################################################################################
     def nt(self):   ### Returns whether BLAST result alignments are nucleotide
         '''Returns whether BLAST result alignments are nucleotide.'''
@@ -1139,7 +1141,7 @@ class BLASTRun(rje_obj.RJE_Object):
             ### ~ [4] ~ GABLAM calculations ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if gablam and search:
                 for hit in hits:
-                    gablam = self.globalFromLocal(search,hit,hitaln[hit['Hit']],keepaln=keepaln)     # This will also clear the alignment data.
+                    gablam = self.globalFromLocal(search,hit,hitaln[hit['Hit']],keepaln=keepaln,log=self.debugging())     # This will also clear the alignment data.
                     for qh in ['Query','Hit']:
                         self.db('GABLAM').addEntry(rje.combineDict({'Query':search['Query'],'Hit':hit['Hit'],'QryHit':qh},gablam[qh]))
                 ## ~ [4a] ~ QAssemble global stats ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
@@ -1218,7 +1220,7 @@ class BLASTRun(rje_obj.RJE_Object):
             lcutx = 0; lidx = 0; coredirn = None
             for aln in localdata:
                 if aln['Length'] < self.int['LocalCut']: lcutx += 1; continue
-                if 100.0 * aln['Identity'] / aln['Length'] < self.getNum('LocalIDMin'): lidx += 1; continue
+                if (100.0 * aln['Identity'] / aln['Length']) < self.getNum('LocalIDCut'): lidx += 1; continue
                 ## ~ [2a] Assess for backwards hit as in nucleotide BLAST ~~~~~~~~~~~~~~~~~~~~~~~~~ ##
                 qbackwards = aln['QryEnd'] < aln['QryStart']       # Whether match reversed (e.g. BLASTX)
                 sbackwards = aln['SbjEnd'] < aln['SbjStart']       # Whether match reversed (e.g. TBLASTN)
@@ -1956,6 +1958,7 @@ class BLASTRun(rje_obj.RJE_Object):
                         entry['QrySeq'] = rje_sequence.reverseComplement(entry['QrySeq'])
                         entry['SbjSeq'] = rje_sequence.reverseComplement(entry['SbjSeq'])
                 #self.debug(refdb.indexKeys('Query'))
+                refdb.remakeKeys()
                 refudb = self.reduceLocal(refdb,hits,queries,sortfield,keepself,minloclen,minlocid)
                 self.db().deleteTable(refdb)
                 if not refudb: raise ValueError('Reference BLAST.reduceLocal() failed.')
@@ -1969,6 +1972,7 @@ class BLASTRun(rje_obj.RJE_Object):
                         entry['QrySeq'] = rje_sequence.reverseComplement(entry['QrySeq'])
                         entry['SbjSeq'] = rje_sequence.reverseComplement(entry['SbjSeq'])
                         entry['AlnSeq'] = entry['AlnSeq'][::-1]
+                refudb.remakeKeys()
                 refudb.setStr({'Name':refudb.name()[4:]})
                 #self.debug(refudb.indexKeys('Query'))
                 return refudb
@@ -2196,13 +2200,16 @@ class BLASTRun(rje_obj.RJE_Object):
         try:### ~ [0] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             db = self.db()
             if not locdb: locdb = self.db('local')
+            #self.debug(locdb.name())
+            #self.debug(rje.sortKeys(locdb.index('Query',force=True)))
+            #self.debug(rje.sortKeys(locdb.index('Hit',force=True)))
             # ['Query','Hit','AlnID','BitScore','Expect','Length','Identity','Positives','QryStart','QryEnd','SbjStart','SbjEnd','QrySeq','SbjSeq','AlnSeq'],
             locdb.dataFormat({'QryStart':'int','QryEnd':'int','SbjStart':'int','SbjEnd':'int'})
             ## ~ [0a] CovDict and Lengths ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             covdict = {'Qry':{},'Hit':{}}       # Tuples of coverage (to invert)
             lengths = {'Qry':{},'Hit':{}}
-            for qry in locdb.index('Query'): covdict['Qry'][qry] = []; lengths['Qry'][qry] = None
-            for hit in locdb.index('Hit'): covdict['Hit'][hit] = []; lengths['Hit'][hit] = None
+            for qry in locdb.index('Query',force=True): covdict['Qry'][qry] = []; lengths['Qry'][qry] = None
+            for hit in locdb.index('Hit',force=True): covdict['Hit'][hit] = []; lengths['Hit'][hit] = None
             qdb = self.db('Search')
             if qdb:
                 for entry in qdb.entries(): lengths['Qry'][entry['Query']] = int(entry['Length'])
@@ -2497,7 +2504,7 @@ class BLASTRun(rje_obj.RJE_Object):
             samdb.addField('NOTES',evalue='al:Z:')
             qlist = []
             for entry in samdb.sortedEntries('Identity',reverse=True):
-                self.bugPrint(entry)
+                #self.bugPrint(entry)
                 revhit = entry['HitStart'] > entry['HitEnd']
                 qlen = max(entry['%sStart' % qrytype],entry['%sEnd' % qrytype])   #!# Replace with actual length
                 #?# Having different sequences with the same name might be messing things up!

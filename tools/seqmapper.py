@@ -19,8 +19,8 @@
 """
 Module:       SeqMapper
 Description:  Sequence Mapping Program
-Version:      2.2.0
-Last Edit:    31/10/17
+Version:      2.3.0
+Last Edit:    17/10/18
 Copyright (C) 2006  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -112,6 +112,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 2.0 - Reworked with new Object format, new BLAST(+) module and new seqlist module.
     # 2.1 - Added catching of failure to read input sequences. Removed 'Run' from GABLAM table.
     # 2.2.0 - Updated basefile to set resfile.
+    # 2.3.0 - Added GABLAM-free method.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -124,7 +125,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copyright) = ('SeqMapper', '2.2.0', 'October 2017', '2006')
+    (program, version, last_edit, copyright) = ('SeqMapper', '2.3.0', 'October 2018', '2006')
     description = 'Sequence Mapping Program'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_zen.Zen().wisdom()]
@@ -237,7 +238,7 @@ class SeqMapper(rje_obj.RJE_Object):
         '''Sets Attributes of Object.'''
         ### ~ Basics ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         self.strlist = ['SeqIn','MapDB','ResFile','MapSpec','MapStat','MapFocus','StartFrom','MapFas','MissFas','MapRes']
-        self.boollist = ['Ordered','GablamOut','Combine']
+        self.boollist = ['Ordered','GablamOut','Combine','GABLAM']
         self.intlist = []
         self.numlist = ['MinMap','AutoMap']
         self.listlist = ['Mapping','SkipGene','Headers','Mapped']
@@ -298,7 +299,7 @@ class SeqMapper(rje_obj.RJE_Object):
             ## ~ [0a] Setup BLAST Search ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             blast = rje_blast.BLASTRun(self.log,['blaste=1e-4','blastv=20','blastf=F']+self.cmd_list+['v=-1'])
             blast.setStr({'DBase':self.getStr('MapDB'),'Type':'blastp','InFile':self.getStr('SeqIn'),
-                         'Name':'%s-%s.blast' % (rje.baseFile(self.str['SeqIn'],True),rje.baseFile(self.str['MapDB'],True))})  
+                         'Name':'%s-%s.blast' % (rje.baseFile(self.str['SeqIn'],True),rje.baseFile(self.str['MapDB'],True))})
             blast.setStat({'HitAln':blast.getStat('OneLine')})
             blast.list['ResTab'] = ['Search','Hit','GABLAM']
             if seqlist.nt(): blast.str['Type'] = 'blastx'
@@ -308,9 +309,10 @@ class SeqMapper(rje_obj.RJE_Object):
             else: self._setupMapped()                                   ## Previously Mapped Sequences ##
             seqx = seqlist.seqNum()             ## Number of sequences ##
             ### ~ [1] BLAST Search Mapping ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            self.printLog('#BLAST','BLASTing %s vs %s.\n *** This could take some time if files are large. Please be patient! ***' % (self.str['SeqIn'],self.str['MapDB']),log=False)
+            if self.getBool('GABLAM'):
+                self.printLog('#BLAST','BLASTing %s vs %s.\n *** This could take some time if files are large. Please be patient! ***' % (self.str['SeqIn'],self.str['MapDB']),log=False)
             ## ~ [1a] Perform BLAST Unless it exists ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-            blast.run(format=True)
+                blast.run(format=True)
             self.obj['DB'] = blast.obj['DB']
             ## ~ [1b] Mapping from searches ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             self.debug(self.getStr('MapDB'))
@@ -349,7 +351,9 @@ class SeqMapper(rje_obj.RJE_Object):
         try:### ~ [1] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if imenu and self.i() > 0: self._setupMenu()     ## Menu ##
             needblast = False
+            self.setBool({'GABLAM':False})
             for method in self.list['Mapping'][0:]:         ## Mapping Methods ##
+                if method.lower() == 'gablam': self.setBool({'GABLAM':True})
                 if method.lower() not in mapping_methods:
                     self.errorLog('Mapping method "%s" not recognised!' % method,printerror=False)
                     self.list['Mapping'].remove(method)
@@ -455,25 +459,26 @@ class SeqMapper(rje_obj.RJE_Object):
         try:### ~ [0] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             seq = seqlist.getSeq(format='tuple')
             mapseq = self.obj['MapDB']
-            hits = blast.db('Hit').indexEntries('Query',search)
-            self.printLog('#HITS','%s vs %s = %d hits' % (search,blast.str['DBase'],len(hits)))
-            hitseq = {}; hitdata = {}
-            for entry in hits:
-                hitseq[entry['Hit']] = mapseq.getDictSeq(entry['Hit'],format='tuple')
-                hitdata[entry['Hit']] = entry
             resdict = {'Query':search,'Hit':None,'Method':'Failed','Query_Species':rje_sequence.specCodeFromName(seq[0])}
+            if self.getBool('GABLAM'):
+                hits = blast.db('Hit').indexEntries('Query',search)
+                self.printLog('#HITS','%s vs %s = %d hits' % (search,blast.str['DBase'],len(hits)))
+                hitseq = {}; hitdata = {}
+                for entry in hits:
+                    hitseq[entry['Hit']] = mapseq.getDictSeq(entry['Hit'],format='tuple')
+                    hitdata[entry['Hit']] = entry
             ### ~ [1] Order Hits and Check Species ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            (hits,hitdict) = self.orderHits(seq,hits,hitseq)
-            self.debug(hits)
-            self.debug(hitdict)
+                (hits,hitdict) = self.orderHits(seq,hits,hitseq)
+                self.debug(hits)
+                self.debug(hitdict)
             ### ~ [2] Attempt mapping ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            for method in self.list['Mapping']:
-                resdict['Hit'] = self.mapHit(seq,hits,hitdict,method.lower())
-                if resdict['Hit']:
-                    resdict['Method'] = method[:1].upper() + method[1:].lower()
-                    break
-                elif method == 'gablam' and (len(hits) > 0):
-                    resdict['Method'] = 'Rejected'
+                for method in self.list['Mapping']:
+                    resdict['Hit'] = self.mapHit(seq,hits,hitdict,method.lower())
+                    if resdict['Hit']:
+                        resdict['Method'] = method[:1].upper() + method[1:].lower()
+                        break
+                    elif method == 'gablam' and (len(hits) > 0):
+                        resdict['Method'] = 'Rejected'
             self.debug(resdict)
             ### ~[3] Output! ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if resdict['Hit']:  #hitdict[hit]['Data']['ShortName']
@@ -496,8 +501,8 @@ class SeqMapper(rje_obj.RJE_Object):
                 ### ~ [2] GREP-based search ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
                 if 'grep' in self.list['Mapping']:
                     greplist = []; hitseq = ''
-                    self.printLog('#GREP','grep %s %s -B 1' % (seq[1],blast.str['DBase']),log=False)
-                    for line in os.popen('grep %s %s -B 1' % (seq[1],blast.str['DBase'])).readlines():
+                    if self.v() > 1: self.printLog('#GREP','grep %s %s -B 1 -i' % (seq[1],blast.str['DBase']),log=False)
+                    for line in os.popen('grep %s %s -B 1 -i' % (seq[1],blast.str['DBase'])).readlines():
                         if line[:1] == '>': greplist.append(string.split(line[1:])[0])
                         elif not hitseq: hitseq = rje.chomp(line)
                     if greplist:
@@ -510,6 +515,7 @@ class SeqMapper(rje_obj.RJE_Object):
                         resdict['Hit_ID'] = 100.0 * len(hitseq) / len(seq[1])
                         try: resdict['Hit_Species'] = string.split(shortname,'_')[1]
                         except: pass
+                        self.printLog('#MAP','%s mapped to %s (by %s)' % (string.split(seq[0])[0],shortname,resdict['Method']))
                         if shortname in self.list['Mapped']:
                             self.printLog('#MAP','%s already mapped before - not duplicating in %s' % (shortname,self.str['MapFas']))
                         else:
@@ -525,9 +531,9 @@ class SeqMapper(rje_obj.RJE_Object):
                         self.list['Mapped'].append(shortname)
                         if outputmap:
                             open(self.str['MapFas'],'a').write('>%s\n%s\n' % (seq[0],seq[1]))
-                elif outputmap:
+                elif not resdict['Hit'] and outputmap:
                     open(self.str['MissFas'],'a').write('>%s\n%s\n' % (seq[0],seq[1]))
-                self.printLog('#MISS','%s mapping %s' % (resdict['Query'],resdict['Method']))
+                    self.printLog('#MISS','%s mapping %s' % (resdict['Query'],resdict['Method']))
             if outputmap:
                 rje.delimitedFileOutput(self,self.str['MapRes'],self.list['Headers'],rje.getDelimit(self.cmd_list),resdict)
             return resdict['Hit']

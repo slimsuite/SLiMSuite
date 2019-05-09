@@ -19,8 +19,8 @@
 """
 Module:       rje_taxmap
 Description:  Mapping taxonomic groups onto sequences based on Newick trees.
-Version:      0.5.0
-Last Edit:    15/11/17
+Version:      0.5.1
+Last Edit:    08/01/19
 Copyright (C) 2016  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -68,6 +68,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 0.3.0 - Added monophyly=T/F   : Enforce strict monophyly and change any multiple assignments to "Uncertain" [False]
     # 0.4.0 - Added TaxFilter, minsum=X and classify=FILELIST files containing protein IDs (first column) for additional taxsum outputs [*.class]
     # 0.5.0 - Fixed the filtering of Unmapped taxa when other (mapped) taxa are present.
+    # 0.5.1 - Minor bug fix for classes with blank lines.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -93,7 +94,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copy_right) = ('TAXMAP', '0.5.0', 'November 2017', '2016')
+    (program, version, last_edit, copy_right) = ('TAXMAP', '0.5.1', 'January 2019', '2016')
     description = 'Mapping taxonomic groups onto sequences based on Newick trees'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_obj.zen()]
@@ -512,8 +513,10 @@ class TaxMap(rje_obj.RJE_Object):
                 pclass = rje.baseFile(cfile,strip_path=True)
                 clist = []
                 for fline in open(cfile,'r').readlines():
-                    prot = string.split(rje.chomp(fline),maxsplit=1)[0]
-                    if prot: clist.append(prot)
+                    try:
+                        prot = string.split(rje.chomp(fline),maxsplit=1)[0]
+                        if prot: clist.append(prot)
+                    except: pass
                 self.printLog('#CLASS','%s "%s" class proteins read from %s' % (rje.iLen(clist),pclass,cfile))
                 if not clist:
                     self.warnLog('No proteins read from %s' % (cfile))

@@ -19,8 +19,8 @@
 """
 Module:       SLiMBench
 Description:  Short Linear Motif prediction Benchmarking
-Version:      2.18.2
-Last Edit:    23/05/18
+Version:      2.19.0
+Last Edit:    31/01/19
 Citation:     Palopoli N, Lythgow KT & Edwards RJ. Bioinformatics 2015; doi: 10.1093/bioinformatics/btv155 [PMID: 25792551]
 Copyright (C) 2012  Richard J. Edwards - See source code for GNU License Notice
 
@@ -99,12 +99,14 @@ Commandline:
     bymotif=T/F         : Whether to weight output by motif for OccBench (others always weighted) [True]
     benchbase=X         : Basefile for SLiMBench benchmarking output [slimbench]
     runid=LIST          : List of factors to split RunID column into (on '.') [Program,Analysis]
+    dataset=LIST        : List of headers to split dataset into (on '.'). If blank, will use datatype defaults. []
     bycloud=X           : Whether to compress results into clouds prior to assessment (True/False/Both) [Both]
     sigcut=LIST         : Significance thresholds to use for assessment [0.1,0.05,0.01,0.001,0.0001]
     iccut=LIST          : Minimum IC for (Q)SLiMFinder results for elm/sim/ppi benchmark assessment [2.0,2.1,3.0]
     slimlencut=LIST     : List of individual SLiM lengths to return results for (0=All) [0,3,4,5]
     noamb=T/F           : Filter out ambiguous patterns [False]
     assfilter=LIST      : List of motifs to filter out from assessment datasets post-rating (still count as OT) []
+    minocctp=INT        : Min number of occurence TP for OccBench motifs [1]
 
     ### ~ GENERAL OPTIONS ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     force=T/F           : Whether to force regeneration of outputs (True) or assume existing outputs are right [False]
@@ -176,6 +178,10 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 2.18.0 - Added dev OccBench with improved ratings and more efficient results handling. (dev only)
     # 2.18.1 - Added additional OccBench options (bymotif, occsource, occspec)
     # 2.18.2 - Fixed problem with source file selection ignoring i=-1.
+    # 2.18.3 - Added better handling of motifs without TP occurrences for OccBench. Added minocctp=INT.
+    # 2.18.4 - Fixed ELMBench rating bug.
+    # 2.18.5 - Fixed Balanced=F bug.
+    # 2.19.0 - Implemented dataset=LIST: List of headers to split dataset into. If blank, will use datatype defaults. []
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -231,7 +237,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copyyear) = ('SLiMBench', '2.18.2', 'May 2018', '2012')
+    (program, version, last_edit, copyyear) = ('SLiMBench', '2.19.0', 'January 2019', '2012')
     description = 'Short Linear Motif prediction Benchmarking'
     author = 'Dr Richard J. Edwards.'
     comments = ['Cite: Palopoli N, Lythgow KT & Edwards RJ. Bioinformatics 2015; doi: 10.1093/bioinformatics/btv155 [PMID: 25792551]',
@@ -343,6 +349,7 @@ class SLiMBench(rje_obj.RJE_Object):
     - SLiMMaker = Whether to use SLiMMaker to "reduce" ELMs to more findable SLiMs [True]
 
     Int:integer
+    - MinOccTP=INT        : Min number of occurence TP for OccBench motifs [1]
     - MinUPC = Minimum number of UPC for ELM dataset [3]
     - RandReps = Number of replicates for each random (or simulated) datasets [10]
 
@@ -388,9 +395,9 @@ class SLiMBench(rje_obj.RJE_Object):
                         'RanDir','RandBase','RandSource','SourcePath','SourceDate','SearchINI']
         self.boollist = ['Balanced','Benchmark','ByMotif','DomBench','Download','ELMBench','OccBench','PPIBench','Generate','Integrity','Masking',
                          'NoAmb','Queries','RanBench','RanDat','SimBench','SLiMMaker','DomLink']
-        self.intlist = ['MinUPC','RandReps']
+        self.intlist = ['MinOccTP','MinUPC','RandReps']
         self.numlist = ['MinIC','MinResIC']
-        self.listlist = ['AssFilter','GenSpec','ByCloud','FlankMask','ICCut','SimCount','ResFiles','RunID','SimRatios','SigCut','SLiMLenCut','OccSpec','PPISpec']
+        self.listlist = ['AssFilter','Dataset','GenSpec','ByCloud','FlankMask','ICCut','SimCount','ResFiles','RunID','SimRatios','SigCut','SLiMLenCut','OccSpec','PPISpec']
         self.dictlist = ['UniProt','UniSpec']
         self.objlist = ['DB','Uniprot']
         ### ~ Defaults ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -407,7 +414,7 @@ class SLiMBench(rje_obj.RJE_Object):
         self.setBool({'Generate':False,'Integrity':False,'Masking':True,'NoAmb':False,'Queries':False,'SLiMMaker':True,
                       'ELMBench':True,'PPIBench':True,'Download':True,'DomBench':True,'OccBench':True,'DomLink':True,
                       'Balanced':True,'ByMotif':True})
-        self.setInt({'MinUPC':3,'RandReps':8})
+        self.setInt({'MinOccTP':1,'MinUPC':3,'RandReps':8})
         self.setNum({'MinIC':2.0,'MinResIC':2.1})
         self.cmd_list = ['minic=2.0','minupc=3'] + self.cmd_list    # Propagate defaults
         self.list['FlankMask'] = string.split('site,flank5,win100,none',',')
@@ -438,12 +445,12 @@ class SLiMBench(rje_obj.RJE_Object):
                 self._cmdReadList(cmd,'date',['SourceDate'])   # Normal strings
                 self._cmdReadList(cmd,'path',['GenPath','RanDir','SourcePath'])  # String representing directory path 
                 self._cmdReadList(cmd,'file',['BenchBase','CompDB','ELMClass','ELMInstance','ELMInteractors','ELMDomains','SearchINI','RandSource','ELMDat','OccBenchPos','PPISource'])  # String representing file path
-                self._cmdReadList(cmd,'bool',['Benchmark','ByMotif','DomBench','DomLink','Download','ELMBench','OccBench','PPIBench','Generate','Integrity','Masking','NoAmb','Queries','RanBench','RanDat','SimBench','SLiMMaker'])  # True/False Booleans
-                self._cmdReadList(cmd,'int',['MinUPC','RandReps'])   # Integers
+                self._cmdReadList(cmd,'bool',['Balanced','Benchmark','ByMotif','DomBench','DomLink','Download','ELMBench','OccBench','PPIBench','Generate','Integrity','Masking','NoAmb','Queries','RanBench','RanDat','SimBench','SLiMMaker'])  # True/False Booleans
+                self._cmdReadList(cmd,'int',['MinOccTP','MinUPC','RandReps'])   # Integers
                 self._cmdReadList(cmd,'float',['MinIC','MinResIC']) # Floats
                 #self._cmdReadList(cmd,'min',['Att'])   # Integer value part of min,max command
                 #self._cmdReadList(cmd,'max',['Att'])   # Integer value part of min,max command
-                self._cmdReadList(cmd,'list',['GenSpec','RunID','OccSpec','PPISpec','AssFilter'])  # List of strings (split on commas or file lines)
+                self._cmdReadList(cmd,'list',['GenSpec','RunID','OccSpec','PPISpec','AssFilter','Dataset'])  # List of strings (split on commas or file lines)
                 self._cmdReadList(cmd,'ilist',['SimRatios','SimCount','SLiMLenCut'])
                 self._cmdReadList(cmd,'nlist',['SigCut','ICCut'])  
                 #self._cmdReadList(cmd,'clist',['Att']) # Comma separated list as a *string* (self.str)
@@ -2075,8 +2082,12 @@ class SLiMBench(rje_obj.RJE_Object):
             #X#elif self.getStr('DataType') == 'ppi': dsethead = ['Motif','PPI','IType']
             elif self.getStr('DataType') == 'ppi': dsethead = ['Hub','IType']   # IType will be 'PPI' if not found
             elif self.getStr('DataType') == 'elm': dsethead = ['Motif']
+            elif self.getStr('DataType') == 'elmsim': dsethead = ['Motif','RType','Ratio']
             else: self.errorLog('DataType "%s" not recognised.',printerror=False); raise ValueError
             if self.getBool('Queries'): dsethead += ['Query','Region']
+            if self.list['Dataset']:
+                dsethead = self.list['Dataset']
+                self.warnLog('Using custom Dataset fields may cause unexpected behaviour: check log for warnings.')
             for head in self.list['RunID']:
                 if head in protected + dsethead:
                     self.errorLog('Cannot have protected/dataset field "%s" in RunID split.' % head, printerror=False)
@@ -2250,11 +2261,13 @@ class SLiMBench(rje_obj.RJE_Object):
             if self.getBool('Queries'): newkeys += ['Query','Region']
             if self.getStr('DataType')[:3] == 'sim': newkeys += ['RType','Rep','PosNum','SeqNum']
             if self.getStr('DataType') == 'ppi': newkeys += ['IType','Hub','Motif']
+            if self.getStr('DataType') == 'elmsim': newkeys += ['RType','Ratio']
             newkeys += ['Pattern']
             # Re-order ratings keys to match assessment groupings 
             akeys = self.list['RunID'][0:]
             if self.getStr('DataType')[:3] == 'sim': akeys += ['PosNum','SeqNum','RType','Rep']
             elif self.getStr('DataType') == 'ppi': akeys += ['IType']
+            elif self.getStr('DataType') == 'elmsim': akeys += ['RType','Ratio']
             #akeys += ['Region','ICCut','LenCut','SigCut','ByCloud']
             if self.getBool('Queries'): akeys.append('Region')
             for field in newkeys:
@@ -2309,6 +2322,7 @@ class SLiMBench(rje_obj.RJE_Object):
             tdb.index('Pattern')
             try: self.printLog('#TP','%s TP CompariMotif combinations' % rje.iLen(tdb.index('Rating')['TP']))
             except: self.printLog('#TP','No TP CompariMotif combinations found!')
+            tdb.renameField('Name2','CMHit')
             tdb.saveToFile()
             ### ~ [1] Rate Motifs using CompariMotif hits ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             rdb = self.db('results')
@@ -2378,6 +2392,7 @@ class SLiMBench(rje_obj.RJE_Object):
             newkeys = self.list['RunID'][0:] + ['Motif']
             if self.getBool('Queries'): newkeys += ['Query','Region']
             if self.getStr('DataType')[:3] == 'sim': newkeys += ['RType','Rep','PosNum','SeqNum']
+            if self.getStr('DataType') == 'elmsim': newkeys += ['RType','Ratio']
             if self.getStr('DataType') == 'ppi':
                 #newkeys.remove('Motif');
                 newkeys += ['IType','Hub']
@@ -2386,6 +2401,7 @@ class SLiMBench(rje_obj.RJE_Object):
             akeys = self.list['RunID'][0:]
             if self.getStr('DataType')[:3] == 'sim': akeys += ['PosNum','SeqNum','RType','Rep']
             elif self.getStr('DataType') == 'ppi': akeys += ['IType']
+            elif self.getStr('DataType') == 'elmsim': akeys += ['RType','Ratio']
             #akeys += ['Region','ICCut','LenCut','SigCut','ByCloud']
             if self.getBool('Queries'): akeys.append('Region')
             for field in newkeys:
@@ -2493,7 +2509,7 @@ class SLiMBench(rje_obj.RJE_Object):
             for entry in rdb.entries():
                 self.progLog('\r#RATE','Rating SLiM Predictions: %.1f%%' % (ex/etot)); ex += 100.0
                 #tkey= '%s\t%s\t%s' % (entry['Motif'],entry['Pattern'],entry['Motif'])
-                tkey= tdb.makeKey({'Motif':entry['Motif'],'Pattern':entry['Pattern'],'CMHit':entry['Motif']})
+                tkey = tdb.makeKey({'Motif':entry['Motif'],'Pattern':entry['Pattern'],'CMHit':entry['Motif']})
                 if self.getStr('DataType') == 'ran' or (self.getStr('DataType') == 'sim' and entry['RType'] == 'ran'):
                     if tkey in tdb.data(): entry['Rating'] = tdb.data(tkey)['Rating']   #'OT'
                     elif entry['Pattern'] in tdb.index('Pattern'): entry['Rating'] = 'OT'
@@ -2696,6 +2712,7 @@ class SLiMBench(rje_obj.RJE_Object):
             akeys = self.list['RunID'][0:]
             if self.getStr('DataType')[:3] == 'sim': akeys += ['PosNum','SeqNum']
             elif self.getStr('DataType') == 'ppi': akeys += ['IType']
+            elif self.getStr('DataType') == 'elmsim': akeys += ['RType','Ratio']
             akeys += ['Region','ICCut','LenCut','ByCloud','SigCut']
             if not self.getBool('Queries'): akeys.remove('Region')
             setkeys = akeys[:-4]
@@ -2832,6 +2849,7 @@ class SLiMBench(rje_obj.RJE_Object):
             keep_unique += ['ICCut','LenCut','SigCut','ByCloud']
             if self.getStr('DataType')[:3] == 'sim': keep_unique += ['Rep','PosNum','SeqNum','RType']
             elif self.getStr('DataType')[:3] == 'ppi': keep_unique += ['Hub']
+            elif self.getStr('DataType')[:3] == 'elmsim': keep_unique += ['RType','Ratio']
             ## ~ [0b] Significance ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             prex = adb.entryNum(); dumpx = 0
             for entry in adb.entries():
@@ -3292,12 +3310,28 @@ class SLiMBench(rje_obj.RJE_Object):
             odb.dataFormat({'Start_Pos':'int','End_Pos':'int'})
             ## ~ [1d] Convert to dictionary ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             occdict = {}
+            tpoccx = 0      # Count of TP occurrences
+            tpmotdict = {}  # Dictionary of motifs TP occurrence counts
             for entry in odb.entries():
                 if entry['Motif'] not in occdict: occdict[entry['Motif']] = {}
                 if entry['Seq'] not in occdict[entry['Motif']]: occdict[entry['Motif']][entry['Seq']] = {'TP':[],'FP':[]}
                 if entry['Rating'] == 'OT': entry['Rating'] = 'FP'  #i# Should be taken care of below
+                if entry['Rating'] == 'TP':
+                    tpoccx += 1
+                    if entry['Motif'] not in tpmotdict: tpmotdict[entry['Motif']] = 0
+                    tpmotdict[entry['Motif']] += 1
                 occdict[entry['Motif']][entry['Seq']][entry['Rating']].append((entry['Start_Pos'],entry['End_Pos']))
-            self.printLog('#TPOCC','Dictionary of %s TP occurrences constructed' % (rje.iStr(odb.entryNum())))
+            self.printLog('#TPOCC','Dictionary of %s TP occurrences constructed' % (tpoccx))
+            ## ~ [1e] Filter out Motifs without TP occurrences ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            self.printLog('#TPMOT','%s of %s have 1+ TP occurrences' % (rje.iLen(tpmotdict),rje.iLen(occdict)))
+            if self.getInt('MinOccTP') < 1: self.warnLog('No min TP occurrence filtering. Might have odd SN values.')
+            else:
+                for motif in rje.sortKeys(occdict):
+                    if motif not in tpmotdict:
+                        occdict.pop(motif)
+                        self.printLog('#TPMOT','Motif %s filtered: no TP.' % motif)
+                    elif tpmotdict[motif] < self.getInt('MinOccTP'):
+                        self.printLog('#TPMOT','Motif %s filtered: < %d TP.' % (motif,self.getInt('MinOccTP')))
             motlist = rje.sortKeys(occdict)
             self.printLog('#MOTIF','Rating dictionary generated for %s motifs post-filtering' % rje.iLen(motlist))
 
@@ -3370,6 +3404,8 @@ class SLiMBench(rje_obj.RJE_Object):
             for field in ['SN','FPR','PPV','wPPV','FPRn','PPVn','wPPVn']: rdb.addField(field)
             for entry in rdb.entries():
                 entry['SN'] = rje.safeDivide(entry['TP'], (float(entry['TP']) + float(entry['FN'])))
+                if not (float(entry['TP']) + float(entry['FN'])):
+                    self.warnLog('Motif %s has no TP occurrences!' % entry['Motif'])
                 entry['FPR'] = rje.safeDivide(entry['FP'], (float(entry['FP']) + float(entry['TN'])))
                 entry['PPV'] = rje.safeDivide(entry['TP'], (float(entry['TP']) + float(entry['FP'])))
                 #i# wPPV is PPV weighted to give equal weight to TP and FP

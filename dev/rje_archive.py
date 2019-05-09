@@ -111,7 +111,7 @@ Output:
 
 Commandline:
     ### ~ Main Archive Options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-    rds=X           : UNSW_RDS project code to use (e.g. D0234444) []
+    rds=X           : UNSW_RDS ResData ID project code to use (e.g. D0234444) []
     uploadsh=X      : Full path for runnining upload.sh script ['/share/apps/unswdataarchive/2015-09-10/upload.sh']
     homedir=PATH    : Home directory from which the archive script will be run ['/home/z3452659']
     projects=FILE   : Delimited file of `Project` and `RDS` code. If provided, will not use rds=X ['projects.tdt']
@@ -168,6 +168,9 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
     # [Y] : Fix the size measurement: du return kb not bytes.
     # [Y] : Not sure whether ftot counts should include directories? Might only consume directory if not there already.
     # [ ] : Add fullcheck=T/F : Special mode that reads all directories from backups.tdt and checks their status.
+    # [ ] : Add projmode=X setting to recognise projects using different criteria?
+    # [ ] : Update docstring to current running version.
+    # [ ] : Add generation of the backup directory list when backing up whole project?
     '''
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.

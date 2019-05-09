@@ -20,8 +20,8 @@
 Module:       rje_program
 Description:  Generic RJE Program Template
 Version:      0.0.0
-Last Edit:    01/01/16
-Copyright (C) 2016  Richard J. Edwards - See source code for GNU License Notice
+Last Edit:    01/01/19
+Copyright (C) 2019  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
     The function of this module will be added here.
@@ -57,7 +57,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copy_right) = ('GENERIC', '0.0.0', 'January 2016', '2016')
+    (program, version, last_edit, copy_right) = ('GENERIC', '0.0.0', 'January 2019', '2019')
     description = 'Generic RJE Module'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_obj.zen()]

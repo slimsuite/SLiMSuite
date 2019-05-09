@@ -214,7 +214,8 @@ samphaserStackPlot2 = function(depdata,hapdepdata,hapdata,hapsnpdata,locus,onex,
     ymin = ymin + onex/8
     text(0,ymin+onex/16,track,pos=2,xpd=TRUE,cex=0.8,col=trackcol[[track]])
     for(hapacc in hapdata[hapdata$Locus==locus & hapdata$Track==track,]$HapAcc){
-      trackdepdata = hapdepdata[hapdepdata$Locus==hapacc,]
+      #trackdepdata = hapdepdata[hapdepdata$Locus==hapacc,]
+      trackdepdata = hapdepdata[hapdepdata$HapAcc==hapacc,]
       trackhapdata = hapdata[hapdata$HapAcc==hapacc,]
       regionXPlot2(trackdepdata,trackhapdata,onex,ymin,trackcol[[track]])
     }

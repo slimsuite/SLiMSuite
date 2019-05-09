@@ -19,8 +19,8 @@
 """
 Module:       SAMPhaser
 Description:  Diploid chromosome phasing from SAMTools Pileup format.
-Version:      0.5.0
-Last Edit:    22/11/17
+Version:      0.8.0
+Last Edit:    12/10/18
 Copyright (C) 2016  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -35,6 +35,8 @@ Commandline:
     absmincut=X     : Absolute minimum read count for minor allele (used if mincut<1) [2]
     indels=T/F      : Whether to include indels in "SNP" parsing [True]
     snptableout=T/F : Output filtered alleles to SNP Table [False]
+    skiploci=LIST   : Optional list of loci (full names or accnum) to skip phasing []
+    phaseloci=LIST  : Optional list of loci (full names or accnum) to phase (will skip rest) []
     ### ~ Phasing options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     phasecut=X      : Minimum read count for minor allele for phasing (proportion of QN if <1) [0.25]
     absphasecut=X   : Absolute minimum read count for phasecut (used if phasecut<1) [5]
@@ -49,14 +51,15 @@ Commandline:
     absunzipcut=X   : Absolute minimum read count for unzipcut (used if unzipcut<1) [3]
     minhapx=X       : Minimum mean coverage for haplotig [5]
     halfhap=T/F     : Whether to allow "half haplotigs" where one halpotig in a pair is removed by minhapx [True]
-    splitzero=X     : Whether to split haplotigs at zero-coverage regions of X+ bp (-1 = no split) [100] (dev only)
+    splitzero=X     : Whether to split haplotigs at zero-coverage regions of X+ bp (-1 = no split) [100]
     rgraphics=T/F   : Whether to generate PNG graphics using R. (Needs R installed and setup) [True]
+    poordepth=T/F   : Whether to include reads with poor track probability in haplotig depth plots (random track) [False]
     ### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
 """
 #########################################################################################################################
 ### SECTION I: GENERAL SETUP & PROGRAM DETAILS                                                                          #
 #########################################################################################################################
-import os, string, sys, time, math
+import os, string, sys, time, math, random
 slimsuitepath = os.path.abspath(os.path.join(os.path.dirname(os.path.realpath(__file__)),'../')) + os.path.sep
 sys.path.append(os.path.join(slimsuitepath,'libraries/'))
 sys.path.append(os.path.join(slimsuitepath,'tools/'))
@@ -76,8 +79,11 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 0.4.3 - Fixed bug introduced by adding depthplot code. Fixed phaseindels bug. (Wasn't working!)
     # 0.4.4 - Modified mincut=X to adjust for samtools V1.12.0.
     # 0.4.5 - Updated for modified RJE_SAMTools output.
-    # 0.4.6 - splitzero=X : Whether to split haplotigs at zero-coverage regions of X+ bp (-1 = no split) [100] (dev only)
+    # 0.4.6 - splitzero=X : Whether to split haplotigs at zero-coverage regions of X+ bp (-1 = no split) [100]
     # 0.5.0 - snptable=T/F    : Output filtered alleles to SNP Table [False]
+    # 0.6.0 - Converted haplotig naming to be consistent for PAGSAT generation. Updated for rje_samtools v1.21.1.
+    # 0.7.0 - Added skiploci=LIST and phaseloci=LIST  : Optional list of loci to skip phasing []
+    # 0.8.0 - poordepth=T/F   : Whether to include reads with poor track probability in haplotig depth plots (random track) [False]
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -94,12 +100,13 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
     # [ ] : -- Plot haplotigs against input Locus and mark SNP regions. (And phased SNPs or SNP density?)
     # [ ] : Give code a clean and tidy! (Lose old unzip.)
     # [ ] : Option to ignore mononucleotide repeat indels.
-    # [ ] : splitzero=X : Whether to split haplotigs at zero-coverage regions of X+ bp (-1 = no split) [100] (dev only)
+    # [Y] : splitzero=X : Whether to split haplotigs at zero-coverage regions of X+ bp (-1 = no split) [100]
+    # [Y] : Add phaseloci as mirror of skiploci?
     '''
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copy_right) = ('SAMPhaser', '0.5.0', 'November 2017', '2016')
+    (program, version, last_edit, copy_right) = ('SAMPhaser', '0.8.0', 'October 2018', '2016')
     description = 'Diploid chromosome phasing from SAMTools Pileup format'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_obj.zen()]
@@ -164,6 +171,7 @@ class SAMPhaser(rje_obj.RJE_Object):
     Bool:boolean
     - HalfHap=T/F     : Whether to allow "half haplotigs" where one halpotig in a pair is removed by minhapx [True]
     - PhaseIndels=T/F : Whether to include indels in "SNP" phasing [False]
+    - PoorDepth=T/F   : Whether to include reads with poor track probability in haplotig depth plots (random track) [False]
     - RGraphics=T/F   : Whether to generate PNG graphics using R. (Needs R installed and setup) [True]
     - SNPTableOut=T/F    : Output filtered alleles to SNP Table [False]
 
@@ -178,13 +186,15 @@ class SAMPhaser(rje_obj.RJE_Object):
     - MinHapX=X       : Minimum mean coverage for haplotig [5]
     - PhaseCut=X      : Minimum read count for minor allele for phasing (proportion if <1) [0.25]
     - SNPErr=X        : Probability of an incorrect (biallelic) SNP call for individual read nucleotides [0.05]
-    - SplitZero=X     : Whether to split haplotigs at zero-coverage regions of X+ bp (-1 = no split) [100] (dev only)
+    - SplitZero=X     : Whether to split haplotigs at zero-coverage regions of X+ bp (-1 = no split) [100]
     - TrackProb=X     : Min probability for assigning a read/SNP to Track A/B [0.95]
     - UnzipCut=X      : Minimum read count for allele for unzipping haplotigs (proportion if <1) [0.1]
 
     File:file handles with matching str filenames
     
     List:list
+    - PhaseLoci=LIST  : Optional list of loci (full names or accnum) to phase (will skip rest) []
+    - SkipLoci=LIST   : Optional list of loci to skip phasing []
 
     Dict:dictionary    
 
@@ -202,17 +212,17 @@ class SAMPhaser(rje_obj.RJE_Object):
         '''Sets Attributes of Object.'''
         ### ~ Basics ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         self.strlist = ['Pileup','SeqIn']
-        self.boollist = ['HalfHap','PhaseIndels','RGraphics','SNPTableOut']
+        self.boollist = ['HalfHap','PhaseIndels','RGraphics','SNPTableOut','PoorDepth']
         self.intlist = ['AbsPhaseCut','AbsUnzipCut','EndMargin','MinSNP','SNPCalc']
         self.numlist = ['MinHapX','PhaseCut','SNPErr','SplitZero','TrackProb','UnzipCut']
         self.filelist = []
-        self.listlist = []
+        self.listlist = ['SkipLoci','PhaseLoci']
         self.dictlist = []
         self.objlist = []
         ### ~ Defaults ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         self._setDefaults(str='None',bool=False,int=0,num=0.0,obj=None,setlist=True,setdict=True,setfile=True)
         self.setStr({})
-        self.setBool({'HalfHap':True,'PhaseIndels':False,'RGraphics':True,'SNPTableOut':False})
+        self.setBool({'HalfHap':True,'PhaseIndels':False,'RGraphics':True,'SNPTableOut':False,'PoorDepth':False})
         self.setInt({'AbsPhaseCut':5,'AbsUnzipCut':3,'EndMargin':10,'MinSNP':5,'SNPCalc':10})
         self.setNum({'MinHapX':5.0,'PhaseCut':0.25,'SNPErr':0.05,'SplitZero':100,'TrackProb':0.95,'UnzipCut':0.1})
         ### ~ Other Attributes ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -236,17 +246,19 @@ class SAMPhaser(rje_obj.RJE_Object):
                 #self._cmdReadList(cmd,'path',['Att'])  # String representing directory path 
                 self._cmdReadList(cmd,'file',['Pileup','SeqIn'])  # String representing file path
                 #self._cmdReadList(cmd,'date',['Att'])  # String representing date YYYY-MM-DD
-                self._cmdReadList(cmd,'bool',['HalfHap','PhaseIndels','RGraphics','SNPTableOut'])  # True/False Booleans
+                self._cmdReadList(cmd,'bool',['HalfHap','PoorDepth','PhaseIndels','RGraphics','SNPTableOut'])  # True/False Booleans
                 self._cmdReadList(cmd,'int',['EndMargin','MinSNP','SNPCalc','SplitZero'])   # Integers
                 self._cmdReadList(cmd,'float',['MinHapX','PhaseCut','SNPErr','TrackProb','UnzipCut']) # Floats
                 #self._cmdReadList(cmd,'min',['Att'])   # Integer value part of min,max command
                 #self._cmdReadList(cmd,'max',['Att'])   # Integer value part of min,max command
-                #self._cmdReadList(cmd,'list',['Att'])  # List of strings (split on commas or file lines)
+                self._cmdReadList(cmd,'list',['PhaseLoci','SkipLoci'])  # List of strings (split on commas or file lines)
                 #self._cmdReadList(cmd,'clist',['Att']) # Comma separated list as a *string* (self.str)
                 #self._cmdReadList(cmd,'glist',['Att']) # List of files using wildcards and glob
                 #self._cmdReadList(cmd,'cdict',['Att']) # Splits comma separated X:Y pairs into dictionary
                 #self._cmdReadList(cmd,'cdictlist',['Att']) # As cdict but also enters keys into list
             except: self.errorLog('Problem with cmd:%s' % cmd)
+        if self.getNum('TrackProb') <= 0.5:
+            raise ValueError('Cannot set trackprob <= 0.5')
 #########################################################################################################################
     ### <2> ### Main Class Backbone                                                                                     #
 #########################################################################################################################
@@ -278,19 +290,22 @@ class SAMPhaser(rje_obj.RJE_Object):
     def run(self):  ### Main run method
         '''Main run method.'''
         try:### ~ [1] ~ Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            #i# The initial setup will create the Database and SAMTools objects.
             self.setup()
+
+            ### ~ [2] ~ Main run code ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            ## ~ [2a] ~ Pickup run with blocks generated ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             if self.db('blocks',add=True,mainkeys=['Locus','Block','Track']):
                 self.unzipSeq()
                 if self.getBool('RGraphics'): self.report()
-
-                #if self.dev() and self.getInt('SplitZero') > 0:
-                #    self.devZeroSplit()
-
                 return True
-            ### ~ [2] ~ Add main run code here ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            ## ~ [2a] Parse SNPs with SAMTools object ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+
+            ## ~ [2b] Parse SNPs with SAMTools object ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             sam = self.obj['SAMTools']
             sam.parsePileup(self.getStr('Pileup'))
+            #i# This will generate three files. The SNP file is returned by getSNPFile() and contains the actual SNPs for
+            #i# phasing. The RID file contains the positions of the reads and is used for unzipping and depth plots.
+            #i# The QC file is not used.
 
             #==> S288C-ISH.chrI.Q30.10.tdt <==
             #Locus	Pos	Ref	N	QN	Seq	Dep	RID
@@ -304,11 +319,8 @@ class SAMPhaser(rje_obj.RJE_Object):
             #RID	Locus	Start	End
             #chrI_YEAST__BK006935	176	61	351
 
-            #!# Add indels filter? #!#
-
-
-
-            ## ~ [2b] Filter based on allele frequency ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            ## ~ [2c] Filter based on allele frequency etc. ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            self.printLog('#~~#','## ~~~~~ Filtering SNPs for phasing ~~~~~ ##')
             snpdb = self.db().openTable(self.getSNPFile(),mainkeys=['Locus','Pos'],name='snp',expect=True)
             #i# At this point we have filtered SNPs
             if self.getBool('SNPTableOut'):
@@ -352,22 +364,26 @@ class SAMPhaser(rje_obj.RJE_Object):
                 self.printLog('#SNP','%s alleles parsed from %s biallelic SNP meeting PhaseCut requirements (indels=%s).' % (rje.iStr(snptabdb.entryNum()),rje.iStr(snpdb.entryNum()),self.getBool('PhaseIndels')))
                 snptabdb.saveToFile(tabfile)
 
-
-
+            ## ~ [2d] Load and format the RID table ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            self.printLog('#~~#','## ~~~~~ Loading and formatting read table ~~~~~ ##')
             ridfile = '%s.rid.tdt' % (rje.baseFile(self.getStr('Pileup'),strip_path=True))
             riddb = self.db().addTable(ridfile,mainkeys=['RID'],datakeys='All',name='rid',expect=True)
             riddb.dataFormat({'RID':'str','Start':'int','End':'int'})
 
 
+            ## ~ [2e] Phase contigs ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             self.phase()
 
+            ## ~ [2f] Unzip contigs ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             # The unzipSeq() method needs blocks.tdt output
-            # This needs to use the full (not biallelic) data!
+            # This will use the full (not biallelic) data
             self.unzipSeq()
+            if self.getBool('RGraphics'): self.report()
 
-            return
+            ### ~ [3] End ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            return True
         except:
-            self.errorLog(self.zen())
+            self.errorLog('SAMPhaser run error!')
             raise   # Delete this if method error not terrible
 #########################################################################################################################
     def restSetup(self):    ### Sets up self.dict['Output'] and associated output options if appropriate.
@@ -482,11 +498,14 @@ class SAMPhaser(rje_obj.RJE_Object):
                 self.debug(rentry)
         except: self.errorLog('%s.readA() error' % self.prog()); raise
 #########################################################################################################################
+    def skipLocus(self,locus): return (locus in self.list['SkipLoci'] or string.split(locus,'__')[-1] in self.list['SkipLoci'])
+#########################################################################################################################
     def phase(self):    ### Main SNP phasing method.
         '''
         Main SNP phasing method.
         '''
         try:### ~ [1] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            self.printLog('#~~#','## ~~~~~ Phasing %s ~~~~~ ##' % self.basefile())
             if not self.force() and self.db('blocks',add=True,mainkeys=['Locus','Block','Track']):
                 self.printLog('#PHASE','%s.blocks.tdt found: phasing skipped' % self.baseFile())
                 return True
@@ -524,11 +543,35 @@ class SAMPhaser(rje_obj.RJE_Object):
                 rentry['B'] = 0.5
                 rentry['SNP'] = []
                 rentry['Block'] = 0
+            ## Check and update SkipLoci ##
+            if self.list['PhaseLoci']:
+                phasex = len(self.list['PhaseLoci'])
+                locx = len(riddb.indexKeys('Locus'))
+                self.list['SkipLoci'] = []
+                for locus in riddb.indexKeys('Locus'):
+                    self.bugPrint('%s -> %s' % (locus,string.split(locus,'__')[-1]))
+                    self.deBug(locus in self.list['PhaseLoci'] or string.split(locus,'__')[-1] in self.list['PhaseLoci'])
+                    if locus in self.list['PhaseLoci'] or string.split(locus,'__')[-1] in self.list['PhaseLoci']: continue
+                    self.list['SkipLoci'].append(locus)
+                skipx = len(self.list['SkipLoci'])
+                self.printLog('#SKIP','%d of %d loci skipped for phasing based on phaseloci=LIST' % (skipx,locx))
+                if locx == skipx: raise ValueError('No loci remain after skiped loci removed! Check phaseloci=LIST')
+                if locx - skipx != phasex: self.warnLog('%d phaseloci=LIST loci but %d loci remain for phasing!' % (phasex,locx-skipx))
 
             ### ~ [2] Phase ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             blockx = 0          # Number of phased blocks
             blockpos = []       # List of SNP positions for each block (0<N for blocks 1-N)
+            skipx = 0           # Number of skipped loci
             for locus in snpdb.indexKeys('Locus'):
+                skipping = self.skipLocus(locus)
+                if skipping:
+                    blockx += 1; skipx += 1
+                    self.printLog('\r#SKIP','Skipping %s (Block %d)' % (locus, blockx))
+                    for rid in riddb.index('Locus')[locus]:
+                        rentry = riddb.data(rid)
+                        rentry['Block'] = blockx
+                        rentry['A'] = -1
+                        rentry['B'] = -1
                 phasing = []    # List of reads currently being phased
                 #trackA = []     # List of (pos,allele) assigned to track A
                 #readA = {}      # Dictionary of {read:prob in A}
@@ -537,9 +580,20 @@ class SAMPhaser(rje_obj.RJE_Object):
                 #snpA = {}       # Dictionary of {(pos,allele):prob in A} [Should always have 2 alleles per Locus/pos]
                 px = 0.0; ptot = len(snpdb.index('Locus')[locus]); pstr = rje.iStr(ptot)
                 for skey in snpdb.index('Locus')[locus]:
-                    self.progLog('\r#PHASE','Phasing %s %s SNPs: %.2f%% => %d blocks' % (pstr,locus,px/ptot,blockx)); px += 100.0
                     sentry = snpdb.data(skey)
                     pos = sentry['Pos']
+                    ## ~ [2-] Process skipped locus ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+                    if skipping:
+                        self.progLog('\r#PHASE','Skipping %s %s SNPs: %.2f%% => %d blocks' % (pstr,locus,px/ptot,blockx)); px += 100.0
+                        #i# This will set all RID to the same block and all probabilities to -1
+                        sentry['Block'] = blockx
+                        sentry['A1'] = -1
+                        sentry['A2'] = -1
+                        if blockx > len(blockpos): blockpos.append([pos])
+                        else: blockpos[blockx-1].append(pos)
+                        continue
+                    ## ~ [2+] Phasing locus ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+                    self.progLog('\r#PHASE','Phasing %s %s SNPs: %.2f%% => %d blocks' % (pstr,locus,px/ptot,blockx)); px += 100.0
                     ## ~ [2a] Drop readA entries for finished reads ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
                     for rid in phasing[0:]:
                         if riddb.data(rid)['End'] < pos: phasing.remove(rid)
@@ -567,7 +621,10 @@ class SAMPhaser(rje_obj.RJE_Object):
                     for pos in recalc:
                         snprid = snpdb.data((locus,pos))['R1'] + snpdb.data((locus,pos))['R2']
                         self.snpA(locus,pos,snprid,erate)
-                self.printLog('\r#PHASE','Phased %s %s SNPs: %d phased total haplotype blocks' % (pstr,locus,blockx)); px += 100.0
+                if skipx:
+                    if skipping: self.printLog('\r#PHASE','Skipped %s %s SNPs: %d phased total haplotype blocks + %d skipped loci' % (pstr,locus,blockx-skipx,skipx)); px += 100.0
+                    else: self.printLog('\r#PHASE','Phased %s %s SNPs: %d phased total haplotype blocks + %d skipped loci' % (pstr,locus,blockx-skipx,skipx)); px += 100.0
+                else: self.printLog('\r#PHASE','Phased %s %s SNPs: %d phased total haplotype blocks' % (pstr,locus,blockx)); px += 100.0
 
             ### ~ [3] Resolve Blocks ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             #badblock = []
@@ -589,11 +646,18 @@ class SAMPhaser(rje_obj.RJE_Object):
             riddb.addField('Track')
             riddb.addField('pTrack')
             for rentry in riddb.entries():
-                if rentry['A'] >= rentry['B']: rentry['Track'] = 'A'
+                if rentry['A'] < 0:
+                    rentry['Track'] = 'X'
+                    rentry['pTrack'] = 1
+                    rentry['SNP'] = ''
+                    continue
+                elif rentry['A'] >= rentry['B']: rentry['Track'] = 'A'
                 else: rentry['Track'] = 'B'
                 rentry['pTrack'] = rentry[rentry['Track']]
                 rentry['SNP'] = self.snpListToStr(rentry['SNP'])
             riddb.setFields(['RID','Locus','Start','End','Block','Track','pTrack','SNP'])
+            #!# Consider saving poor pTrack RID to a different file? Then recombine for PAGSAT depth plots?
+            #i# Alternative is to run with TrackProb=0.5 for PAGSAT processing? (Trying this.)
             riddb.dropEntries(['pTrack<%f' % self.getNum('TrackProb')])
             riddb.saveToFile(filename='%s.haprid.tdt' % self.baseFile(),sfdict={'pTrack':3})
             riddb.rename('haprid')
@@ -606,6 +670,9 @@ class SAMPhaser(rje_obj.RJE_Object):
             ## ~ [3b] Assign SNPs to tracks  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             snpdb.addFields(['A','B','nA','nB','pA'])
             for sentry in snpdb.entries():
+                if sentry['A1'] < 0:
+                    sentry['pA'] = 1.0
+                    continue  #Skipped
                 if sentry['A1'] >= sentry['A2']:
                     sentry['A'] = sentry['V1']
                     sentry['B'] = sentry['V2']
@@ -623,10 +690,15 @@ class SAMPhaser(rje_obj.RJE_Object):
             # Add SNPs to Block Tables
             for skey in snpdb.dataKeys():
                 sentry = snpdb.data(skey)
+                if self.skipLocus(sentry['Locus']): continue # Skipped
                 for track in 'AB':
                     bdb.data((sentry['Locus'],sentry['Block'],track))['SNP'].append((sentry['Pos'],sentry[track]))
             for bentry in bdb.entries():
-                if bentry['Block'] == 0:
+                if bentry['Track'] == 'X':
+                    bentry['HapStart'] = -1
+                    bentry['HapEnd'] = -1
+                    bentry['SNP'] = ''
+                elif bentry['Block'] == 0:
                     bentry['HapStart'] = 0
                     bentry['HapEnd'] = 0
                     bentry['SNP'] = ''
@@ -637,6 +709,7 @@ class SAMPhaser(rje_obj.RJE_Object):
             # Add Block Starts and Ends
             for bentry in bdb.entries():
                 if bentry['Block'] == 0: continue
+                if bentry['Track'] == 'X': continue  #Skipped
                 sentry = rje.combineDict({'A':'.','B':'.','Ref':'.','pA':1.0,'nA':0,'nB':0},bentry)
                 sentry['Pos'] = sentry.pop('Start'); sentry.pop('End'); sentry.pop('SNP')
                 track = sentry.pop('Track')
@@ -654,22 +727,23 @@ class SAMPhaser(rje_obj.RJE_Object):
             snpdb.saveToFile(filename='%s.hapsnp.tdt' % self.baseFile(),sfdict={'pA':3})
             bdb.saveToFile()
 
-        except: self.errorLog('%s.phase() error' % self.prog())
+        except: self.errorLog('%s.phase() error' % self.prog()); raise
 #########################################################################################################################
     def snpListToStr(self,snplist,snpjoin='|'):
         snpstr = []
         for snp in snplist: snpstr.append('%d:%s' % snp)
         return string.join(snpstr,snpjoin)
 #########################################################################################################################
-    def devUnzipSeq(self):     ### Unzip sequences based on SNP phasing
+    def unzipSeq(self):     ### Unzip sequences based on SNP phasing
         '''Unzip sequences based on SNP phasing.'''
         try:### ~ [0] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            self.printLog('#~~#','## ~~~~~ Unzipping %s ~~~~~ ##' % self.baseFile())
             hapfile = '%s.haplotigs.tdt' % self.baseFile()
             if not self.force() and rje.exists(hapfile):
                 return self.printLog('#UNZIP','%s found (force=F): unzip cancelled.' % hapfile)
-            self.printLog('#UNZIP','DEVELOPMENTAL UNZIP METHOD')
             sam = self.obj['SAMTools']
             sam.obj['DB'] = self.obj['DB']
+            #i# seqlist will load the original sequences
             seqlist = rje_seqlist.SeqList(self.log,self.cmd_list+['autoload=T','seqmode=file'])
             seqdict = seqlist.makeSeqNameDic('max')
             minx = self.getInt('MinSNP')    # Min number of SNPs to unzip block
@@ -679,19 +753,6 @@ class SAMPhaser(rje_obj.RJE_Object):
             #absunzipcut=X   : Absolute minimum read count for unzipcut (used if unzipcut<1) [3]
             #minhapx=X       : Minimum mean coverage for haplotig [5]
             #halfhap=T/F     : Whether to allow "half haplotigs" where one halpotig in a pair is removed by minhapx [True]
-
-
-
-            #!# Add pickup at some point but need to save new blocks when doing so #!#
-            #pickupfile = '%s.samphaser.pickup' % self.baseFile()
-            #pickuplist = []
-            #if rje.exists(pickupfile):
-            #    if self.force(): os.unlink(pickupfile)
-            #    else: pickuplist = self.loadFromFile(pickupfile,chomplines=True)
-            #if pickuplist and pickuplist[-1] == '>>':
-            #    self.warnLog('Warning! May have incomplete sequence output from previous run: check for duplicates')
-            #while '>>' in pickuplist: pickuplist.remove('>>')
-            #if pickuplist: self.printLog('#PICKUP','%s loci read from %s to skip' % (rje.iLen(pickuplist),pickupfile))
 
             #i# This will use the main QX.Y.tdt file to adjust/construct the sequence for each block from its reads
             #># Locus   Pos     Ref     N       QN      Seq     Dep     RID
@@ -714,9 +775,9 @@ class SAMPhaser(rje_obj.RJE_Object):
             hapdb = self.db('haprid',add=True,mainkeys=['RID'])
             if not hapdb: raise IOError('%s.haprid.tdt not found!' % self.baseFile())
             hapdb.dataFormat({'Block':'int','Start':'int','End':'int','pTrack':'num'})
-            hapdb.makeField('#Block##Track#','Haplotig')
+            hapdb.makeField('#Track##Block#','Haplotig')
             hapdb.indexReport('Locus')
-            hapdb.indexReport('Haplotig')
+            hapdb.indexReport('Haplotig','#HAPTIG')
             #i# Locus is being kept but will be replaced with new sequence AccNum for coverage plot.
             hapdb.addField('HapAcc')
             hapdb.dropFields(['Locus','Block','Track','SNP'])
@@ -728,14 +789,33 @@ class SAMPhaser(rje_obj.RJE_Object):
             # Block table: will add to this with new blocks
             bdb = self.db('blocks',add=True,mainkeys=['Locus','Block','Track'])
             bdb.dataFormat({'Block':'int','Start':'int','End':'int','HapStart':'int','HapEnd':'int'})
+            # Generate haplotig IDs
+            bdb.makeField('#Track##Block#','Haplotig')
             # Set number of blocks: will add to with "Collapsed" haplotigs
             blockx = max(bdb.dataList(bdb.entries(),'Block',sortunique=False,empties=False))
-            # Generate haplotig IDs
-            bdb.makeField('#Block##Track#','Haplotig')
+            skiphap = []   # Block IDs for skipped loci
+            #i# Skipped loci with have Track X
+            #!# Might want to move skipping to this point and generate block data for all loci?
+            for bentry in bdb.entries():
+                locus = bentry['Locus']
+                skipping = self.skipLocus(locus)
+                if skipping and bentry['Track'] != 'X':
+                    self.warnLog('Locus %s was not skipped during block phasing' % locus)
+                    #x# Cannot easily skip at this point bentry['Track'] = 'X'
+                elif not skipping and bentry['Track'] == 'X':
+                    self.warnLog('Locus %s was skipped during block phasing: cannot unzip' % locus)
+                    skipping = True
+                if skipping:
+                    #bentry['Haplotig'] = locus
+                    skiphap.append(bentry['Block'])
+            # Filter haplotigs
             bdb.addField('HapAcc')
             bdb.newKey(['Haplotig'])
             bdb.addField('nSNP')
-            for entry in bdb.entries(): entry['nSNP'] = len(string.split(entry['SNP'],'|'))
+            for entry in bdb.entries():
+                entry['nSNP'] = len(string.split(entry['SNP'],'|'))
+                if entry['Track'] == 'X': entry['nSNP'] = minx
+                entry['HapAcc'] = '%s.%s' % (string.split(entry['Locus'],'__')[-1],entry['Haplotig'])
             bdb.dropField('SNP')
             bdb.dropEntries(['nSNP<%d' % minx],logtxt='nSNP<%d phased SNP filter' % minx)
             #self.printLog('#MINSNP','%s blocks entries with nSNP >= %d' % (rje.iStr(bdb.entryNum()),minx))
@@ -749,29 +829,48 @@ class SAMPhaser(rje_obj.RJE_Object):
             bdb.addField('MeanX',evalue=0)
             for bentry in bdb.entries():
                 hap = bentry['Haplotig']
+                #self.debug('%s: %d' % (hap,len(hapdb.indexEntries('Haplotig',hap))))
                 haplen = bentry['End'] - bentry['Start'] + 1.0
-                for hentry in hapdb.indexEntries('Haplotig',hap):
-                    bentry['MeanX'] += (hentry['End'] - hentry['Start'] + 1.0) / haplen
+                if self.skipLocus(bentry['Locus']):
+                    #bentry['Haplotig'] = bentry['Locus']
+                    for hentry in hapdb.indexEntries('Haplotig',hap):
+                        hentry['HapAcc'] = bentry['Locus']
+                        bentry['MeanX'] += (hentry['End'] - hentry['Start'] + 1.0) / haplen
+                else:
+                    for hentry in hapdb.indexEntries('Haplotig',hap):
+                        bentry['MeanX'] += (hentry['End'] - hentry['Start'] + 1.0) / haplen
             bdb.dropEntries(['MeanX<%d' % self.getNum('MinHapX')],logtxt='MeanX<%d X Coverage filter' % self.getNum('MinHapX'))
 
             #i# Check for orphan haplotigs
             if not self.getBool('HalfHap'):
                 drophap = []
                 for hap in bdb.index('Block'):
+                    if hap in skiphap: continue
                     if len(bdb.index('Block')[hap]) < 2: drophap.append(hap)
                     elif len(bdb.index('Block')[hap]) > 2: self.warnLog('Block %d has %d haplotigs!: %s' % (hap,len(bdb.index('Block')[hap]),string.join(bdb.index('Block')[hap],'; ')))
                 bdb.dropEntries(drophap,keylist=True,logtxt='HalfHap=False filtering of solo haplotigs')
+
+
+            #i#Tidy up the haplotigs.rid file
+            goodtigs = bdb.indexKeys('Haplotig',force=True,log=False)
+            hapdb.dropEntriesDirect('Haplotig',goodtigs,inverse=True)
 
             #i# Extend haplotigs to ends of sequence if close
             for bkey in bdb.dataKeys():
                 bentry = bdb.data(bkey)
                 seqlen = seqlist.seqLen(seqdict[bentry['Locus']])
+                #i# Tidy skipped loci
+                if bentry['Block'] in skiphap:
+                    bentry['Start'] = 1
+                    bentry['End'] = seqlen
+                    continue
+                #i# Extend blocks near ends of sequence
                 if bentry['Start'] <= self.getInt('EndMargin'): bentry['Start'] = 1
                 if bentry['End'] >= seqlen - self.getInt('EndMargin'): bentry['End'] = seqlen
 
-                #!# Add splitting on zero-coverage here. Need to update bdb and hapdb.
-                if self.dev() and self.getInt('SplitZero') >= 0:
-                    hap = bentry['Haplotig'] # 1A etc.
+                # Splitting on zero-coverage here. Need to update bdb and hapdb.
+                if self.getInt('SplitZero') >= 0:
+                    hap = bentry['Haplotig'] # A1 etc.
                     self.progLog('\r#SPLIT','Zero Splitting %s...     ' % hap)
                     ridpos = []
                     for hentry in hapdb.indexEntries('Haplotig',hap):
@@ -782,7 +881,7 @@ class SAMPhaser(rje_obj.RJE_Object):
                     if len(ridpos) == 1: continue
                     #i# ridpos should now contain all the regions with coverage these are the new fragments!
                     if ridpos[0][0] <= self.getInt('EndMargin'): ridpos[0] = (1,ridpos[0][1])
-                    if ridpos[-1][1] >= seqlen - self.getInt('EndMargin'): (ridpos[-1][0],seqlen)
+                    if ridpos[-1][1] >= seqlen - self.getInt('EndMargin'): ridpos[-1] = (ridpos[-1][0],seqlen)
                     #i# Clean up small chunks
                     splitfrag = []
                     for frag in ridpos:
@@ -813,10 +912,12 @@ class SAMPhaser(rje_obj.RJE_Object):
                             hentry['Haplotig'] = sentry['Haplotig']
                             hentry['HapAcc'] = sentry['HapAcc']
                             sentry['MeanX'] += (hentry['End'] - hentry['Start'] + 1.0) / haplen
+                        #self.bugPrint(bentry)
+                        #self.debug(sentry)
                         bdb.addEntry(sentry)
                     bdb.dropEntry(bentry)
-            bdb.indexReport('Haplotig','HAPTIG',force=True)
-            hapdb.indexReport('Haplotig','HAPTIG',force=True)
+            bdb.indexReport('Haplotig','#HAPTIG',force=True)
+            hapdb.indexReport('Haplotig','#HAPTIG',force=True)
 
             # Parsed pileup data
             snpdb = self.db().openTable(self.getSNPFile(),mainkeys=['Locus','Pos'],name='pileup',expect=True)
@@ -844,12 +945,13 @@ class SAMPhaser(rje_obj.RJE_Object):
             #else:
             rje.backup(self,bfile)
             HAPFAS = open(bfile,'w'); bx = 0; cx = 0; hx = 0
+            hapdb.addField('Locus')
 
             # Filter based on allele frequency
             locx = 0.0; loctot = seqlist.seqNum()
             self.progLog('#UNZIP','Unzipping SNP into haplotigs: %.f%%' % (locx/loctot))
             # Next collapsed block
-            blockx += 1; colhap = '%dC' % blockx
+            blockx += 1; colhap = 'C%d' % blockx
             colentry = {'Locus':'None','Haplotig':colhap,'Block':blockx,'Track':'C','Start':0,'End':0,'HapStart':0,'HapEnd':0,'SNP':0,'nSNP':0}
             while snpdb:
                 locus = snpdb.readSet(['Locus'],entry=None,clear=True)
@@ -860,6 +962,17 @@ class SAMPhaser(rje_obj.RJE_Object):
                 self.printLog('#LOCUS',locus)
                 snpdb.dataFormat({'Pos':'int'})
                 (seqname,sequence) = seqlist.getSeq(seqdict[locus])
+
+                #i# Bypass skipped loci #i#
+                skipping = self.skipLocus(locus)
+                if skipping:
+                    HAPFAS.write('>%s\n%s\n' % (seqname,sequence)); bx +=1
+                    for hentry in hapdb.indexEntries('HapAcc',locus):
+                        hentry['Locus'] = string.split(seqname)[0]  #x# Was just the acc: '%s.%s' % (sacc,hap)
+                        if hentry['Locus'] != hentry['HapAcc']:
+                            self.warnLog('Skipped locus mismatch! %s vs %s' % (hentry['Locus'], hentry['HapAcc']))
+                    continue
+
                 #ridloc = riddb.readSet(['Locus'],entry={'Locus':locus},clear=True)[0]
                 #ridloc = riddb.readSet(['Locus'],clear=True)[0]
                 #if ridloc != locus: raise ValueError()
@@ -871,22 +984,35 @@ class SAMPhaser(rje_obj.RJE_Object):
                 lochap = bdb.indexDataList('Locus',locus,'Haplotig')
                 # Identify subset of reads in collapsed sections
                 colrid = rje.listDifference(locrid,hapdb.dataKeys())    # Returns the elements of list1 that are not found in list 2.
+                self.bugPrint(len(colrid))
                 # Removed colrid that are wholly within phased region
                 #i# Rejected by: riddb.dropEntries(['pTrack<%f' % self.getNum('TrackProb')])
+                poordep = {}
                 rejx = 0
                 for rid in colrid[0:]:
                     colstart = riddb.data(rid)['Start']
                     colend = riddb.data(rid)['End']
+                    poorhap = []
                     for hentry in bdb.indexEntries('Locus',locus):
                         #if hentry['HapStart'] <= colstart and hentry['HapEnd'] >= colend:
                         if hentry['Start'] <= colstart and hentry['End'] >= colend:
-                            colrid.remove(rid)
-                            rejx += 1
-                            break
+                            if self.getBool('PoorDepth'):
+                                poorhap.append(hentry)
+                            else:
+                                colrid.remove(rid); rejx += 1
+                                break
+                    if poorhap:
+                        colrid.remove(rid); rejx += 1
+                        hentry = poorhap[random.randint(0,len(poorhap)-1)]
+                        hap = hentry['Haplotig']
+                        if hap not in poordep: poordep[hap] = []
+                        poordep[hap].append(rid)
+
                 self.printLog('#REJECT','%s %s reads rejected as wholly within phased haplotig but poor pTrack' % (rje.iStr(rejx),locus))
+                self.debug(len(colrid))
                 # Generate new collapsed block if needed (newxt locus)
                 if colentry['Start']:
-                    blockx += 1; colhap = '%dC' % blockx
+                    blockx += 1; colhap = 'C%d' % blockx
                     colentry = {'Locus':'None','Haplotig':colhap,'Block':blockx,'Track':'C','Start':0,'End':0,'HapStart':0,'HapEnd':0,'SNP':0,'nSNP':0}
                 # Identify all RIDs in haplotig blocks
                 haprid = hapdb.index('Haplotig')    # Dictionary of {haplotig:[RID list]}
@@ -898,7 +1024,7 @@ class SAMPhaser(rje_obj.RJE_Object):
                 cutx = 0
                 snpx = 100.0 / snpdb.entryNum()
                 for (locid,pos) in snpdb.dataKeys():
-                    self.progLog('#UNZIP','Unzipping %s SNP into haplotigs: %.2f%%' % (locus,locx/loctot)); locx += snpx
+                    self.progLog('#UNZIP','Unzipping %s SNP into haplotigs: %.2f%%' % (locus,locx/loctot),rand=0.95); locx += snpx
                     if locid != locus: raise ValueError
                     entry = snpdb.data((locid,pos))
                     hapall = {}     # Allele counts per haplotig
@@ -930,7 +1056,7 @@ class SAMPhaser(rje_obj.RJE_Object):
                             haprid[colhap] = colvar
                             locvar[colhap] = []
                         elif colstart > colentry['End']:    # Add another block
-                            blockx += 1; colhap = '%dC' % blockx
+                            blockx += 1; colhap = 'C%d' % blockx
                             colentry = {'Locus':locus,'Haplotig':colhap,'Block':blockx,'Track':'C',
                                         'Start':colstart,'End':colend,'HapStart':0,'HapEnd':0,'SNP':0,'nSNP':0}
                             colentry = bdb.addEntry(colentry)
@@ -997,6 +1123,7 @@ class SAMPhaser(rje_obj.RJE_Object):
                         hentry['Start'] -= (bentry['Start']-1)
                         hentry['End'] -= (bentry['Start']-1)
                         hentry['HapAcc'] = '%s.%s' % (sacc,hap)
+                        hentry['Locus'] = string.split(bname)[0]  #x# Was just the acc: '%s.%s' % (sacc,hap)
                         if min(hentry['Start'],hentry['End']) < 1: self.warnLog('%s %s RID%s starts/ends before haplotig!' % (locus,hap,hentry['RID']))
                 #open(pickupfile,'a').write('%s\n' % locus)
             HAPFAS.close()
@@ -1007,26 +1134,35 @@ class SAMPhaser(rje_obj.RJE_Object):
 
             # Save haplotigs file
             bdb.fillBlanks(blank=0,fields=['MeanX'],fillempty=True)
-            for bentry in bdb.indexEntries('Track','C'):
+            for bentry in bdb.indexEntries('Track','C'): # + bdb.indexEntries('Track','X'):
                 hap = bentry['Haplotig']
                 haplen = bentry['End'] - bentry['Start'] + 1.0
                 for hentry in hapdb.indexEntries('Haplotig',hap):
                     bentry['MeanX'] += (hentry['End'] - hentry['Start'] + 1.0) / haplen
             bdb.saveToFile(sfdict={'MeanX':3})
             hapdb.fillBlanks(blank=0.0,fields=['pTrack'],fillempty=True)
+            #hapdb.renameField('HapAcc','Locus')
+            hapdb.list['Fields'] = ['RID','Locus','Start','End','pTrack','Haplotig','HapAcc']
             hapdb.saveToFile(sfdict={'pTrack':4})
             #!# NOTE: There is an output in *.haplotigs.tdt without a HapAcc!
+
+            #!# Could consider adding back the rejected phaseblock reads here, for PAGSAT
+            if self.getBool('PoorDepth'):
+                for hap in poordep:
+                    for rid in poordep[hap]:
+                        rentry = rje.combineDict({'Haplotig':hap,'pTrack':0.5},riddb.data(rid))
+                        rentry['Locus'] = '%s.%s' % (rentry['Locus'],hap)
+                        rentry['HapAcc'] = string.split(rentry['Locus'],'__')[-1]
 
             # Read coverage plot
             sam.baseFile('%s.haplotigs' % self.baseFile())
             self.db().baseFile('%s.haplotigs' % self.baseFile())
             hapdb.rename('rid')
-            hapdb.renameField('HapAcc','Locus')
             #x#sam.list['CheckFields'] = []
             sam.coverageFromRID(depthplot=True)
             sam.baseFile(self.baseFile())
 
-            # Generate SAMPhase stacked graphics
+            # Generate SAMPhaser stacked graphics
             if self.getBool('RGraphics'):
                 sam.setBool({'RGraphics':True})
                 sam.rGraphics('samunzip','"sambase=%s"' % rje.baseFile(self.getStr('Pileup')))
@@ -1036,6 +1172,7 @@ class SAMPhaser(rje_obj.RJE_Object):
     def devZeroSplit(self): ###
         '''Unzip sequences based on SNP phasing.'''
         try:### ~ [0] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            #!!# THIS CODE IS OUT OF DATE AND NO LONGER USED - WILL BE DELETED #!!#
             self.printLog('#UNZIP','DEVELOPMENTAL ZERO-SPLIT METHOD')
             #!# Add force check for existing output
             #?# Add a table tracking the splitting?
@@ -1126,11 +1263,13 @@ class SAMPhaser(rje_obj.RJE_Object):
 
         except: self.errorLog('%s.devZeroSplit() error' % self.prog())
 #########################################################################################################################
-    def unzipSeq(self):     ### Unzip sequences based on SNP phasing
+    def OLDunzipSeq(self):     ### Unzip sequences based on SNP phasing
         '''Unzip sequences based on SNP phasing.'''
         try:### ~ [0] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            if self.dev():
-                return self.devUnzipSeq()
+            #if self.dev():
+            #    return self.devUnzipSeq()
+
+            #X# Backup code to be deleted.
             hapfile = '%s.haplotigs.tdt' % self.baseFile()
             if not self.force() and rje.exists(hapfile):
                 return self.printLog('#UNZIP','%s found (force=F): unzip cancelled.' % hapfile)
@@ -1457,7 +1596,7 @@ class SAMPhaser(rje_obj.RJE_Object):
             db = self.db()
             self.printLog('#~~#','## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~ SAMPhaser Report HTML ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##')
             ## ~ [0a] Setup file paths ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-            hfile = '%s.report.html' % self.baseFile()
+            hfile = '%s.samphaser.html' % self.baseFile()
             if rje.exists(hfile) and not self.force():
                 self.printLog('#HTML','HTML report found: %s' % hfile)
                 return True

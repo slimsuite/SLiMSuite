@@ -70,6 +70,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
     # [ ] : Add descriptions of recognised formats to documentation.
     # [ ] : Make more efficient sequence data extraction for larger sequence datasets.
     # [ ] : What uses gnspacc fragment format? (Can't imagine anything using it!)
+    # [ ] : Add alternative initiator codons to genetic codes.
     '''
 #########################################################################################################################
 ### Regular Expressions for Sequence Details Extraction
@@ -112,7 +113,8 @@ aa_3to1 = {'CYS': 'C', 'ASP': 'D', 'SER': 'S', 'GLN': 'Q', 'MET': 'M', 'THR': 'T
            'TYR': 'Y'}
 transl_table = {'1':genetic_code,   # Standard
                 '2':rje.combineDict({'AGA':'*','AGG':'*','AUA':'M','UGA':'W'},genetic_code,overwrite=False),# Vert. mito.
-                '3':rje.combineDict({'AUA':'M','CUU':'T','CUC':'T','CUA':'T','CUG':'T','UGA':'W','CGA':'!','CGC':'!'},genetic_code,overwrite=False)} # Yeast mito.
+                '3':rje.combineDict({'AUA':'M','CUU':'T','CUC':'T','CUA':'T','CUG':'T','UGA':'W','CGA':'!','CGC':'!'},genetic_code,overwrite=False), # Yeast mito.
+                '11':rje.combineDict({},genetic_code,overwrite=False)} # Bacterial, Archaeal and Plant Plastid Code (transl_table=11). Multiple initiator codons.
 #########################################################################################################################
 ### END OF SECTION I                                                                                                    #
 #########################################################################################################################
@@ -1542,6 +1544,24 @@ def kSDict(callobj=None,mutdict={}):   ### Returns the Ks frequency for each cod
     for codon in genetic_code: ksdict[codon] = codonKs(codon,mutdict)
     if callobj: callobj.dict['Ks'] = ksdict
     return ksdict
+#########################################################################################################################
+def complement(dnaseq,rna=False):  ### Returns the complement of the DNA sequence given (mixed case)
+    '''Returns the complement of the DNA sequence given.'''
+    revcomp = dnaseq
+    pairs = [('C','G'),('A','T')]
+    if rna: revcomp = string.replace(revcomp,'U','T')
+    if rna: revcomp = string.replace(revcomp,'u','t')
+    for (n1,n2) in pairs:
+        revcomp = string.replace(revcomp,n1,'!')
+        revcomp = string.replace(revcomp,n2,n1)
+        revcomp = string.replace(revcomp,'!',n2)
+        n1 = n1.lower(); n2 = n2.lower()
+        revcomp = string.replace(revcomp,n1,'!')
+        revcomp = string.replace(revcomp,n2,n1)
+        revcomp = string.replace(revcomp,'!',n2)
+    if rna: revcomp = string.replace(revcomp,'T','U')
+    if rna: revcomp = string.replace(revcomp,'t','u')
+    return revcomp
 #########################################################################################################################
 def reverseComplement(dnaseq,rna=False):  ### Returns the reverse complement of the DNA sequence given (mixed case)
     '''Returns the reverse complement of the DNA sequence given.'''

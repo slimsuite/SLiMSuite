@@ -19,8 +19,8 @@
 """
 Module:       rje_db
 Description:  R Edwards Relational Database module
-Version:      1.9.0
-Last Edit:    19/01/18
+Version:      1.9.1
+Last Edit:    09/03/19
 Copyright (C) 2007  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -80,6 +80,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 1.8.5 - Added saveToFileName() function.
     # 1.8.6 - Minor IndexReport tweak.
     # 1.9.0 - Added comment output to saveToFile().
+    # 1.9.1 - Updated logging of adding/removing fields: default is now when debugging only.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -98,7 +99,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo():     ### Makes Info object
     '''Makes rje.Info object for program.'''
-    (program, version, last_edit, copy_right) = ('RJE_DB', '1.9.0', 'January 2018', '2008')
+    (program, version, last_edit, copy_right) = ('RJE_DB', '1.9.1', 'March 2019', '2008')
     description = 'R Edwards Relational Database module'
     author = 'Dr Richard J. Edwards.'
     comments = ['Please report bugs to Richard.Edwards@UNSW.edu.au']
@@ -222,11 +223,12 @@ class Database(rje.RJE_Object):
             if not tables: tables = self.list['Tables'][0:]
             logskip = logskip and log
             delimit = self.info['Delimit']
+            runpath = self.getStr('RunPath') != rje.makePath(os.path.abspath(os.curdir)) or self.debugging()
             ### ~ [1] Regular saving ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if not splitfield:
                 for table in self.list['Tables']:
                     if outdir: filename = '%s%s.%s.%s' % (outdir,rje.baseFile(self.basefile(),strip_path=True),table.info['Name'],rje.delimitExt(delimit))
-                    else: filename = '%s.%s.%s' % (self.basefile(runpath=True),table.info['Name'],rje.delimitExt(delimit))
+                    else: filename = '%s.%s.%s' % (self.basefile(runpath=runpath),table.info['Name'],rje.delimitExt(delimit))
                     if replace or not os.path.exists(filename): table.saveToFile(filename); savex += 1
                     elif logskip and os.path.exists(filename): self.printLog('#SKIP','Skipping save of existing %s' % filename)
                 if log: self.printLog('#DBOUT','%d of %d tables saved.' % (savex,len(self.tables())))
@@ -344,6 +346,7 @@ class Database(rje.RJE_Object):
             except: self.errorLog('Problem with mainkeys list given to addTable',printerror=False); raise ValueError
             table = Table(self.log,self.cmd_list+['basefile=%s' % self.info['Basefile']])
             #x#if name =='TP': table.opt['DeBug'] = True
+            if len(mainkeys) == 1 and mainkeys[0].lower() in ['all','auto','#']: mainkeys = mainkeys[0].lower()
             if mainkeys not in ['All','all','auto','#'] and datakeys not in ['All','all']:
                 try:
                     for key in mainkeys:
@@ -383,7 +386,7 @@ class Database(rje.RJE_Object):
         table.list['Fields'] = fields[0:]
         table.list['Keys'] = rje.asList(keys)
         self.list['Tables'].append(table)
-        self.printLog('#TABLE','Empty Table "%s" added: %d fields; %s entries.' % (table.info['Name'],table.fieldNum(),rje.integerString(table.entryNum())),log=log,screen=log)
+        self.bugLog('#TABLE','Empty Table "%s" added: %d fields; %s entries.' % (table.info['Name'],table.fieldNum(),rje.integerString(table.entryNum())),log=log,screen=log)
         return table
 #########################################################################################################################
     def mergeTables(self,table1,table2,overwrite=True,matchfields=True):    ### Merges table2 into table1 and removes
@@ -572,7 +575,7 @@ class Database(rje.RJE_Object):
         except: self.log.errorLog('Problem during joinTables()')
         return None
 #########################################################################################################################
-    def splitTable(self,table,field,asdict=False,keepfield=False,splitchar=None,values=[]):   ### Splits table based on unique values of given field
+    def splitTable(self,table,field,asdict=False,keepfield=False,splitchar=None,values=[],add=True):   ### Splits table based on unique values of given field
         '''
         Splits table based on unique values of given field. To split on multiple fields, first combine these into a
         single field using table.makeField(). New tables are named X_Y, where X is the name of the first table, and Y is
@@ -583,6 +586,7 @@ class Database(rje.RJE_Object):
         >> keepfield:bool [False] = whether to retain the field used for the split.
         >> splitchar:str [None] = character to split entries on when making index keys. (No split if no str given)
         >> values:list [] = optional list of field values to restrict split to.
+        >> add:bool [True] = Whether to add to self.list['Tables']
         << returns list of new tables
         '''
         try:### ~ [1] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -599,9 +603,9 @@ class Database(rje.RJE_Object):
                 for ikey in rje.sortKeys(index):    # Add each table in alphabetical order
                     if ikey not in values: index.pop(ikey)
                 if len(values) != len(index): self.warnLog('%s %s values given for table "%s" split but only %s found.' % (rje.iLen(values),field,table.name(),rje.iLen(index)))
-            self.log.printLog('#SPLIT','Splitting table "%s" on "%s": %d new tables' % (table.name(),field,len(index)))
+            self.printLog('#SPLIT','Splitting table "%s" on "%s": %d new tables' % (table.name(),field,len(index)))
             if self.interactive() > 0 and not rje.yesNo('Proceed?'):
-                self.log.printLog('#SPLIT','Split cancelled by user.')
+                self.printLog('#SPLIT','Split cancelled by user.')
                 return []
 
             ### ~ [2] Split table on field ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -610,7 +614,7 @@ class Database(rje.RJE_Object):
                 ## ~ [2a] Create and name table ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
                 itable = Table(self.log,self.cmd_list+['basefile=%s' % self.info['Basefile']])
                 newname = '%s_%s' % (table.name(),ikey)
-                if self.getTable(newname): self.log.printLog('#WARNING','Table "%s" already exists!' % newname)
+                if self.getTable(newname): self.printLog('#WARNING','Table "%s" already exists!' % newname)
                 itable.info['Name'] = newname
                 itable.info['Delimit'] = table.info['Delimit']
                 for datatype in ['Keys','Fields']: itable.list[datatype] = table.list[datatype][0:]
@@ -619,12 +623,12 @@ class Database(rje.RJE_Object):
                 if not keepfield: itable.dropField(field)
                 ## ~ [2c] Add table ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
                 newtables.append(itable)
-                self.list['Tables'].append(itable)
+                if add: self.list['Tables'].append(itable)
                 idict[ikey] = itable
-                self.log.printLog('#TABLE','Table "%s" added: %d fields; %s entries.' % (itable.name(),itable.fieldNum(),rje.integerString(itable.entryNum())))                
+                self.printLog('#TABLE','Table "%s" added: %d fields; %s entries.' % (itable.name(),itable.fieldNum(),rje.integerString(itable.entryNum())))
 
             ### ~ [3] Finish ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            self.log.printLog('#SPLIT','%s new tables added' % len(newtables))
+            self.printLog('#SPLIT','%s new tables added' % len(newtables))
             if asdict: return idict
             return newtables
         except: self.errorLog('Problem during Database.splitTable()')
@@ -641,7 +645,7 @@ class Database(rje.RJE_Object):
                 if replace:
                     self.list['Tables'].remove(self.getTable(newname))
                     self.printLog('#REPTAB','Table "%s" replaced.' % newname)
-                else: self.log.printLog('#WARNING','Table "%s" already exists!' % newname)
+                else: self.printLog('#WARNING','Table "%s" already exists!' % newname)
             ### ~ [2] ~ Make new table ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             itable.info['Name'] = newname
             itable.info['Basefile'] = table.info['Basefile']
@@ -650,9 +654,9 @@ class Database(rje.RJE_Object):
             for tkey in table.datakeys(): itable.dict['Data'][tkey] = rje.combineDict({},table.dict['Data'][tkey])
             ## ~ [2a] Add table ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             if add: self.list['Tables'].append(itable)
-            self.log.printLog('#TABLE','Table "%s" copied from "%s": %d fields; %s entries.' % (itable.name(),table.name(),itable.fieldNum(),rje.integerString(itable.entryNum())))
+            self.bugLog('#TABLE','Table "%s" copied from "%s": %d fields; %s entries.' % (itable.name(),table.name(),itable.fieldNum(),rje.integerString(itable.entryNum())))
             return itable
-        except: self.log.errorLog('Problem during Database.copyTable()')
+        except: self.errorLog('Problem during Database.copyTable()')
         return None
 #########################################################################################################################
     def fieldConvertPrefix(self,convert,prefix,log=True):    ### Converts all matching field names in all tables
@@ -789,6 +793,7 @@ class Table(rje.RJE_Object):
     def indexReport(self,index,logstr=None,force=False):    ### Summarises index numbers to printLog
         ikeys = self.indexKeys(index,force)
         for ikey in ikeys:
+            if logstr and not logstr.startswith('#'): logstr = '#%s' % logstr
             if logstr: self.printLog(logstr,'%s "%s" %s:%s entries.' % (rje.iLen(self.indexEntries(index,ikey)),ikey,self.name(),index))
             else: self.printLog('#%s' % index.upper()[:6],'%s %s %s:%s entries.' % (rje.iLen(self.indexEntries(index,ikey)),ikey,self.name(),index))
         return ikeys
@@ -802,10 +807,12 @@ class Table(rje.RJE_Object):
         self.dict['Data'] = {}
         self.dict['Index'] = {}
 #########################################################################################################################
-    def entrySummary(self,entry):   ### Returns a string summary of an entry - useful for debugging etc.
+    def entrySummary(self,entry,fields=[],invert=False):   ### Returns a string summary of an entry - useful for debugging etc.
         '''Returns a string summary of an entry - useful for debugging etc.'''
+        if not fields: fields = self.fields()
         estr = 'Entry "%s"\n' % self.makeKey(entry)
-        for field in self.fields(): estr += '|-- %s:\t%s\n' % (field,entry[field])
+        for field in self.fields():
+            if field in fields != invert: estr += '|-- %s:\t%s\n' % (field,entry[field])
         return estr
 #########################################################################################################################
     def indexDataKeys(self,index,value=None):     ### Return list of datakeys from index & value
@@ -859,7 +866,7 @@ class Table(rje.RJE_Object):
             newdict[newkey] = entry
         self.dict['Data'] = newdict
         self.dict['Index'] = {}
-        self.printLog('#KEY','Keys remade for %s %s table entries.' % (rje.integerString(len(newdict)),self.name()))
+        self.bugLog('#KEY','Keys remade for %s %s table entries.' % (rje.integerString(len(newdict)),self.name()))
 #########################################################################################################################
     def addEntry(self,entry,warn=True,overwrite=True,splitchar=None,remake=True): ### Adds entry to self.dict['Data']
         '''Adds entry to self.dict['Data']. Makes key using self.makeKey().'''
@@ -902,12 +909,11 @@ class Table(rje.RJE_Object):
         '''
         ### ~ [1] Generate new key from keys ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         newkey = []
-        if '#' in self.keys() and '#' not in entry:
-            newkey = self.entryNum()
-            while newkey in self.data() or str(newkey) in self.data(): newkey += 1
-            return newkey
-        elif self.keys() in [['#'],['AutoID']] or len(self.keys()) == 1:
+        if len(self.keys()) == 1:
             kfield = self.keys()[0]
+            if kfield in ['#','AutoID'] and not entry.get(kfield):
+                if self.entryNum(): entry[kfield] = max(self.dataKeys()) + 1
+                else: entry[kfield] = 1
             return entry[kfield]
         if self.getBool('TupleKeys'):
             for kfield in self.keys(): newkey.append(entry[kfield])
@@ -950,7 +956,7 @@ class Table(rje.RJE_Object):
             (ex,etot) = (0.0,self.entryNum())
             ### ~ [2] Make new dictionary ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             for entry in self.entries():
-                self.progLog('\r#KEY','%s: %.2f%%' % (ptxt,ex/etot)); ex += 100.0
+                self.bugProg('\r#KEY','%s: %.2f%%' % (ptxt,ex/etot)); ex += 100.0
                 newkey = self.makeKey(entry)
                 if newkey in newdata:
                     self.debug('%s:\n%s\n%s' % (newkey,newdata[newkey],entry))
@@ -960,7 +966,7 @@ class Table(rje.RJE_Object):
                         self.warnLog('New %s Key "%s" is not unique!' % (self.name(),str(newkey)))
                 newdata[newkey] = entry
             self.dict['Data'] = newdata
-            self.printLog('\r#KEY','%s complete.' % (ptxt))
+            self.bugLog('\r#KEY','%s complete.' % (ptxt))
             ### ~ [3] Field List ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if startfields:
                 for field in fieldlist: self.list['Fields'].remove(field)
@@ -969,6 +975,8 @@ class Table(rje.RJE_Object):
         except:
             self.errorLog('Problem making new Key for Table "%s"' % self.info['Name'])
             self.list['Keys'] = oldkeys
+#########################################################################################################################
+    def orderedDataList(self,field,empties=True): return self.dataList(self.entries(sorted=True),field,sortunique=False,empties=empties)
 #########################################################################################################################
     def dataList(self,entries,field,sortunique=True,empties=True):   ### Returns list of field values for entries
         '''
@@ -1014,6 +1022,7 @@ class Table(rje.RJE_Object):
         try:### ~ [1] Setup own attributes ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if not delimit: delimit = rje.delimitFromExt(filename=filename)
             self.progLog('\r#LOAD','Loading data from "%s"...' % (filename),screen=screen)
+            if len(mainkeys) == 1 and mainkeys[0].lower() in ['all','auto','#']: mainkeys = mainkeys[0].lower()
             autoid = mainkeys in ['All','all','auto','#']
             if not add:
                 self.info['Source'] = filename
@@ -1030,7 +1039,7 @@ class Table(rje.RJE_Object):
             if not mainkeys: mainkeys = datakeys[0:]
             ### ~ [2] Load Data ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if add: rje.combineDict(self.dict['Data'],rje.dataDict(self,filename,mainkeys,datakeys,delimit,headers,getheaders,ignore,lists,uselower=uselower))
-            else: self.dict['Data'] = rje.dataDict(self,filename,mainkeys,datakeys,delimit,headers,getheaders,ignore,lists,uselower=uselower)
+            else: self.dict['Data'] = rje.dataDict(self,filename,mainkeys,datakeys,delimit,headers,getheaders,ignore,lists,uselower=uselower,debug=False) #self.debugging())
             if getheaders: self.list['Fields'] = self.dict['Data'].pop('Headers')[0:]
             for field in self.list['Fields'][0:]:
                 while self.list['Fields'].count(field) > 1:
@@ -1045,9 +1054,10 @@ class Table(rje.RJE_Object):
                 ax = 0
                 for dkey in rje.sortKeys(self.dict['Data']):
                     entry = self.dict['Data'].pop(dkey); ax += 1
-                    entry['#'] = rje.preZero(ax,max(len(self.dict['Data']),9999))
+                    #?# Why? entry['#'] = rje.preZero(ax,max(len(self.dict['Data']),9999))
+                    entry['#'] = ax
                     self.dict['Data'][entry['#']] = entry
-                self.printLog('#KEY','Added AutoID key for %s entries' % rje.integerString(ax))
+                self.bugLog('#KEY','Added AutoID key for %s entries' % rje.integerString(ax))
             elif self.getBool('TupleKeys'): self.remakeKeys()
         except: self.errorLog('Problem loading data from %s! Check keys: %s' % (filename,mainkeys)); raise
 #########################################################################################################################
@@ -1166,18 +1176,19 @@ class Table(rje.RJE_Object):
                     entry = self.dict['Data'].pop(dkey); ax += 1
                     entry['#'] = rje.preZero(ax,max(len(self.dict['Data']),9999))
                     self.dict['Data'][entry['#']] = entry
-                self.printLog('#KEY','Added AutoID key for %s entries' % rje.integerString(ax))               
+                self.bugLog('#KEY','Added AutoID key for %s entries' % rje.integerString(ax))
             elif self.getBool('TupleKeys'): self.remakeKeys()
         except: self.errorLog('Problem loading data from %s! Check keys: %s' % (filename,mainkeys)); raise
 #########################################################################################################################
     def saveToFileName(self,delimit=None):  ### Returns delimited file name
         try:### ~ [1] Setup parameters ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if not delimit: delimit = self.info['Delimit']
-            filename = '%s.%s.%s' % (self.basefile(runpath=True),self.info['Name'],rje.delimitExt(delimit))
+            runpath = self.getStr('RunPath') != rje.makePath(os.path.abspath(os.curdir)) or self.debugging()
+            filename = '%s.%s.%s' % (self.basefile(runpath=runpath),self.info['Name'],rje.delimitExt(delimit))
             return filename
         except: self.errorLog('Problem generating table "%s" filename' % (self.info['Name']))
 #########################################################################################################################
-    def saveToFile(self,filename=None,delimit=None,backup=True,append=False,savekeys=[],savefields=[],sfdict={},log=True,headers=True,comments=[]):    ### Saves data to delimited file
+    def saveToFile(self,filename=None,delimit=None,backup=True,append=False,savekeys=[],savefields=[],sfdict={},log=True,headers=True,comments=[],buglog=False):    ### Saves data to delimited file
         '''
         Saves data to delimited file.
         >> filename:str [None] = Output file name (will use self.info['Name'] if None)
@@ -1190,17 +1201,23 @@ class Table(rje.RJE_Object):
         >> log:bool [True] = Whether to log output.
         >> headers:bool [True] = Whether to output the field headers.
         >> comments:list [] = Add a list of comment lines to the start of the file if not appending. Should usually start with #.
+        >> buglog:bool [False] = Special debugging output to log.
         '''
         try:### ~ [1] Setup parameters ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if filename and not delimit: delimit = rje.delimitFromExt(filename=filename,write=True)
             elif not delimit: delimit = self.info['Delimit']
-            if not filename: filename = '%s.%s.%s' % (self.basefile(runpath=True),self.info['Name'],rje.delimitExt(delimit))
+            if not filename: filename = self.saveToFileName(delimit)
             rje.mkDir(self,filename)
             if backup and not append: rje.backup(self,filename,appendable=False)
-            elif os.path.exists(filename) and not append: os.unlink(filename)
+            elif os.path.exists(filename) and not append:
+                try: os.unlink(filename)
+                except:
+                    if self.debugging(): self.errorLog('Odd behaviour trying to delete %s' % filename)
             if savekeys: outkeys = savekeys[0:]
             else: outkeys = rje.sortKeys(self.dict['Data'])
             if not savefields: savefields = self.list['Fields'][0:]
+            for field in savefields:
+                if '*' in sfdict and '*' not in self.fields() and field not in sfdict: sfdict[field] = sfdict['*']
             ### ~ [2] Save to file ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if log: self.progLog('\r#SAVE','Saving table "%s"...' % (self.info['Name']))
             if append and rje.exists(filename): OUT = open(filename,'a')
@@ -1226,12 +1243,15 @@ class Table(rje.RJE_Object):
                 outlist = []
                 for field in savefields:
                     if field in entry:
-                        if field in sfdict: outlist.append('%s' % rje.sf(entry[field],sfdict[field]))
+                        if field in sfdict:
+                            try: outlist.append('%s' % rje.sf(entry[field],sfdict[field]))
+                            except: outlist.append('%s' % entry[field])
                         else: outlist.append('%s' % entry[field])
                     else: outlist.append('')
                     if outlist[-1].find(delimit) >= 0:
                         outlist[-1].replace('"','\"')
                         outlist[-1] = '"%s"' % outlist[-1]
+                if self.debugging() and buglog: self.printLog('#BUGOUT',string.join(outlist,delimit))
                 OUT.write('%s\n' % string.join(outlist,delimit)); sx += 1
             OUT.close()
             if log:
@@ -1298,17 +1318,23 @@ class Table(rje.RJE_Object):
 #########################################################################################################################
     ### <4> ### Make/customise field methods                                                                            #
 #########################################################################################################################
-    def newField(self,fieldname,after='',evalue=None,log=True): return self.makeField(fieldname=fieldname,after=after,evalue=evalue,log=log)
-    def addField(self,fieldname,after='',evalue=None,log=True): return self.makeField(fieldname=fieldname,after=after,evalue=evalue,log=log)
-    def addFields(self,fields,after='',evalue=None,log=True):
+    def newField(self,fieldname,after='',evalue=None,log=None): return self.makeField(fieldname=fieldname,after=after,evalue=evalue,log=log)
+    def addField(self,fieldname,after='',evalue=None,log=None): return self.makeField(fieldname=fieldname,after=after,evalue=evalue,log=log)
+    def addFields(self,fields,after='',evalue=None,log=None):
         for fieldname in fields: self.makeField(fieldname=fieldname,after=after,evalue=evalue,log=log)
-    def makeField(self,formula='',fieldname='',after='',evalue=None,log=True,warn=True): ### Adds a field using data, If cannot calculate, will concatenate
+    def makeField(self,formula='',fieldname='',after='',evalue=None,log=None,warn=True): ### Adds a field using data, If cannot calculate, will concatenate
         '''
         Adds a field using data, If cannot calculate, will concatenate using #Field# replacements (i.e. the formula
         should contain #Field# and this will be replaced (w/o #) with the contents of that field.
         >> formula:str [''] = formula for generating new field data.
+        >> fieldname:str [''] = Name of new field
+        >> after:str [''] = Name of field for new field to follow (at end if blank)
+        >> log:bool [None] = Whether to output to log. If None, will set to self.debugging()
+        >> warn:bool [True] = Whether to warn if field already exists
+        << Returns True/False whether field added or not
         '''
         try:### ~ [1] Setup and test formula ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            if log == None: log = self.debugging()
             ## ~ [1a] Check for existence of field already ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             if not fieldname: fieldname = formula
             if fieldname in self.list['Fields']:
@@ -1342,10 +1368,11 @@ class Table(rje.RJE_Object):
             return True
         except: return self.log.errorLog(rje_zen.Zen().wisdom(),quitchoice=True)
 #########################################################################################################################
-    def dropField(self,field,log=True): return self.deleteField(field,log)
-    def deleteField(self,field,log=True):    ### Deletes given field from table                                                  
+    def dropField(self,field,log=None): return self.deleteField(field,log)
+    def deleteField(self,field,log=None):    ### Deletes given field from table
         '''Deletes given field from table.'''
         try:### ~ [1] Delete field from table attributes ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            if log == None: log = self.debugging()
             newkey = False
             if field in self.dict['Index']: self.dict['Index'].pop(field)
             if field in self.list['Keys']: self.list['Keys'].remove(field); newkey = True
@@ -1355,14 +1382,14 @@ class Table(rje.RJE_Object):
             for data in self.dict['Data'].values():
                 try: data.pop(field)
                 except: pass
-            if log: self.log.printLog('#FIELD','Field "%s" removed from table "%s"' % (field,self.info['Name']))
+            if log: self.bugLog('#FIELD','Field "%s" removed from table "%s"' % (field,self.info['Name']))
             if newkey:
                 newdata = {}
                 for oldkey in self.dataKeys():
                     entry = self.dict['Data'].pop(oldkey)
                     newdata[self.makeKey(entry)] = entry
                 self.dict['Data'] = newdata
-                if log: self.printLog('#Key','Key updated ("%s" deleted) in table "%s".' % (field,self.info['Name']))
+                if log: self.bugLog('#Key','Key updated ("%s" deleted) in table "%s".' % (field,self.info['Name']))
         except: return self.log.errorLog(rje_zen.Zen().wisdom(),quitchoice=True)
 #########################################################################################################################
     def renameField(self,field,newname,log=True):    ### Renames field in table
@@ -1379,14 +1406,14 @@ class Table(rje.RJE_Object):
             for data in self.entries():
                 try: data[newname] = data.pop(field)
                 except: mx += 1; pass
-            if log: self.printLog('#FIELD','Field "%s" renamed "%s" in table "%s" (%s entries w/o data)' % (field,newname,self.info['Name'],rje.integerString(mx)))
+            if log: self.bugLog('#FIELD','Field "%s" renamed "%s" in table "%s" (%s entries w/o data)' % (field,newname,self.info['Name'],rje.integerString(mx)))
             if newkey:
                 newdata = {}
                 for oldkey in self.dataKeys():
                     entry = self.dict['Data'].pop(oldkey)
                     newdata[self.makeKey(entry)] = entry
                 self.dict['Data'] = newdata
-                if log: self.printLog('#Key','Key updated ("%s" renamed "%s") in table "%s".' % (field,newname,self.info['Name']))
+                if log: self.bugLog('#Key','Key updated ("%s" renamed "%s") in table "%s".' % (field,newname,self.info['Name']))
         except:
             #try: self.deBug(entry)
             #except: pass
@@ -1402,14 +1429,14 @@ class Table(rje.RJE_Object):
         '''
         try:### ~ [1] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             for newf in splitlist:
-                if newf in self.fields(): return self.log.printLog('Cannot split field to overwrite exisiting field',printerror=False)
+                if newf in self.fields(): return self.printLog('Cannot split field to overwrite exisiting field',printerror=False)
             self.list['Fields'] += splitlist
             ### ~ [2] Split ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             for dkey in self.data():
                 newdata = string.split(self.data()[dkey][field],split)
                 if len(newdata) != len(splitlist): self.log.errorLog('Split field for "%s" gives wrong number of data' % dkey,printerror=False)
                 for i in range(len(splitlist)): self.dict['Data'][dkey][splitlist[i]] = newdata[i]
-            self.log.printLog('#SPLIT','%d new fields generated for "%s" from "%s"' % (len(splitlist),self.name(),field))
+            self.printLog('#SPLIT','%d new fields generated for "%s" from "%s"' % (len(splitlist),self.name(),field))
             if replace: self.deleteField(field)
             return True
         except: self.log.errorLog(rje_zen.Zen().wisdom())
@@ -1433,14 +1460,14 @@ class Table(rje.RJE_Object):
                 for jfield in joinlist: newdata.append(str(self.data()[dkey][jfield]))
                 self.dict['Data'][dkey][field] = string.join(newdata,join)
             self.list['Fields'].append(field)
-            self.log.printLog('#JOIN','New field "%s" (%s) generated for "%s"' % (field,string.join(joinlist,join),self.name()))
+            self.bugLog('#JOIN','New field "%s" (%s) generated for "%s"' % (field,string.join(joinlist,join),self.name()))
             if replace:
                 for oldf in joinlist: self.deleteField(oldf)
             return True
         except: self.log.errorLog(rje_zen.Zen().wisdom())
         self.deleteField(field)        
 #########################################################################################################################
-    def rankField(self,field,newfield='',rev=False,absolute=True,lowest=False,unique=False): ### Add ranks of field as new field
+    def rankField(self,field,newfield='',rev=False,absolute=True,lowest=False,unique=False,warn=True): ### Add ranks of field as new field
         '''
         Add ranks of field as new field.
         >> field:str = Field to rank on
@@ -1452,7 +1479,7 @@ class Table(rje.RJE_Object):
         '''
         try:### ~ [0] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if not newfield: newfield = '%s.Rank' % field
-            if newfield in self.fields(): self.printLog('\r#WARN','Field "%s" will be over-written with new ranking' % newfield)
+            if newfield in self.fields() and warn: self.warnLog('Field "%s" will be over-written with new ranking' % newfield)
             scorelist = []
             entries = self.entries()    # Fix order
             for entry in entries: scorelist.append(entry[field])
@@ -1463,7 +1490,7 @@ class Table(rje.RJE_Object):
             self.printLog('#RANK','Added ranked "%s" as field "%s" to Table "%s"' % (field,newfield,self.info['Name']))
         except: self.errorLog('Problem with Table.rankField()')
 #########################################################################################################################
-    def rankFieldByIndex(self,index,rankfield,newfield='',rev=False,absolute=True,lowest=False):    ### Add ranks of field with index group as new field
+    def rankFieldByIndex(self,index,rankfield,newfield='',rev=False,absolute=True,lowest=False,unique=False,warn=True):    ### Add ranks of field with index group as new field
         '''
         Add ranks of field with index group as new field.
         >> index:str = field upon which to separate rank lists.
@@ -1472,16 +1499,18 @@ class Table(rje.RJE_Object):
         >> rev:Boolean [False] = if True will return 0 for Highest
         >> absolute:boolean [True] = return 1 to n, rather than 0 to 1
         >> lowest:boolean [False] = returns lowest rank rather mean rank in case of ties
+        >> unique:boolean [False] = give each element a unique rank (ties rank in random order)
         '''
         try:### ~ [0] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             self.index(index)
             if not newfield: newfield = '%s.Rank' % rankfield
+            if newfield in self.fields() and warn: self.warnLog('Field "%s" will be over-written with new ranking' % newfield)
             ### ~ [1] Rank and add newfield ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             for group in self.dict['Index'][index]:
                 scorelist = []
                 entries = self.entryList(self.dict['Index'][index][group])    # Fix order
                 for entry in entries: scorelist.append(entry[rankfield])
-                ranks = rje.rankList(scorelist,rev,absolute,lowest)
+                ranks = rje.rankList(scorelist,rev,absolute,lowest,unique)
                 for entry in entries: entry[newfield] = ranks.pop(0)
             self.list['Fields'].append(newfield)
         except: self.errorLog('Problem with Table.rankFieldByIndex()')
@@ -1505,21 +1534,21 @@ class Table(rje.RJE_Object):
             if itype == list:     # Given a list of fields. NOTE: May cause issues outside self.index()
                 index = tuple(index); itype = tuple
             if index in self.dict['Index'] and not force:
-                if fullreport and log: self.log.printLog('#INDEX','Table "%s" indexed on "%s" already' % (self.info['Name'],index))
+                if fullreport and log: self.bugLog('#INDEX','Table "%s" indexed on "%s" already' % (self.info['Name'],index))
                 return self.dict['Index'][index]
             self.dict['Index'][index] = {}
             if itype == tuple:
                 for field in index:
                     if field not in self.list['Fields']: raise ValueError('Table "%s" has no Field "%s" for Index' % (self.info['Name'],field))
             elif index not in self.list['Fields']:
-                if make or rje.yesNo('Table %s missing field "%s" for index. Make?' % (self.info['Name'],index),'N'): self.makeField(index,log=log)
+                if make or (self.i() > 0 and rje.yesNo('Table %s missing field "%s" for index. Make?' % (self.info['Name'],index),'N')): self.makeField(index,log=log)
                 else:
                     raise ValueError('Table "%s" has no Field "%s" to Index' % (self.info['Name'],index))
             missing = 0
             ### ~ [2] Generate Index ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             (p,px) = (0.0,self.entryNum())
             for key in rje.sortKeys(self.dict['Data']):
-                if log: self.log.printLog('\r#INDEX','Indexing "%s" on "%s": %.1f%%' % (self.info['Name'],index,p/px),newline=False,log=False)
+                if log: self.bugLog('\r#INDEX','Indexing "%s" on "%s": %.1f%%' % (self.info['Name'],index,p/px),newline=False,log=False)
                 p += 100.0
                 try:
                     if itype == tuple:
@@ -1554,7 +1583,7 @@ class Table(rje.RJE_Object):
                 except:
                     if self.debugging(): self.errorLog('Oops')
                     missing += 1
-            if log: self.log.printLog('\r#INDEX','Indexed "%s" on "%s": %s unique; %s missing entries' % (self.info['Name'],index,rje.integerString(len(self.dict['Index'][index])),rje.integerString(missing)),log=log)
+            if log: self.bugLog('\r#INDEX','Indexed "%s" on "%s": %s unique; %s missing entries' % (self.info['Name'],index,rje.integerString(len(self.dict['Index'][index])),rje.integerString(missing)),log=log)
             return self.dict['Index'][index]
         except: self.log.errorLog('Problem with Table.index()')
         try:
@@ -1801,6 +1830,7 @@ class Table(rje.RJE_Object):
             elif keylist: return self.dropEntries(self.entryList(filters),inverse,log,logtxt,purelist=True)
             else:
                 statfilter = rje_scoring.setupStatFilter(self,self.list['Fields'],filters)
+                #self.debug(statfilter)
                 self.dict['Data'] = rje_scoring.statFilter(self,self.dict['Data'],statfilter,inverse,filtermissing=True)
             ### ~ [2] Report ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if prex != self.entryNum():
@@ -1855,7 +1885,7 @@ class Table(rje.RJE_Object):
             if prex != self.entryNum() and log: self.printLog('#DROP','%s %s entries reduced to %s entries on %s.' % (rje.integerString(prex),self.info['Name'],rje.integerString(self.entryNum()),index))
         except: self.log.errorLog('Major problem during Table.dropIndexEntries()'); raise
 #########################################################################################################################
-    def dropFields(self,fields,inverse=False,log=True): ### Drops certain fields from Table
+    def dropFields(self,fields,inverse=False,log=None): ### Drops certain fields from Table
         '''
         Drops certain entries from Table.
         >> fields:list of str = Fields to delete
@@ -1869,14 +1899,15 @@ class Table(rje.RJE_Object):
                     if field not in fields: self.deleteField(field,log)
             else:
                 for field in fields: self.deleteField(field,log)
-            if log: self.log.printLog('#DROP','%s %s fields reduced to %s fields' % (rje.integerString(prex),self.info['Name'],rje.integerString(self.fieldNum())))
+            if log == None: log = True
+            if log: self.printLog('#DROP','%s %s fields reduced to %s fields' % (rje.integerString(prex),self.info['Name'],rje.integerString(self.fieldNum())))
         except: return self.log.errorLog('Major problem during Table.dropEntries()')            
 #########################################################################################################################
-    def keepFields(self,fields,log=True):   ### Inverse dropFields() - only keeps certain fields in Table
+    def keepFields(self,fields,log=None):   ### Inverse dropFields() - only keeps certain fields in Table
         '''Inverse dropFields() - only keeps certain fields in Table.'''
         return self.dropFields(fields,True,log)
 #########################################################################################################################
-    def setFields(self,fields,log=True):   ### Inverse dropFields() - only keeps certain fields in Table
+    def setFields(self,fields,log=None):   ### Inverse dropFields() - only keeps certain fields in Table
         '''Inverse dropFields() - only keeps certain fields in Table. Adds missing fields and reorders.'''
         self.dropFields(fields,True,log)
         for field in fields:
@@ -1890,11 +1921,11 @@ class Table(rje.RJE_Object):
         (ex,etot) = (0.0,self.entryNum())
         bx = 0
         for entry in self.entries():
-            if prog: self.progLog('\r#FILL','Filling %s blanks: %.2f%%' % (self.info['Name'],ex/etot)); ex += 100.0
+            if prog: self.bugProg('\r#FILL','Filling %s blanks: %.2f%%' % (self.info['Name'],ex/etot)); ex += 100.0
             for field in fields:
                 if field not in entry: entry[field] = blank; bx += 1
                 elif fillempty and not string.join(string.split('%s' % entry[field])): entry[field] = blank; bx += 1
-        if prog or log: self.printLog('\r#FILL','Filled %s %s blank values with "%s"' % (rje.iStr(bx),self.info['Name'],blank),log=log)
+        if prog or log: self.bugLog('\r#FILL','Filled %s %s blank values with "%s"' % (rje.iStr(bx),self.info['Name'],blank),log=log)
 #########################################################################################################################
     ### <7> ### Data Reformatting Methods                                                                               #
 #########################################################################################################################
@@ -1915,7 +1946,7 @@ class Table(rje.RJE_Object):
             (ex,etot,fx) = (0.0,self.entryNum(),0)
             for oldkey in self.dataKeys():
                 entry = self.data()[oldkey]
-                self.progLog('\r#FORMAT','Reformatting %s: %.2f%%' % (self.info['Name'],ex/etot)); ex += 100.0
+                self.bugProg('\r#FORMAT','Reformatting %s: %.2f%%' % (self.info['Name'],ex/etot)); ex += 100.0
                 for field in self.dict['DataTypes']:
                     if field not in entry: continue
                     try:
@@ -1943,7 +1974,7 @@ class Table(rje.RJE_Object):
                 if rekey:
                     newkey = self.makeKey(entry)
                     self.dict['Data'][newkey] = self.dict['Data'].pop(oldkey)
-            self.printLog('\r#FORMAT','Reformatting %s complete: %s format errors' % (self.info['Name'],fx))
+            self.bugLog('\r#FORMAT','Reformatting %s complete: %s format errors' % (self.info['Name'],fx))
             if not fx: self.setBool({'Formatted':True})
         except: return self.log.errorLog('Major problem during Table.dataFormat()')            
 #########################################################################################################################

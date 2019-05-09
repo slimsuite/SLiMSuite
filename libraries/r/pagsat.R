@@ -1,7 +1,7 @@
 ########################################################
 ### Pairwise Assembled Genome Sequence Analysis Tool ###
-### VERSION: 2.0.1                             ~~~~~ ###
-### LAST EDIT: 03/10/16                        ~~~~~ ###
+### VERSION: 2.0.2                             ~~~~~ ###
+### LAST EDIT: 21/02/19                        ~~~~~ ###
 ### AUTHORS: Richard Edwards 2016              ~~~~~ ###
 ### CONTACT: richard.edwards@unsw.edu.au       ~~~~~ ###
 ########################################################
@@ -19,6 +19,7 @@
 # NOTE: PAGSAT_V1 will now call frozen pagsat_V1.R file.
 # v2.0.0 : Major overhaul in line with PAGSAT v2.0.0.
 # v2.0.1 : Fixed a bug where there are no hits for a chromosome!
+# v2.0.2 : Fixed another no hit bug for dotplots.
 
 ############### ::: GENERAL SETUP ::: ##################
 # Usage = Rscript rje.r pagsat basefile [options] 
@@ -244,7 +245,7 @@ for(contig in levels(covplotdb[["Assembly"]]$Qry)){
   par(mar=c(5,6,1,1))
   for(chrname in hitlist){  # Have chrom as Query otherwise need to reverse Qry/Hit(Sbj) data - also allows alignments of contig
     if(dim(locdb[locdb$Qry==chrname & locdb$Hit==contig,])[1] > 0){
-      dotplot(locdb,chrname,contig,qlen=max(covplotdb[["Reference"]][covplotdb[["Reference"]]$Qry==chrname,]$Pos),hlen=max(covplotdb[["Assembly"]][covplotdb[["Assembly"]]$Qry==contig,]$Pos),pcol=pcol,minfrag=settings$minloclen)      
+      try( dotplot(locdb,chrname,contig,qlen=max(covplotdb[["Reference"]][covplotdb[["Reference"]]$Qry==chrname,]$Pos),hlen=max(covplotdb[["Assembly"]][covplotdb[["Assembly"]]$Qry==contig,]$Pos),pcol=pcol,minfrag=settings$minloclen) )
     }else{
       plot(c(1,2),c(1,2),type="n",xlab="-",ylab="-",axes=TRUE,ann=TRUE,mar=c(0,1,4,1))      
     }    

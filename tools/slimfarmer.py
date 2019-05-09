@@ -19,8 +19,8 @@
 """
 Module:       SLiMFarmer
 Description:  SLiMSuite HPC job farming control program
-Version:      1.9.0
-Last Edit:    30/05/18
+Version:      1.10.0
+Last Edit:    30/10/18
 Copyright (C) 2014  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -31,8 +31,11 @@ Function:
     run in a special way. (See SeqBySeq mode.) Otherwise `slimsuite=T` indicates that `farm=X` is a SLiMSuite program,
     for which the python call and `pypath` will be added. If this program uses forking then it should parallelise over a
     single multi-processor node. If `farm=X` contains a `/` path separator, this will be added to `pypath`, otherwise it
-    will be assumed that `farm` is in `tools/`. If `slimsuite=F` then farm should be a program call to be queued in the
-    PBS job file instead.
+    will be assumed that `farm` is in `tools/`.
+
+    If `slimsuite=F` then farm should be a program call to be queued in the PBS job file instead. In this case, the
+    contents of jobini=FILE will be added to the end of the farm call. This enables commands with double quotes to be
+    included in the farm command, for example.
 
     Currently recognised SLiMSuite programs for farming: SLiMFinder, QSLiMFinder, SLiMProb, SLiMCore.
 
@@ -158,6 +161,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 1.7.0 - precall=LIST : List of additional commands to run between module loading and program call []
     # 1.8.0 - jobforks=X : Number of forks to pass to farmed out run if >0 [0]
     # 1.9.0 - daisychain=X : Chain together a set of qsub runs of the same call that depend on the previous job.
+    # 1.10.0 - Added appending contents of jobini file to slimsuite=F farm commands.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -180,7 +184,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copy_right) = ('SLiMFarmer', '1.9.0', 'May 2018', '2014')
+    (program, version, last_edit, copy_right) = ('SLiMFarmer', '1.10.0', 'October 2018', '2014')
     description = 'SLiMSuite HPC job farming control program'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_obj.zen()]
@@ -405,7 +409,13 @@ class SLiMFarmer(rje_hpc.JobFarmer):
                 if self.getBool('SLiMSuite'):
                     if self.getInt('JobForks'): program += ' forks=%d qsub=F i=-1 v=-1 newlog=F' % self.getInt('JobForks')
                     else: program += ' forks=%d qsub=F i=-1 v=-1 newlog=F' % qsub.getInt('PPN')
-            else: program = self.getStr('Farm')
+            else:
+                program = self.getStr('Farm')
+                if self.getStrLC('JobINI'):
+                    self.printLog('#JOBINI','Appending contents of %s' % self.getStr('JobINI'))
+                    for iline in open(self.getStr('JobINI'),'r').readlines():
+                        program += ' %s' % iline
+                    self.printLog('#FARM',program)
             #x#if self.getStrLC('JobINI'): program += ' ini=%s' % self.getStr('JobINI')
             self.printLog('#QSUB',program)
             qsub.setStr({'Program':program,'PyPath':self.getStr('PyPath')})

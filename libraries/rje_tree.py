@@ -2407,6 +2407,9 @@ class Tree(rje.RJE_Object):     ### Class for handling phylogenetic trees.
             if not os.path.exists(rtree):
                 self.info['PathR'] = rje.makePath(os.path.abspath(string.join(string.split(sys.argv[0],os.sep)[:-2]+['libraries','r',''],os.sep)))
                 rtree = rje.makePath('%s%s.r' % (self.info['PathR'],rfile),wholepath=True)
+            if not os.path.exists(rtree):
+                self.info['PathR'] = rje.makePath(os.path.abspath(string.join(string.split(sys.argv[0],os.sep)[:-1]+['libraries','r',''],os.sep)))
+                rtree = rje.makePath('%s%s.r' % (self.info['PathR'],rfile),wholepath=True)
             self.printLog('#%s' % type.upper(),rtree)
             if rfile == 'rje':
                 rcmd = '%s --no-restore --no-save --args "tree" "%s" "rdir=%s"' % (self.info['RPath'],rje.baseFile(filename),self.info['PathR'])

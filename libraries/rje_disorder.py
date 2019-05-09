@@ -63,7 +63,7 @@ Commandline:
     smoothing=X     : Smoothing mode for minregion=X and minorder=X smoothing (foldfirst/sequence) [foldfirst]
     iuscoredir=PATH : Path in which to save protein acc.DISORDER.txt score files for re-use []
     discalculate=T/F: Whether to try to calculate disorder if existing score not loaded [True]
-    md5acc=T/F      : Whether to use md5sum hexdigest hashing of sequence in place of accession numbers [False]
+    md5acc=T/F      : Whether to use md5sum hexdigest hashing of sequence in place of accession numbers [True]
 
     ### System Settings ###
     iupath=PATH     : The full path to the IUPred executable [c:/bioware/iupred/iupred.exe]
@@ -99,6 +99,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 1.0.0 - Added random disorder function and elevated to v1.x as fully functional for SLiMSuite
     # 1.1.0 - Added strict option for disorder method selection. Added minorder=X.
     # 1.2.0 - Added saving and loading scores to IUScoreDir/.
+    # 1.3.0 - Switched default behaviour to be md5acc=T.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -113,7 +114,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo():     ### Makes Info object
     '''Makes rje.Info object for program.'''
-    (program, version, last_edit, cyear) = ('RJE_DISORDER', '1.2.1', 'April 2018', '2008')
+    (program, version, last_edit, cyear) = ('RJE_DISORDER', '1.3.0', 'April 2019', '2008')
     description = 'Disorder Prediction Module'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.']
@@ -225,7 +226,7 @@ class Disorder(rje.RJE_Object):
         self.setInfo({'IUPath':rje.makePath('c:/bioware/iupred/iupred.exe',wholepath=True),'IUMethod':'short',
                       'Disorder':'iupred','Smoothing':'foldfirst','IUScoreDir':''})
         self.setStat({'FILoop':10,'FISleep':2,'MinOrder':-1,'MinRegion':0,'IUCut':0.2})
-        self.setOpt({'MD5Acc':False,'DisCalculate':True})
+        self.setOpt({'MD5Acc':True,'DisCalculate':True})
 #########################################################################################################################
     def _cmdList(self):     ### Sets Attributes from commandline
         '''

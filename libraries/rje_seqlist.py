@@ -19,8 +19,8 @@
 """
 Module:       rje_seqlist
 Description:  RJE Nucleotide and Protein Sequence List Object (Revised)
-Version:      1.29.0
-Last Edit:    09/05/18
+Version:      1.32.1
+Last Edit:    05/04/19
 Copyright (C) 2011  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -123,6 +123,7 @@ Commandline:
     sortseq=X       : Whether to sort sequences prior to output (size/invsize/accnum/name/seq/species/desc) [None]
     sampler=N(,X)   : Generate (X) file(s) sampling a random N sequences from input into seqout.N.X.fas [0]
     summarise=T/F   : Generate some summary statistics in log file for sequence data after loading [False]
+    genomesize=X    : Genome size for NG50 and LG50 summary output (if >0) [0]
     maker=T/F       : Whether to extract MAKER2 statistics (AED, eAED, QI) from sequence names [False]
     splitseq=X      : Split output sequence file according to X (gene/species) [None]
     tmpdir=PATH     : Directory used for temporary files ['./tmp/']
@@ -191,6 +192,11 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 1.27.0 - Added grepNR() method (dev only). Switched default to RevCompNR=T.
     # 1.28.0 - Fixed second pass NR naming bug and added option to switch off altogether.
     # 1.29.0 - Added maker=T/F : Whether to extract MAKER2 statistics (AED, eAED, QI) from sequence names [False]
+    # 1.30.0 - Updated and improved DNA2Protein.
+    # 1.31.0 - Added genecounter to rename option for use with other programs, e.g. PAGSAT.
+    # 1.31.1 - Fixed edit bug when not in DNA mode.
+    # 1.32.0 - Added genomesize and NG50/LG50 to DNA summarise.
+    # 1.32.1 - Fixed LG50/L50 bug.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -211,7 +217,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copy_right) = ('SeqList', '1.29.0', 'May 2018', '2011')
+    (program, version, last_edit, copy_right) = ('SeqList', '1.32.1', 'April 2019', '2011')
     description = 'RJE Nucleotide and Protein Sequence List Object (Revised)'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_zen.Zen().wisdom()]
@@ -321,7 +327,8 @@ class SeqList(rje_obj.RJE_Object):
     - TerMinORF = Min. length for terminal ORFs, only if no minorf=X ORFs found (good for short sequences) [-1]
 
     Num:float
-    
+    - GenomeSize=X    : Genome size for NG50 and LG50 summary output (if >0) [0]
+
     List:list
     - Edit = Stores edits made during self.edit() as (Type,AccNum,Details) tuples. (Enables extraction of edits made.)
     - Sampler = N(,X) = Generate (X) file(s) sampling a random N sequences from input into seqout.N.X.fas [0]
@@ -350,7 +357,7 @@ class SeqList(rje_obj.RJE_Object):
                          'Mixed','ORFMet','ReName','RevCompNR','SizeSort','TwoPass',
                          'SeqIndex','SeqShuffle','Summarise','UseCase']
         self.intlist = ['MinLen','MaxLen','MinORF','RFTran','TerMinORF']
-        self.numlist = []
+        self.numlist = ['GenomeSize']
         self.listlist = ['Edit','Sampler','Seq']
         self.dictlist = ['Filter','SeqDict']
         self.objlist = ['Current','CurrSeq','DB','SEQFILE','INDEX']
@@ -381,6 +388,7 @@ class SeqList(rje_obj.RJE_Object):
                 self._cmdReadList(cmd,'file',['Edit','SeqDB','SeqIn','SeqOut'])
                 self._cmdReadList(cmd,'path',['TmpDir'])
                 self._cmdReadList(cmd,'int',['MinLen','MaxLen','MinORF','RFTran','TerMinORF'])
+                self._cmdReadList(cmd,'num',['GenomeSize'])
                 self._cmdReadList(cmd,'nlist',['Sampler'])
                 self._cmdReadList(cmd,'bool',['Align','AutoFilter','AutoLoad','Concatenate','DNA','Edit','GrepNR','Maker','Mixed','ORFMet','ReName','RevCompNR','SizeSort','SeqIndex','SeqNR','SeqShuffle','Summarise','TwoPass','UseCase'])
             except: self.errorLog('Problem with cmd:%s' % cmd)
@@ -898,7 +906,8 @@ class SeqList(rje_obj.RJE_Object):
                 sdb = db.addEmptyTable('sequences',['name','desc','gene','spec','accnum','length'],['name'])
                 if self.dna(): sdb.addField('gc'); sdb.addField('gapn')
                 if self.getBool('Maker'): sdb.addFields(['AED','eAED','QIUTR5','QISpliceEST','QIExonEST','QIExonAlign','QISpliceSNAP','QIExonSNAP','QIExonmRNA','QIUTR3','QIProtLen'])
-            self.printLog('#~~#','# ~~~~~~~~~~~~~~~~~~~~~~~ SEQUENCE SUMMARY FOR %s ~~~~~~~~~~~~~~~~~~~~~~~~~~~ #' % basename)
+            #self.printLog('#~~#','# ~~~~~~~~~~~~~~~~~~~~~~~ SEQUENCE SUMMARY FOR %s ~~~~~~~~~~~~~~~~~~~~~~~~~~~ #' % basename)
+            self.headLog('Sequence Summary for %s' % basename)
             seqlen = []
             if not seqs: seqs = self.seqs()
             # Total number of sequences
@@ -970,6 +979,24 @@ class SeqList(rje_obj.RJE_Object):
                 raise ValueError('Half sum of sequences not reached!')
                 #self.printLog('#SUM','N50 length of sequences: %s' % rje.iStr(seqlen[-1]))
                 #seqdata['N50Length'] = seqlen[-1]
+            ## N50 calculation
+            ng50len = 0.0
+            lg50 = 0
+            if self.getNum('GenomeSize') > 0: ng50len = self.getNum('GenomeSize')/2.0
+            ng50 = seqlen[0:]
+            while ng50 and ng50len > ng50[-1]: ng50len -= ng50.pop(-1); lg50 += 1
+            if self.getNum('GenomeSize') > 0 and ng50:
+                self.printLog('#SUM','NG50 length of sequences (%s): %s' % (dnaLen(self.getNum('GenomeSize')),rje.iStr(ng50[-1])))
+                seqdata['NG50Length'] = ng50[-1]
+                lg50 += 1
+                self.printLog('#SUM','LG50 count of sequences (%s): %s' % (dnaLen(self.getNum('GenomeSize')),rje.iStr(lg50)))
+                seqdata['LG50Count'] = lg50
+            elif ng50len:
+                self.printLog('#SUM','Half genome size (%s) not reached for NG50!' % (dnaLen(self.getNum('GenomeSize'))))
+                #self.printLog('#SUM','N50 length of sequences: %s' % rje.iStr(seqlen[-1]))
+                seqdata['NG50Length'] = 0
+                seqdata['LG50Count'] = -1
+            # GC content
             if self.dna():
                 seqdata['GCPC'] = 100.0 * seqdata['GC'] / (float(sumlen) - seqdata['GapLength'])
                 self.printLog('#SUM','GC content: %.2f%%' % seqdata['GCPC'])
@@ -1045,7 +1072,7 @@ class SeqList(rje_obj.RJE_Object):
             return True
         except: self.errorLog('Problem during %s concatenate.' % self); return False   # Failed
 #########################################################################################################################
-    def rename(self,keepsprotgene=False):   ### Renames sequences and saves them to file before reloading as normal
+    def rename(self,keepsprotgene=False,genecounter=False):   ### Renames sequences and saves them to file before reloading as normal
         '''
         Renames sequences and saves them to file.
         >> keepsprotgene:bool[False] = Whether to keep SwissProt gene if recognised.
@@ -1085,6 +1112,7 @@ class SeqList(rje_obj.RJE_Object):
                         if newgene and (gene.upper() != gene or not keepsprotgene):
                             gene = self.getStr('NewGene')
                             if gene in ['acc','accnum']: gene = accnum
+                        if genecounter: gene = '%s%s' % (gene,rje.preZero(sx,seqx))
                         if acc in ['','none']: name = '%s_%s__%s %s' % (gene,spcode,accnum,string.join(string.split(rje.chomp(iline[1:]))[1:]))
                         if acc in ['','none']: name = '%s_%s__%s %s' % (gene,spcode,accnum,string.join(string.split(rje.chomp(iline[1:]))[1:]))
                         else: name = '%s_%s__%s%s %s %s' % (gene,spcode,self.getStr('NewAcc'),rje.preZero(sx,seqx),accnum,string.join(string.split(rje.chomp(iline[1:]))[1:]))
@@ -1093,6 +1121,7 @@ class SeqList(rje_obj.RJE_Object):
                         spcode = self.getStr('SpCode').upper()
                         gene = self.getStr('NewGene')
                         if gene in ['acc','accnum']: gene = accnum
+                        if genecounter: gene = '%s%s' % (gene,rje.preZero(sx,seqx))
                         if acc in ['','none']: name = '%s_%s__%s %s' % (gene,spcode,accnum,string.join(string.split(rje.chomp(iline[1:]))[1:]))
                         else: name = '%s_%s__%s%s %s' % (gene,spcode,self.getStr('NewAcc'),rje.preZero(sx,seqx),rje.chomp(iline[1:]))
                     seq = ''
@@ -1652,7 +1681,7 @@ class SeqList(rje_obj.RJE_Object):
             if not seqfile: seqfile = self.getStr('SeqIn')
             if seqfile.lower() in ['','none']:
                 if self.i() >= 0:
-                    seqfile = rje.choice(text='\nInput filename? (Blank to exit.)')
+                    seqfile = rje.choice(text='\nNo file name given: Input filename? (Blank to exit.)')
                     if seqfile == '': sys.exit()
                 else:
                     self.errorLog('No file name given: cannot load sequences!')
@@ -2294,29 +2323,31 @@ class SeqList(rje_obj.RJE_Object):
                 return tranfas
             ### ~ [3] ~ Selected ORFs only ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             minorf = self.getInt('MinORF'); terminorf = self.getInt('TerMinORF')
-            if terminorf < 0: terminorf = minorf
-            rforfs = {}; longorf = False
+            #X# Not any more: if terminorf < 0: terminorf = minorf
+            rforfs = {}; longorf = False; fullorfs = {}
             for frame in rje.sortKeys(rfseq):
                 self.progLog('\r#ORF','Sequence RF%s ORFs...   ' % frame)
                 osplit = string.split(string.replace(rfseq[frame].upper(),'*','*|'),'|')
-                orfs = osplit[:1]
-                for orf in osplit[1:-1]:
+                orfs = []
+                for orf in osplit[:-1]:
                     if self.getBool('ORFMet'):  # Trim to Nterminal Met
                         if 'M' in orf: orf = orf[orf.find('M'):]
                         else: continue
                     if len(orf) < (minorf + 1): continue
                     orfs.append(orf); longorf = True    # More than termini - internal ORFs meet length requirement
-                if len(osplit) > 1: orfs.append(osplit[-1])
+                fullorfs[frame] = orfs[0:]
+                if terminorf >= 0 and not longorf:
+                    if len(osplit) == 1:    # Full read-through
+                        if len(osplit[0]) > terminorf: orfs.append(osplit[0])
+                    else:
+                        if len(osplit[0]) >= terminorf: orfs.append(osplit[0])
+                        if len(osplit[-1]) > terminorf: orfs.append(osplit[-1])
                 rforfs[frame] = orfs
+
             for frame in rje.sortKeys(rfseq):
                 self.progLog('\r#ORF','Sequence ORF Fasta...   ')
-                orfs = rforfs[frame]
-                if longorf:
-                    if len(orfs[-1]) < minorf: orfs = orfs[:-1]
-                    if len(orfs[0]) < (minorf + 1): orfs = orfs[1:]
-                else:
-                    if len(orfs[-1]) < terminorf: orfs = orfs[:-1]
-                    if orfs and len(orfs[0]) < (terminorf + 1): orfs = orfs[1:]
+                if longorf: orfs = fullorfs[frame]
+                else: orfs = rforfs[frame]
                 # Remaining ORFs should meet length requirements
                 for i in range(len(orfs)):
                     tranfas += '>%s\n%s\n' % (string.join([namesplit[0]+'.RF%d.ORF%d' % (frame,i+1)]+namesplit[1:]+['Length=%d' % len(orfs[i])]),orfs[i])
@@ -2422,7 +2453,7 @@ class SeqList(rje_obj.RJE_Object):
             # List of menu item tuples (edit code,description,optiontype,optionkey)
             if self.dna(): dna_menu = [('R','<R>everse complement','return','R'),
                                        ('T','<T>ranslate','return','T')]
-            else: dna_menu = ['DNA','Switch to <DNA> mode','DNA']
+            else: dna_menu = [('DNA','Switch to <DNA> mode','DNA')]
             menulist = [('','# ~ NAME/DESCRIPTION ~ #','',''),
                         ('G','Edit <G>ene','return','G'),
                         ('S','Edit <S>pecies','return','S'),
@@ -2824,6 +2855,19 @@ def seqType(sequence):  ### Returns (and possible guesses) Sequence Type - Prote
 def phredScore(qchar,qscale=33): ### Returns the Phred quality score for a given character.
     '''Returns the Phred quality score for a given character.'''
     return ord(qchar) - qscale
+#########################################################################################################################
+def dnaLen(seqlen,dp=2,sf=3):
+    units = ['bp','kb','Mb','Gb','Tb']
+    while seqlen > 1000 and len(units) > 1:
+        units.pop(0); seqlen /= 1000.0
+    units = units[0]
+    if units == 'bp': return '%d bp' % seqlen
+    if dp == 0: return '%s %s' % (rje.sf(seqlen,sf),units)
+    if dp == 1: return '%.1f %s' % (rje.dp(seqlen,dp),units)
+    if dp == 2: return '%.2f %s' % (rje.dp(seqlen,dp),units)
+    if dp == 3: return '%.3f %s' % (rje.dp(seqlen,dp),units)
+    if dp == 4: return '%.4f %s' % (rje.dp(seqlen,dp),units)
+    return '%s %s' % (rje.dp(seqlen,dp),units)
 #########################################################################################################################
 ### END OF SECTION III                                                                                                  #
 #########################################################################################################################

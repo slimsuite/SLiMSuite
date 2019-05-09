@@ -19,8 +19,8 @@
 """
 Module:       rje_misc
 Description:  Miscellenous script storage module
-Version:      0.58.0
-Last Edit:    20/06/18
+Version:      0.59.2
+Last Edit:    15/04/19
 Copyright (C) 2007  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -76,6 +76,8 @@ Function:
     - jrjspf = Reformatting an SPF file for Joe Jenkins
     - disjson = Parsing of disorder JSON file
     - pop00freq
+    - snakencbi = Reformatting the fasta and GFF files for snake genomes
+    - starlingncbi = Reformatting the fasta and GFF files for starling genome
 
 Commandline:
     job=X       : Identifier for the job to be performed [None]
@@ -156,6 +158,9 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 0.56.0 - ancNorm = Conversion of raw anchor scores to normalised scores.
     # 0.57.0 - occjoin = Table join for occbench complementary analysis.
     # 0.58.0 - pop00freq = Regenerate SNP frequencies. Modified mbgSNPFreq to handle pop00freq output.
+    # 0.59.0 - snakencbi = Reformatting the fasta and GFF files for snake genomes + starlingncbi
+    # 0.59.1 - Updated DCMF SI
+    # 0.59.2 - Updated DCMF SI -> dcmfSIJGINCBI()
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -165,7 +170,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo():     ### Makes Info object
     '''Makes rje.Info object for program.'''
-    (program, version, last_edit, cyear) = ('RJE_MISC', '0.58.0', 'June 2018', '2007')
+    (program, version, last_edit, cyear) = ('RJE_MISC', '0.59.2', 'April 2019', '2007')
     description = 'Miscellaneous Odd-jobs Module'
     author = 'Dr Richard J. Edwards.'
     comments = ['Wise %s always says:' % rje_zen.Zen()._noun(),'\t"%s"' % rje_zen.Zen().wisdom()]
@@ -281,6 +286,8 @@ class OddJob(rje.RJE_Object):
         '''Runs odd-job specified by self.info['Name'].'''
         try:### Laavanya ###
             if self.info['Name'] == 'laavanya': self.laavanya()
+            elif self.info['Name'] == 'snakencbi': self.snakeNCBI()
+            elif self.info['Name'] == 'starlingncbi': self.starlingNCBI()
             elif self.info['Name'] == 'pop00freq': self.pop00Freq()
             elif self.info['Name'] == 'occjoin': self.occjoin()
             elif self.info['Name'] == 'ancnorm': self.ancNorm()
@@ -288,7 +295,7 @@ class OddJob(rje.RJE_Object):
             elif self.info['Name'] == 'disjson': self.disJSON()
             elif self.info['Name'] == 'mbgsnpfreq': self.mbgSNPFreq()
             elif self.info['Name'] == 'mbgsnp': self.mbgSNP()
-            elif self.info['Name'] == 'dcmfsi': self.dcmfSIJGI()
+            elif self.info['Name'] == 'dcmfsi': self.dcmfSIJGINCBI() #x# dcmfSIJGI()
             elif self.info['Name'] == 'crisp': self.Crisp()
             elif self.info['Name'] == 'jrjspf': self.JRJSPF()
             elif self.info['Name'] == 'aicpaper': self.aicPaper() # Conversion of AIC PATIS tables for Jan 2014 AIC paper.
@@ -724,6 +731,139 @@ class OddJob(rje.RJE_Object):
             ### Nothing! ###
             else:
                 self.log.errorLog('Job "%s" not recognised.' % self.info['Name'],printerror=False)
+        except:
+            self.log.errorLog('Error in rje_misc.run(%s)' % self.info['Name'],printerror=True,quitchoice=True)
+#########################################################################################################################
+    def starlingNCBI(self):
+        '''starlingncbi = Reformatting the fasta and GFF files for snake genomes.'''
+        try:### ~ [0] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            ncbifas = './CHR_Un/9172_ref_Sturnus_vulgaris-1.0_chrUn.fa'
+            gff = './GFF/ref_Sturnus_vulgaris-1.0_top_level.gff3.gz'
+            babsfas = '../2018-10-04.KatApollo/annotation/important/Svulgaris_genome.fna'
+            outfas = 'Svulgaris_genome.ncbimap.fna'
+
+            mapping = {}
+            ncbiseq = rje_seqlist.SeqList(self.log,self.cmd_list+['autoload=T','seqin=%s' % ncbifas])
+            babsseq = rje_seqlist.SeqList(self.log,self.cmd_list+['autoload=T','seqin=%s' % babsfas])
+            SEQOUT = open(outfas,'w')
+
+            while ncbiseq.nextSeq():
+                self.progLog('\r#SEQ','Processed %s primary sequences' % rje.iLen(mapping))
+                babsseq.nextSeq()
+                nseq = ncbiseq.currSeq()
+                nacc = string.split(ncbiseq.shortName(),'|')[3]
+                newname = '%s %s %s' % (babsseq.shortName(),ncbiseq.shortName(),ncbiseq.seqDesc())
+                mapping[nacc] = babsseq.shortName()
+                SEQOUT.write('>%s\n%s\n' % (newname,babsseq.currSeq()[1]))
+            SEQOUT.close()
+            self.printLog('\r#FAS','Processed %s primary sequences -> %s' % (rje.iLen(mapping),outfas))
+
+            #2# Output ID mapping
+            MAP = open('Svulgaris.mapping.csv','w')
+            MAP.write('ncbi,apollo\n')
+            for nacc in rje.sortKeys(mapping):
+                MAP.write('%s,%s\n' % (nacc,mapping[nacc]))
+            MAP.close()
+            self.printLog('#MAP','%s ID mappings output to Svulgaris.mapping.csv' % (rje.iLen(mapping)))
+
+            #3# Update GFF file and split into sources
+            gfile = gff
+            gout = {}   # Dictionary of source:FILE
+            gx = {}; zx = 0
+            headlines = []  # Header lines for GFF
+            GFF = os.popen('zcat %s' % gfile)
+            gline = GFF.readline()
+            while gline:
+                if gline.startswith('#'): headlines.append(gline)
+                else:
+                    gdata = string.split(gline,'\t')
+                    if len(gdata) < 2: continue
+                    gsource = gdata[1]
+                    if gdata[0] in mapping: gdata[0] = mapping[gdata[0]]
+                    if gsource not in gout:
+                        gout[gsource] = open('Svulgaris.ncbi.%s.gff3' % (gsource),'w')
+                        gout[gsource].writelines(headlines)
+                        gx[gsource] = 0
+                    gout[gsource].write(string.join(gdata,'\t')); gx[gsource] += 1
+                    zx += 1
+                self.progLog('\r#GFF','Parsing %d GFF sources: %s lines' % (len(gx),rje.iStr(zx)),rand=0.01)
+                gline = GFF.readline()
+            self.printLog('\r#GFF','Parsing %d GFF sources: %s lines' % (len(gx),rje.iStr(zx)))
+            for gsource in rje.sortKeys(gout):
+                self.printLog('\r#GFF','Parsed %s %s GFF lines.' % (gsource,rje.iStr(gx[gsource])))
+                gout[gsource].close()
+
+
+        except:
+            self.log.errorLog('Error in rje_misc.run(%s)' % self.info['Name'],printerror=True,quitchoice=True)
+#########################################################################################################################
+    def snakeNCBI(self):
+        '''snakencbi = Reformatting the fasta and GFF files for snake genomes.'''
+        try:### ~ [0] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            ncbigenpath = '/srv/scratch/babsgenome/BABSGenome-Jun17/data/2018-10-16.NCBIBABSGenomes/'
+            gff = {'ts':'/srv/scratch/babsgenome/BABSGenome-Jun17/annotation/2018-10-16.NCBI/Notechis_scutatus/GFF/ref_TS10Xv2-PRI_top_level.gff3.gz',
+                    'ebs':'/srv/scratch/babsgenome/BABSGenome-Jun17/annotation/2018-10-16.NCBI/Pseudonaja_textilis/GFF/ref_EBS10Xv2-PRI_top_level.gff3.gz'}
+            babsgenpath = '/srv/scratch/babsgenome/BABSGenome-Jun17/data/2018-03-25.BABSGenomes/'
+
+            for snake in ['ts','ebs']:
+                #1# Map IDs and regenerate *.pri.fasta & *.dipnr.fasta (with original alt.fasta)
+                ncbifas = '%s%s10xv2ncbi.fas' % (ncbigenpath,snake)
+                babsfas = '%s%s10xv2.dipnr.pri.fasta' % (babsgenpath,snake)
+                mapping = {}
+                ncbiseq = rje_seqlist.SeqList(self.log,self.cmd_list+['autoload=T','seqin=%s' % ncbifas])
+                babsseq = rje_seqlist.SeqList(self.log,self.cmd_list+['autoload=T','seqin=%s' % babsfas])
+                SEQOUT = open('%s10xv2ncbi.dipnr.pri.fasta' % snake,'w')
+
+                while ncbiseq.nextSeq():
+                    self.progLog('\r#SEQ','Processed %s primary sequences' % rje.iLen(mapping))
+                    babsseq.nextSeq()
+                    nseq = ncbiseq.currSeq()
+                    nacc = ncbiseq.seqAcc()
+                    bacc = babsseq.seqAcc()
+                    bdesc = babsseq.seqDesc()
+                    btype = string.split(bdesc)[0]
+                    newname = '%s %s %s %s' % (babsseq.shortName(),btype,nacc,ncbiseq.seqDesc())
+                    mapping[nacc] = babsseq.shortName()
+                    SEQOUT.write('>%s\n%s\n' % (newname,nseq[1]))
+                SEQOUT.close()
+                self.printLog('\r#FAS','Processed %s primary sequences -> %s10xv2ncbi.dipnr.pri.fasta' % (rje.iLen(mapping),snake))
+
+                #2# Output ID mapping
+                MAP = open('%s10xv2.mapping.csv' % snake,'w')
+                MAP.write('ncbi,babs\n')
+                for nacc in rje.sortKeys(mapping):
+                    MAP.write('%s,%s\n' % (nacc,mapping[nacc]))
+                MAP.close()
+                self.printLog('#MAP','%s ID mappings output to %s10xv2.mapping.csv' % (rje.iLen(mapping),snake))
+
+                #3# Update GFF file and split into sources
+                gfile = gff[snake]
+                gout = {}   # Dictionary of source:FILE
+                gx = {}; zx = 0
+                headlines = []  # Header lines for GFF
+                GFF = os.popen('zcat %s' % gfile)
+                gline = GFF.readline()
+                while gline:
+                    if gline.startswith('#'): headlines.append(gline)
+                    else:
+                        gdata = string.split(gline,'\t')
+                        if len(gdata) < 2: continue
+                        gsource = gdata[1]
+                        if gdata[0] in mapping: gdata[0] = mapping[gdata[0]]
+                        if gsource not in gout:
+                            gout[gsource] = open('%s10xv2.ncbi.%s.gff3' % (snake,gsource),'w')
+                            gout[gsource].writelines(headlines)
+                            gx[gsource] = 0
+                        gout[gsource].write(string.join(gdata,'\t')); gx[gsource] += 1
+                        zx += 1
+                    self.progLog('\r#GFF','Parsing %d GFF sources: %s lines' % (len(gx),rje.iStr(zx)),rand=0.01)
+                    gline = GFF.readline()
+                self.printLog('\r#GFF','Parsing %d GFF sources: %s lines' % (len(gx),rje.iStr(zx)))
+                for gsource in rje.sortKeys(gout):
+                    self.printLog('\r#GFF','Parsed %s %s GFF lines.' % (gsource,rje.iStr(gx[gsource])))
+                    gout[gsource].close()
+
+
         except:
             self.log.errorLog('Error in rje_misc.run(%s)' % self.info['Name'],printerror=True,quitchoice=True)
 #########################################################################################################################
@@ -1309,6 +1449,294 @@ class OddJob(rje.RJE_Object):
         except:
             self.log.errorLog('Error in rje_misc.run(%s)' % self.info['Name'],printerror=True,quitchoice=True)
 #########################################################################################################################
+    def dcmfSIJGINCBI(self):   # DCMF SI Table generation with NCBI tables too
+        '''
+        DCMF SI Table generation with NCBI tables too. For each gene we want in the proteins/ directory:
+        *.fas = MultiHAQ
+        *.nwk = MultiHAQ
+        *.png = MultiHAQ
+        *.qry.fas = This code
+        *.taxamap.html = This code
+        *.tree.txt = MultiHAQ
+        *.desc.txt = This code
+
+        '''
+        try:### ~ [0] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            appurl1 = '<a href="https://edwapollo.babs.unsw.edu.au/apollo-2.0.8/120/jbrowse/index.html?loc=chr_WON710A1__DCMF160804:'
+            appurl2 = '&tracks=PROKKA-CDS,JGI-CDS,NCBI-CDS">'
+            logurl1 = '<a href="https://edwapollo.babs.unsw.edu.au/apollo-2.0.8/annotator/loadLink?loc=chr_WON710A1__DCMF160804:'
+            logurl2 = '&organism=120&tracks=PROKKA-CDS,JGI-CDS,NCBI-CDS">'
+            db = rje_db.Database(self.log,self.cmd_list+['tuplekeys=T'])
+            db.basefile('DCMF160804.taxmap.html')
+            #Query   Hit     Method  MapRank BlastRank       EVal    Score   Query_Species   Query_Len       Query_Sim       Query_ID        Hit_Species     Hit_Len Hit_Sim Hit_ID
+            #jgi_WON710A1__Ga0180325_111     prok_WON710A1__DCMF160804.P00001        Sequence        1       1       9e-95   266     WON710A1        100.0   100.0   100.0   WON710A1        100.0   100.0   100.0
+            #mapdb = db.addTable('/srv/scratch/z3452659/ManefieldPacBio-Sep15/data/2017-10-26.JGI/DCMF160804.jgi.proteins.DCMF160804.proteins.mapping.tdt',mainkeys=['Query','Hit'],name='map')
+            # ##gff-version 3
+            # ##sequence-region chr_WON710A1__DCMF160804 1 6441270
+            # chr_WON710A1__DCMF160804        Prodigal:2.6    CDS     30      437     .       -       0       ID=DCMF160804.P00001;inference=ab initio prediction:Prodigal:2.6;locus_tag=DCMF160804.P00001;product=hypothetical protein
+            gffields = ['Locus','Source','Type','Start','End','Dot','Strand','Ignore','Details']
+            gwant  = ['Type','Start','End','Strand','Details']
+            gffdb = db.addTable('prokka/DCMF160804.gff',mainkeys=['Type','Start','End'],datakeys=gwant,delimit='\t',headers=gffields,ignore=['#'],lists=False,name='gff',expect=True,replace=False,uselower=False)
+            gffdb.dataFormat({'Start':'int','End':'int'})
+            #self.debug(gffdb.dataKeys())
+            ## #gff-version 3
+            # chr_WON710A1__DCMF160804        img_core_v400   CDS     30      437     .       -       0       ID=2718340120;locus_tag=Ga0180325_111;product=hypothetical protein
+            # chr_WON710A1__DCMF160804        img_core_v400   CDS     656     769     .       -       0       ID=2718340121;locus_tag=Ga0180325_112;product=hypothetical protein
+            jgidb = db.addTable('jgi/DCMF160804.jgi.gff',mainkeys=['Type','Start','End'],datakeys=gwant,delimit='\t',headers=gffields,ignore=['#'],lists=False,name='jgi',expect=True,replace=False,uselower=False)
+            jgidb.dataFormat({'Start':'int','End':'int'})
+            #self.debug(jgidb.dataKeys())
+            # NCBI Features Table conversion
+            ncbi = db.addTable('ncbi/dcmfncbi.2019-03-28.Feature.tdt',mainkeys=['locus_tag','feature'],name='ncbi')
+            #locus   feature position        start   end     locus_tag       protein_id      details
+            #CP017634        CDS     complement(30..437)     30      437     DCMF_00005      ATW23387.1      /inference="COORDINATES: ab initio prediction:GeneMarkS+" /note="Derived by automated computational analysis using gene prediction method: GeneMarkS+." /codon_start="1" /transl_table="11" /product="hypothetical protein"
+            #CP017634        CDS     complement(952..1140)   952     1140    DCMF_00010      ATW23388.1      /inference="COORDINATES: ab initio prediction:GeneMarkS+" /note="Derived by automated computational analysis using gene prediction method: GeneMarkS+." /codon_start="1" /transl_table="11" /product="hypothetical protein"
+
+            n2jdb = db.addTable('ncbi/ncbi2jgi.mapping.tdt',mainkeys=['Query','Hit'],name='ncbi2jgi')
+            j2ndb = db.addTable('ncbi/jgi2ncbi.mapping.tdt',mainkeys=['Query','Hit'],name='jgi2ncbi')
+
+            #i# locus   feature position        start   end     locus_tag       protein_id      details
+            #i# Need to match start   end (and strand)
+            nmap = {}   # {(start,end,strand):ncbi}
+            ncbi.dataFormat({'start':'int','end':'int'})
+            ncbi.addField('strand',evalue='+')
+            for nentry in ncbi.entries():
+                if 'complement' in nentry['position']: nentry['strand'] = '-'
+                if nentry['feature'] == 'CDS':
+                    nmap[(nentry['start'],nentry['end'],nentry['strand'])] = nentry['protein_id']
+            self.printLog('#NCBI','%s CDS feature mappings from %s CDS features' % (rje.iLen(nmap),rje.iLen(ncbi.index('feature')['CDS'])))
+
+            for table in [n2jdb,j2ndb]:
+                table.dataFormat({'Query_Len':'int','Hit_Len':'int'})
+                table.dropEntriesDirect('MapRank',['1'],inverse=True)
+                for entry in table.entries():
+                    entry['Query'] = string.split(entry['Query'],'__')[1]
+                    entry['Hit'] = string.split(entry['Hit'],'__')[1]
+                table.remakeKeys()
+
+            # protein genus   family  order   class   phylum  boot    spcode  inpara  paralogues      desc
+            # DCMF160804.P00003       None    None    None    None    None    1.0     None    DCMF160804.P01428|DCMF160804.P01567|DCMF160804.P00002           hypothetical protein
+            taxdb = db.addTable('taxonomy/DCMF160804.jgi.taxamap.taxamap.tdt',mainkeys=['protein'],name='taxamap')
+            ### ~ [1] Update Data ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            jurlbase = "http://www.slimsuite.unsw.edu.au/research/dcmf/dcmf-jgi.php?protein="
+            nurlbase = "http://www.slimsuite.unsw.edu.au/research/dcmf/dcmf-ncbi.php?protein="
+            gurlbase = "https://www.ncbi.nlm.nih.gov/protein/"
+            # Covert NCBI table to:
+            # ncbi protein description len pos details
+            ncbigff = db.copyTable(ncbi,'ncbigff')
+            ncbi.dropEntriesDirect('feature',['CDS'],inverse=True)
+            ncbi.dropEntriesDirect('protein_id',[''])
+            #ncbi.renameField('protein_id','ncbi')
+            ncbi.newKey(['protein_id'])
+            ncbi.addField('ncbi',after='protein_id',evalue='-')
+            ncbi.addField('protein',after='ncbi',evalue='-')
+            ncbi.addField('description',after='protein',evalue='')
+            ncbi.addField('pos',after='protein',evalue='')
+            ncbi.addField('len',evalue=0)
+            nfields = ['ncbi','protein','description','len','pos']
+            for nentry in ncbi.entries():
+                try: nentry['description'] = rje.matchExp('/product="(.+)"',nentry['details'])[0]
+                except: pass
+                nentry['pos'] = '%d..%d (%s)' % (nentry['start'],nentry['end'],nentry['strand'])
+                pos = '%d..%d' % (nentry['start'],nentry['end'])
+                poskb = '%d..%d' % (max(1,nentry['start']-1000),nentry['end']+1000)
+                nentry['pos'] = '%s%s%s%s</a> (%s%s%s%s</a>)' % (appurl1,poskb,appurl2,pos,logurl1,poskb,logurl2,nentry['strand'])
+                nentry['len'] = '%d' % (nentry['end'] - nentry['start'] + 1)
+                #self.debug(nentry)
+                nacc = nentry['protein_id']
+                nentry['ncbi'] = '<a href="%s%s">%s</a> [<a href="%s%s">^</a>]' % (nurlbase,nacc,nacc,gurlbase,nacc)
+            ncbi.keepFields(['protein_id']+nfields)
+            # Update JGI table
+            jgidb.addFields(['protein','prokka','len','pos'])
+            jgidb.addField('ncbi',after='protein',evalue='-')
+            for entry in jgidb.entries():
+                try: entry['protein'] = string.split(rje.matchExp('locus_tag=(\S+)',entry['Details'])[0],';')[0]
+                except:
+                    self.warnLog('Dropped: %s' % entry)
+                    jgidb.dropEntry(entry)
+                    pass
+                #self.bugPrint(entry['protein'])
+                entry['len'] = int((int(entry['End']) - int(entry['Start']) + 1) / 3.0)
+                entry['pos'] = '%s..%s (%s)' % (entry['Start'],entry['End'],entry['Strand'])
+                pos = '%d..%d' % (entry['Start'],entry['End'])
+                poskb = '%d..%d' % (max(1,entry['Start']-1000),entry['End']+1000)
+                entry['pos'] = '%s%s%s%s</a> (%s%s%s%s</a>)' % (appurl1,poskb,appurl2,pos,logurl1,poskb,logurl2,entry['Strand'])
+                pacc = entry['protein']
+                if ncbi and (entry['Start'],entry['End'],entry['Strand']) in nmap:
+                    nacc = nmap[(entry['Start'],entry['End'],entry['Strand'])]
+                    #entry['ncbi'] = '<a href="https://www.ncbi.nlm.nih.gov/protein/%s">%s</a>' % (nacc,nacc)
+                    if nacc in ncbi.data():
+                        entry['ncbi'] = '<a href="%s%s">%s</a> [<a href="%s%s">^</a>]' % (nurlbase,nacc,nacc,gurlbase,nacc)
+                        ncbi.data(nacc)['protein'] = '<a href="%s%s">%s</a>' % (jurlbase,pacc,pacc)
+                    else:
+                        entry['ncbi'] = '%s (pseudo) [<a href="%s%s">^</a>]' % (nacc,gurlbase,nacc)
+                elif ncbi:
+                    jacc = entry['protein']
+                    if jacc in n2jdb.index('Hit'):
+                        if len(n2jdb.index('Hit')[jacc]) == 1:
+                            mentry = n2jdb.data(n2jdb.index('Hit')[jacc][0])
+                            nacc = entry['ncbi'] = mentry['Query']
+                            #entry['ncbi'] = '<a href="https://www.ncbi.nlm.nih.gov/protein/%s">%s</a>*' % (entry['ncbi'],entry['ncbi'])
+                            if nacc in ncbi.data():
+                                entry['ncbi'] = '<a href="%s%s">%s</a> [<a href="%s%s">^</a>]*' % (nurlbase,nacc,nacc,gurlbase,nacc)
+                                ncbi.data(nacc)['protein'] = '<a href="%s%s">%s</a>' % (jurlbase,pacc,pacc)
+                            else:
+                                entry['ncbi'] = '%s (pseudo) [<a href="%s%s">^</a>]' % (nacc,gurlbase,nacc)
+                            #entry['ncbi'] = '<a href="%s%s">%s</a> [<a href="%s%s">^</a>]*' % (nurlbase,nacc,nacc,gurlbase,nacc)
+                            if mentry['Query_Len'] > mentry['Hit_Len']: entry['ncbi'] += '(+)'
+                            if mentry['Query_Len'] < mentry['Hit_Len']: entry['ncbi'] += '(-)'
+                        elif jacc in j2ndb.index('Query'):
+                            mentry = j2ndb.data(j2ndb.index('Query')[jacc][0])
+                            nacc = entry['ncbi'] = mentry['Hit']
+                            #entry['ncbi'] = '<a href="https://www.ncbi.nlm.nih.gov/protein/%s">%s</a>*' % (entry['ncbi'],entry['ncbi'])
+                            if nacc in ncbi.data():
+                                entry['ncbi'] = '<a href="%s%s">%s</a> [<a href="%s%s">^</a>]*' % (nurlbase,nacc,nacc,gurlbase,nacc)
+                                ncbi.data(nacc)['protein'] = '<a href="%s%s">%s</a>' % (jurlbase,pacc,pacc)
+                            else:
+                                entry['ncbi'] = '%s (pseudo) [<a href="%s%s">^</a>]' % (nacc,gurlbase,nacc)
+                            if mentry['Query_Len'] > mentry['Hit_Len']: entry['ncbi'] += '(-)'
+                            if mentry['Query_Len'] < mentry['Hit_Len']: entry['ncbi'] += '(+)'
+                        elif len(n2jdb.index('Hit')[jacc]) > 1:
+                            nacc = entry['ncbi'] = string.join(n2jdb.indexDataList('Hit',jacc,'Query'),',')
+                            nacc1 = string.split(nacc,',')[0]
+                            #entry['ncbi'] = '<a href="https://www.ncbi.nlm.nih.gov/protein/%s">%s</a>*' % (entry['ncbi'],entry['ncbi'])
+                            if nacc1 in ncbi.data():
+                                entry['ncbi'] = '<a href="%s%s">%s</a> [<a href="%s%s">^</a>]*' % (nurlbase,nacc1,nacc,gurlbase,nacc)
+                            elif nacc1:
+                                entry['ncbi'] = '%s [<a href="%s%s">^</a>]' % (nacc,gurlbase,nacc)
+                            for nacc in string.split(nacc,','):
+                                if nacc in ncbi.data():
+                                    try:
+                                        ncbi.data(nacc)['protein'] = '<a href="%s%s">%s</a>' % (jurlbase,pacc,pacc)
+                                    except: pass
+
+
+            gffdb.addFields(['prokka'])
+            for entry in gffdb.entries():
+                try: entry['prokka'] = string.split(rje.matchExp('locus_tag=(\S+)',entry['Details'])[0],';')[0]
+                except: pass
+                #if rje.matchExp('locus_tag=(\S+\d+);p',entry['Details']): entry['jgi'] = rje.matchExp('locus_tag=(\S+\d+);p',entry['Details'])[0]
+                #elif rje.matchExp('locus_tag=(\S+\d+)',entry['Details']): entry['jgi'] = rje.matchExp('locus_tag=(\S+\d+)',entry['Details'])[0]
+            for gkey in jgidb.dataKeys():
+                #self.debug('%s: %s' % (gkey,gkey in jgidb.dataKeys()))
+                if gffdb.data(gkey): jgidb.data(gkey)['prokka'] = gffdb.data(gkey)['prokka']
+                else: pass #self.debug('%s: %s' % (gkey,jgidb.data(gkey)))
+            jgidb.newKey(['protein'])
+            gffdb = jgidb
+            #mapdb.addFields(['jgi','protein'])
+            #for entry in mapdb.entries():
+            #    entry['jgi'] = string.split(entry['Query'],'__')[1]
+            #    try: entry['protein'] = string.split(entry['Hit'],'__')[1]
+            #    except: entry['protein'] = entry['Hit']; print entry
+            #mapdb.newKey(['protein'])
+            ### Merge & add links
+            taxdb.addFields(['prokka','jgi','pos','len'])
+            taxdb.renameField('desc','description')
+            taxdb.list['Fields'] = string.split('protein prokka jgi description len pos inpara	paralogues	genus	family	order	class	phylum	boot	spcode')
+            taxdb.addField('ncbi',after='protein')
+            tfields = taxdb.list['Fields'][0:]
+            taxdb.addFields(['start'])
+            #taxdb.renameField('protein','jgi')
+            taxdb.fillBlanks()
+            for entry in taxdb.entries():
+                #self.bugPrint(entry['protein'])
+                prot = entry['protein']
+                pacc = prot #string.split(prot,'.')[1]
+                #if mapdb.data(prot): entry['jgi'] = mapdb.data(prot)['jgi']
+                if gffdb.data(prot):
+                    entry['len'] = gffdb.data(prot)['len']; entry['pos'] = gffdb.data(prot)['pos']; entry['prokka'] = gffdb.data(prot)['prokka']
+                    if ncbi:  entry['ncbi'] = gffdb.data(prot)['ncbi']
+                entry['protein'] = '<a href="%s%s">%s</a>' % (jurlbase,pacc,prot)
+                pdesc = string.split(entry['description'])[:-3]
+                entry['jgi'] = pdesc[0][3:]
+                entry['description'] = string.join(pdesc[2:])
+                pos = rje.matchExp('>(\d+)\.\.(\d+)<',entry['pos'])
+                #entry['start'] = int(string.split(entry['pos'],'..')[0])
+                entry['start'] = int(pos[0])
+                for field in ['inpara','paralogues']:
+                    fdata = []
+                    for dprot in string.split(entry[field],'|'):
+                        #if dprot: fdata.append('<a href="%s%s">%s</a>' % (urlbase,string.split(dprot,'.')[1],dprot))
+                        if dprot: fdata.append('<a href="%s%s">%s</a>' % (jurlbase,dprot,dprot))
+                        else: fdata.append('')
+                    entry[field] = string.join(fdata,'; ')
+                for field in string.split('genus	family	order	class	phylum	spcode'):
+                    entry[field] = string.join(string.split(entry[field],'|'),'; ')
+                tdata = []
+                for field in tfields: tdata.append('%s' % entry[field])
+                #self.bugPrint(entry)
+                #self.debug(tdata)
+                open('./proteins/%s.taxamap.html' % pacc,'w').write('<tr>\n<td>%s</td>\n</tr>\n' % string.join(tdata,'</td><td>'))
+            #taxdb.remakeKeys()
+            taxdb.newKey(['start','protein'])
+            ### Output
+            import rje_html
+            self.printLog('#HTML','Saving DCMF160804.taxmap.html...')
+            open('taxonomy/DCMF160804.taxamap.html','w').write(rje_html.dbTableToHTML(taxdb,fields=tfields,tabwidth='100%',tdwidths=[],tdalign=[],tdtitles={},valign='top',thead=True,border=1,tabid=''))
+            self.printLog('#HTML','Saving DCMF160804.ncbi.html...')
+            for nentry in ncbi.entries():
+                try:
+                    nacc = nentry['protein_id']
+                    tdata = []
+                    for field in nfields: tdata.append('%s' % nentry[field])
+                    open('./proteins/%s.taxamap.html' % nacc,'w').write('<tr>\n<td>%s</td>\n</tr>\n' % string.join(tdata,'</td><td>'))
+                except: self.debug(nentry)
+
+            open('taxonomy/DCMF160804.ncbi.html','w').write(rje_html.dbTableToHTML(ncbi,fields=nfields,tabwidth='100%',tdwidths=[],tdalign=[],tdtitles={},valign='top',thead=True,border=1,tabid=''))
+            '''
+            Converts delimited plain text into an HTML table.
+            >> table:Database.Table object to convert
+            >> fields:list [] = List of fields to output. Will use them all if empty.
+            >> datakeys:list [] = List of entry data keys to output. Will use them all if empty.
+            >> tabwidth:str ['100%'] = width of table
+            >> tdwidths:list [] = Optional list of widths of columns
+            >> tdalign:list [] = Optional list of text alignment for columns
+            >> tdtitles:dict {} = Optional dictionary of {field:title text (for mouseover)}
+            >> valign:str ['center'] = Vertical text alignment for columns
+            >> thead:bool [True] = Whether first row should use th rather than td
+            >> border:int [1] = Table border strength
+            >> tabid:str [''] = Table ID setting (for CSS formatting)
+            '''
+
+            for fasfile in ['jgi/DCMF160804.jgi.proteins.fasta','ncbi/dcmfncbi.2019-03-29.gbprot.fas']:
+                faslines = open(fasfile,'r').readlines()
+                while faslines:
+                    fline = faslines.pop(0)
+                    if fline[:1] != '>': continue
+                    #>jgi_WON710A1__Ga0180325_115 Id:2718340124 Locus_tag:Ga0180325_115 O-antigen ligase [Peptococcaceae bacterium DCMF]
+                    jgi = string.split(string.split(fline)[0],"__")[1]
+                    if jgi.startswith('Ga'):
+                        desc = string.join(string.split(fline)[3:-3])
+                    else:
+                        desc = string.join(string.split(fline)[1:-3])
+                    open('proteins/%s.desc.txt' % jgi,'w').write(desc)
+                    open('proteins/%s.qry.fas' % jgi,'w').write('%s\n%s\n' % (rje.chomp(fline),rje.chomp(faslines.pop(0))))
+
+            # NCBI GFF
+            gffdb = ncbigff
+            gfields = string.split('seqid source type start end score strand phase attributes')
+            gffdb.addField('seqid',evalue='chr_WON710A1__DCMF160804')
+            gffdb.addField('source',evalue='ncbi')
+            gffdb.renameField('feature','type')
+            gffdb.addField('score',evalue='.')
+            gffdb.addField('phase',evalue='0')
+            gffdb.addField('attributes',evalue='')
+            gffdb.dropEntriesDirect('type',['gene'])
+            for gentry in gffdb.entries():
+                if gentry['type'] == 'CDS' and not gentry['protein_id']: gentry['type'] = 'pseudo'
+                if not gentry['protein_id']: gentry['protein_id'] = gentry['locus_tag']
+                try: desc = rje.matchExp('/product="([^/]+)"',gentry['details'])[0]
+                except: desc = gentry['locus_tag']
+                gentry['attributes'] = 'ID=%s;locus_tag=%s;product=%s;note=%s' % (gentry['protein_id'],gentry['locus_tag'],desc,desc)
+            gffdb.newKey(['seqid','start','end','type','source','attributes'])
+            gffdb.keepFields(gfields)
+            ### ~ [2] Output GFF File ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            gcomments = ['##gff-version 3']#,'#Generated by %s' % self.log.runDetails()]
+            #gcomments.append('#Full Command List: %s' % rje.argString(rje.tidyArgs(self.log.cmd_list)))
+            gffdb.saveToFile('ncbi/dcmfncbi.2019-03-28.gff3',delimit='\t',backup=True,append=False,savefields=gfields,log=True,headers=False,comments=gcomments)
+
+
+        except: self.errorLog('Error in rje_misc.dcmfSIJGI()')
+#########################################################################################################################
     def dcmfSIJGI(self):   # DCMF SI Table generation
         '''SPF file conversion.'''
         try:### ~ [0] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -1331,12 +1759,36 @@ class OddJob(rje.RJE_Object):
             jgidb = db.addTable('jgi/DCMF160804.jgi.gff',mainkeys=['Type','Start','End'],datakeys=gwant,delimit='\t',headers=gffields,ignore=['#'],lists=False,name='jgi',expect=True,replace=False,uselower=False)
             jgidb.dataFormat({'Start':'int','End':'int'})
             #self.debug(jgidb.dataKeys())
+            # NCBI Features Table conversion
+            ncbi = db.addTable('ncbi/dcmfncbi.2019-03-28.Feature.tdt',mainkeys=['locus_tag','feature'],name='ncbi')
+            n2jdb = db.addTable('ncbi/ncbi2jgi.mapping.tdt',mainkeys=['Query','Hit'],name='ncbi2jgi')
+            j2ndb = db.addTable('ncbi/jgi2ncbi.mapping.tdt',mainkeys=['Query','Hit'],name='jgi2ncbi')
+            #i# locus   feature position        start   end     locus_tag       protein_id      details
+            #i# Need to match start   end (and strand)
+            nmap = {}   # {(start,end,strand):ncbi}
+            if ncbi:
+                ncbi.dataFormat({'start':'int','end':'int'})
+                ncbi.addField('strand',evalue='+')
+                for nentry in ncbi.entries():
+                    if 'complement' in nentry['position']: nentry['strand'] = '-'
+                    if nentry['feature'] == 'CDS':
+                        nmap[(nentry['start'],nentry['end'],nentry['strand'])] = nentry['protein_id']
+                self.printLog('#NCBI','%s CDS feature mappings from %s CDS features' % (rje.iLen(nmap),rje.iLen(ncbi.index('feature')['CDS'])))
+
+                for table in [n2jdb,j2ndb]:
+                    table.dataFormat({'Query_Len':'int','Hit_Len':'int'})
+                    table.dropEntriesDirect('MapRank',['1'],inverse=True)
+                    for entry in table.entries():
+                        entry['Query'] = string.split(entry['Query'],'__')[1]
+                        entry['Hit'] = string.split(entry['Hit'],'__')[1]
+                    table.remakeKeys()
 
             # protein genus   family  order   class   phylum  boot    spcode  inpara  paralogues      desc
             # DCMF160804.P00003       None    None    None    None    None    1.0     None    DCMF160804.P01428|DCMF160804.P01567|DCMF160804.P00002           hypothetical protein
             taxdb = db.addTable('taxonomy/DCMF160804.jgi.taxamap.taxamap.tdt',mainkeys=['protein'],name='taxamap')
             ### ~ [1] Update Data ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             jgidb.addFields(['protein','prokka','len','pos'])
+            if ncbi: jgidb.addField('ncbi',after='protein',evalue='-')
             for entry in jgidb.entries():
                 try: entry['protein'] = string.split(rje.matchExp('locus_tag=(\S+)',entry['Details'])[0],';')[0]
                 except:
@@ -1346,6 +1798,28 @@ class OddJob(rje.RJE_Object):
                 #self.bugPrint(entry['protein'])
                 entry['len'] = int((int(entry['End']) - int(entry['Start']) + 1) / 3.0)
                 entry['pos'] = '%s..%s (%s)' % (entry['Start'],entry['End'],entry['Strand'])
+                if ncbi and (entry['Start'],entry['End'],entry['Strand']) in nmap:
+                    nacc = nmap[(entry['Start'],entry['End'],entry['Strand'])]
+                    entry['ncbi'] = '<a href="https://www.ncbi.nlm.nih.gov/protein/%s">%s</a>' % (nacc,nacc)
+                elif ncbi:
+                    jacc = entry['protein']
+                    if jacc in n2jdb.index('Hit'):
+                        if len(n2jdb.index('Hit')[jacc]) == 1:
+                            mentry = n2jdb.data(n2jdb.index('Hit')[jacc][0])
+                            entry['ncbi'] = mentry['Query']
+                            entry['ncbi'] = '<a href="https://www.ncbi.nlm.nih.gov/protein/%s">%s</a>*' % (entry['ncbi'],entry['ncbi'])
+                            if mentry['Query_Len'] > mentry['Hit_Len']: entry['ncbi'] += '(+)'
+                            if mentry['Query_Len'] < mentry['Hit_Len']: entry['ncbi'] += '(-)'
+                        elif jacc in j2ndb.index('Query'):
+                            mentry = j2ndb.data(j2ndb.index('Query')[jacc][0])
+                            entry['ncbi'] = mentry['Hit']
+                            entry['ncbi'] = '<a href="https://www.ncbi.nlm.nih.gov/protein/%s">%s</a>*' % (entry['ncbi'],entry['ncbi'])
+                            if mentry['Query_Len'] > mentry['Hit_Len']: entry['ncbi'] += '(-)'
+                            if mentry['Query_Len'] < mentry['Hit_Len']: entry['ncbi'] += '(+)'
+                        elif len(n2jdb.index('Hit')[jacc]) > 1:
+                            entry['ncbi'] = string.join(n2jdb.indexDataList('Hit',jacc,'Query'),',')
+                            entry['ncbi'] = '<a href="https://www.ncbi.nlm.nih.gov/protein/%s">%s</a>*' % (entry['ncbi'],entry['ncbi'])
+
             gffdb.addFields(['prokka'])
             for entry in gffdb.entries():
                 try: entry['prokka'] = string.split(rje.matchExp('locus_tag=(\S+)',entry['Details'])[0],';')[0]
@@ -1368,17 +1842,20 @@ class OddJob(rje.RJE_Object):
             taxdb.addFields(['prokka','jgi','pos','len'])
             taxdb.renameField('desc','description')
             taxdb.list['Fields'] = string.split('protein prokka jgi description len pos inpara	paralogues	genus	family	order	class	phylum	boot	spcode')
+            if ncbi: taxdb.addField('ncbi',after='protein')
             tfields = taxdb.list['Fields'][0:]
             taxdb.addFields(['start'])
             #taxdb.renameField('protein','jgi')
-            urlbase = "http://www.slimsuite.unsw.edu.au/research/dcmf/dcmf.php?protein="
+            urlbase = "http://www.slimsuite.unsw.edu.au/research/dcmf/dcmf-ncbi.php?protein="
             taxdb.fillBlanks()
             for entry in taxdb.entries():
                 self.bugPrint(entry['protein'])
                 prot = entry['protein']
                 pacc = prot #string.split(prot,'.')[1]
                 #if mapdb.data(prot): entry['jgi'] = mapdb.data(prot)['jgi']
-                if gffdb.data(prot): entry['len'] = gffdb.data(prot)['len']; entry['pos'] = gffdb.data(prot)['pos']; entry['prokka'] = gffdb.data(prot)['prokka']
+                if gffdb.data(prot):
+                    entry['len'] = gffdb.data(prot)['len']; entry['pos'] = gffdb.data(prot)['pos']; entry['prokka'] = gffdb.data(prot)['prokka']
+                    if ncbi:  entry['ncbi'] = gffdb.data(prot)['ncbi']
                 entry['protein'] = '<a href="%s%s">%s</a>' % (urlbase,pacc,prot)
                 pdesc = string.split(entry['description'])[:-3]
                 entry['jgi'] = pdesc[0][3:]
