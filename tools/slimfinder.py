@@ -190,6 +190,12 @@ SLiMChance: ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     probscore=X     : Score to be used for probability cut-off and ranking (Prob/Sig/S/R) [Sig]
 
 Advanced: ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+    ### Advanced Masking Options I (Conservation Masking): ###
+    usegopher=T/F   : Use GOPHER to generate orthologue alignments missing from alndir - see gopher.py options [False]
+    fullforce=T/F   : Whether to force regeneration of alignments using GOPHER [False]
+    orthdb=FILE     : File to use as source of orthologues for GOPHER []
+    * See also rje_slimcalc options for more conservation calculation options *
+
     ### Advanced Output Options I (Output data): ###
     clouds=X        : Identifies motif "clouds" which overlap at 2+ positions in X+ sequences (0=minocc / -1=off) [2]
     runid=X         : Run ID for resfile (allows multiple runs on same data) [DATE]

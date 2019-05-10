@@ -216,6 +216,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
     # [Y] : Add and check rje_blast_V2 and BLAST+
     # [Y?]: Tidy up forking use of RunPath so that log files do not end up in RunPath within RunPath!
     # [ ] : Add generation of a summary table of pairwise orthologues following (OrthFas) run.
+    # [ ] : Add check/warning about problem with BLAST+ 2.5.x -> use latest version of BLAST+.
     '''
 #########################################################################################################################
 def makeInfo():     ### Makes Info object
