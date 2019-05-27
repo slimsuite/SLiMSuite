@@ -19,8 +19,8 @@
 """
 Module:       rje
 Description:  Contains SLiMSuite and Sequite General Objects
-Version:      4.21.0
-Last Edit:    17/04/19
+Version:      4.21.1
+Last Edit:    22/05/19
 Copyright (C) 2005  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -167,6 +167,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 4.19.1 - Added code for catching non-ASCII log filenames.
     # 4.20.0 - Added quiet mode to log object and output of errors to stderr. Fixed rankList(unique=True)
     # 4.21.0 - Added hashlib MD% functions.
+    # 4.21.1 - Fixed bug where silent=T wasn't running silent.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -238,6 +239,11 @@ class RJE_Object_Shell(object):     ### Metaclass for inheritance by other class
         self._setAttributes()               # Specific method in other classes that set own attributes
         ### ~ [3] Commandline Options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         self._cmdList()                     # Read attribute settings from user-defined parameters
+        for fixme in ['Silent','Quiet']:
+            if fixme not in self.opt: self.opt[fixme] = False
+        if self.opt['Silent'] or self.opt['Quiet']:
+            self._generalCmd('v=-1')
+            self._generalCmd('i=-1')
 #########################################################################################################################
     def _setGeneralAttributes(self):    ### Sets general attributes for use in all classes
         '''Sets general attributes for use in all classes.'''
@@ -247,7 +253,7 @@ class RJE_Object_Shell(object):     ### Metaclass for inheritance by other class
         self.info['Path'] = makePath(os.path.abspath(string.join(string.split(sys.argv[0],os.sep)[:-1]+[''],os.sep)))
         self.stat = {'Verbose':1,'Interactive':0}
         self.opt = {'DeBug':False,'Win32':False,'PWin':False,'MemSaver':False,'Append':False,'MySQL':False,'Force':False,
-                    'Pickle':True,'SoapLab':False,'Test':False,'Backups':True,'Silent':False,'Webserver':False,
+                    'Pickle':True,'SoapLab':False,'Test':False,'Backups':True,'Silent':False,'Webserver':False,'Quiet':False,
                     'ProgLog':True,'Warn':True,'Dev':False,'OSX':False}
         self.list = {}
         self.dict = {'Output':{}}
@@ -333,7 +339,7 @@ class RJE_Object_Shell(object):     ### Metaclass for inheritance by other class
             self._cmdReadList(cmd,'abspath',['Path','RunPath'])
             self._cmdRead(cmd,type='opt',att='Win32',arg='pwin')
             self._cmdReadList(cmd,'opt',['DeBug','Win32','PWin','MemSaver','Append','Force','MySQL','Pickle','Test',
-                                         'SoapLab','Backups','Webserver','ProgLog','Dev','Warn','OSX'])
+                                         'SoapLab','Backups','Webserver','ProgLog','Dev','Warn','OSX','Silent','Quiet'])
         except:
             self.deBug(self.cmd_list)
             if self.log: self.log.errorLog('Problem with %s.cmd:%s' % (self.me(),cmd))
@@ -1338,7 +1344,8 @@ class RJE_Object(RJE_Object_Shell):     ### Metaclass for inheritance by other c
                         otext = '%s is too large to return (> %s)' % (outdata,humanByteSize(nbytes))
                         if outfmt == self.getStrLC('Rest'): return 'ERROR: %s.' % otext
                         return '%s in full output. Try retrieve&rest=%s.' % (otext,outfmt)
-                    return open(outdata,'r').read()
+                    #x#return open(outdata,'r').read()
+                    return fixASCII(open(outdata,'r').read())
                 elif outdata: return '%s\n' % outdata
                 else: return 'No output generated.\n'
             elif self.db(outfmt):
@@ -1468,7 +1475,7 @@ class RJE_ObjectLite(RJE_Object_Shell):     ### Metclass for inheritance by othe
         '''Sets general attributes for use in all classes.'''
         self.info = {'Name':'None'}
         self.stat = {}  # Remember to add 'Verbose' and 'Interactive' if needed to be different from parent
-        self.opt = {}
+        self.opt = {'Silent':False}
         self.obj = {}
         self.list = {}
         self.dict = {}
@@ -1884,8 +1891,9 @@ class Log(RJE_Object_Shell):
                 self._cmdRead(cmd,type='info',att='LogFile',arg='basefile')
                 self._cmdReadList(cmd,'opt',['NewLog','Silent','Quiet','WarnAsErr'])
             except: self.errorLog('Problem with cmd: %s' % cmd)
-        if self.opt['Silent']: self.stat['Verbose'] = -1
-        if self.opt['Quiet']: self.stat['Verbose'] = -1
+        if self.opt['Silent'] or self.opt['Quiet']:
+            self._generalCmd('v=-1')
+            self._generalCmd('i=-1')
         self.opt['Logging'] = not self.opt['Silent']
         self.opt['Talking'] = not self.opt['Quiet']
 #########################################################################################################################
@@ -2391,6 +2399,14 @@ def memoryUse(who=None): ### Returns memory usage in kb
 
 #########################################################################################################################
 ### String Functions                                                                                                    #
+#########################################################################################################################
+def strList(inlist):    ### Converts list to string list
+    outlist = []
+    for el in inlist: outlist.append(str(el))
+    return outlist
+#########################################################################################################################
+def fixASCII(text,error='replace'): ### Converts non-ASCII string to ASCII
+    return text.decode('ascii','replace').encode('ascii',error)
 #########################################################################################################################
 def stripWierd(text):  ### Removes odd characters from a string and returns
     maxord = max(ord(char) for char in text)

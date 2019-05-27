@@ -19,8 +19,8 @@
 """
 Program:      HAQESAC
 Description:  Homologue Alignment Quality, Establishment of Subfamilies and Ancestor Construction
-Version:      1.12.0
-Last Edit:    20/03/18
+Version:      1.13.0
+Last Edit:    24/05/19
 Citation:     Edwards et al. (2007), Nature Chem. Biol. 3(2):108-112. [PMID: 17220901]
 Copyright (C) 2007  Richard J. Edwards - See source code for GNU License Notice
 
@@ -116,7 +116,7 @@ Commandline Options:
     maxgap=X    : Maximum proportion of sequence that may be gaps compared to nearest neighbour (<=0 = No maximum) [0.5]
 
     # General HAQ Options #
-    qregion=X,Y     : Concentrate on the region of the query from (and including) residue X to residue Y [0,-1]
+    qregion=X,Y     : Concentrate on the region of the query from (and including) residue X to residue Y [1,-1]
     haq=T/F         : Homologue Alignment Quality [True]
     noquery=T/F     : No Query for SAQ, Random Query for PAQ (else query=X or first sequence) [False]
     keep=T/F        : Keep all sequences (saqkl=0, paqkl=0) [False]
@@ -228,6 +228,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 1.10.3 - Added catching of bad query when i=-1.
     # 1.11.0 - Added resdir=PATH [./HAQESAC/] for d>0 outputs.
     # 1.12.0 - 9spec=T/F   : Whether to treat 9XXXX species codes as actual species (generally higher taxa) [False]
+    # 1.13.0 - Modified qregion=X,Y to be 1-L numbering.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -247,7 +248,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, cyear) = ('HAQESAC', '1.12.0', 'March 2018', '2005')
+    (program, version, last_edit, cyear) = ('HAQESAC', '1.13.0', 'May 2019', '2005')
     description = 'Homologue Alignment Quality, Establishment of Subfamilies and Ancestor Construction'
     author = 'Dr Richard J. Edwards.'
     comments = ['Cite: Edwards RJ et al. (2007) Nature Chem. Biol. 3(2):108-112.']
@@ -359,7 +360,7 @@ class HAQESAC(rje.RJE_Object):
         self.dictlist = []
         ### Defaults ###
         self._setDefaults(info='None',opt=True,stat=0.0,obj=None)   #,setlist=True,setdict=True)
-        self.setInfo({'QryRegion':'0,-1','ResDir':rje.makePath('./HAQESAC/')})
+        self.setInfo({'QryRegion':'1,-1','ResDir':rje.makePath('./HAQESAC/')})
         self.setStat({'QCover':60.0,'QryID':40.0,'CWCut':0,'DataLevel':1})
         self.setOpt({'KeepAll':False,'UseAln':False,'MultiHAQ':False})
         ### Other Attributes ###
@@ -832,7 +833,8 @@ class HAQESAC(rje.RJE_Object):
                 elif int(qfocus[1]) > query.aaLen():
                     self.log.errorLog('End of Query focus (%s) exceeds length of Query %s (%d aa)! Will use end.' % (qfocus[1],query.shortName(),query.aaLen()),printerror=False,quitchoice=True)
                     return _focus
-                while q < int(qfocus[0]) and r < query.seqLen():
+                while q < int(qfocus[0]) - 1 and r < query.seqLen():
+                    #!# NOTE: This is now 1-L numbering.
                     if query.info['Sequence'][r] != '-':
                         q += 1
                         _focus[0] = r

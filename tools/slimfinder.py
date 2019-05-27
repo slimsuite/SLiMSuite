@@ -19,14 +19,15 @@
 """
 Program:      SLiMFinder
 Description:  Short Linear Motif Finder
-Version:      5.3.5
-Last Edit:    09/05/19
+Version:      5.4.0
+Last Edit:    24/05/19
 Citation:     Edwards RJ, Davey NE & Shields DC (2007), PLoS ONE 2(10): e967. [PMID: 17912346]
 ConsMask Citation: Davey NE, Shields DC & Edwards RJ (2009), Bioinformatics 25(4): 443-50. [PMID: 19136552]
 SigV/SigPrime Citation: Davey NE, Edwards RJ & Shields DC (2010), BMC Bioinformatics 11: 14. [PMID: 20055997]
 SLiMScape/REST Citation: Olorin E, O'Brien KT, Palopoli N, Perez-Bercoff A & Shields DC, Edwards RJ (2015), F1000Research 4:477.
 SLiMMaker Citation: Palopoli N, Lythgow KT & Edwards RJ (2015), Bioinformatics 31(14): 2284-2293. [PMID: 25792551]
-Webserver:    http://bioware.ucd.ie/
+Webserver:    http://www.slimsuite.unsw.edu.au/servers/slimfinder.php
+Manual:       http://bit.ly/SFManual
 Copyright (C) 2007  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -145,7 +146,7 @@ SLiMBuild: ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     metmask=T/F     : Masks the N-terminal M (can be useful if termini=T) [True]
     posmask=LIST    : Masks list of position-specific aas, where list = pos1:aas,pos2:aas  [2:A]
     aamask=LIST     : Masks list of AAs from all sequences (reduces alphabet) []
-    qregion=X,Y     : Mask all but the region of the query from (and including) residue X to residue Y [0,-1]
+    qregion=X,Y     : Mask all but the region of the query from (and including) residue X to residue Y [1,-1]
 
     ### SLiMBuild Options III (Basic Motif Construction): ###
     termini=T/F     : Whether to add termini characters (^ & $) to search sequences [True]
@@ -302,6 +303,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 5.3.3 - Updated resfile to be set by basefile if no resfile=X setting given
     # 5.3.4 - Fixed terminal (^/$) musthave bug.
     # 5.3.5 - Fixed slimcheck and advanced stats models bug.
+    # 5.4.0 - Modified qregion=X,Y to be 1-L numbering.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -343,7 +345,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo():     ### Makes Info object
     '''Makes rje.Info object for program.'''
-    (program, version, last_edit, copyyear) = ('SLiMFinder', '5.3.5', 'May 2019', '2007')
+    (program, version, last_edit, copyyear) = ('SLiMFinder', '5.4.0', 'May 2019', '2007')
     description = 'Short Linear Motif Finder'
     author = 'Richard J. Edwards, Norman E. Davey & Denis C. Shields'
     comments = ['Cite: Edwards, Davey & Shields (2007), PLoS ONE 2(10): e967. [PMID: 17912346]',
@@ -3196,7 +3198,7 @@ class SLiMFinder(rje_slimcore.SLiMCore):
         if self.extras(2): output += ['motifs','compare','xgmml']
         if self.extras(3): output += ['dismatrix','rank','dat.rank']
         if self.extras(3) and self.getBool('Teiresias'): output += ['teiresias','teiresias.fasta']
-        for outfmt in ['map','failed']:
+        for outfmt in ['map','failed','disorder']:
             if outfmt in self.dict['Output']: output.append(outfmt)
         return output
 #########################################################################################################################

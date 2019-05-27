@@ -7,8 +7,8 @@
 """
 Module:       rje_sequence
 Description:  DNA/Protein sequence object
-Version:      2.6.0
-Last Edit:    15/11/17
+Version:      2.7.0
+Last Edit:    24/05/19
 Copyright (C) 2006  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -63,6 +63,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 2.5.2 - Tried to speed up dna2prot code.
     # 2.5.3 - Fixed genetic code warning error.
     # 2.6.0 - Added mutation dictionary to Ks calculation.
+    # 2.7.0 - Added shift=X to maskRegion() for 1-L input. Fixed cterminal maskRegion.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -815,13 +816,14 @@ class Sequence(rje.RJE_ObjectLite):
         except:
             self.log.errorLog('Problem masking case "%s" for %s' % (case,self.shortName()))
 #########################################################################################################################
-    def maskRegion(self,maskregion=[],inverse=False,mask='X',log=True): ### Masks region(s) of protein
+    def maskRegion(self,maskregion=[],inverse=False,mask='X',log=True,shift=0): ### Masks region(s) of protein
         '''
-        Masks region of protein.
+        Masks region of protein. Note that region positions are O<L numbering unless modified by shift=X.
         >> maskregion:list [] = Pairs of positions to (inclusively) mask
         >> inverse:bool [False] = Masks out predicted ordered regions (i.e. keeps disorder only)
         >> mask:str ['X'] = character to use for masking
         >> log:bool [True] = whether to print masking to log
+        >> shift:int [0] = Shift start and end positions by X (e.g. shift=-1 for 1-L numbering in maskregion)
         '''
         try:### ~ [1] ~ Setup sequences ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if not maskregion: return 0
@@ -834,11 +836,11 @@ class Sequence(rje.RJE_ObjectLite):
             ### ~ [2] ~ Mask relevant regions ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             mx = 0
             while maskregion:
-                start = maskregion.pop(0)
-                try: end = maskregion.pop(0)
+                start = maskregion.pop(0) + shift
+                try: end = maskregion.pop(0) + shift
                 except: end = -1
-                if start < 0: start = self.aaLen() - start
-                if end < 0: end = self.aaLen() - end
+                if start < 0: start = self.aaLen() + start
+                if end < 0: end = self.aaLen() + end
                 end += 1
                 oldseq = oldseq[:start] + newseq[start:end] + oldseq[end:]
                 mx += 1

@@ -19,8 +19,8 @@
 """
 Program:      RJE_SEQ
 Description:  DNA/Protein sequence list module
-Version:      3.25.1
-Last Edit:    30/04/19
+Version:      3.25.2
+Last Edit:    15/05/19
 Copyright (C) 2005  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -201,6 +201,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 3.24.0 - Added REST seqout output.
     # 3.25.0 - 9spec=T/F   : Whether to treat 9XXXX species codes as actual species (generally higher taxa) [False]
     # 3.25.1 - Fixed -long_seqids retrieval bug.
+    # 3.25.2 - Fixed 9spec filtering bug.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -249,7 +250,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo():     ### Makes Info object
     '''Makes rje.Info object for program.'''
-    (program, version, last_edit, cyear) = ('RJE_SEQ', '3.25.1', 'April 2019', '2005')
+    (program, version, last_edit, cyear) = ('RJE_SEQ', '3.25.2', 'May 2019', '2005')
     description = 'RJE Sequence Dataset Manipulation Module'
     author = 'Dr Richard J. Edwards.'
     comments = ['Please report bugs to r.edwards@soton.ac.uk']
@@ -1216,6 +1217,7 @@ class SeqList(rje.RJE_Object):
                     return
                 elif newseq.getStr('SpecCode').startswith('9') and not self.getBool('9SPEC'):
                     self.printLog('\r#REM','Sequence %s excluded as 9XXXX species code and unkspec=F 9spec=F.' % newseq.shortName())
+                    return
             ### ~ [3] ~ Replace characters in sequence ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             ## ~ [3a] ~ Termination * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             if self.opt['ReplaceChar'] and newseq.info['Sequence'][-1:] == '*':

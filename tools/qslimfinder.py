@@ -19,10 +19,12 @@
 """
 Program:      QSLiMFinder
 Description:  Query Short Linear Motif Finder
-Version:      2.2.0
-Last Edit:    20/01/17
+Version:      2.3.0
+Last Edit:    24/05/19
 Citation:     Palopoli N, Lythgow KT & Edwards RJ. Bioinformatics 2015; doi: 10.1093/bioinformatics/btv155 [PMID: 25792551]
 SLiMFinder:   Edwards, Davey & Shields (2007), PLoS ONE 2(10): e967. [PMID: 17912346]
+Webserver:    http://www.slimsuite.unsw.edu.au/servers/qslimfinder.php
+Manual:       http://bit.ly/SFManual
 Copyright (C) 2008  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -38,7 +40,7 @@ Function:
     Note that minocc and ambocc values *include* the query sequence, e.g. minocc=2 specifies the query and ONE other UPC.    
     
 Commandline: ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-    ### Basic Input/Output Options ### 
+    ### Basic Input/Output Options: ###
     seqin=FILE      : Sequence file to search [None]
     batch=LIST      : List of files to search, wildcards allowed. (Over-ruled by seqin=FILE.) [*.dat,*.fas]
     query=LIST      : Return only SLiMs that occur in 1+ Query sequences (Name/AccNum/Seq Number) [1]
@@ -59,7 +61,7 @@ Commandline: ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     ptmlist=LIST    : List of PTM letters to add to alphabet for analysis and restrict PTM data []
     ptmdata=DSVFILE : File containing PTM data, including AccNum, ModType, ModPos, ModAA, ModCode
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-    ### SLiMBuild Options I: Evolutionary Filtering  ###
+    ### SLiMBuild Options I - Evolutionary Filtering:  ###
     efilter=T/F     : Whether to use evolutionary filter [True]
     blastf=T/F      : Use BLAST Complexity filter when determining relationships [True]
     blaste=X        : BLAST e-value threshold for determining relationships [1e=4]
@@ -67,7 +69,7 @@ Commandline: ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     gablamdis=FILE  : Alternative GABLAM results file [None] (!!!Experimental feature!!!)
     homcut=X        : Max number of homologues to allow (to reduce large multi-domain families) [0]
 
-    ### SLiMBuild Options II: Input Masking ###
+    ### SLiMBuild Options II - Input Masking: ###
     masking=T/F     : Master control switch to turn off all masking if False [True]
     dismask=T/F     : Whether to mask ordered regions (see rje_disorder for options) [False]
     consmask=T/F    : Whether to use relative conservation masking [False]
@@ -79,9 +81,9 @@ Commandline: ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     metmask=T/F     : Masks the N-terminal M (can be useful if termini=T) [True]
     posmask=LIST    : Masks list of position-specific aas, where list = pos1:aas,pos2:aas  [2:A]
     aamask=LIST     : Masks list of AAs from all sequences (reduces alphabet) []
-    qregion=X,Y     : Mask all but the region of the query from (and including) residue X to residue Y [0,-1]
+    qregion=X,Y     : Mask all but the region of the query from (and including) residue X to residue Y (0<L numbering) [1,-1]
     
-    ### SLiMBuild Options III: Basic Motif Construction ###
+    ### SLiMBuild Options III - Basic Motif Construction: ###
     termini=T/F     : Whether to add termini characters (^ & $) to search sequences [True]
     minwild=X       : Minimum number of consecutive wildcard positions to allow [0]
     maxwild=X       : Maximum number of consecutive wildcard positions to allow [2]
@@ -90,7 +92,7 @@ Commandline: ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     absmin=X        : Used if minocc<1 to define absolute min. UP occ [3]
     alphahelix=T/F  : Special i, i+3/4, i+7 motif discovery [False]
 
-    ### SLiMBuild Options IV: Ambiguity ###
+    ### SLiMBuild Options IV - Ambiguity: ###
     ambiguity=T/F   : (preamb=T/F) Whether to search for ambiguous motifs during motif discovery [True]
     ambocc=X        : Min. UP occurrence for subvariants of ambiguous motifs (minocc if 0 or > minocc) [0.05]
     absminamb=X     : Used if ambocc<1 to define absolute min. UP occ [2]
@@ -98,14 +100,14 @@ Commandline: ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     wildvar=T/F     : Whether to allow variable length wildcards [True]
     combamb=T/F     : Whether to search for combined amino acid degeneracy and variable wildcards [False]
 
-    ### SLiMBuild Options V: Advanced Motif Filtering ###
+    ### SLiMBuild Options V - Advanced Motif Filtering: ###
     musthave=LIST   : Returned motifs must contain one or more of the AAs in LIST (reduces search space) []
     focus=FILE      : FILE containing focal groups for SLiM return (see Manual for details) [None]
     focusocc=X      : Motif must appear in X+ focus groups (0 = all) [0]
     * See also rje_slimcalc options for occurrence-based calculations and filtering *
     
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-    ### SLiMChance Options ###
+    ### SLiMChance Options: ###
     cloudfix=T/F    : Restrict output to clouds with 1+ fixed motif (recommended) [False]
     slimchance=T/F  : Execute main QSLiMFinder probability method and outputs [True]
     sigprime=T/F    : Calculate more precise (but more computationally intensive) statistical model [False]
@@ -120,13 +122,13 @@ Commandline: ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     seqocc=T/F      : Whether to upweight for multiple occurrences in same sequence (heuristic) [False]
     probscore=X     : Score to be used for probability cut-off and ranking (Prob/Sig) [Sig]
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-    ### Advanced Output Options I: Output data ###
+    ### Advanced Output Options I - Output data: ###
     clouds=X        : Identifies motif "clouds" which overlap at 2+ positions in X+ sequences (0=minocc / -1=off) [2]
     runid=X         : Run ID for resfile (allows multiple runs on same data) [DATE:TIME]
     logmask=T/F     : Whether to log the masking of individual sequences [True]
     slimcheck=FILE  : Motif file/list to add to resfile output [] 
 
-    ### Advanced Output Options II: Output formats ###
+    ### Advanced Output Options II - Output formats: ###
     teiresias=T/F   : Replace TEIRESIAS, making *.out and *.mask.fasta files [False]
     slimdisc=T/F    : Emulate SLiMDisc output format (*.rank & *.dat.rank + TEIRESIAS *.out & *.fasta) [False]
     extras=X        : Whether to generate additional output files (alignments etc.) [1]
@@ -142,7 +144,7 @@ Commandline: ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
                         - 2 = Delete all bar *.upc (pickle added to tar)
                         - 3 = Delete all dataset-specific files including *.upc and *.pickle (not *.tar.gz)
 
-    ### Advanced Output Options III: Additional Motif Filtering ### 
+    ### Advanced Output Options III - Additional Motif Filtering: ###
     topranks=X      : Will only output top X motifs meeting probcut [1000]
     minic=X         : Minimum information content for returned motifs [2.1]
     allsig=T/F      : Whether to also output all SLiMChance combinations (Sig/SigV/SigPrime/SigPrimeV) [False]
@@ -181,6 +183,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 2.1.0 - Added PTMData and PTMList options.
     # 2.1.1 - Switched feature masking OFF by default to give consistent Uniprot versus FASTA behaviour.
     # 2.2.0 - Added map and failed outputs for uniprotid=LIST input.
+    # 2.3.0 - Modified qregion=X,Y to be 1-L numbering.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -189,11 +192,12 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
     # [Y] : Improve the way the query motifs are being stored for Search Space reduction and searching.
     # [ ] : Explore implementation of SigPrime.
     # [ ] : Sort out and document settings etc.
+    # [Y] : Update qregion to use 1-L numbering.
     '''
 #########################################################################################################################
 def makeInfo():     ### Makes Info object
     '''Makes rje.Info object for program.'''
-    (program, version, last_edit, copyyear) = ('QSLiMFinder', '2.2.0', 'January 2017', '2008')
+    (program, version, last_edit, copyyear) = ('QSLiMFinder', '2.3.0', 'May 2019', '2008')
     description = 'Query Short Linear Motif Finder'
     author = 'Richard J. Edwards, Norman E. Davey & Denis C. Shields'
     comments = ['Cite: Palopoli N, Lythgow KT & Edwards RJ. Bioinformatics 2015; doi: 10.1093/bioinformatics/btv155 [PMID: 25792551]',
@@ -209,9 +213,9 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         if help > 0:
             print '\n\nHelp for %s %s: %s\n' % (info.program, info.version, time.asctime(time.localtime(info.start_time)))
             out.verbose(-1,4,text=__doc__)
-            if rje.yesNo('Show SLiMCalc commandline options?'): out.verbose(-1,4,text=rje_slimcalc.__doc__)
-            if rje.yesNo('Show RJE_SEQ commandline options?'): out.verbose(-1,4,text=rje_seq.__doc__)
-            if rje.yesNo('Show general commandline options?'): out.verbose(-1,4,text=rje.__doc__)
+            if rje.yesNo('Show SLiMCalc commandline options?',default='N'): out.verbose(-1,4,text=rje_slimcalc.__doc__)
+            if rje.yesNo('Show RJE_SEQ commandline options?',default='N'): out.verbose(-1,4,text=rje_seq.__doc__)
+            if rje.yesNo('Show general commandline options?',default='N'): out.verbose(-1,4,text=rje.__doc__)
             if rje.yesNo('Quit?'): sys.exit()
             cmd_list += rje.inputCmds(out,cmd_list)
         elif out.stat['Interactive'] > 1: cmd_list += rje.inputCmds(out,cmd_list)

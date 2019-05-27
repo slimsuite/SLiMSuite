@@ -22,6 +22,7 @@ Description:  Global Analysis of BLAST Local AlignMents
 Version:      2.30.1
 Last Edit:    01/04/19
 Citation:     Davey, Shields & Edwards (2006), Nucleic Acids Res. 34(12):3546-54. [PMID: 16855291]
+Manual:       http://bit.ly/GABLAMManual
 Copyright (C) 2006  Richard J. Edwards - See source code for GNU License Notice
 
 Function:

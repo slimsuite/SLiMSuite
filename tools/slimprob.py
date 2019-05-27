@@ -21,7 +21,9 @@ Program:      SLiMProb
 Description:  Short Linear Motif Probability tool
 Version:      2.5.1
 Last Edit:    06/09/17
-Citation:     Davey, Haslam, Shields & Edwards (2010), Lecture Notes in Bioinformatics 6282: 50-61. 
+Citation:     Davey, Haslam, Shields & Edwards (2010), Lecture Notes in Bioinformatics 6282: 50-61.
+Webserver:    http://www.slimsuite.unsw.edu.au/servers/slimprob.php
+Manual:       http://bit.ly/SProbManual
 Copyright (C) 2007  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -44,7 +46,7 @@ Function:
     data and *.csv for the summary data for each motif/dataset pair. (This is a change since SLiMSearch.)
 
 Commandline: ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-    ### Basic Input/Output Options ###
+    ### Basic Input/Output Options: ###
     motifs=FILE     : File of input motifs/peptides (also motif=X) [None]
                       Single line per motif format = 'Name Sequence #Comments' (Comments are optional and ignored)
                       Alternative formats include fasta, SLiMDisc output and raw motif lists.
@@ -64,7 +66,7 @@ Commandline: ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     megaslim=FILE   : Make/use precomputed results for a proteome (FILE) in fasta format [None]
     megablam=T/F    : Whether to create and use all-by-all GABLAM results for (gablamdis) UPC generation [False]
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-    ### SearchDB Options I: Input Protein Sequence Masking ###
+    ### SearchDB Options I - Input Protein Sequence Masking: ###
     masking=T/F     : Master control switch to turn off all masking if False [True]
     dismask=T/F     : Whether to mask ordered regions (see rje_disorder for options) [False]
     consmask=T/F    : Whether to use relative conservation masking [False]
@@ -77,7 +79,7 @@ Commandline: ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     posmask=LIST    : Masks list of position-specific aas, where list = pos1:aas,pos2:aas  []
     aamask=LIST     : Masks list of AAs from all sequences (reduces alphabet) []
 
-    ### SearchDB Options II: Evolutionary Filtering  ###
+    ### SearchDB Options II - Evolutionary Filtering: ###
     efilter=T/F     : Whether to use evolutionary filter [True]
     blastf=T/F      : Use BLAST Complexity filter when determining relationships [True]
     blaste=X        : BLAST e-value threshold for determining relationships [1e=4]
@@ -85,7 +87,7 @@ Commandline: ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     gablamdis=FILE  : Alternative GABLAM results file [None] (!!!Experimental feature!!!)
     occupc=T/F      : Whether to output the UPC ID number in the occurrence output file [False]
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-    ### SLiMChance Options ###
+    ### SLiMChance Options: ###
     maskfreq=T/F    : Whether to use masked AA Frequencies (True), or (False) mask after frequency calculations [True]
     aafreq=FILE     : Use FILE to replace individual sequence AAFreqs (FILE can be sequences or aafreq) [None]
     aadimerfreq=FILE: Use empirical dimer frequencies from FILE (fasta or *.aadimer.tdt) [None]
@@ -95,7 +97,7 @@ Commandline: ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     seqocc=X        : Restrict to sequences with X+ occurrences (adjust for high frequency SLiMs) [1]
     mergesplits=T/F : Whether to merge split SLiMs for recalculating statistics. (Assumes unique RunIDs) [True]
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-    ### Output Options ###
+    ### Output Options: ###
     extras=X        : Whether to generate additional output files (alignments etc.) [2]
                         - 0 = No output beyond main results file
                         - 1 = Saved masked input sequences [*.masked.fas]
@@ -1273,7 +1275,7 @@ class SLiMProb(rje_slimcore.SLiMCore):
         if self.extras(2): output += ['mapping','motifaln','maskaln']
         if self.extras(3): output += ['dismatrix']
         if self.extras(0): output += ['slimdb','seqin']
-        for outfmt in ['map','failed']:
+        for outfmt in ['map','failed','disorder']:
             if outfmt in self.dict['Output']: output.append(outfmt)
         return output
 #########################################################################################################################

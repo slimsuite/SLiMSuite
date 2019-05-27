@@ -22,6 +22,7 @@ Description:  Generation of Orthologous Proteins from Homology-based Estimation 
 Version:      3.5.2
 Last Edit:    30/04/19
 Citation:     Davey, Edwards & Shields (2007), Nucleic Acids Res. 35(Web Server issue):W455-9. [PMID: 17576682]
+Manual:       http://bit.ly/GOPHERManual
 Copyright (C) 2005 Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -100,7 +101,7 @@ Processing:
     process themselves. This could potentially cause conflict if forking is used.
 
 Commandline:
-    ### Basic Input/Output ###
+    ### Basic Input/Output: ###
     seqin=FILE      : Fasta file of 'query' sequences for orthology discovery (over-rides uniprotid=LIST) []
     uniprotid=LIST  : Extract IDs/AccNums in list from Uniprot into BASEFILE.fas and use as seqin=FILE. []
     acc=LIST        : Synonym for uniprotid=LIST []
@@ -108,13 +109,13 @@ Commandline:
     startfrom=X     : Accession Number / ID to start from. (Enables restart after crash.) [None]
     dna=T/F         : Whether to analyse DNA sequences (not optimised) [False]
 
-    ### GOPHER run control parameters ###
+    ### GOPHER run control parameters: ###
     orthblast   : Run to blasting versus orthdb (Stage 1).
     orthfas     : Run to output of orthologues (Stage 2). 
     orthalign   : Run to alignment of orthologues (Stage 3).
     orthtree    : Run to tree-generation (Stage 4). [default!]
 
-    ### GOPHER Orthologue identifcation Parameters ###
+    ### GOPHER Orthologue identifcation Parameters: ###
     postdup=T/F     : Whether to align only post-duplication sequences [False]
     reciprocal=T/F  : Use Reciprocal Best Hit method instead of standard GOPHER approach [False]
     fullrbh=T/F     : Whether RBH method should run BLAST searches for all potential RBH orthologues [False]
@@ -139,7 +140,7 @@ Commandline:
                         - gooddesc = list of terms that, at least one of which must be in description line
     badX=LIST       : As goodX but excludes rather than retains filtered sequences
 
-    ### Additional run control options ###
+    ### Additional run control options: ###
     repair=T/F      : Repair mode - replace previous files if date mismatches or files missing.
                       (Skip missing files if False) [True]
     force=T/F       : Whether to force execution at current level even if results are new enough [False]
@@ -150,7 +151,7 @@ Commandline:
     maxpara=X       : Maximum number of paralogues to consider (large gene families can cause problems) [50]
     oldblast=T/F    : Run with old BLAST rather than BLAST+ [False]
 
-    ### Additional Output Options ###
+    ### Additional Output Options: ###
     runpath=PATH    : Directory from which to run GOPHER. (NB. Will look for input here unless full paths given) [./]
     gopherdir=PATH  : Parent directory for output of files [./]
     organise=T/F    : Output files according to orthdb an species (code or TaxaID - need conversion) [True]

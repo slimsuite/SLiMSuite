@@ -19,8 +19,8 @@
 """
 Module:       RJE_PPI
 Description:  RJE Protein-Protein Interaction Module
-Version:      2.8.1
-Last Edit:    07/01/15
+Version:      2.9.0
+Last Edit:    14/05/19
 Copyright (C) 2010  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -38,7 +38,7 @@ Function:
     Edge table). 
 
 Commandline:
-    ### Input Options ###
+    ### Input Options: ###
     pairwise=FILE   : Input PPI pairwise file, containing Hub, Spoke and optional Evidence columns []
     nodelist=LIST   : Reduce input PPI to given Node list []
     nodemap=X       : Try to map Nodes first using Node table field X []
@@ -47,7 +47,8 @@ Commandline:
     nodefields=LIST : List of alternative A/B fields to replace Hub and Spoke fields [SYMBOL_,Gene_]
     ppisym=T/F      : Whether to enforce Hub/Spoke symmetry [True]
 
-    ### Output/Processing Options ###
+    ### Output/Processing Options: ###
+    ppiout=FILE     : Save pairwise PPI file following processing (if rest=None) (T=basefile.pairwise.tdt) [None]
     tabout=T/F      : Output PPI data as Node and Edge tables [False]
     fragment=T/F    : Perform PPI fragmentation [False]
     fragsize=X      : Combine smaller fragments upto fragsize [200]
@@ -56,14 +57,14 @@ Commandline:
     xgmml=T/F       : Output network in XGMML style [False]
     xdir=PATH       : Directory for XGMML output [./XGMML]
 
-    ### Layout Options ###
+    ### Layout Options: ###
     layout=X        : Layout to be used for XGMML output [spring]
     walltime=X      : Walltime (hours) for layouts [0.02]
     damping=X       : Force Directed Layout, damping parameter [0.9]
     colbydeg=T/F    : Whether to colour PNG output by node degree [False]
     nudgecyc=X      : Number of cycles between node nudges (try to bump out of unstable equilibria) [1000]
 
-    ### MCODE Options ###
+    ### MCODE Options: ###
     haircut=T/F     : Whether to perform "haircut" on MCODE complexes [False]
     multicut=T/F    : Whether to perform "haircut" on MCODE complexes for the purposes of looking at nodes 2+ times [True]
     fluff=X         : MCODE "fluff" threshold. <0 = No Fluff [0.5]
@@ -98,6 +99,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 2.7 - Added tabout=T/F Output PPI data as Node and Edge tables [False]
     # 2.8 - Tweaked Spring Layout. Stores original Hub and Spoke Field.
     # 2.8.1 - Fixed bug with Spring Layout interruption message.
+    # 2.9.0 - Added ppiout=FILE : Save pairwise PPI file following processing (if rest=None) [None]
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -116,11 +118,12 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
     # [Y] : Adapt xgmml output to deal with non-symmetrical PPI.
     # [X] : Add option to output (evidence) instead of (pp) for XGMML etc. (Already uses optional Type field.)
     # [ ] : Rename walltime=X to be layout-specific. (Issues when running on supercomputer!)
+    # [ ] : Upgrade to rje_obj object and add REST output.
     '''
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copyyear) = ('RJE_PPI', '2.8.1', 'January 2015', '2010')
+    (program, version, last_edit, copyyear) = ('RJE_PPI', '2.9.0', 'May 2019', '2010')
     description = 'RJE Protein-Protein Interaction Module'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_zen.Zen().wisdom()]
@@ -184,6 +187,7 @@ class PPI(rje.RJE_Object):
     - Layout = Layout to be used for XGMML output [spring]
     - NodeMap = Try to map Nodes first using Node table field X []
     - Pairwise = Input PPI pairwise file, containing Hub, Spoke and optional Evidence columns []
+    - PPIOut=FILE : Save pairwise PPI file following processing (if rest=None) [None]
     - XDir = Directory for XGMML output [./XGMML]
     
     Opt:boolean
@@ -238,7 +242,7 @@ class PPI(rje.RJE_Object):
     def _setAttributes(self):   ### Sets Attributes of Object
         '''Sets Attributes of Object.'''
         ### ~ Basics ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-        self.infolist = ['Layout','NodeMap','Pairwise','XDir','HubField','SpokeField']
+        self.infolist = ['Layout','NodeMap','Pairwise','XDir','HubField','SpokeField','PPIOut']
         self.optlist = ['Fragment','MCODE','XGMML','Haircut','Fluff','ColByDeg','MultiCut','TabOut','PPISym']
         self.statlist = ['ExpandPPI','FragSize','MinFrag','Fluff','VWP','MinK','MinDeg','Walltime','Damping','NudgeCyc']
         self.listlist = ['CombinePPI','NodeFields','NodeList']
@@ -264,7 +268,7 @@ class PPI(rje.RJE_Object):
             try:
                 self._generalCmd(cmd)   ### General Options ### 
                 ### Class Options ### 
-                self._cmdReadList(cmd,'file',['Pairwise'])
+                self._cmdReadList(cmd,'file',['Pairwise','PPIOut'])
                 self._cmdReadList(cmd,'path',['XGMML'])
                 self._cmdReadList(cmd,'info',['Name','NodeMap','Layout'])
                 self._cmdReadList(cmd,'int',['ExpandPPI','FragSize','MinFrag','MinK','MinDeg','NudgeCyc'])
@@ -274,6 +278,10 @@ class PPI(rje.RJE_Object):
                 self._cmdReadList(cmd,'glist',['CombinePPI'])
             except: self.errorLog('Problem with cmd:%s' % cmd)
         self.opt['Fluff'] = self.stat['Fluff'] >= 0.0
+        if self.info['PPIOut'].lower() in ['t','true']:
+            ptxt = 'ppiout=%s' % self.info['PPIOut'].upper()
+            self.info['PPIOut'] = '%s.pairwise.tdt' % self.baseFile()
+            self.printLog('#PPIOUT','%s: set ppiout=%s' % (ptxt,self.info['PPIOut']))
 #########################################################################################################################
     ### <2> ### Main Class Backbone                                                                                     #
 #########################################################################################################################
@@ -333,8 +341,10 @@ class PPI(rje.RJE_Object):
                         xfile = '%s.%s-N%d.xgmml' % (xbase,rje.preZero(rank,len(self.dict['Complex'])),N)
                         self.springXGMML(xfile,G=subGraph(self.ppi(),self.dict['Complex'][seed]),name=seed)
             ### ~ [2] Output of tables ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            if self.getStrLC('PPIOut'): self.db('Edge').saveToFile(filename=self.getStr('PPIOut'))
             if self.getBool('TabOut'):
-                for table in ['Node','Edge']: self.db(table).saveToFile()
+                self.db('Node').saveToFile()
+                self.db('Edge').saveToFile(savefields=self.list['EdgeFields'])
         except:
             self.errorLog(rje_zen.Zen().wisdom())
             raise   # Delete this if method error not terrible
@@ -342,7 +352,8 @@ class PPI(rje.RJE_Object):
     def setup(self):    ### Main class setup method.
         '''Main class setup method.'''
         try:### ~ [1] Load Data ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            load = self.opt['Fragment'] or self.opt['MCODE'] or self.opt['XGMML']  or self.getBool('TabOut')
+            load = self.opt['Fragment'] or self.opt['MCODE'] or self.opt['XGMML']  or self.getBool('TabOut') or self.getStrLC('PPIOut')
+            self.list['EdgeFields'] = ['Hub','Spoke']
             if rje.exists(self.info['Pairwise']):
                 if self.info['Basefile'].lower() in ['','none']: self.baseFile(rje.baseFile(self.info['Pairwise']))
                 if self.info['Pairwise'] in self.list['CombinePPI']: self.list['CombinePPI'].remove(self.info['Pairwise'])
@@ -870,6 +881,8 @@ class PPI(rje.RJE_Object):
                     nodedata.append(field)
                     if field[5:] not in ndb.fields(): ndb.addField(field[5:])
                 else: edgedata.append(field)
+                if field in edgedata and field not in self.list['EdgeFields']: self.list['EdgeFields'].append(field)
+                if self.getStrLC('PPIOut') and field not in edgedata: edgedata.append(field)
             for entry in pdb.entries():
                 #self.deBug(entry)
                 if entry['Hub'] not in ndict: ndict[entry['Hub']] = {'Node':entry['Hub']}

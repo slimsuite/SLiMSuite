@@ -19,8 +19,8 @@
 """
 Module:       rje_pydocs
 Description:  Python Module Documentation & Distribution
-Version:      2.16.7
-Last Edit:    19/12/17
+Version:      2.16.9
+Last Edit:    22/05/19
 Copyright (C) 2011 Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -104,6 +104,8 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 2.16.5 - Added general commands to docstring HTML for REST servers.
     # 2.16.6 - Modified parsing to keep DocString for SPyDarm runs.
     # 2.16.7 - Fixed T/F/FILE option type parsing bug.
+    # 2.16.8 - Updated to to parse https.
+    # 2.16.9 - Tweaked docstring parsing.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -140,7 +142,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copyyear) = ('RJE_PYDOCS', '2.16.7', 'December 2017', '2011')
+    (program, version, last_edit, copyyear) = ('RJE_PYDOCS', '2.16.9', 'May 2019', '2011')
     description = 'Python Module Documentation & Distribution'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_zen.Zen().wisdom()]
@@ -1440,7 +1442,7 @@ class PyDoc(rje_obj.RJE_Object):
                 else: proglist = self.list['WebTabs'][-1]
                 #htmlbody += 'The main programs in %s are: %s. Please see the tabs below for more details. Release notes can be found in the <b>ReadMe</b> tab.' % (self.getStr('Name'),proglist)
                 htmlbody += 'Please see the tabs below for more details. Release notes can be found in the <b>ReadMe</b> tab.'
-                if distribution in ['SLiMSuite','SeqSuite']: htmlbody += '\nMore information can also be found at the <a href="http://slimsuite.blogspot.co.uk">SLiMSuite blog</a>.'
+                if distribution in ['SLiMSuite','SeqSuite']: htmlbody += '\nMore information can also be found at the <a href="https://slimsuite.blogspot.co.uk">SLiMSuite blog</a>.'
                 htmlbody += '</p>\n\n'
             else: htmlbody += ' %s contains a number of functional Python modules, which are listed in the <b>ReadMe</b> tab below along with release notes.</p>\n\n' % self.getStr('Name')
             if len(self.list['Include']) > 1:
@@ -1499,7 +1501,7 @@ class PyDoc(rje_obj.RJE_Object):
             for tabset in self.list['TabSets']:
                 htmlbody += '\n<h3>%s programs/modules</h3>\n' % tabset
                 tabtext = 'The %s programs/modules in %s are: %s. Click on the tabs, read the manuals, or see the <a href="./readme/readme.html">ReadMe</a> for more details.' % (tabset,self.getStr('Name'),string.join(self.dict['WebTabs'][tabset],', '))
-                if self.getStr('Name') in ['SLiMSuite','SeqSuite']: htmlbody += '\nMore information can also be found at the <a href="http://slimsuite.blogspot.co.uk">SLiMSuite blog</a>.'
+                if self.getStr('Name') in ['SLiMSuite','SeqSuite']: htmlbody += '\nMore information can also be found at the <a href="https://slimsuite.blogspot.co.uk">SLiMSuite blog</a>.'
                 htmltabs = [('^', tabtext, '%s programs/modules' % tabset)]
                 for pymod in self.dict['WebTabs'][tabset][0:]:
                     tabname = pymod
@@ -1607,6 +1609,13 @@ class PyDoc(rje_obj.RJE_Object):
                 http = rje.matchExp('(http:\S+)',docstring)[0]
                 newhttp = string.replace(http,'http','!!HTTP!!')
                 docstring = string.replace(docstring,http,'<a href!!*!!"%s">%s</a>' % (newhttp,newhttp))
+            while rje.matchExp('(https:\S+)=(\S+)',docstring):
+                http = rje.matchExp('(https:\S+)=(\S+)',docstring)
+                docstring = string.replace(docstring,'%s=%s' % (http[0],http[1]),'%s!!*!!%s' % (http[0],http[1]))
+            while rje.matchExp('(https:\S+)',docstring):
+                http = rje.matchExp('(https:\S+)',docstring)[0]
+                newhttp = string.replace(http,'https','!!HTTPS!!')
+                docstring = string.replace(docstring,http,'<a href!!*!!"%s">%s</a>' % (newhttp,newhttp))
             if outfmt:
                 while rje.matchExp('(\S+) =',docstring):    # opt=value
                     cmd = rje.matchExp('(\S+) =',docstring)[0]
@@ -1652,6 +1661,7 @@ class PyDoc(rje_obj.RJE_Object):
             docstring += '<p><i>Something went wrong with docstring formatting!</i></p>'
         ### ~ [2] Tidy and return ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         docstring = string.replace(docstring,'!!HTTP!!','http')
+        docstring = string.replace(docstring,'!!HTTPS!!','https')
         docstring = string.replace(docstring,'!!*!!','=')
         docstring = string.replace(docstring,'!!.!!','.')
         docstring = string.replace(docstring,'</code><code>','')
@@ -1727,7 +1737,7 @@ class PyDoc(rje_obj.RJE_Object):
                         tabhtml += '</p>\n<hr>\n'
                         tabhtml += '<p><b>Imported modules:</b> \n'
                         for imod in data['Imports']: tabhtml += '<code>[%s]{module:%s}</code> \n' % (imod,imod)
-                    tabhtml += '</p>\n<hr>\n<p>See <a href="http://slimsuite.blogspot.com/" target="_blank">SLiMSuite Blog</a>'
+                    tabhtml += '</p>\n<hr>\n<p>See <a href="https://slimsuite.blogspot.com/" target="_blank">SLiMSuite Blog</a>'
                     manfile = '%smanuals/%s_manual.pdf' % (self.getStr('DocSource'),data['Program'].lower())
                     if rje.exists(manfile): tabhtml += ' and <a href="%s%s_manual.pdf" target="_blank"><code>%s Manual</code></a>' % (self.getStr('ManualURL'),data['Program'].lower(),data['Program'])
                     tabhtml += ' for further documentation. See <code>[rje]{module:rje}</code> for general commands.'
@@ -1755,20 +1765,24 @@ class PyDoc(rje_obj.RJE_Object):
                         try:
                             if not string.split(tabhtml)[-1].endswith('</li>') and not string.split(tabhtml)[-1].endswith('</li><br>'): tabhtml += '<ul>'
                         except: tabhtml += '<ul>'
-                        nextline = '<li>%s</li>' % nextline
+                        #nextline = '<li>%s</li>' % nextline
+                        nextline = '<li>%s</li>' % nextline[2:]
                         try:
                             if string.split(docstring[0])[0].startswith('* '): nextline += '</ul>'
                         except: nextline += '</ul>'
-                        if rje.matchExp('(\* (\S+)\s+=)',nextline):
-                            bullet = rje.matchExp('(\* (\S+)\s+=)',nextline)
-                            nextline = string.replace(nextline,bullet[0],'<code>%s</code> =' % bullet[1])
+                        #if rje.matchExp('(\* (\S+)\s+=)',nextline):
+                        #    bullet = rje.matchExp('(\* (\S+)\s+=)',nextline)
+                        #    nextline = string.replace(nextline,bullet[0],'<code>%s</code> =' % bullet[1])
+                        if rje.matchExp('(<li>(\S+)\s+=)',nextline):
+                            bullet = rje.matchExp('(<li>(\S+)\s+=)',nextline)
+                            nextline = string.replace(nextline,bullet[0],'<li><code>%s</code> =' % bullet[1])
                     if not rje.matchExp('(\S)',nextline): nextline = ''
                     elif nextline.startswith('<h'): nextline += '<p>'
                     elif nextline.endswith(']'):
                         nextline += '<br>'
                         if docstring and not docstring[0]: docstring.pop(0)
                     elif string.split(tabhtml)[-1].endswith('</li>'): pass
-                    elif tabid.lower() not in ['function','summary','introduction']: nextline += '<br>'
+                    elif tabid.lower() not in ['function','summary','introduction'] and not nextline.endswith('</li>'): nextline += '<br>'
                     tabhtml += '%s\n' % nextline
                     #self.debug(nextline)
             tabhtml = self.tabHTMLCleanup('%s</p>' % tabhtml)

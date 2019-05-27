@@ -19,8 +19,8 @@
 """
 Module:       SeqSuite
 Description:  Miscellaneous biological sequence analysis toolkit
-Version:      1.22.0
-Last Edit:    09/05/19
+Version:      1.23.0
+Last Edit:    14/05/19
 Copyright (C) 2014  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -53,6 +53,7 @@ SeqSuite tools:
     - PAF = rje_paf.PAF. Minimap2 PAF to GABLAM format converter.
     - PAGSAT = pagsat.PAGSAT. Pairwise Assembled Genome Sequence Analysis Tool. (Development only)
     - PINGU = pingu_V4.PINGU. Protein Interaction Network & GO Utility.
+    - PPI = rje_ppi.PPI. Protein-Protein Interaction Module.
     - PyDocs = rje_pydocs.PyDoc. Python Module Documentation & Distribution.
     - RJE_Seq = rje_seq.SeqList. Fasta file sequence manipulation/reformatting.
     - SAMTools = rje_samtools.SAMTools. SAMTools mpileup analysis tool. (Development only)
@@ -96,7 +97,7 @@ sys.path.append(os.path.join(slimsuitepath,'tools/'))
 sys.path.append(os.path.join(slimsuitepath,'extras/'))
 ### User modules - remember to add *.__doc__ to cmdHelp() below ###
 import rje, rje_db, rje_obj, rje_zen
-import rje_dbase, rje_ensembl, rje_genbank, rje_gff, rje_mitab, rje_paf, rje_pydocs, rje_seq, rje_seqlist, rje_taxonomy, rje_tree, rje_uniprot, rje_xref
+import rje_dbase, rje_ensembl, rje_genbank, rje_gff, rje_mitab, rje_paf, rje_ppi, rje_pydocs, rje_seq, rje_seqlist, rje_taxonomy, rje_tree, rje_uniprot, rje_xref
 import rje_blast_V2 as rje_blast
 import buscomp, fiesta, gablam, gasp, gopher, haqesac, multihaq
 import pingu_V4 as pingu
@@ -143,6 +144,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 1.20.0 - Added rje_paf.PAF.
     # 1.21.0 - Added NG50 and LG50 to batch summarise.
     # 1.22.0 - Added BUSCOMP to programs.
+    # 1.23.0 - Added rje_ppi.PPI to programs.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -159,7 +161,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copy_right) = ('SeqSuite', '1.22.0', 'May 2019', '2014')
+    (program, version, last_edit, copy_right) = ('SeqSuite', '1.23.0', 'May 2019', '2014')
     description = 'Miscellaneous biological sequence analysis tools suite'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_obj.zen()]
@@ -210,7 +212,7 @@ mod = {'seqlist':rje_seqlist,'rje_seqlist':rje_seqlist,'rje_seq':rje_seq,'seq':r
        'rje_zen':rje_zen,'zen':rje_zen,'zentest':rje_zen,'rje_mitab':rje_mitab,'mitab':rje_mitab,'pingu':pingu,
        'dbase':rje_dbase,'database':rje_dbase,'uniprot':rje_uniprot,'rje_uniprot':rje_uniprot,
        'rje_taxonomy':rje_taxonomy,'taxonomy':rje_taxonomy,'rje_tree':rje_tree,'tree':rje_tree,
-       'paf':rje_paf,'rje_paf':rje_paf,
+       'paf':rje_paf,'rje_paf':rje_paf,'ppi':rje_ppi,'rje_ppi':rje_ppi,
        'pydocs':rje_pydocs,'genbank':rje_genbank,'gopher':gopher,'gablam':gablam,'pagsat':pagsat,'smrtscape':smrtscape,
        'gasp':gasp,'gff':rje_gff,'summarise':None,'apollo':rje_apollo,'rje_apollo':rje_apollo,'webapollo':rje_apollo,
        'samtools':rje_samtools,'snapper':snapper,'snp_mapper':snp_mapper,
@@ -373,6 +375,7 @@ class SeqSuite(rje_obj.RJE_Object):
                 elif prog in ['haqesac']: self.obj['Prog'] = haqesac.HAQESAC(self.log,progcmd)
                 elif prog in ['multihaq']: self.obj['Prog'] = multihaq.MultiHAQ(self.log,progcmd)
                 elif prog in ['paf','rje_paf']: self.obj['Prog'] = rje_paf.PAF(self.log,progcmd)
+                elif prog in ['ppi','rje_ppi']: self.obj['Prog'] = rje_ppi.PPI(self.log,progcmd)
                 elif prog in ['pingu']: self.obj['Prog'] = pingu.PINGU(self.log,progcmd)
                 #elif prog in ['pacbio']: self.obj['Prog'] = rje_pacbio.PacBio(self.log,progcmd)
                 elif prog in ['pagsat']: self.obj['Prog'] = pagsat.PAGSAT(self.log,progcmd)

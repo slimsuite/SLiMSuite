@@ -19,8 +19,8 @@
 """
 Module:       rje_obj
 Description:  Contains revised General Object templates for Rich Edwards scripts and bioinformatics programs
-Version:      2.4.0
-Last Edit:    07/03/19
+Version:      2.4.1
+Last Edit:    22/05/19
 Copyright (C) 2011  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -114,6 +114,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 2.2.2 - Updated error handling for full REST output.
     # 2.3.0 - Added quiet mode to object and stderr output.
     # 2.4.0 - Added vLog() and bugLog() methods.
+    # 2.4.1 - Fixed bug where silent=T wasn't running silent.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -175,6 +176,9 @@ class RJE_Object(object):     ### Metaclass for inheritance by other classes
         ### ~ [3] Commandline Options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         self._cmdList()                     # Read attribute settings from user-defined parameters
         if not newstyle: self.backConvert() 
+        if self.getBool('Silent') or self.getBool('Quiet'):
+            self._cmdRead('v=-1',type='int',att='Verbose',arg='v')
+            self._cmdRead('i=-1',type='int',att='Interactive',arg='i')
 #########################################################################################################################
     def _setGeneralAttributes(self,parent=None):    ### Sets general attributes for use in all classes
         '''Sets general attributes for use in all classes.'''
@@ -192,7 +196,7 @@ class RJE_Object(object):     ### Metaclass for inheritance by other classes
         self.str['Path'] = rje.makePath(os.path.abspath(string.join(string.split(sys.argv[0],os.sep)[:-1]+[''],os.sep)))
         self.int = {'Verbose':1,'Interactive':0,'ScreenWrap':200}
         self.bool = {'DeBug':False,'Win32':False,'PWin':False,'MemSaver':False,'Append':False,'MySQL':False,
-                     'Force':False,'Pickle':True,'SoapLab':False,'Test':False,'Backups':True,'Silent':False,
+                     'Force':False,'Pickle':True,'SoapLab':False,'Test':False,'Backups':True,'Silent':False,'Quiet':False,
                      'Webserver':False,'ProgLog':True,'Warn':True,'Dev':False,'Setup':False,'OSX':False}
         self.dict = {'Output':{}}
         self.obj['DB'] = None
@@ -1118,7 +1122,7 @@ class RJE_Object(object):     ### Metaclass for inheritance by other classes
                         otext = '%s is too large to return (> %s)' % (outdata,rje.humanByteSize(nbytes))
                         if outfmt == self.getStrLC('Rest'): return 'ERROR: %s.' % otext
                         return '%s in full output. Try retrieve&rest=%s.' % (otext,outfmt)
-                    return open(outdata,'r').read()
+                    return rje.fixASCII(open(outdata,'r').read())
                 elif outdata: return '%s\n' % outdata
                 else: return 'No output generated.\n'
             elif self.db(outfmt):

@@ -19,8 +19,8 @@
 """
 Module:       rje_slimlist
 Description:  SLiM dataset manager
-Version:      1.7.3
-Last Edit:    12/06/15
+Version:      1.8.0
+Last Edit:    17/05/19
 Copyright (C) 2007  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -118,6 +118,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 1.7.1 - Modified input to allow motif=X in additon to motifs=X.
     # 1.7.2 - Fixed bug that could not accept variable length motifs from commandline. Improved error message.
     # 1.7.3 - Fixed bug that could not accept variable length motifs from commandline. Improved error message.
+    # 1.7.4 - Modified concetanation of SLiMSuite results to use "|" in place of "#" for better compatibility.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -129,7 +130,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo():     ### Makes Info object
     '''Makes rje.Info object for program.'''
-    (program, version, last_edit, cyear) = ('RJE_SLiMList', '1.7.2', 'March 2015', '2007')
+    (program, version, last_edit, cyear) = ('RJE_SLiMList', '1.8.0', 'May 2019', '2007')
     description = 'SLiM List Management Module'
     author = 'Dr Richard J. Edwards.'
     comments = ['In development',rje_zen.Zen().wisdom()]
@@ -472,7 +473,9 @@ class SLiMList(rje.RJE_Object):
                 for returned in rje.sortKeys(sfdata):
                     data = sfdata[returned]
                     if data['Pattern'] and data['Pattern'] not in ['.','-','X','!']:
-                        name = string.replace(string.join(string.split(returned,delimit),'#'),' ','_')
+                        #i# Changed this for memsaver and motifout compatibility:
+                        # name = string.replace(string.join(string.split(returned,delimit),'#'),' ','_')
+                        name = string.replace(string.join(string.split(returned,delimit),'|'),' ','_')
                         mx += 1
                         self._addMotif(name=name,seq=data['Pattern'],reverse=self.opt['Reverse'],check=True,wildscram=self.opt['WildScram'])
                         if self.stat['Verbose'] < 2: self.log.printLog('\r#MOT','%d motifs read from %s (%d lines): %d retained.' % (mx,motfile,len(mlines),self.motifNum()-preloadx),log=False,newline=False)

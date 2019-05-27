@@ -19,8 +19,8 @@
 """
 Module:       rje_disorder
 Description:  Disorder Prediction Module
-Version:      1.2.1
-Last Edit:    19/04/18
+Version:      1.5.0
+Last Edit:    23/05/19
 Copyright (C) 2006  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -29,33 +29,49 @@ Function:
     disorder prediction software and store disorder prediction results for use in other programs. The sequence will have
     any gaps removed.
 
-    Currently four disorder prediction methods are implemented:
-    * IUPred : Dosztanyi Z, Csizmok V, Tompa P & Simon I (2005). J. Mol. Biol. 347, 827-839. This has to be installed
+    Currently six disorder prediction methods are implemented:
+
+    * `IUPred2` : From V1.5.0, IUPred2 API calls can be made to https://iupred2a.elte.hu/iupred2a/. The IUPred method
+    needs to be given as `iumethod=X`, where `X` is `short`, `long`, `anchor`, or `redox`. This can also be triggered by
+    setting `disorder=X` to `iushort2` or `iulong2`, `iuanchor2` (or simply `anchor2`), or `iuredox2`.
+
+    * `IUPred`: Dosztanyi Z, Csizmok V, Tompa P & Simon I (2005). J. Mol. Biol. 347, 827-839. This has to be installed
     locally. It is available on request from the IUPred website and any use of results should cite the method. (See
     http://iupred.enzim.hu/index.html for more details.) IUPred returns a value for each residue, which by default,
-    is determined to be disordered if > 0.5.
-    * FoldIndex : This is run directly from the website (http://bioportal.weizmann.ac.il/fldbin/findex) and more simply
-    returns a list of disordered regions. You must have a live web connection to use this method!
-    * ANCHOR : Meszaros B, Simon I & Dosztanyi Z (2009). PLoS Comput Biol 5(5): e1000376. This has to be installed
+    is determined to be disordered if > 0.5. The IUPred method needs to be given as `iumethod=short` or `iumethod=long`.
+    This can also be triggered by setting `disorder=iushort` or `disorder=iulong`.
+
+    * `FoldIndex`: This is run directly from the website (http://bioportal.weizmann.ac.il/fldbin/findex) and more simply
+    returns a list of disordered regions. You must have a live web connection and `curl` on your system to use this method!
+
+    * `ANCHOR`: Meszaros B, Simon I & Dosztanyi Z (2009). PLoS Comput Biol 5(5): e1000376. This has to be installed
     locally. It is available on request from the ANCHOR website and any use of results should cite the method. (See
     http://anchor.enzim.hu/ for more details.) ANCHOR returns a probability value for each residue, which by default,
     is determined to be disordered if > 0.5.
-    * Parse: Parsed disorder from protein sequence name, e.g. DisProt download.
+
+    * `Parse`: Parsed disorder from protein sequence name, e.g. DisProt download.
     #X-Y = disordered region; &X-Y = ordered region [0.0]
 
-    For IUPred, the individual residue results are stored in Disorder.list['ResidueDisorder']. For both methods, the
+    * `IUScoreDir`: From V1.2.0, pre-calculated disorder scores can be loaded from a file (see below). To activate this mode,
+    the `disorder=X` setting should match the `<DISORDER>` part of the filename (below). If this is one of the other
+    recognised disorder predictors above, missing files will be generated if possible. Otherwise, files must be present
+    for disorder prediction to occur.
+
+    For IUPred, the individual residue results are stored in Disorder.list['ResidueDisorder']. For all methods, the
     disordered regions are stored in Disorder.list['RegionDisorder'] as (start,stop) tuples.
 
-    V1.2.0 introduced the optional use of IUScoreDir/ to save and/or (re)load lists of disorder scores. These are files
+    ### IUScoreDir:
+
+    V1.2.0 introduced the optional use of `IUScoreDir/` to save and/or (re)load lists of disorder scores. These are files
     named <ACC>.<DISORDER>.txt where <ACC> is the accession number of the protein. If `md5acc=T` then an md5 hash of the
     sequence is used instead: `hashlib.md5(<SEQUENCE>).hexdigest()`.
     
 Commandline:
-    ### General Options ###
-    disorder=X      : Disorder method to use (iupred/foldindex/anchor/parse) [iupred]
+    ### General Options: ###
+    disorder=X      : Disorder method to use (iupred2/iupred/foldindex/anchor/anchor2/parse) [iushort2]
     strict=T/F      : Whether to exit with error if disorder method not found [False]
     iucut=X         : Cut-off for score-based method (e.g. IUPred/ANCHOR) results [0.2]
-    iumethod=X      : IUPred method to use (long/short) [short]
+    iumethod=X      : IUPred method to use (long/short/redox/anchor) [short]
     sequence=X      : Sequence to predict disorder for (autorun) []
     name=X          : Name of sequence to predict disorder for []
     minregion=INT   : Minimum length of an ordered/disordered region [0]
@@ -65,7 +81,7 @@ Commandline:
     discalculate=T/F: Whether to try to calculate disorder if existing score not loaded [True]
     md5acc=T/F      : Whether to use md5sum hexdigest hashing of sequence in place of accession numbers [True]
 
-    ### System Settings ###
+    ### System Settings: ###
     iupath=PATH     : The full path to the IUPred executable [c:/bioware/iupred/iupred.exe]
     anchor=PATH     : Full path to ANCHOR executable []
     filoop=INT      : Number of times to try connecting to FoldIndex server [10]
@@ -100,6 +116,8 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 1.1.0 - Added strict option for disorder method selection. Added minorder=X.
     # 1.2.0 - Added saving and loading scores to IUScoreDir/.
     # 1.3.0 - Switched default behaviour to be md5acc=T.
+    # 1.4.0 - Fixed up disorder=parse and disorder=foldindex.
+    # 1.5.0 - Added iupred2 and anchor2 parsing from URL using accnum. Made default disorder=iushort2.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -110,11 +128,12 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
     # [ ] : Add domain-based disorder stuff?
     # [Y] : Add option to store/re-read prediction data for later use.
     # [Y] : Add reading data from IUScore directory.
+    # [ ] : Add IUPred2A and ANCHOR2 URL calls, if iupred=url or anchor=url - will send accession number.
     '''
 #########################################################################################################################
 def makeInfo():     ### Makes Info object
     '''Makes rje.Info object for program.'''
-    (program, version, last_edit, cyear) = ('RJE_DISORDER', '1.3.0', 'April 2019', '2008')
+    (program, version, last_edit, cyear) = ('RJE_DISORDER', '1.5.0', 'May 2019', '2008')
     description = 'Disorder Prediction Module'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.']
@@ -224,7 +243,7 @@ class Disorder(rje.RJE_Object):
         ### Defaults ###
         self._setDefaults(info='',opt=False,stat=0.2,obj=None,setlist=True,setdict=True)
         self.setInfo({'IUPath':rje.makePath('c:/bioware/iupred/iupred.exe',wholepath=True),'IUMethod':'short',
-                      'Disorder':'iupred','Smoothing':'foldfirst','IUScoreDir':''})
+                      'Disorder':'iushort2','Smoothing':'foldfirst','IUScoreDir':''})
         self.setStat({'FILoop':10,'FISleep':2,'MinOrder':-1,'MinRegion':0,'IUCut':0.2})
         self.setOpt({'MD5Acc':True,'DisCalculate':True})
 #########################################################################################################################
@@ -244,6 +263,11 @@ class Disorder(rje.RJE_Object):
                 self._cmdReadList(cmd,'opt',['IUChDir','Strict','MD5Acc'])
                 self._cmdReadList(cmd,'path',['IUScoreDir'])
             except: self.log.errorLog('Problem with cmd:%s' % cmd)
+        ## ~ Setup Disorder method ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+        disorder = self.getStrLC('Disorder')
+        if disorder in ['iupred','iupred2']:
+            self.info['Disorder'] = 'iu%s' % self.getStrLC('IUMethod')
+            if disorder.endswith('2'): self.info['Disorder'] = '%s2' % self.getStrLC('Disorder')
         ### AutoRun ###
         if self.info['Sequence'].lower() not in ['none','']: self.disorder(self.info['Sequence'])
 #########################################################################################################################
@@ -258,7 +282,7 @@ class Disorder(rje.RJE_Object):
         >> name:str = (optional) name for sequence - goes in self.info['Name']
         '''
         try:### ~ [1] ~ Setup sequence and name ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            self.info['Sequence'] = string.join(string.split(sequence,'-'),'')
+            if sequence: self.info['Sequence'] = string.join(string.split(sequence,'-'),'')
             if name: self.info['Name'] = name
             sname = string.split(self.info['Name'])[0]
             if not self.info['Sequence']:
@@ -272,17 +296,18 @@ class Disorder(rje.RJE_Object):
                 self.warnLog('Failed to load %s %s disorder (discalculate=F)' % (sname,self.getStrLC('Disorder')))
                 return self.noDisorder()
             ### ~ [3] ~ Run Disorder ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            if self.info['Disorder'].lower() == 'iupred': return self.iuPred()
-            elif self.info['Disorder'].lower() == 'foldindex': return self.foldIndex()
-            elif self.info['Disorder'].lower() == 'anchor': return self.ANCHOR()
-            elif self.info['Disorder'].lower() == 'parse': return self.parseDisorder()
-            elif self.info['Disorder'].lower() == 'random': return self.randomDisorder()
+            disorder = self.getStrLC('Disorder')
+            if disorder in ['anchor2','iuanchor2','iushort','iulong','iushort2','iulong2','iuredox2']: return self.iuPred()
+            elif disorder == 'foldindex': return self.foldIndex()
+            elif disorder == 'anchor': return self.ANCHOR()
+            elif disorder == 'parse': return self.parseDisorder()
+            elif disorder == 'random': return self.randomDisorder()
             else:
                 if self.getBool('Strict'):
-                    self.errorLog('Cannot calculate %s disorder: disorder method "%s" not recognised (strict=T)!' % (sname,self.info['Disorder'].lower()),printerror=False)
+                    self.errorLog('Cannot calculate %s disorder: disorder method "%s" not recognised (strict=T)!' % (sname,disorder),printerror=False)
                     return False
                 else:
-                    self.warnLog('No disorder calculation for %s: disorder method "%s" not recognised (strict=F)!' % (sname,self.info['Disorder'].lower()))
+                    self.warnLog('No disorder calculation for %s: disorder method "%s" not recognised (strict=F)!' % (sname,disorder))
                     return self.noDisorder()
         except:
             self.log.errorLog('Error in Disorder.disorder(%s)' % name,quitchoice=True)
@@ -318,7 +343,9 @@ class Disorder(rje.RJE_Object):
             sname = string.split(self.getStr('Name'))[0]
             if not self.getStrLC('IUScoreDir'): return False
             sequence = self.getStrUC('Sequence')
-            if self.getBool('MD5Acc'): acc = self.md5hash(sequence)
+            if self.getBool('MD5Acc'):
+                acc = self.md5hash(sequence)
+                sname = sequence
             else: acc = string.split(sname,'__',maxsplit=1)[-1]
             ### ~ [2] ~ Set up file ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             ifile = '%s%s.%s.txt' % (self.getStr('IUScoreDir'),acc,self.getStrLC('Disorder'))
@@ -330,35 +357,65 @@ class Disorder(rje.RJE_Object):
                 rje.mkDir(self,ifile)
                 open(ifile,'w').write('%s\t%s\n' % (sname,string.join(dlist)))
         except:
-            self.log.errorLog('Error in Disorder.loadDisorder(%s)' % sname,quitchoice=True)
+            self.log.errorLog('Error in Disorder.saveDisorder(%s)' % sname,quitchoice=True)
             return False
 #########################################################################################################################
     def iuPred(self,retry=2):     ### Runs IUPred disorder prediction
         '''Runs IUPred disorder prediction.'''
         mydir = os.path.abspath(os.curdir)
-        try:
-            ### Setup sequence and temp file ###
+        try:### ~ [1] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            ## ~ [1a] Setup disorder ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            disorder = self.getStrLC('Disorder')
+            iumethod = self.getStrLC('IUMethod')
+            if disorder.startswith('iushort'): iumethod = 'short'
+            elif disorder.startswith('iulong'): iumethod = 'long'
+            elif disorder.startswith('iuredox'): iumethod = 'redox'
+            elif 'anchor' in disorder: iumethod = 'anchor'
+            ## ~ [1b] Setup sequence and temp file ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             sequence = self.info['Sequence'].upper()
             name = self.info['Name'][:4] + rje.randomString(8)
             tmp = name + '.tmp'
-            
-            ### Run Disorder ###
-            iupath = string.join(string.split(self.info['IUPath'],os.sep)[:-1],os.sep)
-            iupred = string.split(self.info['IUPath'],os.sep)[-1]
-            if self.opt['IUChDir']: os.chdir(string.join(string.split(self.info['IUPath'],os.sep)[:-1],os.sep))
-            open(tmp,'w').write('>%s\n%s\n' % (name,sequence))
-            if self.opt['IUChDir'] and self.opt['Win32']: iucmd = '%s %s %s' % (iupred,tmp,self.info['IUMethod'].lower())
-            elif self.opt['IUChDir']: iucmd = './%s %s %s' % (iupred,tmp,self.info['IUMethod'].lower())
-            else: iucmd = '%s %s %s' % (self.info['IUPath'],tmp,self.info['IUMethod'].lower())
-            dlines = os.popen(iucmd).readlines()
-            try: os.unlink(tmp)
-            except: self.errorLog('Cannot delete %s!' % tmp)
-            if self.opt['IUChDir']: os.chdir(mydir)            
+            acc = string.split(self.info['Name'],'__',maxsplit=1)[-1]
+
+            #!# Temp shunt to old method #!#
+            if retry < 2 and disorder.endswith('2'): disorder = disorder[:-1]
+
+            ### ~ [2] Run Disorder ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            dlines = []
+            ## ~ [2a] Run IUPred2 server online using accnum ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            if disorder.endswith('2'):
+                url = 'https://iupred2a.elte.hu/iupred2a/%s/%s' % (iumethod,acc)
+                try:
+                    dlines = urllib2.urlopen(url).readlines()
+                    if 'not found' in dlines[0]: raise ValueError(dlines[0])
+                except:
+                    self.errorLog(url)
+                    self.warnLog('%s disorder failure for %s: trying %s' % (disorder,self.info['Name'],disorder[:-1]))
+                    disorder = disorder[:-1]
+
+            ## ~ [2b] Run IUPred2 on the commandline ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            #?# Add an option to try online then switch to local?
+            if not disorder.endswith('2'):
+                iupath = string.join(string.split(self.info['IUPath'],os.sep)[:-1],os.sep)
+                iupred = string.split(self.info['IUPath'],os.sep)[-1]
+                if self.opt['IUChDir']: os.chdir(string.join(string.split(self.info['IUPath'],os.sep)[:-1],os.sep))
+                open(tmp,'w').write('>%s\n%s\n' % (name,sequence))
+                if self.opt['IUChDir'] and self.opt['Win32']: iucmd = '%s %s %s' % (iupred,tmp,iumethod)
+                elif self.opt['IUChDir']: iucmd = './%s %s %s' % (iupred,tmp,iumethod)
+                else: iucmd = '%s %s %s' % (self.info['IUPath'],tmp,iumethod)
+                dlines = os.popen(iucmd).readlines()
+                try: os.unlink(tmp)
+                except: self.errorLog('Cannot delete %s!' % tmp)
+                if self.opt['IUChDir']: os.chdir(mydir)
             if self.info['Name'] not in ['','None']: name = self.info['Name']
             self.list['ResidueDisorder'] = []
+
+            ### ~ [3] Parse Disorder ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            iuregex = '^\s*(\d+)\s+(\S)\s+(\S+)'
+            if iumethod in ['anchor','redox']: iuregex = '^\s*(\d+)\s+(\S)\s+\S+\s+(\S+)'
             for d in dlines:
-                if rje.matchExp('^\s*(\d+)\s+(\S)\s+(\S+)',d):
-                    dm = rje.matchExp('^\s*(\d+)\s+(\S)\s+(\S+)',d)
+                if rje.matchExp(iuregex,d):
+                    dm = rje.matchExp(iuregex,d)
                     pos = string.atoi(dm[0])
                     aa = dm[1]
                     score = string.atof(dm[2])
@@ -375,7 +432,7 @@ class Disorder(rje.RJE_Object):
                 raise ValueError
             self.saveDisorder()
 
-            ### Make Regions ###
+            ### ~ [4] Make Regions ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             self.list['RegionDisorder'] = []
             self.list['RegionFold'] = []
             start = 0
@@ -540,16 +597,31 @@ class Disorder(rje.RJE_Object):
         try:
             ### Setup sequence and name ###
             sequence = self.info['Sequence']
+            name = self.info['Name'][:4] + rje.randomString(8)
+            tmp = name + '.tmp'
 
             ### Run Disorder ###
             retry = self.stat['FILoop']
-            url = "http://bioportal.weizmann.ac.il/fldbin/findex"
-            params = "m=xml&sq=" + sequence  + "  " 
+            #X#url = "http://bioportal.weizmann.ac.il/fldbin/findex"
+            url = "https://fold.weizmann.ac.il/fldbin/findex"
+            params = "m=xml&sq=" + sequence # + "  "
+            #url = '%s?%s' % (url,params)
             while retry:
-                try:
-                    flines = urllib2.urlopen(url, params).readlines()
-                except:
-                    flines = []
+                # try:
+                #     self.bugLog('#URL','%s?%s' % (url,params))
+                #     flines = urllib2.urlopen(url, params).readlines()
+                #     #flines = urllib2.urlopen(url).readlines()
+                # except:
+                #     #!# Catch urllib2.HTTPError: HTTP Error 404: Not Found
+                #     flines = []
+
+                flines = []
+                syscmd = 'curl -o %s "%s?%s"' % (tmp,url,params)
+                self.bugLog('#SYS','%s?%s' % (url,params))
+                os.system(syscmd)
+                if rje.exists(tmp):
+                    flines = open(tmp,'r').readlines()
+                    os.unlink(tmp)
                 if flines:
                     break
                 retry -= 1
@@ -568,6 +640,8 @@ class Disorder(rje.RJE_Object):
                     self.list['RegionDisorder'].append((string.atoi(fm[0]),string.atoi(fm[1])))
                     for i in range(string.atoi(fm[0])-1,string.atoi(fm[1])):
                         self.list['ResidueDisorder'][i] = 1.0
+            ### Update Regions
+            self.updateRegions()
             self.saveDisorder()
             self.minRegion()
             if self.opt['PrintLog']: self.log.printLog('\r#DIS','FoldIndex Disorder prediction complete: %d disorder regions, %d disordered aa' % (len(self.list['RegionDisorder']),sum(self.list['ResidueDisorder'])))
@@ -581,24 +655,44 @@ class Disorder(rje.RJE_Object):
         '''
         Parses disordered regions from sequence name (e.g. DisProt download).
         #X-Y = disordered region [1.0]; &X-Y = ordered region [0.0]; All else neutral [0.5];
+
+        If no disordered regions are found, background will be set to disordered [1.0]. Else, if no ordered regions are
+        found, the background will be set to ordered [0.0]. If both are found, missing regions are neutral [0.5].
         '''
         try:
             ### Setup sequence and name ###
             sequence = self.info['Sequence']
             name = self.info['Name']
-            self.list['ResidueDisorder'] = [0.5] * len(sequence)
             self.list['RegionDisorder'] = []
             scoredict = {'#':1.0,'&':0.0}
+
+            ### Set background
+            disreg = False; ordreg = False
+            for region in string.split(name)[1:]:
+                if rje.matchExp('^[#&](\d+)-(\d+)',region):
+                    if rje.matchExp('^([#&])(\d+)-(\d+)',region)[0] == '#': disreg = True
+                    elif rje.matchExp('^([#&])(\d+)-(\d+)',region)[0] == '&': outreg = True
+            if not disreg: bgscore = 1.0
+            elif not ordreg: bgscore = 0.0
+            else: bgscore = 0.5
+            self.list['ResidueDisorder'] = [bgscore] * len(sequence)
 
             ### Process ###
             for region in string.split(name)[1:]:
                 if rje.matchExp('^[#&](\d+)-(\d+)',region):
                     (i,x,y) = rje.matchExp('^([#&])(\d+)-(\d+)',region)
                     score = scoredict[i]
-                    start = string.atoi(x) - 1
+                    start = string.atoi(x)
                     end = string.atoi(y)
                     for r in range(start,end): self.list['ResidueDisorder'][r] = score
                     if i == '#': self.list['RegionDisorder'].append((start,end))
+                    elif i == '&': self.list['RegionFold'].append((start,end))
+            ### Update Regions
+            self.updateRegions()
+
+            #self.bugPrint(name)
+            #self.debug(self.list['ResidueDisorder'])
+            #self.debug(self.list['RegionDisorder'])
             self.saveDisorder()
             self.minRegion()
             if self.opt['PrintLog']: self.log.printLog('\r#DIS','DisProt Disorder parsing complete: %d disorder regions, %d disordered aa' % (len(self.list['RegionDisorder']),self.list['ResidueDisorder'].count(1.0)))
@@ -607,18 +701,51 @@ class Disorder(rje.RJE_Object):
             self.log.errorLog('Error in Disorder.foldIndex(%s)' % self.info['Name'],quitchoice=True)
             return False
 #########################################################################################################################
-    def noDisorder(self):    ### Generates list of 0.0 disorder scores.
-        '''Generates list of 0.0 disorder scores.'''
+    def updateRegions(self):    ### Updates missing RegionFold or RegionDisorder if only one added.
+        '''
+        Updates missing RegionFold or RegionDisorder if only one added.
+        :return:
+        '''
+        sequence = self.info['Sequence']
+        self.list['RegionDisorder'].sort()
+        disreg = self.list['RegionDisorder']
+        self.list['RegionFold'].sort()
+        ordreg = self.list['RegionFold']
+        if not disreg and not ordreg: self.list['RegionDisorder'].append((1,len(sequence)))
+        elif not self.list['RegionFold']:
+            if self.list['RegionDisorder'][0][0] > 1:
+                self.list['RegionFold'].append((1,self.list['RegionDisorder'][0][0]-1))
+            for n in range(len(self.list['RegionDisorder'])-1):
+                if self.list['RegionDisorder'][n][1] < self.list['RegionDisorder'][n+1][0]:
+                    self.list['RegionFold'].append(( self.list['RegionDisorder'][n][1]+1, self.list['RegionDisorder'][n+1][0]-1 ))
+            if self.list['RegionDisorder'][-1][1] < len(sequence):
+                self.list['RegionFold'].append((self.list['RegionDisorder'][-1][1]+1,len(sequence)))
+        else:
+            if self.list['RegionFold'][0][0] > 1:
+                self.list['RegionDisorder'].append((1,self.list['RegionFold'][0][0]-1))
+            for n in range(len(self.list['RegionFold'])-1):
+                if self.list['RegionFold'][n][1] < self.list['RegionFold'][n+1][0]:
+                    self.list['RegionDisorder'].append(( self.list['RegionFold'][n][1]+1, self.list['RegionFold'][n+1][0]-1 ))
+            if self.list['RegionFold'][-1][1] < len(sequence):
+                self.list['RegionDisorder'].append((self.list['RegionFold'][-1][1]+1,len(sequence)))
+#########################################################################################################################
+    def noDisorder(self,score=1.0):    ### Generates list of 1.0 disorder scores, defaulting to disorder.
+        '''Generates list of 1.0 disorder scores, defaulting to disorder.'''
         try:
             ### Setup sequence ###
             sequence = self.info['Sequence'].upper()
 
             ### Generate Random Disorder ###
-            self.list['ResidueDisorder'] = [1.0] * len(sequence)
+            self.list['ResidueDisorder'] = [score] * len(sequence)
 
             ### Make Regions ###
-            self.list['RegionDisorder'] = [(1,len(sequence))]
+            self.list['RegionDisorder'] = []
             self.list['RegionFold'] = []
+
+            if score >= self.getStat('IUCut'):
+                self.list['RegionDisorder'] = [(1,len(sequence))]
+            else: self.list['RegionFold'] = [(1,len(sequence))]
+
             #if self.opt['PrintLog']: self.log.printLog('\r#DIS','No Disorder prediction: %d disorder regions, %d disordered aa' % (len(self.list['RegionDisorder']),dx))
             return True
         except:

@@ -19,8 +19,8 @@
 """
 Module:       SLiMCore
 Description:  SLiMSuite core module
-Version:      2.10.0
-Last Edit:    14/09/18
+Version:      2.11.0
+Last Edit:    24/05/19
 Copyright (C) 2007  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -93,7 +93,7 @@ Commandline: ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     maskfreq=T/F    : Whether to use masked AA Frequencies (True), or (False) mask after frequency calculations [True]
     aafreq=FILE     : Use FILE to replace individual sequence AAFreqs (FILE can be sequences or aafreq) [None]    
     smearfreq=T/F   : Whether to "smear" AA frequencies across UPC rather than keep separate AAFreqs [False]
-    qregion=X,Y     : Mask all but the region of the query from (and including) residue X to residue Y [0,-1]
+    qregion=X,Y     : Mask all but the region of the query from (and including) residue X to residue Y [1,-1]
     megaslimdp=X    : Accuracy (d.p.) for MegaSLiM masking tool raw scores [4]
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
     ### Advanced Output Options ###
@@ -184,6 +184,9 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 2.8.1 - Updated resfile to be set by basefile if no resfile=X setting given
     # 2.9.0 - Added separate IUPred long suffix for reusing predictions
     # 2.10.0 - Added seqfilter=T/F   : Whether to apply sequence filtering options (goodX, badX etc.) to input [False]
+    # 2.10.1 - Fixed default results file bug.
+    # 2.10.2 - Improved handling and REST output of disorder scores.
+    # 2.11.0 - Modified qregion=X,Y to be 1-L numbering.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -207,7 +210,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo():     ### Makes Info object
     '''Makes rje.Info object for program.'''
-    (program, version, last_edit, copyyear) = ('SLiMCore', '2.10.0', 'September 2018', '2007')
+    (program, version, last_edit, copyyear) = ('SLiMCore', '2.11.0', 'May 2019', '2007')
     description = 'SLiMSuite Core Module'
     author = 'Richard J. Edwards'
     comments = ['Please report bugs to Richard.Edwards@UNSW.edu.au']
@@ -348,7 +351,7 @@ class SLiMCore(rje_obj.RJE_Object):
     - Headers = Headers for main SLiMFinder output table
     - IMask = UniProt features to inversely ("inclusively") mask [IM]
     - PTMList = List of PTM letters to add to alphabet for analysis and restrict PTM data []
-    - QRegion = Mask all but the region of the query from (and including) residue X to residue Y [0,-1]
+    - QRegion = Mask all but the region of the query from (and including) residue X to residue Y [1,-1]
     - SigSlim = List of significant SLiMs - matches keys to self.dict['Slim(Freq)'] - *in rank order*
     - UniprotID=LIST  : Extract IDs/AccNums in list from Uniprot into BASEFILE.dat and use as seqin=FILE. []
     - UP = List of UP cluster tuples
@@ -748,7 +751,7 @@ class SLiMCore(rje_obj.RJE_Object):
         if not self.getStrLC('RunID'): self.setStr({'RunID': self.getStr('Date')})
         ### ~ [1] ~ Basefile and ResDir ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         if self.seqNum(): rje.mkDir(self,self.getStr('ResDir'))
-        if not self.baseFile(): self.baseFile(self.prog().lower())
+        if not self.baseFile(return_none=''): self.baseFile(self.prog().lower())
         if not self.getStrLC('ResFile'): self.setStr({'ResFile':'%s.csv' % self.baseFile()})
         self.restSetup()
 #########################################################################################################################
@@ -826,7 +829,9 @@ class SLiMCore(rje_obj.RJE_Object):
         except:
             self.errorLog('Problem with QRegion masking %s - will not use' % self.list['QRegion'])
             self.list['QRegion'] = []
-        if self.list['QRegion']: self.printLog('#QREG','%d Query region(s)' % int((len(self.list['QRegion'])+0.5)/2))
+        if self.list['QRegion']:
+            self.printLog('#QREG','%d Query region(s)' % int((len(self.list['QRegion'])+0.5)/2))
+            self.warnLog('Please note that query regions are now 1 to L numbering (not 0 to L-1).')
 #########################################################################################################################
     def maskInput(self):    ### Masks input sequences, replacing masked regions with Xs
         '''Masks input sequences, replacing masked regions with Xs. Creates seq.info['PreMask' & 'MaskSeq']'''
@@ -1006,7 +1011,7 @@ class SLiMCore(rje_obj.RJE_Object):
             #except: pass
             if self.list['QRegion'] and 'Focus' in self.dict and 'Query' in self.dict['Focus']:
                 mx = 0
-                for seq in self.dict['Focus']['Query']: mx += seq.maskRegion(self.list['QRegion'],inverse=True)
+                for seq in self.dict['Focus']['Query']: mx += seq.maskRegion(self.list['QRegion'],inverse=True,shift=-1)
                 self.printLog('#MASK','QRegion %s: %s X added.' % (self.list['QRegion'],rje.integerString(mx)))
                 self.wallTime()
             ### ~ [11] ~ Finish ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -2398,12 +2403,15 @@ class SLiMCore(rje_obj.RJE_Object):
                 elif not self.getBool('MegaSLiMFix'): force = True  # Reached end of reading. Assumes same order.
 
                 if not fline and self.getStr('IUScoreDir'):    # Look for individual result
-                    ifile = '%s%s.%s.txt' % (self.getStr('IUScoreDir'),acc,dkey)
-                    if os.path.exists(ifile): fline = open(ifile,'r').readline()
-                    for dstr in string.split(fline)[1:]: disobj.list['ResidueDisorder'].append(string.atof(dstr))
-                    if len(disobj.list['ResidueDisorder']) != len(sequence):
-                        self.errorLog('%s Disorder score length mismatch (%d score vs %d pos)' % (sname,len(disobj.list['ResidueDisorder']),len(sequence)),printerror=False)
-                        fline = ''; disobj.list['ResidueDisorder'] = []
+                    disobj.setInfo({'Name':sname,'Sequence':sequence})
+                    fline = disobj.loadDisorder()
+
+                    #ifile = '%s%s.%s.txt' % (self.getStr('IUScoreDir'),acc,dkey)
+                    #if os.path.exists(ifile): fline = open(ifile,'r').readline()
+                    #for dstr in string.split(fline)[1:]: disobj.list['ResidueDisorder'].append(string.atof(dstr))
+                    #if len(disobj.list['ResidueDisorder']) != len(sequence):
+                    #    self.errorLog('%s Disorder score length mismatch (%d score vs %d pos)' % (sname,len(disobj.list['ResidueDisorder']),len(sequence)),printerror=False)
+                    #    fline = ''; disobj.list['ResidueDisorder'] = []
 
                 if not fline:   # Calculate
                     disobj.disorder(sequence=sequence,name=sname); dx += 1
@@ -2416,8 +2424,10 @@ class SLiMCore(rje_obj.RJE_Object):
                             else: dlist.append('%f' % x)
                         RFILE.write('%s\t%s\n' % (sname,string.join(dlist))); ox += 1
                         if self.getStr('IUScoreDir'):
-                            rje.mkDir(self,ifile)
-                            open(ifile,'w').write('%s\t%s\n' % (sname,string.join(dlist)))
+                            disobj.setInfo({'Name':sname,'Sequence':sequence})
+                            disobj.saveDisorder()
+                            #rje.mkDir(self,ifile)
+                            #open(ifile,'w').write('%s\t%s\n' % (sname,string.join(dlist)))
                             fline = '%s\t%s\n' % (sname,string.join(dlist))
                     else: raise ValueError('Disorder scoring for %s failed!' % sname)
                 if self.getStr('IUScoreDir'): self.dict['Output']['disorder'] += fline
@@ -2499,14 +2509,22 @@ class SLiMCore(rje_obj.RJE_Object):
                         self.errorLog('%s Disorder score length mismatch (%d score vs %d pos)' % (sname,len(disobj.list['ResidueDisorder']),seq.aaLen()),printerror=False)
                         fline = ''; disobj.list['ResidueDisorder'] = []
                 if not fline and self.getStr('IUScoreDir'):    # Look for individual result
-                    ifile = '%s%s.%s.txt' % (self.getStr('IUScoreDir'),acc,dkey)
-                    self.bugPrint(ifile)
-                    if os.path.exists(ifile):
-                        fline = open(ifile,'r').readline()
-                        for dstr in string.split(fline)[1:]: disobj.list['ResidueDisorder'].append(string.atof(dstr))
-                        if len(disobj.list['ResidueDisorder']) != seq.aaLen():
-                            self.errorLog('%s Disorder score length mismatch (%d score vs %d pos)' % (sname,len(disobj.list['ResidueDisorder']),seq.aaLen()),printerror=False)
-                            fline = ''; disobj.list['ResidueDisorder'] = []
+                    disobj.setInfo({'Name':sname,'Sequence':seq.info['PreMask']})
+                    fline = disobj.loadDisorder()
+                    if fline:
+                        dlist = []
+                        for x in disobj.list['ResidueDisorder']:
+                            if dp > 0: dlist.append('%s' % rje.dp(x,dp))
+                            else: dlist.append('%f' % x)
+                        fline = '%s\t%s\n' % (sname,string.join(dlist))
+                    #ifile = '%s%s.%s.txt' % (self.getStr('IUScoreDir'),acc,dkey)
+                    #self.bugPrint(ifile)
+                    #if os.path.exists(ifile):
+                    #    fline = open(ifile,'r').readline()
+                    #    for dstr in string.split(fline)[1:]: disobj.list['ResidueDisorder'].append(string.atof(dstr))
+                    #    if len(disobj.list['ResidueDisorder']) != seq.aaLen():
+                    #        self.errorLog('%s Disorder score length mismatch (%d score vs %d pos)' % (sname,len(disobj.list['ResidueDisorder']),seq.aaLen()),printerror=False)
+                    #        fline = ''; disobj.list['ResidueDisorder'] = []
                 if not fline:   # Calculate & Append
                     disobj.disorder(sequence=seq.info['PreMask'],name=sname)
                     if len(disobj.list['ResidueDisorder']) == seq.aaLen():  # Should have scores
@@ -2516,8 +2534,10 @@ class SLiMCore(rje_obj.RJE_Object):
                             else: dlist.append('%f' % x)
                         DFILE.write('%s\t%s\n' % (sname,string.join(dlist))); dx += 1
                         if self.getStr('IUScoreDir'):
-                            rje.mkDir(self,ifile)
-                            open(ifile,'w').write('%s\t%s\n' % (sname,string.join(dlist)))
+                            disobj.setInfo({'Name':sname,'Sequence':seq.info['PreMask']})
+                            disobj.saveDisorder()
+                            #rje.mkDir(self,ifile)
+                            #open(ifile,'w').write('%s\t%s\n' % (sname,string.join(dlist)))
                             fline = '%s\t%s\n' % (sname,string.join(dlist))
                     else: raise ValueError('Disorder scoring for %s failed!' % sname)
                 #?# Not sure if this is the best way to work out with REST output is required

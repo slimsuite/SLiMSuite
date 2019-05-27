@@ -284,7 +284,7 @@ class SeqList(rje_obj.RJE_Object):
     - Name = Sequence file name - specifies output. [None]
     - NewAcc = New base for sequence accession numbers - will rename sequences [None]
     - NewGene = New gene for renamed sequences (if blank will use newacc) [None]
-    - Region = Query region to use for peptides/qregion reformatting of fasta alignment [0,-1]
+    - Region = Query region to use for peptides/qregion reformatting of fasta alignment [1,-1]
     - ReFormat = Output format for sequence files (fasta/short/acc/acclist/speclist) [fasta]
     - SeqDB = Sequence file from which to extra sequences (fastacmd/index formats) [None]
     - SeqDictType = String identifier of the type of sequence dictionary made (accnum/short/name/max) [None]

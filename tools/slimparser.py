@@ -19,8 +19,8 @@
 """
 Module:       SLiMParser
 Description:  SLiMSuite REST output parsing tool.
-Version:      0.5.0
-Last Edit:    27/09/17
+Version:      0.6.0
+Last Edit:    22/05/19
 Copyright (C) 2014  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -74,6 +74,8 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 0.3.4 - Tweaked error messages.
     # 0.4.0 - Added simple json format output.
     # 0.5.0 - Added restkeys/outputs output of REST output keys.
+    # 0.5.1 - Minor docs and bug fixes.
+    # 0.6.0 - Improved functionality as replacement pureapi with rest=jobid and rest=check functions.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -84,11 +86,12 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
     # [Y] : Create initial working version of program: parse saved output from REST server.
     # [Y] : Add capacity to call rest server and parse results directly.
     # [ ] : Add json conversion.
+    # [ ] : Remove jobid from basefile when restbase=X given.
     '''
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copy_right) = ('SLiMParser', '0.5.0', 'September 2017', '2014')
+    (program, version, last_edit, copy_right) = ('SLiMParser', '0.6.0', 'May 2019', '2014')
     description = 'SLiMSuite REST output parsing tool'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_obj.zen()]
@@ -104,7 +107,7 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         if cmd_help > 0:
             print '\n\nHelp for %s %s: %s\n' % (info.program, info.version, time.asctime(time.localtime(info.start_time)))
             out.verbose(-1,4,text=__doc__)
-            if rje.yesNo('Show general commandline options?'): out.verbose(-1,4,text=rje.__doc__)
+            if rje.yesNo('Show general commandline options?',default='N'): out.verbose(-1,4,text=rje.__doc__)
             if rje.yesNo('Quit?'): sys.exit()           # Option to quit after help
             cmd_list += rje.inputCmds(out,cmd_list)     # Add extra commands interactively.
         elif out.stat['Interactive'] > 1: cmd_list += rje.inputCmds(out,cmd_list)    # Ask for more commands
@@ -276,6 +279,13 @@ class SLiMParser(rje_obj.RJE_Object):
             rbase = '%s%s' % (self.getStr('RestOutDir'),rje.baseFile(self.getStr('RestBase'),strip_path=True,keepext=True))
             if rje.exists(self.getStr('RestIn')): restin = open(self.getStr('RestIn'),'r').read()
             elif rje.matchExp('^(\d+)$',self.getStr('RestIn')):
+                jobid = self.getStr('RestIn')
+                if self.getStrLC('Rest') == 'jobid' and self.getBool('PureAPI'):    # Return jobid
+                    return jobid    #i# Now the jobid
+                if self.getStrLC('Rest') == 'check' and self.getBool('PureAPI'):    # Return check
+                    return self.restCheck(jobid,wait=False)
+                check = self.restCheck(jobid)
+                if check != 'Finished': raise ValueError(check)
                 url = '%sretrieve&jobid=%s&password=%s' % (self.getStr('RestURL'),self.getStr('RestIn'),self.getStr('Password'))
                 if self.getBool('PureAPI') and self.getStrLC('Rest'): url += '&rest=%s' % (self.getStr('Rest'))
                 else: url += '&rest=full'
@@ -334,7 +344,7 @@ class SLiMParser(rje_obj.RJE_Object):
                 rje.backup(self,self.dict['Outfile'][rkey])
                 open(self.dict['Outfile'][rkey],'w').write(self.dict['Output'][rkey])
                 self.printLog('#OUT','%s: %s' % (rkey,self.dict['Outfile'][rkey]))
-            elif rkey not in ['intro']: self.warnLog('No outfile parsed/generated for %s output' % rkey)
+            elif rkey not in ['intro','prog']: self.warnLog('No outfile parsed/generated for %s output' % rkey)
 #########################################################################################################################
     def jsonOutput(self,outfmt=None,maxparsesize=0):    ### Returns json output for outfmt
         '''Returns json output for outfmt.'''
@@ -426,15 +436,12 @@ class SLiMParser(rje_obj.RJE_Object):
             ### ~ [1] Set job running ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             jobid = rje.chomp(urllib2.urlopen(restcall).read())
             self.printLog('#JOBID',jobid)
+            ## ~ [1a] Return pure JobID if pureapi=T and rest=jobid ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            if self.getStrLC('Rest') == 'jobid' and self.getBool('PureAPI'):    # Return jobid
+                self.setStr({'RestIn':jobid})
+                return jobid
             ### ~ [2] Wait for completion ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            checkurl = '%scheck&jobid=%s' % (self.getStr('RestURL'),jobid)
-            self.printLog('#CHECK',checkurl)
-            check = rje.chomp(urllib2.urlopen(checkurl).read())
-            while check in ['Queued','Running']:
-                self.progLog('\r#RUN',check)
-                time.sleep(refresh)
-                refresh = min(self.getInt('MaxRefresh'),refresh*2)
-                check = rje.chomp(urllib2.urlopen(checkurl).read())
+            check = self.restCheck(jobid)
             ### ~ [3] Return JobID if finished ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if check == 'Finished':
                 self.printLog('\r#RUN','REST call complete: restin=%s' % jobid)
@@ -443,6 +450,30 @@ class SLiMParser(rje_obj.RJE_Object):
                 return jobid
             else: self.printLog('#FAIL','REST check error: %s' % check)
         except: self.errorLog('%s.restAPI error' % self)
+        return False
+#########################################################################################################################
+    def restCheck(self,jobid,wait=True):  ### Checks status of given jobid
+        '''
+        Checks status of given jobid.
+        >> jobid:REST JobID to check
+        >> wait:bool [True] = Whether to wait until Finished (True) or return status (False)
+        << returns jonb status
+        '''
+        try:### ~ [0] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            refresh = self.getInt('Refresh')
+            checkurl = '%scheck&jobid=%s' % (self.getStr('RestURL'),jobid)
+            check = rje.chomp(urllib2.urlopen(checkurl).read())
+            ### ~ [2] Wait for completion ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            if wait:
+                self.printLog('#CHECK',checkurl)
+                while check in ['Queued','Running']:
+                    self.progLog('\r#RUN',check)
+                    time.sleep(refresh)
+                    refresh = min(self.getInt('MaxRefresh'),refresh*2)
+                    check = rje.chomp(urllib2.urlopen(checkurl).read())
+            ### ~ [2] Return status ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            return check
+        except: self.errorLog('%s.restCheck error' % self)
         return False
 #########################################################################################################################
 ### End of SECTION II: SLiMParser Class                                                                                 #

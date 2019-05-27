@@ -130,7 +130,7 @@ LIG_LIR_Apic_2  [EDST].{0,2}[WFY]..P  # Apicomplexa specific variant of the cano
 LIG_LIR_Gen_1  [EDST].{0,2}[WFY]..[ILV]  # Canonical LIR motif that binds to Atg8 protein family members to mediate processes involved in autophagy. [21 ELM instances]
 LIG_LIR_LC3C_4  [EDST].{0,2}LVV  # Non-canonical variant of the LIR motif that binds to Atg8 protein family members to mediate processes involved in autophagy. [1 ELM instances]
 LIG_LIR_Nem_3  [EDST].{0,2}[WFY]..[ILVFY]  # Nematode-specific variant of the canonical LIR motif that binds to Atg8 protein family members to mediate processes involved in autophagy. [1 ELM instances]
-LIG_LRP6_Inhibitor_1  ([VILA]..N.I[RK])|([VILA].PN.IG.{0,6}[RK])  # Short motif present in extracellular of some Wnt antagonists recognized by the N-terminal β-propeller domain of LRP5/6 and thus inhibits the Wnt pathway. [3 ELM instances]
+LIG_LRP6_Inhibitor_1  ([VILA]..N.I[RK])|([VILA].PN.IG.{0,6}[RK])  # Short motif present in extracellular of some Wnt antagonists recognized by the N-terminal B-propeller domain of LRP5/6 and thus inhibits the Wnt pathway. [3 ELM instances]
 LIG_LYPXL_L_2  [LM]YP...[LI][^P][^P][LI]  # The long version of the LYPxL motif binds the V-domain of Alix, a protein involved in endosomal sorting. [3 ELM instances]
 LIG_LYPXL_S_1  [LM]YP.[LI]  # The short version of the LYPxL motif binds the V-domain of Alix, a protein involved in endosomal sorting. [16 ELM instances]
 LIG_MAD2  [KR][IV][LV].....P  # Mad2 binding motif [6 ELM instances]

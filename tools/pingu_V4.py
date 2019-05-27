@@ -19,8 +19,8 @@
 """
 Module:       PINGU
 Description:  Protein Interaction Network & GO Utility
-Version:      4.9.1
-Last Edit:    02/05/19
+Version:      4.10.0
+Last Edit:    21/05/19
 Copyright (C) 2013  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -106,6 +106,8 @@ Commandline:
     ### ~ PPI COMPILATION/FILTERING OPTIONS ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     hublist=LIST        : List of hub genes to restrict pairwise PPI to []
     hubonly=T/F         : Whether to restrict pairwise PPI to those with both hub and spoke in hublist [False]
+    hubfield=X          : Hub field to use for hublist=LIST [Hub]
+    spokefield=X        : Spoke field to use for hublist=LIST hubonly=T [Spoke]
     ppicompile=CDICT    : List of db:file PPI Sources to compile and generate *.pairwise.tdt []
     ppidbreport=T/F     : Summary output for PPI compilation of evidence/PPIType/DB overlaps [True]
     symmetry=T/F        : Whether to enforce Hub-Spoke symmetry during PPI compilation [True]
@@ -157,6 +159,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 4.8.0 - Fixed report duplication issue and added additional summary output.
     # 4.9.0 - Updated HINT download and parsing details.
     # 4.9.1 - Fixed Pairwise parsing and filtering for more flexibility of input. Fixed fasid=X bug and ppiseqfile names.
+    # 4.10.0 - Added hubfield and spokefield options for parsing hublist.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -185,7 +188,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copyyear) = ('PINGU', '4.9.1', 'May 2019', '2013')
+    (program, version, last_edit, copyyear) = ('PINGU', '4.10.0', 'May 2019', '2013')
     description = 'Protein Interaction Network & GO Utility'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',
@@ -248,6 +251,8 @@ class PINGU(rje_obj.RJE_Object):
     Str:str
     - Evidence = Mapping file for evidence terms [None]
     - FasID = Text ID for PPI fasta files (*.X.fas) ['ppi/domppi']
+    - HubField=X          : Hub field to use for hublist=LIST [Hub]
+    - SpokeField=X        : Spoke field to use for hublist=LIST hubonly=T [Spoke]
     - PPISource = Source of PPI data. (See documentation for details.) (HINT/FILE) ['HINT']
     - QueryPPI = Load a file of 'Query','Hub' PPI and generate expanded PPI Datasets in PPI.*/ [None]
     - QuerySeq = Fasta file containing the Query protein sequences corresponding to QuerySeq [*.fas]
@@ -310,7 +315,7 @@ class PINGU(rje_obj.RJE_Object):
     def _setAttributes(self):   ### Sets Attributes of Object
         '''Sets Attributes of Object.'''
         ### ~ Basics ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-        self.strlist = ['FasID','QueryPPI','QuerySeq','ResDir','PPISource','SourceDate','SourcePath','XRefData',
+        self.strlist = ['FasID','HubField','SpokeField','QueryPPI','QuerySeq','ResDir','PPISource','SourceDate','SourcePath','XRefData',
                         'Evidence','DIP','Domino','HPRD','BioGRID','IntAct','MINT','Reactome']
         self.boollist = ['AccOnly','AllQuery','CombinePPI','DomPPI','Download','HubOnly','Integrity','PPICompile','PPIDBReport','PPIFas','Symmetry','XHubPPI']
         self.intlist = ['MinPPI']
@@ -320,7 +325,7 @@ class PINGU(rje_obj.RJE_Object):
         self.objlist = ['DB','UniProt','XRef']
         ### ~ Defaults ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         self._setDefaults(str='None',bool=False,int=0,num=0.0,obj=None,setlist=True,setdict=True)
-        self.setStr({'PPISource':'HINT','SourcePath':'SourceData/','UniField':'Uniprot','ResDir':rje.makePath('./')})
+        self.setStr({'PPISource':'HINT','SourcePath':'SourceData/','UniField':'Uniprot','ResDir':rje.makePath('./'),'HubField':'Hub','SpokeField':'Spoke'})
         self.setBool({'Download':True,'HubOnly':False,'Integrity':True,'PPIDBReport':True,'Symmetry':True})
         self.setInt({})
         self.setNum({})
@@ -360,7 +365,7 @@ class PINGU(rje_obj.RJE_Object):
                 self._generalCmd(cmd)   ### General Options ### 
                 self._forkCmd(cmd)  # Delete if no forking
                 ### Class Options (No need for arg if arg = att.lower()) ### 
-                self._cmdReadList(cmd,'str',['FasID','UniField','XRefData'])   # Normal strings
+                self._cmdReadList(cmd,'str',['FasID','HubField','SpokeField','UniField','XRefData'])   # Normal strings
                 self._cmdReadList(cmd,'date',['SourceDate'])   # String representing date YYYY-MM-DD
                 self._cmdReadList(cmd,'path',['HPRD','SourcePath','ResDir'])  # String representing directory path
                 self._cmdReadList(cmd,'file',['PPISource','QueryPPI','QuerySeq',
@@ -1152,9 +1157,19 @@ class PINGU(rje_obj.RJE_Object):
             self.list['HubList'].sort()
             delimit = rje.delimitFromExt(filename=dbfile)
             headers = rje.readDelimit(open(dbfile,'r').readline(),delimit)
+            hubfield = self.getStr('HubField')
+            if hubfield not in headers and hubfield.lower() in ['hubuni','uniprot','accnum']:
+                self.printLog('#FIELD','Hub field "%s" -> "HubUni"' % hubfield)
+                hubfield = 'HubUni'
+            if hubfield not in headers: self.warnLog('HubField "%s" not found in headers' % hubfield)
+            spokefield = self.getStr('SpokeField')
+            if spokefield not in headers and spokefield.lower() in ['spokeuni','uniprot','accnum']:
+                self.printLog('#FIELD','Spoke field "%s" -> "SpokeUni"' % spokefield)
+                spokefield = 'SpokeUni'
+            if spokefield not in headers: self.warnLog('SpokeField "%s" not found in headers' % spokefield)
             ### ~ [1] Load data ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             #!# Add expandppi=X looping to increase hublist. (Might be easier to read whole in and then remove)
-            if self.list['HubList'] and headers[0] == 'Hub':
+            if self.list['HubList'] and headers[0] == hubfield:
                 ex = 0
                 #self.file['pairwise'] = open(dbfile,'r')
                 self.setStr({'pairwise':dbfile})
@@ -1164,20 +1179,22 @@ class PINGU(rje_obj.RJE_Object):
                 while dline:
                     self.progLog('\r#PPI','Reading Pairwise PPI for %s hubs (hubonly=%s): %s PPI' % (rje.iLen(self.list['HubList']),self.getBool('HubOnly'),rje.iStr(ex)))
                     pentry = rje.listToDict(rje.readDelimit(dline,delimit),headers)
-                    if not self.getBool('HubOnly') or pentry['Spoke'] in self.list['HubList']: ppdb.addEntry(pentry); ex += 1
+                    if not self.getBool('HubOnly') or pentry[spokefield] in self.list['HubList']: ppdb.addEntry(pentry); ex += 1
                     dline = self.findlines('pairwise',self.list['HubList'],asdict=False,wrap=False,chomp=True,warnings=True,nextonly=True)
                 self.close('pairwise')
                 self.printLog('\r#PPI','Read in %s pairwise PPI for %s hubs (hubonly=%s) from %s.' % (rje.iStr(ppdb.entryNum()),rje.iLen(self.list['HubList']),self.getBool('HubOnly'),dbfile))
                 ppdb.saveToFile('%s.pairwise.tdt' % self.baseFile())
             else:
+                #?# Symmetry cause clashes and don't actually want redundancy?
                 if 'InteractionID' in headers:  #APID data
-                    ppdb = self.db().addTable(dbfile,mainkeys=['InteractionID'],name='pairwise')
-                else: ppdb = self.db().addTable(dbfile,mainkeys=['Hub','Spoke'],name='pairwise')
+                    ppdb = self.db().addTable(dbfile,mainkeys=['Hub','InteractionID'],name='pairwise')
+                else:
+                    ppdb = self.db().addTable(dbfile,mainkeys=['Hub','Spoke'],name='pairwise')
                 self.printLog('\r#PPI','Reading %s pairwise PPI from %s.' % (rje.iStr(ppdb.entryNum()),dbfile))
                 if self.list['HubList']:
-                    ppdb.dropEntriesDirect('Hub',self.list['HubList'],inverse=True)
+                    ppdb.dropEntriesDirect(hubfield,self.list['HubList'],inverse=True)
                     if self.getBool('HubOnly'):
-                        ppdb.dropEntriesDirect('Spoke',self.list['HubList'],inverse=True)
+                        ppdb.dropEntriesDirect(spokefield,self.list['HubList'],inverse=True)
             ### ~ [2] Entry data ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             sdb.data('PPISource')['Entries'] = ppdb.entryNum()
             return ppdb

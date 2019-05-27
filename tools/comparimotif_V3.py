@@ -19,10 +19,11 @@
 """
 Program:      CompariMotif
 Description:  Motif vs Motif Comparison Software
-Version:      3.13.0
-Last Edit:    03/12/15
+Version:      3.14.0
+Last Edit:    17/05/19
 Citation:     Edwards, Davey & Shields (2008), Bioinformatics 24(10):1307-9. [PMID: 18375965]
-Webserver:    http://bioware.ucd.ie/
+Webserver:    New webserver coming soon!
+Manual:       http://bit.ly/CompariMotifManual
 Copyright (C) 2007  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -89,23 +90,23 @@ Output:
     outstyle=multisplit then motif1 information is grouped together, followed by motif2 information, followed by the
     match statistics. More information can be found in the CompariMotif manual.
 
-Webserver:
+    ### Webserver:
     CompariMotif can be run online at http://bioware.ucd.ie.
 
 Commandline:
-    ## Basic Input Parameters ##
+    ## Basic Input Parameters: ##
     motifs=FILE     : File of input motifs/peptides [None]
     searchdb=FILE   : (Optional) second motif file to compare. Will compare to self if none given. [None]
     dna=T/F         : Whether motifs should be considered as DNA motifs [False]
 
-    ## Basic Output Parameters ##
+    ## Basic Output Parameters: ##
     resfile=FILE    : Name of results file, FILE.compare.tdt. [motifsFILE-searchdbFILE.compare.tdt]
     motinfo=FILE    : Filename for output of motif summary table (if desired) [None]
     motific=T/F     : Output Information Content for motifs [False]
     coreic=T/F      : Whether to output normalised Core IC [True]
     unmatched=T/F   : Whether to output lists of unmatched motifs (not from searchdb) into *.unmatched.txt [False]
 
-    ## Motif Comparison Parameters ##
+    ## Motif Comparison Parameters: ##
     minshare=X      : Min. number of non-wildcard positions for motifs to share [2]
     normcut=X       : Min. normalised MatchIC for motif match [0.5]
     matchfix=X      : If >0 must exactly match *all* fixed positions in the motifs from:  [0]
@@ -116,7 +117,7 @@ Commandline:
     overlaps=T/F    : Whether to include overlapping ambiguities (e.g. [KR] vs [HK]) as match [True]
     memsaver=T/F    : Run in more efficient memory saver mode. XGMML output not available. [False]
 
-    ## Advanced Motif Input Parameters ##
+    ## Advanced Motif Input Parameters: ##
     minic=X         : Min information content for a motif (1 fixed position = 1.0) [2.0]
     minfix=X        : Min number of fixed positions for a motif to contain [0]
     minpep=X        : Min number of defined positions in a motif [2]
@@ -127,7 +128,7 @@ Commandline:
     mismatches=X    : <= X mismatches of positions can be tolerated [0]
     aafreq=FILE     : Use FILE to replace uniform AAFreqs (FILE can be sequences or aafreq) [None]    
 
-    ## Advanced Motif Output Parameters ##
+    ## Advanced Motif Output Parameters: ##
     xgmml=T/F       : Whether to output XGMML format results [True]
     xgformat=T/F    : Whether to use default CompariMotif formatting or leave blank for e.g. Cytoscape [True]
     pickle=T/F      : Whether to load/save pickle following motif loading/filtering [False]
@@ -177,6 +178,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 3.11- Added additional overlap/matchfix checks during basic comparison to try and speed up.
     # 3.12- Replaced deprecated sets.Set() with set().
     # 3.13.0 - Added REST server function.
+    # 3.14.0 - Modified memsaver mode to take different input formats.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -194,11 +196,12 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
     [ ] : Test with and without dev=T for speed and equal results.
     [ ] : Don't report ERR if input motif wildcard length exceeded.
     [ ] : Check reverse=T - seems to break when input is from commandline. (XGMML issues?)
+    [Y] : Fix memsaver forking to work with any motif format.
     '''
 #########################################################################################################################
 def makeInfo():     ### Makes Info object
     '''Makes rje.Info object for program.'''
-    (program, version, last_edit, cyear) = ('CompariMotif', '3.13.0', 'December 2015', '2007')
+    (program, version, last_edit, cyear) = ('CompariMotif', '3.14.0', 'May 2019', '2007')
     description = 'Motif vs Motif Comparison'
     author = 'Dr Richard J. Edwards.'
     comments = ['Cite: Edwards RJ, Davey NE & Shields DC (2008). Bioinformatics 24(10):1307-9.']
@@ -537,11 +540,32 @@ class CompariMotif(rje.RJE_Object):
             var_ic = {}     ### Dictionary of motif element and IC of said element
             compx = compdb.motifNum()
             cx = 0.0
+            #?# Is this redundant?
             for motif in compdb.motifs():
                 cx += 100.0
                 self.log.printLog('\r#COMP','Varlist setup: %.2f%%' % (cx/compx),log=False,newline=False)
                 vardict[motif] = motif.varList(self.dict['AAFreq'],var_ic)
-            if motifs.info['MotInfo'].lower() not in ['','none']: motifs.motifInfo()    # Do after IC adjustment
+            self.log.printLog('\r#COMP','Varlist setup: %.2f%%' % (cx/compx),log=False)
+
+            ### Convert format if required ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            #!# If not in PRESTO format, will need to convert, save and use converted file
+            MOTIFS = open(motifs.info['Motifs'],'r')
+            try:
+                if motifs.info['MotInfo'].lower() not in ['','none']: motifs.motifInfo()    # Do after IC adjustment
+                self.printLog('#TEST','Testing input for memaver compatibility.')
+                testline = string.split(MOTIFS.readline())
+                if 'Dataset' in testline: raise ValueError  # (Q)SLiMFinder output
+                testmot = testline[0]
+                while testmot.startswith('#'): testmot = string.split(MOTIFS.readline())[0]
+                #i# This should either return an acceptable motif, or raise a ValueError
+                test = rje_slim.slimFromPattern(testmot)
+                MOTIFS.close()
+            except:
+                MOTIFS.close()
+                self.warnLog('Input format not compatible with MemSaver: will try to reformat')
+                motifs.loadMotifs()
+                motifs.info['Motifs'] = '%s.reformatted.motif' % rje.baseFile(motifs.info['Motifs'])
+                motifs.motifOut(filename=motifs.info['Motifs'])
 
             ### Compare Motifs ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             unmatched = []
