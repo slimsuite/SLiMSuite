@@ -19,8 +19,8 @@
 """
 Module:       rje_disorder
 Description:  Disorder Prediction Module
-Version:      1.5.0
-Last Edit:    23/05/19
+Version:      1.5.1
+Last Edit:    28/05/19
 Copyright (C) 2006  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -118,6 +118,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 1.3.0 - Switched default behaviour to be md5acc=T.
     # 1.4.0 - Fixed up disorder=parse and disorder=foldindex.
     # 1.5.0 - Added iupred2 and anchor2 parsing from URL using accnum. Made default disorder=iushort2.
+    # 1.5.1 - Fixed iupred2 URL generation error.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -133,7 +134,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo():     ### Makes Info object
     '''Makes rje.Info object for program.'''
-    (program, version, last_edit, cyear) = ('RJE_DISORDER', '1.5.0', 'May 2019', '2008')
+    (program, version, last_edit, cyear) = ('RJE_DISORDER', '1.5.1', 'May 2019', '2008')
     description = 'Disorder Prediction Module'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.']
@@ -375,7 +376,8 @@ class Disorder(rje.RJE_Object):
             sequence = self.info['Sequence'].upper()
             name = self.info['Name'][:4] + rje.randomString(8)
             tmp = name + '.tmp'
-            acc = string.split(self.info['Name'],'__',maxsplit=1)[-1]
+            sname = string.split(self.getStr('Name'))[0]
+            acc = string.split(sname,'__',maxsplit=1)[-1]
 
             #!# Temp shunt to old method #!#
             if retry < 2 and disorder.endswith('2'): disorder = disorder[:-1]
