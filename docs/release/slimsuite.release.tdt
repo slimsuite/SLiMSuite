@@ -1,4 +1,10 @@
 Dir	Module	Program	Description	Version	Last Edit	Author	Imports	Imported_By	DocString	Dependencies
+Error	SLiMSuite	SLiMSuite				Unknown	rje, slimsuite, seqsuite	None	This module acts as a wrapper for tools/slimsuite.py. Please see the SLiMSuite and SeqSuite documentation (or run
+with help=T) to get a list of tools & utilities.
+	badasp, budapest, buscomp, comparimotif_V3, fiesta, gablam, gasp, gfessa, gopher, gopher_V2, haqesac, multihaq, ned_eigenvalues, ned_rankbydistribution, pagsat, peptcluster, picsi, pingu_V3, pingu_V4, presto_V5, qslimfinder, rje_aaprop, rje_ancseq, rje_biogrid, rje_blast, rje_blast_V1, rje_blast_V2, rje_conseq, rje_db, rje_dbase, rje_dismatrix_V2, rje_dismatrix_V3, rje_disorder, rje_ensembl, rje_forker, rje_genbank, rje_genecards, rje_genemap, rje_gff, rje_go, rje_haq, rje_hmm_V1, rje_hpc, rje_hprd, rje_html, rje_iridis, rje_markov, rje_mascot, rje_menu, rje_mitab, rje_motif_V3, rje_motif_stats, rje_motiflist, rje_motifocc, rje_obj, rje_paf, rje_pam, rje_ppi, rje_pydocs, rje_qsub, rje_rmd, rje_samtools, rje_scoring, rje_seq, rje_seqgen, rje_seqlist, rje_sequence, rje_slim, rje_slimcalc, rje_slimcore, rje_slimlist, rje_specificity, rje_svg, rje_synteny, rje_taxonomy, rje_tm, rje_tree, rje_tree_group, rje_uniprot, rje_xgmml, rje_xml, rje_xref, rje_zen, seqforker, seqmapper, slimbench, slimfarmer, slimfinder, slimmaker, slimmutant, slimprob, slimsearch, smrtscape, snapper, snp_mapper, unifake
+Error	slimsuite	slimsuite				Unknown	rje, slimsuite, seqsuite	None	This module acts as a wrapper for tools/slimsuite.py. Please see the SLiMSuite and SeqSuite documentation (or run
+with help=T) to get a list of tools & utilities.
+	badasp, budapest, buscomp, comparimotif_V3, fiesta, gablam, gasp, gfessa, gopher, gopher_V2, haqesac, multihaq, ned_eigenvalues, ned_rankbydistribution, pagsat, peptcluster, picsi, pingu_V3, pingu_V4, presto_V5, qslimfinder, rje_aaprop, rje_ancseq, rje_biogrid, rje_blast, rje_blast_V1, rje_blast_V2, rje_conseq, rje_db, rje_dbase, rje_dismatrix_V2, rje_dismatrix_V3, rje_disorder, rje_ensembl, rje_forker, rje_genbank, rje_genecards, rje_genemap, rje_gff, rje_go, rje_haq, rje_hmm_V1, rje_hpc, rje_hprd, rje_html, rje_iridis, rje_markov, rje_mascot, rje_menu, rje_mitab, rje_motif_V3, rje_motif_stats, rje_motiflist, rje_motifocc, rje_obj, rje_paf, rje_pam, rje_ppi, rje_pydocs, rje_qsub, rje_rmd, rje_samtools, rje_scoring, rje_seq, rje_seqgen, rje_seqlist, rje_sequence, rje_slim, rje_slimcalc, rje_slimcore, rje_slimlist, rje_specificity, rje_svg, rje_synteny, rje_taxonomy, rje_tm, rje_tree, rje_tree_group, rje_uniprot, rje_xgmml, rje_xml, rje_xref, rje_zen, seqforker, seqmapper, slimbench, slimfarmer, slimfinder, slimmaker, slimmutant, slimprob, slimsearch, smrtscape, snapper, snp_mapper, unifake
 extras	compass	compass	Comparison Of Motif Predictions Across Sequences/Servers	2.2	19/05/06	Dr Richard J. Edwards.	rje, rje_seq, rje_tm, rje_uniprot	None	Module:       compass
 Description:  Comparison Of Motif Predictions Across Sequences/Servers
 Version:      2.2
@@ -566,10 +572,10 @@ Uses general modules: copy, glob, os, string, sys, time
 Uses RJE modules: rje, rje_seq
 Other modules needed: None
 	gopher, ned_eigenvalues, rje_aaprop, rje_ancseq, rje_blast_V2, rje_db, rje_dismatrix_V2, rje_disorder, rje_html, rje_menu, rje_obj, rje_pam, rje_scoring, rje_seqlist, rje_sequence, rje_slim, rje_slimcalc, rje_svg, rje_tree, rje_tree_group
-extras	rje_pydocs	rje_pydocs	Python Module Documentation & Distribution	2.16.7	19/12/17	Dr Richard J. Edwards.	rje, rje_db, rje_html, rje_obj, rje_ppi, rje_zen	seqsuite	Module:       rje_pydocs
+extras	rje_pydocs	rje_pydocs	Python Module Documentation & Distribution	2.16.9	22/05/19	Dr Richard J. Edwards.	rje, rje_db, rje_html, rje_obj, rje_ppi, rje_zen	seqsuite	Module:       rje_pydocs
 Description:  Python Module Documentation & Distribution
-Version:      2.16.7
-Last Edit:    19/12/17
+Version:      2.16.9
+Last Edit:    22/05/19
 Copyright (C) 2011 Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -1322,7 +1328,7 @@ Commandline: ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     allsig=T/F      : Whether to also output all SLiMChance combinations (Sig/SigV/SigPrime/SigPrimeV) [False]
     * See also rje_slimcalc options for occurrence-based calculations and filtering *
     
-	comparimotif_V3, gablam, gopher, ned_eigenvalues, ned_rankbydistribution, peptcluster, rje_aaprop, rje_ancseq, rje_blast_V1, rje_blast_V2, rje_db, rje_dismatrix_V2, rje_dismatrix_V3, rje_disorder, rje_forker, rje_html, rje_menu, rje_motif_V3, rje_obj, rje_pam, rje_ppi, rje_scoring, rje_seqlist, rje_sequence, rje_slimcore, rje_svg, rje_tm, rje_tree, rje_tree_group, rje_uniprot, rje_xgmml, rje_zen, slimmaker, unifake
+	comparimotif_V3, gablam, gopher, ned_eigenvalues, ned_rankbydistribution, peptcluster, rje_aaprop, rje_ancseq, rje_blast_V1, rje_blast_V2, rje_db, rje_dismatrix_V2, rje_dismatrix_V3, rje_disorder, rje_forker, rje_html, rje_menu, rje_motif_V3, rje_obj, rje_paf, rje_pam, rje_ppi, rje_scoring, rje_seqlist, rje_sequence, rje_slimcore, rje_svg, rje_tm, rje_tree, rje_tree_group, rje_uniprot, rje_xgmml, rje_zen, slimmaker, unifake
 legacy	slimbench_V1	SLiMBench	Short Linear Motif prediction Benchmarking	1.9	06/08/13	Dr Richard J. Edwards.	rje, rje_db, rje_obj, rje_seq, rje_seqlist, rje_slim, rje_slimcore, rje_slimlist, rje_uniprot, rje_zen, comparimotif_V3, slimmaker, slimprob, slimsearch	None	Module:       SLiMBench
 Description:  Short Linear Motif prediction Benchmarking
 Version:      1.9
@@ -1397,7 +1403,7 @@ Commandline:
     backups=T/F         : Whether to (prompt if interactive and) generate backups before overwriting files [True]
 
 See also rje.py generic commandline options.
-	gablam, gopher, ned_eigenvalues, peptcluster, rje_aaprop, rje_ancseq, rje_blast_V1, rje_blast_V2, rje_dismatrix_V2, rje_dismatrix_V3, rje_disorder, rje_forker, rje_html, rje_menu, rje_motif_V3, rje_pam, rje_ppi, rje_scoring, rje_sequence, rje_slimcalc, rje_svg, rje_tm, rje_tree, rje_tree_group, rje_xgmml, unifake
+	gablam, gopher, ned_eigenvalues, peptcluster, rje_aaprop, rje_ancseq, rje_blast_V1, rje_blast_V2, rje_dismatrix_V2, rje_dismatrix_V3, rje_disorder, rje_forker, rje_html, rje_menu, rje_motif_V3, rje_paf, rje_pam, rje_ppi, rje_scoring, rje_sequence, rje_slimcalc, rje_svg, rje_tm, rje_tree, rje_tree_group, rje_xgmml, unifake
 legacy	slimdisc_V1.4	SLiMDisc	Short, Linear Motif Discovery	1.4	28/08/06	slimdisc		None	"################################################################################
 import sys,os,re,sets,time,math,traceback,getopt,random,tempfile,string,copy,shutil
 from threading import Thread
@@ -5523,7 +5529,7 @@ Additional Functions:
 Uses general modules: copy, glob, math, os, string, sys, time
 Uses RJE modules: rje, rje_blast, rje_slim, rje_slimlist, rje_slimcalc, rje_slimcore, rje_dismatrix_V2, rje_seq, rje_scoring
 Other modules needed: None
-	gablam, gopher, ned_eigenvalues, peptcluster, rje_aaprop, rje_ancseq, rje_blast_V1, rje_blast_V2, rje_db, rje_dismatrix_V2, rje_dismatrix_V3, rje_disorder, rje_forker, rje_html, rje_menu, rje_obj, rje_pam, rje_ppi, rje_seqlist, rje_slimcore, rje_svg, rje_tm, rje_tree, rje_tree_group, rje_uniprot, rje_zen, unifake
+	gablam, gopher, ned_eigenvalues, peptcluster, rje_aaprop, rje_ancseq, rje_blast_V1, rje_blast_V2, rje_db, rje_dismatrix_V2, rje_dismatrix_V3, rje_disorder, rje_forker, rje_html, rje_menu, rje_obj, rje_paf, rje_pam, rje_ppi, rje_seqlist, rje_slimcore, rje_svg, rje_tm, rje_tree, rje_tree_group, rje_uniprot, rje_zen, unifake
 legacy	slimprob_V1.4	SLiMProb	Short Linear Motif Probability tool	1.4	11/07/14	Dr Richard J. Edwards.	rje, rje_seq, rje_sequence, rje_scoring, rje_slim, rje_slimcalc, rje_slimlist, rje_zen	None	Program:      SLiMProb
 Description:  Short Linear Motif Probability tool
 Version:      1.4
@@ -5642,11 +5648,11 @@ Commandline:
 
 Uses general modules: re, copy, random, math, sys, time, os, pickle, sets, string, traceback
 Uses RJE modules: rje_seq, rje_uniprot, rje, rje_blast, rje_slim
-	gablam, gopher, ned_eigenvalues, rje_aaprop, rje_ancseq, rje_blast_V1, rje_blast_V2, rje_db, rje_dismatrix_V2, rje_dismatrix_V3, rje_disorder, rje_html, rje_menu, rje_motif_V3, rje_obj, rje_pam, rje_ppi, rje_scoring, rje_seq, rje_seqlist, rje_sequence, rje_slimcalc, rje_slimlist, rje_svg, rje_tm, rje_tree, rje_tree_group, rje_uniprot, rje_xgmml, rje_zen, unifake
-libraries	rje	rje	Contains SLiMSuite and Sequite General Objects	4.19.0	05/09/17	Unknown		aphid, badasp, budapest, comparimotif_V3, fiesta, gablam, gasp, gasp_V1, gfessa, gopher, happi, haqesac, multihaq, pagsat, pagsat_V1, peptcluster, picsi, pingu_V3, pingu_V4, presto_V5, qslimfinder, seqmapper, seqsuite, slimbench, slimfarmer, slimfinder, slimmaker, slimmutant, slimparser, slimprob, slimsearch, slimsuite, smrtscape, smrtscape_V1, snapper, unifake, compass, file_monster, peptide_dismatrix, peptide_stats, pic_html, prodigis, rem_parser, rje_dbase, rje_glossary, rje_itunes, rje_mysql, rje_pattern_discovery, rje_phos, rje_pydocs, rje_scansite, rje_seqgen, rje_seqplot, rje_sleeper, rje_ssds, rje_yeast, seqforker, sfmap2png, slim_pickings, wormpump, ned_rankbydistribution, rje_aaprop, rje_ancseq, rje_biogrid, rje_blast, rje_blast_V1, rje_blast_V2, rje_conseq, rje_db, rje_dismatrix, rje_dismatrix_V2, rje_dismatrix_V3, rje_disorder, rje_ensembl, rje_forker, rje_genbank, rje_genecards, rje_genemap, rje_gff, rje_go, rje_haq, rje_hmm_V1, rje_hpc, rje_hprd, rje_html, rje_iridis, rje_markov, rje_mascot, rje_menu, rje_mitab, rje_motif_V3, rje_motif_stats, rje_motiflist, rje_motifocc, rje_pam, rje_ppi, rje_qsub, rje_samtools, rje_samtools_V0, rje_scoring, rje_seq, rje_seqlist, rje_sequence, rje_slim, rje_slimcalc, rje_slimcore, rje_slimhtml, rje_slimlist, rje_specificity, rje_svg, rje_synteny, rje_taxonomy, rje_tm, rje_tree, rje_tree_group, rje_uniprot, rje_xgmml, rje_xml, rje_xref, rje_zen, snp_mapper, gopher_V2, qslimfinder_V1.9, slimbench_V1, slimfinder_V4.9, slimprob_V1.4	Module:       rje
+	gablam, gopher, ned_eigenvalues, rje_aaprop, rje_ancseq, rje_blast_V1, rje_blast_V2, rje_db, rje_dismatrix_V2, rje_dismatrix_V3, rje_disorder, rje_html, rje_menu, rje_motif_V3, rje_obj, rje_paf, rje_pam, rje_ppi, rje_scoring, rje_seq, rje_seqlist, rje_sequence, rje_slimcalc, rje_slimlist, rje_svg, rje_tm, rje_tree, rje_tree_group, rje_uniprot, rje_xgmml, rje_zen, unifake
+libraries	rje	rje	Contains SLiMSuite and Sequite General Objects	4.21.1	22/05/19	Unknown		aphid, badasp, budapest, buscomp, comparimotif_V3, fiesta, gablam, gasp, gasp_V1, gfessa, gopher, happi, haqesac, multihaq, pagsat, pagsat_V1, peptcluster, picsi, pingu_V3, pingu_V4, presto_V5, qslimfinder, samphaser, seqmapper, seqsuite, slimbench, slimfarmer, slimfinder, slimmaker, slimmutant, slimparser, slimprob, slimsearch, slimsuite, smrtscape, smrtscape_V1, snapper, unifake, compass, file_monster, peptide_dismatrix, peptide_stats, pic_html, prodigis, rem_parser, rje_dbase, rje_glossary, rje_itunes, rje_mysql, rje_pattern_discovery, rje_phos, rje_pydocs, rje_scansite, rje_seqgen, rje_seqplot, rje_sleeper, rje_ssds, rje_yeast, seqforker, sfmap2png, slim_pickings, wormpump, ned_rankbydistribution, rje_aaprop, rje_ancseq, rje_biogrid, rje_blast, rje_blast_V1, rje_blast_V2, rje_conseq, rje_db, rje_dismatrix, rje_dismatrix_V2, rje_dismatrix_V3, rje_disorder, rje_ensembl, rje_forker, rje_genbank, rje_genecards, rje_genemap, rje_gff, rje_go, rje_haq, rje_hmm_V1, rje_hpc, rje_hprd, rje_html, rje_iridis, rje_markov, rje_mascot, rje_menu, rje_mitab, rje_motif_V3, rje_motif_stats, rje_motiflist, rje_motifocc, rje_paf, rje_pam, rje_ppi, rje_qsub, rje_rmd, rje_samtools, rje_samtools_V0, rje_scoring, rje_seq, rje_seqlist, rje_sequence, rje_slim, rje_slimcalc, rje_slimcore, rje_slimhtml, rje_slimlist, rje_specificity, rje_svg, rje_synteny, rje_taxonomy, rje_tm, rje_tree, rje_tree_group, rje_uniprot, rje_xgmml, rje_xml, rje_xref, rje_zen, snp_mapper, gopher_V2, qslimfinder_V1.9, slimbench_V1, slimfinder_V4.9, slimprob_V1.4	Module:       rje
 Description:  Contains SLiMSuite and Sequite General Objects
-Version:      4.19.0
-Last Edit:    05/09/17
+Version:      4.21.1
+Last Edit:    22/05/19
 Copyright (C) 2005  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -5959,10 +5965,10 @@ Commandline:
 Uses general modules: os, re, string, sys, time
 Uses RJE modules: rje
 	None
-libraries	rje_blast_V2	rje_blast	BLAST+ Control Module	2.22.2	14/05/18	Dr Richard J. Edwards.	rje, rje_blast_V1, rje_db, rje_obj, rje_seq, rje_seqlist, rje_sequence, rje_zen, rje_dismatrix_V2	budapest, fiesta, gablam, gfessa, gopher, haqesac, pagsat, pagsat_V1, picsi, seqmapper, seqsuite, snapper, rje_seq, rje_slimcore	Module:       rje_blast
+libraries	rje_blast_V2	rje_blast	BLAST+ Control Module	2.22.3	01/04/19	Dr Richard J. Edwards.	rje, rje_blast_V1, rje_db, rje_obj, rje_seq, rje_seqlist, rje_sequence, rje_zen, rje_dismatrix_V2	budapest, fiesta, gablam, gfessa, gopher, haqesac, pagsat, pagsat_V1, picsi, seqmapper, seqsuite, snapper, rje_seq, rje_slimcore	Module:       rje_blast
 Description:  BLAST+ Control Module
-Version:      2.22.2
-Last Edit:    14/05/18
+Version:      2.22.3
+Last Edit:    01/04/19
 Copyright (C) 2013  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -6047,10 +6053,10 @@ Commandline:
 Uses general modules: math, os, string, sys, time
 Uses RJE modules: rje
 	None
-libraries	rje_db	rje_db	R Edwards Relational Database module	1.9.0	19/01/18	Dr Richard J. Edwards.	rje, rje_scoring, rje_zen	aphid, budapest, gablam, gfessa, happi, pagsat, pagsat_V1, pingu_V4, seqsuite, slimbench, slimmutant, slimprob, smrtscape, smrtscape_V1, snapper, file_monster, prodigis, rje_itunes, rje_pydocs, rje_yeast, rje_blast_V2, rje_ensembl, rje_genbank, rje_genemap, rje_gff, rje_markov, rje_mascot, rje_mitab, rje_ppi, rje_samtools, rje_samtools_V0, rje_seqlist, rje_slimcore, rje_slimhtml, rje_slimlist, rje_synteny, rje_taxonomy, rje_uniprot, rje_xref, snp_mapper, slimbench_V1	Module:       rje_db
+libraries	rje_db	rje_db	R Edwards Relational Database module	1.9.1	09/03/19	Dr Richard J. Edwards.	rje, rje_scoring, rje_zen	aphid, budapest, buscomp, gablam, gfessa, happi, pagsat, pagsat_V1, pingu_V4, samphaser, seqsuite, slimbench, slimmutant, slimprob, smrtscape, smrtscape_V1, snapper, file_monster, prodigis, rje_itunes, rje_pydocs, rje_yeast, rje_blast_V2, rje_ensembl, rje_genbank, rje_genemap, rje_gff, rje_markov, rje_mascot, rje_mitab, rje_paf, rje_ppi, rje_samtools, rje_samtools_V0, rje_seqlist, rje_slimcore, rje_slimhtml, rje_slimlist, rje_synteny, rje_taxonomy, rje_uniprot, rje_xref, snp_mapper, slimbench_V1	Module:       rje_db
 Description:  R Edwards Relational Database module
-Version:      1.9.0
-Last Edit:    19/01/18
+Version:      1.9.1
+Last Edit:    09/03/19
 Copyright (C) 2007  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -6128,10 +6134,10 @@ Uses general modules: copy, os, re, string, sys, time
 Uses RJE modules: rje
 Other modules needed: None
 	None
-libraries	rje_disorder	rje_disorder	Disorder Prediction Module	1.2.1	19/04/18	Dr Richard J. Edwards.	rje	rje_seqplot, sfmap2png, slim_pickings, rje_motif_stats, rje_sequence, rje_slimcalc, rje_slimcore	Module:       rje_disorder
+libraries	rje_disorder	rje_disorder	Disorder Prediction Module	1.5.0	23/05/19	Dr Richard J. Edwards.	rje	rje_seqplot, sfmap2png, slim_pickings, rje_motif_stats, rje_sequence, rje_slimcalc, rje_slimcore	Module:       rje_disorder
 Description:  Disorder Prediction Module
-Version:      1.2.1
-Last Edit:    19/04/18
+Version:      1.5.0
+Last Edit:    23/05/19
 Copyright (C) 2006  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -6140,33 +6146,49 @@ Function:
     disorder prediction software and store disorder prediction results for use in other programs. The sequence will have
     any gaps removed.
 
-    Currently four disorder prediction methods are implemented:
-    * IUPred : Dosztanyi Z, Csizmok V, Tompa P & Simon I (2005). J. Mol. Biol. 347, 827-839. This has to be installed
+    Currently six disorder prediction methods are implemented:
+
+    * `IUPred2` : From V1.5.0, IUPred2 API calls can be made to https://iupred2a.elte.hu/iupred2a/. The IUPred method
+    needs to be given as `iumethod=X`, where `X` is `short`, `long`, `anchor`, or `redox`. This can also be triggered by
+    setting `disorder=X` to `iushort2` or `iulong2`, `iuanchor2` (or simply `anchor2`), or `iuredox2`.
+
+    * `IUPred`: Dosztanyi Z, Csizmok V, Tompa P & Simon I (2005). J. Mol. Biol. 347, 827-839. This has to be installed
     locally. It is available on request from the IUPred website and any use of results should cite the method. (See
     http://iupred.enzim.hu/index.html for more details.) IUPred returns a value for each residue, which by default,
-    is determined to be disordered if > 0.5.
-    * FoldIndex : This is run directly from the website (http://bioportal.weizmann.ac.il/fldbin/findex) and more simply
-    returns a list of disordered regions. You must have a live web connection to use this method!
-    * ANCHOR : Meszaros B, Simon I & Dosztanyi Z (2009). PLoS Comput Biol 5(5): e1000376. This has to be installed
+    is determined to be disordered if > 0.5. The IUPred method needs to be given as `iumethod=short` or `iumethod=long`.
+    This can also be triggered by setting `disorder=iushort` or `disorder=iulong`.
+
+    * `FoldIndex`: This is run directly from the website (http://bioportal.weizmann.ac.il/fldbin/findex) and more simply
+    returns a list of disordered regions. You must have a live web connection and `curl` on your system to use this method!
+
+    * `ANCHOR`: Meszaros B, Simon I & Dosztanyi Z (2009). PLoS Comput Biol 5(5): e1000376. This has to be installed
     locally. It is available on request from the ANCHOR website and any use of results should cite the method. (See
     http://anchor.enzim.hu/ for more details.) ANCHOR returns a probability value for each residue, which by default,
     is determined to be disordered if > 0.5.
-    * Parse: Parsed disorder from protein sequence name, e.g. DisProt download.
+
+    * `Parse`: Parsed disorder from protein sequence name, e.g. DisProt download.
     #X-Y = disordered region; &X-Y = ordered region [0.0]
 
-    For IUPred, the individual residue results are stored in Disorder.list['ResidueDisorder']. For both methods, the
+    * `IUScoreDir`: From V1.2.0, pre-calculated disorder scores can be loaded from a file (see below). To activate this mode,
+    the `disorder=X` setting should match the `<DISORDER>` part of the filename (below). If this is one of the other
+    recognised disorder predictors above, missing files will be generated if possible. Otherwise, files must be present
+    for disorder prediction to occur.
+
+    For IUPred, the individual residue results are stored in Disorder.list['ResidueDisorder']. For all methods, the
     disordered regions are stored in Disorder.list['RegionDisorder'] as (start,stop) tuples.
 
-    V1.2.0 introduced the optional use of IUScoreDir/ to save and/or (re)load lists of disorder scores. These are files
+    ### IUScoreDir:
+
+    V1.2.0 introduced the optional use of `IUScoreDir/` to save and/or (re)load lists of disorder scores. These are files
     named <ACC>.<DISORDER>.txt where <ACC> is the accession number of the protein. If `md5acc=T` then an md5 hash of the
     sequence is used instead: `hashlib.md5(<SEQUENCE>).hexdigest()`.
     
 Commandline:
-    ### General Options ###
-    disorder=X      : Disorder method to use (iupred/foldindex/anchor/parse) [iupred]
+    ### General Options: ###
+    disorder=X      : Disorder method to use (iupred2/iupred/foldindex/anchor/anchor2/parse) [iushort2]
     strict=T/F      : Whether to exit with error if disorder method not found [False]
     iucut=X         : Cut-off for score-based method (e.g. IUPred/ANCHOR) results [0.2]
-    iumethod=X      : IUPred method to use (long/short) [short]
+    iumethod=X      : IUPred method to use (long/short/redox/anchor) [short]
     sequence=X      : Sequence to predict disorder for (autorun) []
     name=X          : Name of sequence to predict disorder for []
     minregion=INT   : Minimum length of an ordered/disordered region [0]
@@ -6174,9 +6196,9 @@ Commandline:
     smoothing=X     : Smoothing mode for minregion=X and minorder=X smoothing (foldfirst/sequence) [foldfirst]
     iuscoredir=PATH : Path in which to save protein acc.DISORDER.txt score files for re-use []
     discalculate=T/F: Whether to try to calculate disorder if existing score not loaded [True]
-    md5acc=T/F      : Whether to use md5sum hexdigest hashing of sequence in place of accession numbers [False]
+    md5acc=T/F      : Whether to use md5sum hexdigest hashing of sequence in place of accession numbers [True]
 
-    ### System Settings ###
+    ### System Settings: ###
     iupath=PATH     : The full path to the IUPred executable [c:/bioware/iupred/iupred.exe]
     anchor=PATH     : Full path to ANCHOR executable []
     filoop=INT      : Number of times to try connecting to FoldIndex server [10]
@@ -6295,10 +6317,10 @@ Commandline:
     ### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
 See also rje.py generic commandline options.
 	None
-libraries	rje_genbank	rje_genbank	RJE GenBank Module	1.5.3	18/12/17	Dr Richard J. Edwards.	rje, rje_db, rje_obj, rje_sequence, rje_taxonomy, rje_zen	pagsat, pagsat_V1, seqsuite, snapper, rje_synteny, snp_mapper	Module:       rje_genbank
+libraries	rje_genbank	rje_genbank	RJE GenBank Module	1.5.4	10/10/18	Dr Richard J. Edwards.	rje, rje_db, rje_obj, rje_sequence, rje_taxonomy, rje_zen	pagsat, pagsat_V1, seqsuite, snapper, rje_synteny, snp_mapper	Module:       rje_genbank
 Description:  RJE GenBank Module
-Version:      1.5.3
-Last Edit:    18/12/17
+Version:      1.5.4
+Last Edit:    10/10/18
 Copyright (C) 2011  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -6722,7 +6744,7 @@ Uses general modules: copy, glob, os, string, sys, time
 Uses RJE modules: rje, rje_genecards, rje_ppi, rje_seq, rje_dismatrix
 Other modules needed: None
 "	gopher, ned_eigenvalues, rje_aaprop, rje_ancseq, rje_blast_V1, rje_blast_V2, rje_db, rje_disorder, rje_html, rje_menu, rje_obj, rje_pam, rje_scoring, rje_seqlist, rje_sequence, rje_slim, rje_slimcalc, rje_svg, rje_tree, rje_tree_group, rje_uniprot, rje_zen
-libraries	rje_html	RJE_HTML	Module for generating HTML 	0.3.0	23/04/18	Dr Richard J. Edwards.	rje, rje_zen	happi, pagsat, pagsat_V1, slimparser, rje_glossary, rje_itunes, rje_pydocs, rje_tree	Module:       RJE_HTML
+libraries	rje_html	RJE_HTML	Module for generating HTML 	0.3.0	23/04/18	Dr Richard J. Edwards.	rje, rje_zen	happi, pagsat, pagsat_V1, samphaser, slimparser, rje_glossary, rje_itunes, rje_pydocs, rje_tree	Module:       RJE_HTML
 Description:  Module for generating HTML 
 Version:      0.3.0
 Last Edit:    23/04/18
@@ -6853,7 +6875,7 @@ Uses general modules: copy, glob, os, string, sys, time
 Uses RJE modules: rje, rje_db, rje_obj, rje_zen
 Other modules needed: None
 	rje_scoring
-libraries	rje_menu	rje_menu	Generic Menu Methods Module	0.5.0	08/11/16	rje	rje	budapest, comparimotif_V3, pagsat, seqmapper, wormpump, rje_seqlist	Module:       rje_menu
+libraries	rje_menu	rje_menu	Generic Menu Methods Module	0.5.0	08/11/16	rje	rje	budapest, buscomp, comparimotif_V3, pagsat, seqmapper, wormpump, rje_seqlist	Module:       rje_menu
 Description:  Generic Menu Methods Module
 Version:      0.5.0
 Last Edit:    08/11/16
@@ -7071,10 +7093,10 @@ Uses general modules: copy, glob, os, string, sys, time
 Uses RJE modules: rje, rje_seq, rje_sequence
 Other modules needed: None
 	gopher, ned_eigenvalues, rje_aaprop, rje_ancseq, rje_blast_V1, rje_blast_V2, rje_db, rje_dismatrix_V2, rje_disorder, rje_html, rje_menu, rje_obj, rje_pam, rje_scoring, rje_seqlist, rje_sequence, rje_slim, rje_slimcalc, rje_svg, rje_tree, rje_tree_group, rje_uniprot, rje_zen
-libraries	rje_obj	rje_obj	Contains revised General Object templates for Rich Edwards scripts and bioinformatics programs	2.2.2	19/01/17	rje		gasp, pagsat, pagsat_V1, peptcluster, pingu_V4, seqmapper, seqsuite, slimbench, slimfarmer, slimmaker, slimmutant, slimparser, slimsuite, smrtscape, smrtscape_V1, snapper, file_monster, prodigis, rje_glossary, rje_itunes, rje_pydocs, rje_blast_V2, rje_dismatrix_V3, rje_forker, rje_genbank, rje_gff, rje_hpc, rje_mascot, rje_mitab, rje_samtools, rje_samtools_V0, rje_seqlist, rje_slimcore, rje_slimlist, rje_synteny, rje_taxonomy, rje_xref, snp_mapper, slimbench_V1	Module:       rje_obj
+libraries	rje_obj	rje_obj	Contains revised General Object templates for Rich Edwards scripts and bioinformatics programs	2.4.1	22/05/19	rje		buscomp, gasp, pagsat, pagsat_V1, peptcluster, pingu_V4, samphaser, seqmapper, seqsuite, slimbench, slimfarmer, slimmaker, slimmutant, slimparser, slimsuite, smrtscape, smrtscape_V1, snapper, file_monster, prodigis, rje_glossary, rje_itunes, rje_pydocs, rje_blast_V2, rje_dismatrix_V3, rje_forker, rje_genbank, rje_gff, rje_hpc, rje_mascot, rje_mitab, rje_paf, rje_rmd, rje_samtools, rje_samtools_V0, rje_seqlist, rje_slimcore, rje_slimlist, rje_synteny, rje_taxonomy, rje_xref, snp_mapper, slimbench_V1	Module:       rje_obj
 Description:  Contains revised General Object templates for Rich Edwards scripts and bioinformatics programs
-Version:      2.2.2
-Last Edit:    19/01/17
+Version:      2.4.1
+Last Edit:    22/05/19
 Copyright (C) 2011  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -7091,6 +7113,7 @@ General Commandline:
     log=FILE        : Redirect log to FILE [Default = calling_program.log]
     newlog=T/F      : Create new log file. [Default = False: append log file]
     silent=T/F      : If set to True will not write to screen or log. [False]
+    quiet=T/F       : If set to True will not write to screen or log except for errors. [False]
     errorlog=FILE   : If given, will write errors to an additional error file. [None]
     help            : Print help to screen
 
@@ -7144,6 +7167,59 @@ Classes:
 
 Uses general modules: glob, math, os, random, re, string, sys, time, traceback
 	None
+libraries	rje_paf	rje_paf	Minimap2 PAF parser and converter	0.5.0	02/05/19	Dr Richard J. Edwards.	rje, rje_obj, rje_db, rje_seqlist, rje_sequence	buscomp, gablam, seqsuite	Module:       rje_paf
+Description:  Minimap2 PAF parser and converter
+Version:      0.5.0
+Last Edit:    02/05/19
+Copyright (C) 2019  Richard J. Edwards - See source code for GNU License Notice
+
+Function:
+    This module is designed to use Minimap alignments in PAF format (with the --cs flag) to replace blastn for all-by-all
+    genome assembly comparisons for PAGSAT etc.
+
+    Input is a PAF file with --cs flag, produced by minimap:
+
+    `minimap2 --cs -N 100 -p 0.0001 -x asm5 $REFERENCE $ASSEMBLY > $PAFILE`
+
+    Setting `pafin=minimap` will run minimap2 and generate $BASEFILE.paf output, which will then be processed.
+
+    Output is a series of tables that emulate GABLAM output:
+
+    * hitsum.tdt = summary of hits per query sequence.
+    * gablam.tdt = summary stats for each query-hit pair.
+    * local.tdt = local hits table. Will include alignments if `localaln=T`
+    * qryunique.tdt = local hits table reduced to unique coverage of query ($ASSEMBLY) sequences (qryunique=T).
+    * hitunique.tdt = local hits table reduced to unique coverage of hit ($REFERENCE) sequences (hitunique=T).
+
+    NOTE: When Snapper runs rje_paf it inverts the reference and assembly so that the query is the reference.
+
+    The default functionality is to emulate GABLAM (and thereby replace blast+ in GABLAM with the mapper=minimap flag).
+    However, excess fields can be reduced with `mockblast=T`. Additional fields are output either way.
+
+Commandline:
+    ### ~ Input/Output options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+    pafin=PAFFILE   : PAF generated from $REFERENCE $ASSEMBLY mapping []
+    basefile=STR    : Base for file outputs [PAFIN basefile]
+    seqin=FASFILE   : Input genome to identify variants in ($ASSEMBLY) []
+    reference=FILE  : Fasta (with accession numbers matching Locus IDs) ($REFERENCE) []
+    assembly=FASFILE: As seqin=FASFILE
+    uniqueout=T/F   : Whether to output *.qryunique.tdt and *.hitunique.tdt tables of unique coverage [True]
+    uniquehit=T/F   : Option to use *.hitunique.tdt table of unique coverage for GABLAM coverage stats [False]
+    localaln=T/F    : Whether to output local alignments in Local Table [False]
+    mockblast=T/F   : Whether to output mock BLAST headers even when not appropriate [True]
+    ### ~ Minimap2 run/mapping options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+    minlocid=PERC   : Minimum percentage identity for aligned chunk to be kept (local %identity) [0]
+    minloclen=INT   : Minimum length for aligned chunk to be kept (local hit length in bp) [0]
+    endextend=X     : Extend minimap2 hits to end of sequence if query region with X bp of end [10]
+    minimap2=PROG   : Full path to run minimap2 [minimap2]
+    mapopt=CDICT    : Dictionary of minimap2 options [N:100,p:0.0001,x:asm5]
+    mapsplice=T/F   : Switch default minimap2 options to `-x splice -uf -C5` [False]
+    ### ~ Processing options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+    forks=X         : Number of parallel sequences to process at once [0]
+    killforks=X     : Number of seconds of no activity before killing all remaining forks. [36000]
+    forksleep=X     : Sleep time (seconds) between cycles of forking out more process [0]
+    ### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+	rje_disorder, rje_menu, rje_scoring, rje_uniprot, rje_zen
 libraries	rje_pam	rje_pam	Contains Objects for PAM matrices	1.2.1	27/11/15	Dr Richard J. Edwards.	rje	peptcluster, peptide_dismatrix, rje_ancseq, rje_seq	Module:       rje_pam
 Description:  Contains Objects for PAM matrices
 Version:      1.2.1
@@ -7177,10 +7253,10 @@ Classes:
 Uses general modules: os, string, sys, time
 Uses RJE modules: rje
 	None
-libraries	rje_ppi	RJE_PPI	RJE Protein-Protein Interaction Module	2.8.1	07/01/15	Dr Richard J. Edwards.	rje, rje_db, rje_svg, rje_xgmml, rje_zen	gablam, happi, pingu_V3, pingu_V4, slimbench, rje_pydocs, rje_slimhtml	Module:       RJE_PPI
+libraries	rje_ppi	RJE_PPI	RJE Protein-Protein Interaction Module	2.9.0	14/05/19	Dr Richard J. Edwards.	rje, rje_db, rje_svg, rje_xgmml, rje_zen	gablam, happi, pingu_V3, pingu_V4, seqsuite, slimbench, rje_pydocs, rje_slimhtml	Module:       RJE_PPI
 Description:  RJE Protein-Protein Interaction Module
-Version:      2.8.1
-Last Edit:    07/01/15
+Version:      2.9.0
+Last Edit:    14/05/19
 Copyright (C) 2010  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -7198,7 +7274,7 @@ Function:
     Edge table). 
 
 Commandline:
-    ### Input Options ###
+    ### Input Options: ###
     pairwise=FILE   : Input PPI pairwise file, containing Hub, Spoke and optional Evidence columns []
     nodelist=LIST   : Reduce input PPI to given Node list []
     nodemap=X       : Try to map Nodes first using Node table field X []
@@ -7207,7 +7283,8 @@ Commandline:
     nodefields=LIST : List of alternative A/B fields to replace Hub and Spoke fields [SYMBOL_,Gene_]
     ppisym=T/F      : Whether to enforce Hub/Spoke symmetry [True]
 
-    ### Output/Processing Options ###
+    ### Output/Processing Options: ###
+    ppiout=FILE     : Save pairwise PPI file following processing (if rest=None) (T=basefile.pairwise.tdt) [None]
     tabout=T/F      : Output PPI data as Node and Edge tables [False]
     fragment=T/F    : Perform PPI fragmentation [False]
     fragsize=X      : Combine smaller fragments upto fragsize [200]
@@ -7216,14 +7293,14 @@ Commandline:
     xgmml=T/F       : Output network in XGMML style [False]
     xdir=PATH       : Directory for XGMML output [./XGMML]
 
-    ### Layout Options ###
+    ### Layout Options: ###
     layout=X        : Layout to be used for XGMML output [spring]
     walltime=X      : Walltime (hours) for layouts [0.02]
     damping=X       : Force Directed Layout, damping parameter [0.9]
     colbydeg=T/F    : Whether to colour PNG output by node degree [False]
     nudgecyc=X      : Number of cycles between node nudges (try to bump out of unstable equilibria) [1000]
 
-    ### MCODE Options ###
+    ### MCODE Options: ###
     haircut=T/F     : Whether to perform "haircut" on MCODE complexes [False]
     multicut=T/F    : Whether to perform "haircut" on MCODE complexes for the purposes of looking at nodes 2+ times [True]
     fluff=X         : MCODE "fluff" threshold. <0 = No Fluff [0.5]
@@ -7237,10 +7314,10 @@ Uses general modules: copy, glob, math, os, string, sys, time
 Uses RJE modules: rje, rje_db, rje_xgmml, rje_zen
 Other modules needed: None
 	rje_scoring
-libraries	rje_qsub	rje_qsub	QSub Generating module	1.9.2	30/05/18	Dr Richard J. Edwards.	rje, rje_zen	slimfarmer	Module:       rje_qsub
+libraries	rje_qsub	rje_qsub	QSub Generating module	1.9.3	27/04/19	Dr Richard J. Edwards.	rje, rje_zen	slimfarmer	Module:       rje_qsub
 Description:  QSub Generating module
-Version:      1.9.2
-Last Edit:    30/05/18
+Version:      1.9.3
+Last Edit:    27/04/19
 Copyright (C) 2006  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -7271,10 +7348,32 @@ Uses general modules: copy, os, string, sys, time
 Uses RJE modules: rje
 Other modules needed: None
 	None
-libraries	rje_samtools	rje_samtools	RJE SAMtools parser and processor	1.20.0	22/03/18	Dr Richard J. Edwards.	rje, rje_db, rje_obj, rje_seqlist, rje_sequence, rje_zen	pagsat, seqsuite	Module:       rje_samtools
+libraries	rje_rmd	rje_rmd	R Markdown generation and execution module	0.0.0	05/02/19	Dr Richard J. Edwards.	rje, rje_obj	buscomp	Module:       rje_rmd
+Description:  R Markdown generation and execution module
+Version:      0.0.0
+Last Edit:    05/02/19
+Copyright (C) 2019  Richard J. Edwards - See source code for GNU License Notice
+
+Function:
+    The function of this module will be added here.
+
+    The R markdown itself is run using:
+
+    Rscript -e 'library(rmarkdown); rmarkdown::render("/path/to/test.Rmd", "html_document")'
+
+    NOTE: The "html_document" over-rules the content of the file itself, e.g. "pdf_document" can turn it into a PDF
+    rather than HTML.
+
+    NOTE: Running the above generates a `*.html` file in the same place as the `*.Rmd` file (not the run directory).
+
+Commandline:
+
+    ### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+	None
+libraries	rje_samtools	rje_samtools	RJE SAMtools parser and processor	1.20.2	17/10/18	Dr Richard J. Edwards.	rje, rje_db, rje_obj, rje_seqlist, rje_sequence, rje_zen	pagsat, samphaser, seqsuite	Module:       rje_samtools
 Description:  RJE SAMtools parser and processor
-Version:      1.20.0
-Last Edit:    22/03/18
+Version:      1.20.2
+Last Edit:    17/10/18
 Copyright (C) 2013  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -7402,7 +7501,7 @@ Commandline:
     readlen=T/F         : Include read length data for the readcheck file (if depthplot=T) [True]
     dirnlen=X           : Include directional read length data at X bp intervals (readlen=T; 0=OFF) [500]
     minsoftclip=INT     : If set, will generate *.clipped.* output for reads with terminal soft clipping above INT [0]
-    maxsoftclip=INT     : If set, will generate *.noclip.* output for reads with less terminal soft clipping than INT [200]
+    maxsoftclip=INT     : If set, will generate *.noclip.* output for reads with less terminal soft clipping than INT [0]
     minreadlen=INT      : Minimum read length to include in depth plots (all reads will be in RID file) [0]
     depthsmooth=X       : Smooth out any read plateaus < X nucleotides in length [200]
     peaksmooth=X        : Smooth out Xcoverage peaks < X depth difference to flanks (<1 = %Median) [0.05]
@@ -7482,10 +7581,10 @@ Uses general modules: copy, os, string, sys
 Uses RJE modules: rje
 Other modules needed: None
 	None
-libraries	rje_seq	RJE_SEQ	DNA/Protein sequence list module	3.25.0	20/03/18	Dr Richard J. Edwards.	rje, rje_blast_V1, rje_blast_V2, rje_dismatrix_V2, rje_pam, rje_sequence, rje_uniprot, rje_slimcalc	aphid, badasp, budapest, comparimotif_V3, fiesta, gablam, gasp, gasp_V1, gfessa, gopher, haqesac, multihaq, picsi, pingu_V3, presto_V5, qslimfinder, seqmapper, seqsuite, slimbench, slimfinder, slimmutant, slimprob, slimsearch, unifake, compass, peptide_dismatrix, peptide_stats, prodigis, rje_dbase, rje_pattern_discovery, rje_phos, rje_seqgen, rje_seqplot, rje_yeast, seqforker, sfmap2png, slim_pickings, rje_biogrid, rje_blast_V2, rje_ensembl, rje_genemap, rje_hpc, rje_hprd, rje_iridis, rje_markov, rje_motif_stats, rje_motiflist, rje_motifocc, rje_slimcalc, rje_slimcore, rje_slimhtml, rje_slimlist, rje_tm, rje_tree, rje_tree_group, gopher_V2, qslimfinder_V1.9, slimbench_V1, slimfinder_V4.9, slimprob_V1.4	Program:      RJE_SEQ
+libraries	rje_seq	RJE_SEQ	DNA/Protein sequence list module	3.25.2	15/05/19	Dr Richard J. Edwards.	rje, rje_blast_V1, rje_blast_V2, rje_dismatrix_V2, rje_pam, rje_sequence, rje_uniprot, rje_slimcalc	aphid, badasp, budapest, comparimotif_V3, fiesta, gablam, gasp, gasp_V1, gfessa, gopher, haqesac, multihaq, picsi, pingu_V3, presto_V5, qslimfinder, seqmapper, seqsuite, slimbench, slimfinder, slimmutant, slimprob, slimsearch, unifake, compass, peptide_dismatrix, peptide_stats, prodigis, rje_dbase, rje_pattern_discovery, rje_phos, rje_seqgen, rje_seqplot, rje_yeast, seqforker, sfmap2png, slim_pickings, rje_biogrid, rje_blast_V2, rje_ensembl, rje_genemap, rje_hpc, rje_hprd, rje_iridis, rje_markov, rje_motif_stats, rje_motiflist, rje_motifocc, rje_slimcalc, rje_slimcore, rje_slimhtml, rje_slimlist, rje_tm, rje_tree, rje_tree_group, gopher_V2, qslimfinder_V1.9, slimbench_V1, slimfinder_V4.9, slimprob_V1.4	Program:      RJE_SEQ
 Description:  DNA/Protein sequence list module
-Version:      3.25.0
-Last Edit:    20/03/18
+Version:      3.25.2
+Last Edit:    15/05/19
 Copyright (C) 2005  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -7598,10 +7697,10 @@ Classes:
     DisMatrix(rje_dismatrix.DisMatrix):     
         - Sequence Distance Matrix Class.
 	gopher, ned_eigenvalues, rje_aaprop, rje_ancseq, rje_db, rje_disorder, rje_html, rje_menu, rje_obj, rje_scoring, rje_seq, rje_seqlist, rje_slim, rje_svg, rje_tree, rje_tree_group, rje_zen
-libraries	rje_seqlist	rje_seqlist	RJE Nucleotide and Protein Sequence List Object (Revised)	1.29.0	09/05/18	Dr Richard J. Edwards.	rje, rje_db, rje_menu, rje_obj, rje_sequence, rje_uniprot, rje_zen	budapest, gablam, gfessa, pagsat, pagsat_V1, pingu_V4, seqmapper, seqsuite, slimbench, slimmutant, smrtscape, smrtscape_V1, snapper, rje_dbase, rje_blast_V2, rje_ensembl, rje_gff, rje_samtools, rje_slimcore, rje_synteny, snp_mapper, slimbench_V1	"Module:       rje_seqlist
+libraries	rje_seqlist	rje_seqlist	RJE Nucleotide and Protein Sequence List Object (Revised)	1.32.1	05/04/19	Dr Richard J. Edwards.	rje, rje_db, rje_menu, rje_obj, rje_sequence, rje_uniprot, rje_zen	budapest, buscomp, gablam, gfessa, pagsat, pagsat_V1, pingu_V4, samphaser, seqmapper, seqsuite, slimbench, slimmutant, smrtscape, smrtscape_V1, snapper, rje_dbase, rje_blast_V2, rje_ensembl, rje_gff, rje_paf, rje_samtools, rje_slimcore, rje_synteny, snp_mapper, slimbench_V1	"Module:       rje_seqlist
 Description:  RJE Nucleotide and Protein Sequence List Object (Revised)
-Version:      1.29.0
-Last Edit:    09/05/18
+Version:      1.32.1
+Last Edit:    05/04/19
 Copyright (C) 2011  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -7704,6 +7803,7 @@ Commandline:
     sortseq=X       : Whether to sort sequences prior to output (size/invsize/accnum/name/seq/species/desc) [None]
     sampler=N(,X)   : Generate (X) file(s) sampling a random N sequences from input into seqout.N.X.fas [0]
     summarise=T/F   : Generate some summary statistics in log file for sequence data after loading [False]
+    genomesize=X    : Genome size for NG50 and LG50 summary output (if >0) [0]
     maker=T/F       : Whether to extract MAKER2 statistics (AED, eAED, QI) from sequence names [False]
     splitseq=X      : Split output sequence file according to X (gene/species) [None]
     tmpdir=PATH     : Directory used for temporary files ['./tmp/']
@@ -7714,10 +7814,10 @@ Uses general modules: copy, glob, os, string, sys, time
 Uses RJE modules: rje, rje_obj, rje_zen
 Other modules needed: None
 "	rje_disorder, rje_scoring
-libraries	rje_sequence	rje_sequence	DNA/Protein sequence object	2.6.0	15/11/17	rje	rje, rje_disorder	budapest, fiesta, gfessa, gopher, happi, pagsat, pagsat_V1, presto_V5, seqmapper, slimfinder, slimprob, slimsearch, snapper, prodigis, rje_seqgen, rje_yeast, slim_pickings, rje_blast_V2, rje_genbank, rje_gff, rje_motif_stats, rje_samtools, rje_seq, rje_seqlist, rje_slimcalc, rje_slimcore, rje_slimhtml, rje_uniprot, snp_mapper, slimfinder_V4.9, slimprob_V1.4	Module:       rje_sequence
+libraries	rje_sequence	rje_sequence	DNA/Protein sequence object	2.7.0	24/05/19	rje	rje, rje_disorder	budapest, fiesta, gfessa, gopher, happi, pagsat, pagsat_V1, presto_V5, seqmapper, slimfinder, slimprob, slimsearch, snapper, prodigis, rje_seqgen, rje_yeast, slim_pickings, rje_blast_V2, rje_genbank, rje_gff, rje_motif_stats, rje_paf, rje_samtools, rje_seq, rje_seqlist, rje_slimcalc, rje_slimcore, rje_slimhtml, rje_uniprot, snp_mapper, slimfinder_V4.9, slimprob_V1.4	Module:       rje_sequence
 Description:  DNA/Protein sequence object
-Version:      2.6.0
-Last Edit:    15/11/17
+Version:      2.7.0
+Last Edit:    24/05/19
 Copyright (C) 2006  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -7840,10 +7940,10 @@ Commandline:
     occfilter=LIST  : Same as slimfilter but for individual occurrences []
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 	rje_ancseq, rje_blast_V1, rje_blast_V2, rje_db, rje_dismatrix_V2, rje_html, rje_menu, rje_obj, rje_pam, rje_seqlist, rje_slimcalc, rje_svg, rje_tree, rje_tree_group, rje_uniprot
-libraries	rje_slimcore	SLiMCore	SLiMSuite core module	2.9.0	19/10/17	Richard J. Edwards	rje, rje_db, rje_disorder, rje_obj, rje_seq, rje_sequence, rje_seqlist, rje_slim, rje_slimcalc, rje_slimlist, rje_uniprot, rje_dismatrix_V2, rje_dismatrix_V3, rje_blast_V2, gablam, unifake	aphid, pingu_V3, qslimfinder, slimbench, slimfinder, slimmutant, slimprob, slimsearch, slimsuite, ned_rankbydistribution, slimbench_V1	Module:       SLiMCore
+libraries	rje_slimcore	SLiMCore	SLiMSuite core module	2.11.0	24/05/19	Richard J. Edwards	rje, rje_db, rje_disorder, rje_obj, rje_seq, rje_sequence, rje_seqlist, rje_slim, rje_slimcalc, rje_slimlist, rje_uniprot, rje_dismatrix_V2, rje_dismatrix_V3, rje_blast_V2, gablam, unifake	aphid, pingu_V3, qslimfinder, slimbench, slimfinder, slimmutant, slimprob, slimsearch, slimsuite, ned_rankbydistribution, slimbench_V1	Module:       SLiMCore
 Description:  SLiMSuite core module
-Version:      2.9.0
-Last Edit:    19/10/17
+Version:      2.11.0
+Last Edit:    24/05/19
 Copyright (C) 2007  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -7870,6 +7970,7 @@ Commandline: ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     seqin=FILE      : Sequence file to search. Over-rules batch mode (and uniprotid=LIST). [None]
     batch=LIST      : List of files to search, wildcards allowed. [*.dat,*.fas]
     uniprotid=LIST  : Extract IDs/AccNums in list from Uniprot into BASEFILE.dat and use as seqin=FILE. []
+    seqfilter=T/F   : Whether to apply sequence filtering options (goodX, badX etc.) to input [False]
     maxseq=X        : Maximum number of sequences to process [0]
     maxupc=X        : Maximum UPC size of dataset to process [0]
     sizesort=X      : Sorts batch files by size prior to running (+1 small->big; -1 big->small; 0 none) [0]
@@ -7915,7 +8016,7 @@ Commandline: ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     maskfreq=T/F    : Whether to use masked AA Frequencies (True), or (False) mask after frequency calculations [True]
     aafreq=FILE     : Use FILE to replace individual sequence AAFreqs (FILE can be sequences or aafreq) [None]    
     smearfreq=T/F   : Whether to "smear" AA frequencies across UPC rather than keep separate AAFreqs [False]
-    qregion=X,Y     : Mask all but the region of the query from (and including) residue X to residue Y [0,-1]
+    qregion=X,Y     : Mask all but the region of the query from (and including) residue X to residue Y [1,-1]
     megaslimdp=X    : Accuracy (d.p.) for MegaSLiM masking tool raw scores [4]
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
     ### Advanced Output Options ###
@@ -7944,7 +8045,7 @@ Commandline: ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     equivout=FILE   : File for equivalence list output [equiv.txt]
     equivcut=X      : BLOSUM score cut-off for equivalence groups [1]
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-	gopher, ned_eigenvalues, rje_aaprop, rje_ancseq, rje_blast_V1, rje_html, rje_menu, rje_motif_V3, rje_pam, rje_ppi, rje_scoring, rje_svg, rje_tm, rje_tree, rje_tree_group, rje_xgmml, rje_zen
+	gopher, ned_eigenvalues, rje_aaprop, rje_ancseq, rje_blast_V1, rje_html, rje_menu, rje_motif_V3, rje_paf, rje_pam, rje_ppi, rje_scoring, rje_svg, rje_tm, rje_tree, rje_tree_group, rje_xgmml, rje_zen
 libraries	rje_slimhtml	RJE_SLiMHTML	Module for generating HTML for Human SLiMFinder study	0.9	11/03/11	Dr Richard J. Edwards.	rje, rje_db, rje_ensembl, rje_go, rje_ppi, rje_seq, rje_sequence, rje_slim, rje_svg, rje_uniprot, rje_zen, rje_dismatrix_V2, rje_tree, rje_xgmml, happi, slimfinder	None	Module:       RJE_SLiMHTML
 Description:  Module for generating HTML for Human SLiMFinder study
 Version:      0.9
@@ -7979,11 +8080,11 @@ See also rje.py generic commandline options.
 Uses general modules: copy, glob, os, string, sys, time
 Uses RJE modules: rje, rje_db, rje_ppi, rje_slim, rje_uniprot, rje_zen
 Other modules needed: None
-	comparimotif_V3, gablam, gopher, ned_eigenvalues, ned_rankbydistribution, peptcluster, rje_aaprop, rje_ancseq, rje_blast, rje_blast_V1, rje_blast_V2, rje_dismatrix_V3, rje_disorder, rje_forker, rje_hmm_V1, rje_html, rje_menu, rje_motif_V3, rje_obj, rje_pam, rje_scoring, rje_seqlist, rje_slimcalc, rje_slimcore, rje_slimlist, rje_taxonomy, rje_tm, rje_tree_group, seqmapper, slimmaker, unifake
-libraries	rje_slimlist	rje_slimlist	SLiM dataset manager	1.7.3	12/06/15	Dr Richard J. Edwards.	rje, rje_db, rje_obj, rje_seq, rje_slim, rje_slimcalc, rje_zen, rje_motif_V3	comparimotif_V3, qslimfinder, slimbench, slimfinder, slimmutant, slimprob, slimsearch, slimsuite, rje_iridis, rje_slimcore, qslimfinder_V1.9, slimbench_V1, slimfinder_V4.9, slimprob_V1.4	Module:       rje_slimlist
+	comparimotif_V3, gablam, gopher, ned_eigenvalues, ned_rankbydistribution, peptcluster, rje_aaprop, rje_ancseq, rje_blast, rje_blast_V1, rje_blast_V2, rje_dismatrix_V3, rje_disorder, rje_forker, rje_hmm_V1, rje_html, rje_menu, rje_motif_V3, rje_obj, rje_paf, rje_pam, rje_scoring, rje_seqlist, rje_slimcalc, rje_slimcore, rje_slimlist, rje_taxonomy, rje_tm, rje_tree_group, seqmapper, slimmaker, unifake
+libraries	rje_slimlist	rje_slimlist	SLiM dataset manager	1.8.0	17/05/19	Dr Richard J. Edwards.	rje, rje_db, rje_obj, rje_seq, rje_slim, rje_slimcalc, rje_zen, rje_motif_V3	comparimotif_V3, qslimfinder, slimbench, slimfinder, slimmutant, slimprob, slimsearch, slimsuite, rje_iridis, rje_slimcore, qslimfinder_V1.9, slimbench_V1, slimfinder_V4.9, slimprob_V1.4	Module:       rje_slimlist
 Description:  SLiM dataset manager
-Version:      1.7.3
-Last Edit:    12/06/15
+Version:      1.8.0
+Last Edit:    17/05/19
 Copyright (C) 2007  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -8316,10 +8417,10 @@ Uses general modules: copy, re, os, string, sys
 Uses RJE modules: rje, rje_seq
 Other modules needed: rje_blast, rje_dismatrix, rje_pam, rje_sequence, rje_uniprot
 	gopher, ned_eigenvalues, rje_aaprop, rje_ancseq, rje_blast_V1, rje_blast_V2, rje_db, rje_dismatrix_V2, rje_disorder, rje_html, rje_menu, rje_obj, rje_pam, rje_scoring, rje_seqlist, rje_sequence, rje_slim, rje_slimcalc, rje_svg, rje_tree, rje_tree_group, rje_uniprot, rje_zen
-libraries	rje_uniprot	rje_uniprot	RJE Module to Handle Uniprot Files	3.25.0	14/06/18	Dr Richard J. Edwards.	rje, rje_db, rje_sequence	gopher, happi, pingu_V3, pingu_V4, seqsuite, slimbench, slimmutant, unifake, compass, rje_dbase, rje_phos, rje_yeast, slim_pickings, rje_biogrid, rje_ensembl, rje_iridis, rje_motiflist, rje_seq, rje_seqlist, rje_slimcore, rje_slimhtml, slimbench_V1	Module:       rje_uniprot
+libraries	rje_uniprot	rje_uniprot	RJE Module to Handle Uniprot Files	3.25.2	23/05/19	Dr Richard J. Edwards.	rje, rje_db, rje_sequence	gopher, happi, pingu_V3, pingu_V4, seqsuite, slimbench, slimmutant, unifake, compass, rje_dbase, rje_phos, rje_yeast, slim_pickings, rje_biogrid, rje_ensembl, rje_iridis, rje_motiflist, rje_seq, rje_seqlist, rje_slimcore, rje_slimhtml, slimbench_V1	Module:       rje_uniprot
 Description:  RJE Module to Handle Uniprot Files
-Version:      3.25.0
-Last Edit:    14/06/18
+Version:      3.25.2
+Last Edit:    23/05/19
 Copyright (C) 2007 Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -8702,7 +8803,7 @@ Commandline:
     enrcut=X        : Enrichment > X for jack-knifing test [1.0]
     blanks=T/F      : Whether to include most blank enrichment/jacknife rows for missing NRID [True]
 
-	comparimotif_V3, gopher, ned_eigenvalues, ned_rankbydistribution, peptcluster, qslimfinder, rje_aaprop, rje_ancseq, rje_biogrid, rje_blast_V1, rje_blast_V2, rje_dismatrix_V3, rje_disorder, rje_forker, rje_genecards, rje_go, rje_hprd, rje_html, rje_menu, rje_motif_V3, rje_obj, rje_pam, rje_ppi, rje_seqlist, rje_sequence, rje_slim, rje_slimcalc, rje_slimlist, rje_svg, rje_tm, rje_tree, rje_tree_group, rje_uniprot, rje_xgmml, rje_zen, slimfinder, slimmaker, unifake
+	comparimotif_V3, gopher, ned_eigenvalues, ned_rankbydistribution, peptcluster, qslimfinder, rje_aaprop, rje_ancseq, rje_biogrid, rje_blast_V1, rje_blast_V2, rje_dismatrix_V3, rje_disorder, rje_forker, rje_genecards, rje_go, rje_hprd, rje_html, rje_menu, rje_motif_V3, rje_obj, rje_paf, rje_pam, rje_ppi, rje_seqlist, rje_sequence, rje_slim, rje_slimcalc, rje_slimlist, rje_svg, rje_tm, rje_tree, rje_tree_group, rje_uniprot, rje_xgmml, rje_zen, slimfinder, slimmaker, unifake
 tools	badasp	BADASP	Burst After Duplication with Ancestral Sequence Prediction	1.3.1	28/03/15	Unknown	rje, rje_aaprop, rje_ancseq, rje_conseq, rje_seq, rje_specificity, rje_tree	slimsuite	Program:      BADASP
 Description:  Burst After Duplication with Ancestral Sequence Prediction
 Version:      1.3.1
@@ -8875,12 +8976,100 @@ Commandline:
     haqdb=FILE      : Optional additional search database for MultiHAQ analysis [None]
 
 	gopher, gopher_V2, multihaq, ned_eigenvalues, rje_aaprop, rje_ancseq, rje_blast_V1, rje_dismatrix_V2, rje_disorder, rje_haq, rje_hpc, rje_html, rje_iridis, rje_motif_V3, rje_obj, rje_pam, rje_qsub, rje_scoring, rje_slim, rje_slimcalc, rje_slimlist, rje_svg, rje_tree_group, rje_uniprot, slimfarmer
-tools	comparimotif_V3	CompariMotif	Motif vs Motif Comparison Software	3.13.0	03/12/15	Dr Richard J. Edwards.	rje, rje_menu, rje_seq, rje_slim, rje_slimlist, rje_xgmml, rje_zen, rje_forker	slimbench, slimfinder, slimsuite, slimbench_V1, slimfinder_V4.9	Program:      CompariMotif
+tools	buscomp	BUSCOMP	BUSCO Compiler and Comparison tool	0.7.2	10/05/19	Dr Richard J. Edwards.	rje, rje_obj, rje_db, rje_menu, rje_paf, rje_rmd, rje_seqlist	seqsuite	Module:       BUSCOMP
+Description:  BUSCO Compiler and Comparison tool
+Version:      0.7.2
+Last Edit:    10/05/19
+Copyright (C) 2019  Richard J. Edwards - See source code for GNU License Notice
+
+Function:
+    BUSCOMP is designed to overcome some of the non-deterministic limitations of BUSCO to:
+
+    1. compile a non-redundant maximal set of complete BUSCOs from a set of assemblies, and
+    2. use this set to provide a "true" comparison of completeness between different assemblies of the same genome
+    with predictable behaviour.
+
+    For each BUSCO gene, BUSCOMP will extract the best "Single Complete" sequence from those available, using the
+    `full_table_*.tsv` results table and `single_copy_busco_sequences/` directory of hit sequences. BUSCOMP ranks all
+    the hits across all assemblies by Score and keeps the top-ranking hits. Ties are then resolved by Length, keeping
+    the longest sequence. Ties for Score and Length will keep an arbitrary entry as the winner. Single complete hits
+    are given preference over Duplicate hits, even if they have a lower score, because only Single hit have their
+    sequences saved by BUSCO in the `single_copy_busco_sequences/` directory. This set of predicted gene sequences
+    forms the "BUSCOMPSeq" gene set.
+
+    BUSCOMP uses minimap2 to map BUSCOSeq predicted CDS sequences onto genome/transcriptome assemblies, including
+    those not included in the original BUSCO compilation. This way, the compiled set of species-specific BUSCO
+    sequences can also be used to generate a quick-and-dirty assessment of completeness for a new genome assembly.
+    Hits are converted into percentage coverage stats, which are then used to reclassify the BUSCO gene on the basis
+    of coverage and identity. BUSCOMP ratings are designed to mimic the original BUSCO ratings but have different
+    definitions. In addition, two extra classes of low quality hit have been added: "Partial" and "Ghost".
+
+    * **Complete**: 95%+ Coverage in a single contig/scaffold. (Note: accuracy/identity is not considered.)
+    * **Duplicated**: 95%+ Coverage in 2+ contigs/scaffolds.
+    * **Fragmented**: 95%+ combined coverage but not in any single contig/scaffold.
+    * **Partial**: 40-95% combined coverage.
+    * **Ghost**: Hits meeting local cutoff but <40% combined coverage.
+    * **Missing**: No hits meeting local cutoff.
+
+    In addition to individual assembly stats, BUSCO and BUSCOMP ratings are compiled across user-defined groups of
+    assemblies with various outputs to give insight into how different assemblies complement each other. Ratings are
+    also combined with traditional genome assembly statistics (NG50 and LG50) based on a given `genomesize=X` to help
+    identify the "best" assemblies. Details of settings, key results, tables and plots are output to an HTML report
+    using Rmarkdown.
+
+    NOTE: For HTML output, R must be installed and a pandoc environment variable must be set, e.g.
+
+        export RSTUDIO_PANDOC=/Applications/RStudio.app/Contents/MacOS/pandoc
+
+    NOTE: BUSCOMPSeq sequences can be provided with `buscofas=FILE` in place of compilation. This option has not been
+    tested and might give some unexpected behaviours, as some of the quoted figures will still be based on the
+    calculated BUSCOMPSeq data. Please report any unexpected behaviour.
+
+    For full documentation of the BUSCOMP workflow, run with `dochtml=T` and read the `*.docs.html` file generated.
+
+Commandline:
+    ### ~ Input/Output options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+    runs=DIRLIST    : List of BUSCO run directories (wildcards allowed) [run_*]
+    fastadir=DIRLIST: List of directories containing genome fasta files (wildcards allowed) [./]
+    fastaext=LIST   : List of accepted fasta file extensions that will be checked for in fastadir [fasta,fas,fsa,fna,fa]
+    genomes=FILE    : File of Prefix and Genome fields for generate user-friendly output [*.genomes.tdt if found]
+    restrict=T/F    : Restrict analysis to genomes with a loaded alias [False]
+    runsort=X       : Output sorting order for genomes and groups (or "Genome","Prefix","Complete","Group") [Group]
+    stripnum=T/F    : Whether to strip numbers ("XX_*") at start of Genome alias in output [True]
+    groups=FILE     : File of Genome and Group fields to define Groups for compilation [*.groups.tdt]
+    buscofas=FASFILE: Fasta file of BUSCO DNA sequences. Will combine and make (NR) if not given [None]
+    buscomp=T/F     : Whether to run BUSCO compilation across full results tables [True]
+    dupbest=T/F     : Whether to rate "Duplicated" above "Complete" when compiling "best" BUSCOs across Groups [False]
+    buscompseq=T/F  : Whether to run full BUSCO comparison using buscofas and minimap2 [True]
+    ratefas=FILELIST: Additional fasta files of assemblies to rate with BUSCOMPSeq (No BUSCO run) (wildcards allowed) []
+    rmdreport=T/F   : Generate Rmarkdown report and knit into HTML [True]
+    fullreport=T/F  : Generate full Rmarkdown report including detailed tables of all ratings [True]
+    missing=T/F     : Generate summary tables for sets of Missing genes for each assembly/group [True]
+    dochtml=T/F     : Generate HTML BUSCOMP documentation (*.info.html) instead of main run [False]
+    summarise=T/F   : Include summaries of genomes in main `*.genomes.tdt` output [True]
+    loadsummary=T/F : Use existing genome summaries including NG50 from `*.genomes.tdt`, if present [True]
+    ### ~ Mapping/Classification options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+    minimap2=PROG   : Full path to run minimap2 [minimap2]
+    endextend=X     : Extend minimap2 hits to end of sequence if query region with X bp of end [10]
+    minlocid=INT    : Minimum percentage identity for aligned chunk to be kept (local %identity) [0]
+    minloclen=INT   : Minimum length for aligned chunk to be kept (local hit length in bp) [20]
+    uniquehit=T/F   : Option to use *.hitunique.tdt table of unique coverage for GABLAM coverage stats [True]
+    mmsecnum=INT    : Max. number of secondary alignments to keep (minimap2 -N) [3]
+    mmpcut=NUM      : Minimap2 Minimal secondary-to-primary score ratio to output secondary mappings (minimap2 -p) [0]
+    mapopt=CDICT    : Dictionary of additional minimap2 options to apply (caution: over-rides conflicting settings) []
+    ### ~ Processing options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+    forks=X         : Number of parallel sequences to process at once [0]
+    killforks=X     : Number of seconds of no activity before killing all remaining forks. [36000]
+    forksleep=X     : Sleep time (seconds) between cycles of forking out more process [0]
+    ### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+	rje_disorder, rje_scoring, rje_sequence, rje_uniprot, rje_zen
+tools	comparimotif_V3	CompariMotif	Motif vs Motif Comparison Software	3.14.0	17/05/19	Dr Richard J. Edwards.	rje, rje_menu, rje_seq, rje_slim, rje_slimlist, rje_xgmml, rje_zen, rje_forker	slimbench, slimfinder, slimsuite, slimbench_V1, slimfinder_V4.9	Program:      CompariMotif
 Description:  Motif vs Motif Comparison Software
-Version:      3.13.0
-Last Edit:    03/12/15
+Version:      3.14.0
+Last Edit:    17/05/19
 Citation:     Edwards, Davey & Shields (2008), Bioinformatics 24(10):1307-9. [PMID: 18375965]
-Webserver:    http://bioware.ucd.ie/
+Webserver:    New webserver coming soon!
+Manual:       http://bit.ly/CompariMotifManual
 Copyright (C) 2007  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -8947,23 +9136,23 @@ Output:
     outstyle=multisplit then motif1 information is grouped together, followed by motif2 information, followed by the
     match statistics. More information can be found in the CompariMotif manual.
 
-Webserver:
+    ### Webserver:
     CompariMotif can be run online at http://bioware.ucd.ie.
 
 Commandline:
-    ## Basic Input Parameters ##
+    ## Basic Input Parameters: ##
     motifs=FILE     : File of input motifs/peptides [None]
     searchdb=FILE   : (Optional) second motif file to compare. Will compare to self if none given. [None]
     dna=T/F         : Whether motifs should be considered as DNA motifs [False]
 
-    ## Basic Output Parameters ##
+    ## Basic Output Parameters: ##
     resfile=FILE    : Name of results file, FILE.compare.tdt. [motifsFILE-searchdbFILE.compare.tdt]
     motinfo=FILE    : Filename for output of motif summary table (if desired) [None]
     motific=T/F     : Output Information Content for motifs [False]
     coreic=T/F      : Whether to output normalised Core IC [True]
     unmatched=T/F   : Whether to output lists of unmatched motifs (not from searchdb) into *.unmatched.txt [False]
 
-    ## Motif Comparison Parameters ##
+    ## Motif Comparison Parameters: ##
     minshare=X      : Min. number of non-wildcard positions for motifs to share [2]
     normcut=X       : Min. normalised MatchIC for motif match [0.5]
     matchfix=X      : If >0 must exactly match *all* fixed positions in the motifs from:  [0]
@@ -8974,7 +9163,7 @@ Commandline:
     overlaps=T/F    : Whether to include overlapping ambiguities (e.g. [KR] vs [HK]) as match [True]
     memsaver=T/F    : Run in more efficient memory saver mode. XGMML output not available. [False]
 
-    ## Advanced Motif Input Parameters ##
+    ## Advanced Motif Input Parameters: ##
     minic=X         : Min information content for a motif (1 fixed position = 1.0) [2.0]
     minfix=X        : Min number of fixed positions for a motif to contain [0]
     minpep=X        : Min number of defined positions in a motif [2]
@@ -8985,7 +9174,7 @@ Commandline:
     mismatches=X    : <= X mismatches of positions can be tolerated [0]
     aafreq=FILE     : Use FILE to replace uniform AAFreqs (FILE can be sequences or aafreq) [None]    
 
-    ## Advanced Motif Output Parameters ##
+    ## Advanced Motif Output Parameters: ##
     xgmml=T/F       : Whether to output XGMML format results [True]
     xgformat=T/F    : Whether to use default CompariMotif formatting or leave blank for e.g. Cytoscape [True]
     pickle=T/F      : Whether to load/save pickle following motif loading/filtering [False]
@@ -9098,11 +9287,12 @@ Commandline:
     haqdb=FILELIST  : Optional extra databases to search for HAQESAC analysis []
     haqbatch=T/F    : Whether to only generate HAQESAC batch file (True) or perform whole run (False) [False]
 "	gopher, gopher_V2, haqesac, ned_eigenvalues, rje_aaprop, rje_ancseq, rje_blast_V1, rje_db, rje_dismatrix_V2, rje_disorder, rje_haq, rje_hpc, rje_html, rje_iridis, rje_menu, rje_motif_V3, rje_obj, rje_pam, rje_qsub, rje_scoring, rje_seqlist, rje_slim, rje_slimcalc, rje_slimlist, rje_svg, rje_tree_group, rje_uniprot, slimfarmer
-tools	gablam	GABLAM	Global Analysis of BLAST Local AlignMents	2.29.0	04/04/18	Dr Richard J. Edwards.	rje, rje_db, rje_ppi, rje_seq, rje_seqlist, rje_tree, rje_blast_V2, rje_dismatrix_V2	aphid, pagsat, pagsat_V1, pingu_V3, seqsuite, slimsuite, snapper, rje_slimcore	Program:      GABLAM
+tools	gablam	GABLAM	Global Analysis of BLAST Local AlignMents	2.30.1	01/04/19	Dr Richard J. Edwards.	rje, rje_db, rje_ppi, rje_seq, rje_seqlist, rje_tree, rje_blast_V2, rje_dismatrix_V2, rje_paf	aphid, pagsat, pagsat_V1, pingu_V3, seqsuite, slimsuite, snapper, rje_slimcore	Program:      GABLAM
 Description:  Global Analysis of BLAST Local AlignMents
-Version:      2.29.0
-Last Edit:    04/04/18
+Version:      2.30.1
+Last Edit:    01/04/19
 Citation:     Davey, Shields & Edwards (2006), Nucleic Acids Res. 34(12):3546-54. [PMID: 16855291]
+Manual:       http://bit.ly/GABLAMManual
 Copyright (C) 2006  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -9196,6 +9386,10 @@ Versions/Updates:
     unique table GFF3 output. This will activate the `qryunique=T` option, which reduced local BLAST hits to non-
     overlapping query regions rather than non-overlapping hit regions. This mode is only possible for `blastn` searches.
 
+    ### ~ Version 2.30: Minimap2 PAF parsing ~ ###
+    Version 2.30.x introduces a developmental option to replace BLAST with Minimap2 for generating the main GABLAM
+    tables: HitSum, Local and GABLAM. Other GABLAM outputs are currently unavailable with this option.
+
 Commandline:
     ### ~ Input/Search Options ~ ###
     seqin=FILE      : Query dataset file [infile.fas]
@@ -9208,12 +9402,15 @@ Commandline:
     cutfocus=X      : Focus for gablamcut. Can be Query/Hit/Either/Both. [Either]
     localcut=X      : Cut-off length for local alignments contributing to global GABLAM stats [0]
     localidcut=PERC : Cut-off local %identity for local alignments contributing to global GABLAM stats [0.0]
+    mapper=X        : Program to use for mapping files against each other (blast/minimap) [blast]
+    mapopt=CDICT    : Dictionary of updated minimap2 options [N:250,p:0.0001,x:asm20]
 
     ### ~ General Output Options ~ ###
     append=T/F      : Whether to append to output file or not. (Not available for blastres=FILE or fullblast=F) [False]
     fullres=T/F     : Whether to output full GABLAM results table [True]
     hitsum=T/F      : Whether to output the BLAST Hit Summary table [True]
     local=T/F       : Whether to output local alignment summary stats table [True]
+    localaln=T/F    : Whether to output local alignments in Local Table [False]
     localsam=T/F    : Save local (and unique) hits data as SAM files in addition to TDT [False]
     localgff=T/F    : Save local (and unique) hits data as GFF3 files in addition to TDT [False]
     cdsgff=T/F      : Whether the query should be treated as the (in-frame) CDS of a gene (also sets qryunique=T) [False]
@@ -9399,11 +9596,12 @@ Commandline:
 
 See also rje.py generic commandline options.
 	fiesta, gopher, gopher_V2, haqesac, multihaq, ned_eigenvalues, rje_aaprop, rje_ancseq, rje_blast_V1, rje_dismatrix_V2, rje_disorder, rje_haq, rje_hpc, rje_html, rje_iridis, rje_mascot, rje_menu, rje_motif_V3, rje_obj, rje_pam, rje_qsub, rje_scoring, rje_slim, rje_slimcalc, rje_slimlist, rje_svg, rje_tree, rje_tree_group, rje_uniprot, slimfarmer
-tools	gopher	GOPHER	Generation of Orthologous Proteins from Homology-based Estimation of Relationships	3.4.3	22/06/18	Dr Richard J. Edwards.	rje, rje_seq, rje_sequence, rje_tree, rje_uniprot, rje_blast_V2, rje_dismatrix_V2	seqsuite, slimsuite, slim_pickings, rje_slimcalc	Program:      GOPHER
+tools	gopher	GOPHER	Generation of Orthologous Proteins from Homology-based Estimation of Relationships	3.5.2	30/04/19	Dr Richard J. Edwards.	rje, rje_seq, rje_sequence, rje_tree, rje_uniprot, rje_blast_V2, rje_dismatrix_V2	seqsuite, slimsuite, slim_pickings, rje_slimcalc	Program:      GOPHER
 Description:  Generation of Orthologous Proteins from Homology-based Estimation of Relationships
-Version:      3.4.3
-Last Edit:    22/06/18
+Version:      3.5.2
+Last Edit:    30/04/19
 Citation:     Davey, Edwards & Shields (2007), Nucleic Acids Res. 35(Web Server issue):W455-9. [PMID: 17576682]
+Manual:       http://bit.ly/GOPHERManual
 Copyright (C) 2005 Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -9482,20 +9680,21 @@ Processing:
     process themselves. This could potentially cause conflict if forking is used.
 
 Commandline:
-    ### Basic Input/Output ###
+    ### Basic Input/Output: ###
     seqin=FILE      : Fasta file of 'query' sequences for orthology discovery (over-rides uniprotid=LIST) []
     uniprotid=LIST  : Extract IDs/AccNums in list from Uniprot into BASEFILE.fas and use as seqin=FILE. []
+    acc=LIST        : Synonym for uniprotid=LIST []
     orthdb=FILE     : Fasta file with pool of sequences for orthology discovery []. Should contain query sequences.
     startfrom=X     : Accession Number / ID to start from. (Enables restart after crash.) [None]
     dna=T/F         : Whether to analyse DNA sequences (not optimised) [False]
 
-    ### GOPHER run control parameters ###
+    ### GOPHER run control parameters: ###
     orthblast   : Run to blasting versus orthdb (Stage 1).
     orthfas     : Run to output of orthologues (Stage 2). 
     orthalign   : Run to alignment of orthologues (Stage 3).
     orthtree    : Run to tree-generation (Stage 4). [default!]
 
-    ### GOPHER Orthologue identifcation Parameters ###
+    ### GOPHER Orthologue identifcation Parameters: ###
     postdup=T/F     : Whether to align only post-duplication sequences [False]
     reciprocal=T/F  : Use Reciprocal Best Hit method instead of standard GOPHER approach [False]
     fullrbh=T/F     : Whether RBH method should run BLAST searches for all potential RBH orthologues [False]
@@ -9520,7 +9719,7 @@ Commandline:
                         - gooddesc = list of terms that, at least one of which must be in description line
     badX=LIST       : As goodX but excludes rather than retains filtered sequences
 
-    ### Additional run control options ###
+    ### Additional run control options: ###
     repair=T/F      : Repair mode - replace previous files if date mismatches or files missing.
                       (Skip missing files if False) [True]
     force=T/F       : Whether to force execution at current level even if results are new enough [False]
@@ -9531,7 +9730,7 @@ Commandline:
     maxpara=X       : Maximum number of paralogues to consider (large gene families can cause problems) [50]
     oldblast=T/F    : Run with old BLAST rather than BLAST+ [False]
 
-    ### Additional Output Options ###
+    ### Additional Output Options: ###
     runpath=PATH    : Directory from which to run GOPHER. (NB. Will look for input here unless full paths given) [./]
     gopherdir=PATH  : Parent directory for output of files [./]
     organise=T/F    : Output files according to orthdb an species (code or TaxaID - need conversion) [True]
@@ -9621,10 +9820,10 @@ Uses general modules: copy, glob, os, string, sys, time
 Uses RJE modules: rje, rje_db, rje_ppi, rje_uniprot, rje_zen
 Other modules needed: None
 	gopher, ned_eigenvalues, rje_aaprop, rje_ancseq, rje_blast_V1, rje_blast_V2, rje_disorder, rje_menu, rje_obj, rje_pam, rje_scoring, rje_seq, rje_seqlist, rje_slimcalc, rje_svg, rje_tree_group, rje_xgmml
-tools	haqesac	HAQESAC	Homologue Alignment Quality, Establishment of Subfamilies and Ancestor Construction	1.12.0	20/03/18	Dr Richard J. Edwards.	rje, rje_ancseq, rje_haq, rje_seq, rje_tree, rje_blast_V2	budapest, multihaq, seqsuite, slimsuite	Program:      HAQESAC
+tools	haqesac	HAQESAC	Homologue Alignment Quality, Establishment of Subfamilies and Ancestor Construction	1.13.0	24/05/19	Dr Richard J. Edwards.	rje, rje_ancseq, rje_haq, rje_seq, rje_tree, rje_blast_V2	budapest, multihaq, seqsuite, slimsuite	Program:      HAQESAC
 Description:  Homologue Alignment Quality, Establishment of Subfamilies and Ancestor Construction
-Version:      1.12.0
-Last Edit:    20/03/18
+Version:      1.13.0
+Last Edit:    24/05/19
 Citation:     Edwards et al. (2007), Nature Chem. Biol. 3(2):108-112. [PMID: 17220901]
 Copyright (C) 2007  Richard J. Edwards - See source code for GNU License Notice
 
@@ -9720,7 +9919,7 @@ Commandline Options:
     maxgap=X    : Maximum proportion of sequence that may be gaps compared to nearest neighbour (<=0 = No maximum) [0.5]
 
     # General HAQ Options #
-    qregion=X,Y     : Concentrate on the region of the query from (and including) residue X to residue Y [0,-1]
+    qregion=X,Y     : Concentrate on the region of the query from (and including) residue X to residue Y [1,-1]
     haq=T/F         : Homologue Alignment Quality [True]
     noquery=T/F     : No Query for SAQ, Random Query for PAQ (else query=X or first sequence) [False]
     keep=T/F        : Keep all sequences (saqkl=0, paqkl=0) [False]
@@ -9852,10 +10051,10 @@ Uses general modules: copy, glob, os, string, sys, time
 Uses RJE modules: rje, rje_zen
 Other modules needed: None
 	gopher, gopher_V2, ned_eigenvalues, rje_aaprop, rje_ancseq, rje_blast_V1, rje_blast_V2, rje_db, rje_dismatrix_V2, rje_disorder, rje_haq, rje_hpc, rje_html, rje_iridis, rje_menu, rje_motif_V3, rje_obj, rje_pam, rje_qsub, rje_scoring, rje_seqlist, rje_sequence, rje_slim, rje_slimcalc, rje_slimlist, rje_svg, rje_tree, rje_tree_group, rje_uniprot
-tools	pagsat	PAGSAT	Pairwise Assembled Genome Sequence Analysis Tool	2.4.0	12/04/18	Dr Richard J. Edwards.	rje, rje_db, rje_genbank, rje_html, rje_menu, rje_obj, rje_samtools, rje_seqlist, rje_sequence, rje_synteny, rje_tree, rje_tree_group, rje_xref, rje_blast_V2, rje_dismatrix_V3, gablam, snapper	seqsuite	Module:       PAGSAT
+tools	pagsat	PAGSAT	Pairwise Assembled Genome Sequence Analysis Tool	2.6.8	08/04/19	Dr Richard J. Edwards.	rje, rje_db, rje_genbank, rje_html, rje_menu, rje_obj, rje_samtools, rje_seqlist, rje_sequence, rje_synteny, rje_tree, rje_tree_group, rje_xref, rje_blast_V2, rje_dismatrix_V3, gablam, snapper	seqsuite	Module:       PAGSAT
 Description:  Pairwise Assembled Genome Sequence Analysis Tool
-Version:      2.4.0
-Last Edit:    12/04/18
+Version:      2.6.8
+Last Edit:    08/04/19
 Copyright (C) 2015  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -9867,10 +10066,10 @@ Function:
 
 Input:
     Main input for PAGSAT is an assembled genome in fasta format (`assembly=FILE`) and a reference genome in fasta format
-    (`refgenome=FILE` or `reference=FILE`) with corresponding `*.gb` or `*.gbk` genbank download for feature extraction.
-    For full function, a features table plus protein and gene sequences should be provided. (These will be parsed from
-    a Genbank reference file.) Basic contig-reference mapping and plotting will still be performed with a pure sequence
-    reference that lacks features or gene sequences.
+    (`refgenome=FILE` or `reference=FILE`) with corresponding `*.gb`, `*.gbk` or `*.gbff` genbank download for feature
+    extraction. For full function, a features table plus protein and gene sequences should be provided. (These will be
+    parsed from a Genbank reference file.) Basic contig-reference mapping and plotting will still be performed with a
+    pure sequence reference that lacks features or gene sequences.
 
     ### ~ Reference Sequence Naming ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     PAGSAT expects a particular naming format for assembly sequences, which is a bit more constrained that most programs.
@@ -9879,6 +10078,12 @@ Input:
     (Generally `XX` and `YY` will match but this is not a requirement.) `ACCBASE` could be the same for all sequences, or
     it could be sequence-specific. It can also include `.` characters: only the final `.` element must be unique. `YY`
     must end with numbers. (These are expected to be contig numbers, possibly with a prefix.)
+
+Sequence mapping:
+    Version 2.6 introduced a `mapper=minimap` option for using minimap2 in place of BLAST+ for mapping the assembly and
+    reference against each other (and themselves). This should be considered a "quick and dirty" version of PAGSAT, with
+    much faster run times but missing a lot of small repeat sequences and more divergent matches. It is primarily for
+    initial assessment and triage of different assemblies before picking a cleaner/tidier one for further analysis.
 
 Output:
     Main output is a number of delimited text files and PNG graphics made with R. Details to follow.
@@ -9916,11 +10121,14 @@ Commandline:
     minunique=X     : Minimum number of "Unique-mapping" nucleotides to retain a contig-chromosome link [250]
     snapper=T/F     : Run Snapper to generate "best" unique mapping of assembly contigs to Reference [True]
     makesnp=T       : Generate the full set of SNP outputs for Snapper [False]
+    mapper=X        : Program to use for mapping files against each other (blast/minimap) [blast]
+    mapopt=CDICT    : Dictionary of updated minimap2 options [N:250,p:0.0001,x:asm20]
     ### ~ Output Options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     basefile=X      : Basename for output files and directories. [assembly+ref]
     rgraphics=T/F   : Whether to generate PNG graphics using R. (Needs R installed and setup) [True]
     dotplots=T/F    : Whether to use gablam.r to output dotplots for all ref vs assembly. [False]
-    report=T/F      : Whether to generate HTML report [True]
+    assessment=T/F  : Whether to perform full reference versus assembly assessment [False]
+    report=T/F      : Whether to generate HTML report. Also sets assessment=T (default function). [False]
     genetar=T/F     : Whether to tar and zip the GeneHits/ and ProtHits/ folders (if generated & Mac/Linux) [True]
     chromalign=T/F  : [Discontinued] Whether to perform crude chromosome-contig alignment [False]
     orderedfas=T/F  : Whether to generate crude ordered contig output for e.g. Progressive Mauve [False]
@@ -9932,17 +10140,18 @@ Commandline:
     chromcov=LIST   : Report no. of chromosomes covered by a single contig at different %globID (GABLAM table) [95,98,99]
     compile=FILES   : Compile reference chromosome comparisons for a set of *.report.html files []
     ### ~ Assembly Tidy/Edit Options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-    mapfas=T/F      : Output assembly *.map.fasta file with RevComp contigs based on initial (automatic) mapping [True]
+    mapfas=T/F      : Output assembly *.map.fasta file with RevComp contigs based on initial (automatic) mapping [False]
     tidy=T/F        : Execute semi-automated assembly tidy/edit mode to complete draft assembly [False]
     newacc=X        : New base for edited contig accession numbers (None will keep old accnum) [None]
     newchr=X        : Code to replace "chr" in new sequence names for additional PAGSAT compatibility [ctg]
+    spcode=X        : Species code for renaming assembly sequences [PAGSAT]
     refchr=X        : Code used in place of "chr" for reference sequence names [chr]
     orphans=T/F     : Whether to include and process orphan contigs [True]
     joinsort=X      : Whether to sort potential chromosome joins by `Length` or `Identity` [Identity]
     joinmerge=X     : Merging mode for joining chromosomes (mid/start/end/longest) [mid]
     joinmargin=X    : Number of extra bases allowed to still be considered an end local BLAST hit [10]
     ### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-	gopher, ned_eigenvalues, rje_aaprop, rje_ancseq, rje_blast_V1, rje_dismatrix_V2, rje_disorder, rje_pam, rje_ppi, rje_scoring, rje_seq, rje_slim, rje_slimcalc, rje_svg, rje_taxonomy, rje_uniprot, rje_xgmml, rje_zen, snp_mapper
+	gopher, ned_eigenvalues, rje_aaprop, rje_ancseq, rje_blast_V1, rje_dismatrix_V2, rje_disorder, rje_paf, rje_pam, rje_ppi, rje_scoring, rje_seq, rje_slim, rje_slimcalc, rje_svg, rje_taxonomy, rje_uniprot, rje_xgmml, rje_zen, snp_mapper
 tools	pagsat_V1	PAGSAT	Pairwise Assembled Genome Sequence Analysis Tool	1.12.0	26/09/16	Dr Richard J. Edwards.	rje, rje_db, rje_genbank, rje_html, rje_obj, rje_seqlist, rje_sequence, rje_synteny, rje_tree, rje_tree_group, rje_xref, rje_blast_V2, rje_dismatrix_V3, gablam, snapper	None	Module:       PAGSAT
 Description:  Pairwise Assembled Genome Sequence Analysis Tool
 Version:      1.12.0
@@ -9999,7 +10208,7 @@ Commandline:
     joinmargin=X    : Number of extra bases allowed to still be considered an end local BLAST hit [10]
     snapper=T/F     : Run Snapper on ctidX/haploid output following PAGSAT Tidy. (Re-Quiver recommended first.) [False]
     ### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-	gopher, ned_eigenvalues, rje_aaprop, rje_ancseq, rje_blast_V1, rje_dismatrix_V2, rje_disorder, rje_menu, rje_pam, rje_ppi, rje_scoring, rje_seq, rje_slim, rje_slimcalc, rje_svg, rje_taxonomy, rje_uniprot, rje_xgmml, rje_zen, snp_mapper
+	gopher, ned_eigenvalues, rje_aaprop, rje_ancseq, rje_blast_V1, rje_dismatrix_V2, rje_disorder, rje_menu, rje_paf, rje_pam, rje_ppi, rje_scoring, rje_seq, rje_slim, rje_slimcalc, rje_svg, rje_taxonomy, rje_uniprot, rje_xgmml, rje_zen, snp_mapper
 tools	peptcluster	PeptCluster	Peptide Clustering Module	1.5.4	01/11/17	Dr Richard J. Edwards.	rje, rje_aaprop, rje_obj, rje_pam, rje_slim, rje_tree, rje_zen, rje_dismatrix_V2	slimmaker, slimsuite	Module:       PeptCluster
 Description:  Peptide Clustering Module
 Version:      1.5.4
@@ -10188,11 +10397,11 @@ Commandline:
 Uses general modules: copy, glob, os, string, sys, time
 Uses RJE modules: rje
 Other modules needed: None
-	comparimotif_V3, gopher, ned_eigenvalues, ned_rankbydistribution, peptcluster, rje_aaprop, rje_ancseq, rje_blast_V1, rje_blast_V2, rje_db, rje_dismatrix_V3, rje_disorder, rje_forker, rje_genecards, rje_html, rje_menu, rje_motif_V3, rje_obj, rje_pam, rje_scoring, rje_seqlist, rje_sequence, rje_slim, rje_slimcalc, rje_slimlist, rje_svg, rje_tm, rje_tree_group, slimfinder, slimmaker, unifake
-tools	pingu_V4	PINGU	Protein Interaction Network & GO Utility	4.9.0	18/01/17	Dr Richard J. Edwards.	rje, rje_db, rje_go, rje_obj, rje_ppi, rje_seqlist, rje_uniprot, rje_xgmml, rje_xref, pingu_V3, rje_hprd, rje_biogrid, rje_mitab	seqsuite, slimmutant, slimsuite	Module:       PINGU
+	comparimotif_V3, gopher, ned_eigenvalues, ned_rankbydistribution, peptcluster, rje_aaprop, rje_ancseq, rje_blast_V1, rje_blast_V2, rje_db, rje_dismatrix_V3, rje_disorder, rje_forker, rje_genecards, rje_html, rje_menu, rje_motif_V3, rje_obj, rje_paf, rje_pam, rje_scoring, rje_seqlist, rje_sequence, rje_slim, rje_slimcalc, rje_slimlist, rje_svg, rje_tm, rje_tree_group, slimfinder, slimmaker, unifake
+tools	pingu_V4	PINGU	Protein Interaction Network & GO Utility	4.10.0	21/05/19	Dr Richard J. Edwards.	rje, rje_db, rje_go, rje_obj, rje_ppi, rje_seqlist, rje_uniprot, rje_xgmml, rje_xref, pingu_V3, rje_hprd, rje_biogrid, rje_mitab	seqsuite, slimmutant, slimsuite	Module:       PINGU
 Description:  Protein Interaction Network & GO Utility
-Version:      4.9.0
-Last Edit:    18/01/17
+Version:      4.10.0
+Last Edit:    21/05/19
 Copyright (C) 2013  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -10278,6 +10487,8 @@ Commandline:
     ### ~ PPI COMPILATION/FILTERING OPTIONS ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     hublist=LIST        : List of hub genes to restrict pairwise PPI to []
     hubonly=T/F         : Whether to restrict pairwise PPI to those with both hub and spoke in hublist [False]
+    hubfield=X          : Hub field to use for hublist=LIST [Hub]
+    spokefield=X        : Spoke field to use for hublist=LIST hubonly=T [Spoke]
     ppicompile=CDICT    : List of db:file PPI Sources to compile and generate *.pairwise.tdt []
     ppidbreport=T/F     : Summary output for PPI compilation of evidence/PPIType/DB overlaps [True]
     symmetry=T/F        : Whether to enforce Hub-Spoke symmetry during PPI compilation [True]
@@ -10299,7 +10510,7 @@ Commandline:
     ### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
 
 See also rje.py generic commandline options.
-	comparimotif_V3, gablam, gopher, ned_eigenvalues, ned_rankbydistribution, peptcluster, qslimfinder, rje_aaprop, rje_ancseq, rje_blast_V1, rje_blast_V2, rje_dismatrix_V2, rje_dismatrix_V3, rje_disorder, rje_forker, rje_genecards, rje_genemap, rje_html, rje_menu, rje_motif_V3, rje_pam, rje_scoring, rje_seq, rje_sequence, rje_slim, rje_slimcalc, rje_slimcore, rje_slimlist, rje_svg, rje_tm, rje_tree, rje_tree_group, rje_zen, slimfinder, slimmaker, unifake
+	comparimotif_V3, gablam, gopher, ned_eigenvalues, ned_rankbydistribution, peptcluster, qslimfinder, rje_aaprop, rje_ancseq, rje_blast_V1, rje_blast_V2, rje_dismatrix_V2, rje_dismatrix_V3, rje_disorder, rje_forker, rje_genecards, rje_genemap, rje_html, rje_menu, rje_motif_V3, rje_paf, rje_pam, rje_scoring, rje_seq, rje_sequence, rje_slim, rje_slimcalc, rje_slimcore, rje_slimlist, rje_svg, rje_tm, rje_tree, rje_tree_group, rje_zen, slimfinder, slimmaker, unifake
 tools	presto_V5	PRESTO	Protein Regular Expression Search Tool	5.0	22/01/07	Dr Richard J. Edwards.	rje, rje_motif_V3, rje_motif_stats, rje_scoring, rje_seq, rje_sequence, rje_motiflist	slimsuite	Program:      PRESTO
 Description:  Protein Regular Expression Search Tool
 Version:      5.0
@@ -10498,12 +10709,14 @@ Uses RJE modules: rje, rje_aaprop, rje_disorder, rje_motif_V3, rje_motif_cons, r
     rje_blast, rje_pam, rje_uniprot
 Other modules needed: rje_dismatrix, 
 	gopher, gopher_V2, ned_eigenvalues, rje_aaprop, rje_ancseq, rje_blast_V1, rje_blast_V2, rje_db, rje_dismatrix_V2, rje_disorder, rje_html, rje_menu, rje_motifocc, rje_obj, rje_pam, rje_seqlist, rje_slim, rje_slimcalc, rje_svg, rje_tree, rje_tree_group, rje_uniprot, rje_zen
-tools	qslimfinder	QSLiMFinder	Query Short Linear Motif Finder	2.2.0	20/01/17	Richard J. Edwards, Norman E. Davey & Denis C. Shields	rje, rje_seq, slimfinder, rje_slim, rje_slimcalc, rje_slimcore, rje_slimlist	pingu_V3, slimsuite	Program:      QSLiMFinder
+tools	qslimfinder	QSLiMFinder	Query Short Linear Motif Finder	2.3.0	24/05/19	Richard J. Edwards, Norman E. Davey & Denis C. Shields	rje, rje_seq, slimfinder, rje_slim, rje_slimcalc, rje_slimcore, rje_slimlist	pingu_V3, slimsuite	Program:      QSLiMFinder
 Description:  Query Short Linear Motif Finder
-Version:      2.2.0
-Last Edit:    20/01/17
+Version:      2.3.0
+Last Edit:    24/05/19
 Citation:     Palopoli N, Lythgow KT & Edwards RJ. Bioinformatics 2015; doi: 10.1093/bioinformatics/btv155 [PMID: 25792551]
 SLiMFinder:   Edwards, Davey & Shields (2007), PLoS ONE 2(10): e967. [PMID: 17912346]
+Webserver:    http://www.slimsuite.unsw.edu.au/servers/qslimfinder.php
+Manual:       http://bit.ly/SFManual
 Copyright (C) 2008  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -10519,7 +10732,7 @@ Function:
     Note that minocc and ambocc values *include* the query sequence, e.g. minocc=2 specifies the query and ONE other UPC.    
     
 Commandline: ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-    ### Basic Input/Output Options ### 
+    ### Basic Input/Output Options: ###
     seqin=FILE      : Sequence file to search [None]
     batch=LIST      : List of files to search, wildcards allowed. (Over-ruled by seqin=FILE.) [*.dat,*.fas]
     query=LIST      : Return only SLiMs that occur in 1+ Query sequences (Name/AccNum/Seq Number) [1]
@@ -10540,7 +10753,7 @@ Commandline: ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     ptmlist=LIST    : List of PTM letters to add to alphabet for analysis and restrict PTM data []
     ptmdata=DSVFILE : File containing PTM data, including AccNum, ModType, ModPos, ModAA, ModCode
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-    ### SLiMBuild Options I: Evolutionary Filtering  ###
+    ### SLiMBuild Options I - Evolutionary Filtering:  ###
     efilter=T/F     : Whether to use evolutionary filter [True]
     blastf=T/F      : Use BLAST Complexity filter when determining relationships [True]
     blaste=X        : BLAST e-value threshold for determining relationships [1e=4]
@@ -10548,7 +10761,7 @@ Commandline: ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     gablamdis=FILE  : Alternative GABLAM results file [None] (!!!Experimental feature!!!)
     homcut=X        : Max number of homologues to allow (to reduce large multi-domain families) [0]
 
-    ### SLiMBuild Options II: Input Masking ###
+    ### SLiMBuild Options II - Input Masking: ###
     masking=T/F     : Master control switch to turn off all masking if False [True]
     dismask=T/F     : Whether to mask ordered regions (see rje_disorder for options) [False]
     consmask=T/F    : Whether to use relative conservation masking [False]
@@ -10560,9 +10773,9 @@ Commandline: ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     metmask=T/F     : Masks the N-terminal M (can be useful if termini=T) [True]
     posmask=LIST    : Masks list of position-specific aas, where list = pos1:aas,pos2:aas  [2:A]
     aamask=LIST     : Masks list of AAs from all sequences (reduces alphabet) []
-    qregion=X,Y     : Mask all but the region of the query from (and including) residue X to residue Y [0,-1]
+    qregion=X,Y     : Mask all but the region of the query from (and including) residue X to residue Y (0<L numbering) [1,-1]
     
-    ### SLiMBuild Options III: Basic Motif Construction ###
+    ### SLiMBuild Options III - Basic Motif Construction: ###
     termini=T/F     : Whether to add termini characters (^ & $) to search sequences [True]
     minwild=X       : Minimum number of consecutive wildcard positions to allow [0]
     maxwild=X       : Maximum number of consecutive wildcard positions to allow [2]
@@ -10571,7 +10784,7 @@ Commandline: ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     absmin=X        : Used if minocc<1 to define absolute min. UP occ [3]
     alphahelix=T/F  : Special i, i+3/4, i+7 motif discovery [False]
 
-    ### SLiMBuild Options IV: Ambiguity ###
+    ### SLiMBuild Options IV - Ambiguity: ###
     ambiguity=T/F   : (preamb=T/F) Whether to search for ambiguous motifs during motif discovery [True]
     ambocc=X        : Min. UP occurrence for subvariants of ambiguous motifs (minocc if 0 or > minocc) [0.05]
     absminamb=X     : Used if ambocc<1 to define absolute min. UP occ [2]
@@ -10579,14 +10792,14 @@ Commandline: ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     wildvar=T/F     : Whether to allow variable length wildcards [True]
     combamb=T/F     : Whether to search for combined amino acid degeneracy and variable wildcards [False]
 
-    ### SLiMBuild Options V: Advanced Motif Filtering ###
+    ### SLiMBuild Options V - Advanced Motif Filtering: ###
     musthave=LIST   : Returned motifs must contain one or more of the AAs in LIST (reduces search space) []
     focus=FILE      : FILE containing focal groups for SLiM return (see Manual for details) [None]
     focusocc=X      : Motif must appear in X+ focus groups (0 = all) [0]
     * See also rje_slimcalc options for occurrence-based calculations and filtering *
     
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-    ### SLiMChance Options ###
+    ### SLiMChance Options: ###
     cloudfix=T/F    : Restrict output to clouds with 1+ fixed motif (recommended) [False]
     slimchance=T/F  : Execute main QSLiMFinder probability method and outputs [True]
     sigprime=T/F    : Calculate more precise (but more computationally intensive) statistical model [False]
@@ -10601,13 +10814,13 @@ Commandline: ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     seqocc=T/F      : Whether to upweight for multiple occurrences in same sequence (heuristic) [False]
     probscore=X     : Score to be used for probability cut-off and ranking (Prob/Sig) [Sig]
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-    ### Advanced Output Options I: Output data ###
+    ### Advanced Output Options I - Output data: ###
     clouds=X        : Identifies motif "clouds" which overlap at 2+ positions in X+ sequences (0=minocc / -1=off) [2]
     runid=X         : Run ID for resfile (allows multiple runs on same data) [DATE:TIME]
     logmask=T/F     : Whether to log the masking of individual sequences [True]
     slimcheck=FILE  : Motif file/list to add to resfile output [] 
 
-    ### Advanced Output Options II: Output formats ###
+    ### Advanced Output Options II - Output formats: ###
     teiresias=T/F   : Replace TEIRESIAS, making *.out and *.mask.fasta files [False]
     slimdisc=T/F    : Emulate SLiMDisc output format (*.rank & *.dat.rank + TEIRESIAS *.out & *.fasta) [False]
     extras=X        : Whether to generate additional output files (alignments etc.) [1]
@@ -10623,17 +10836,100 @@ Commandline: ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
                         - 2 = Delete all bar *.upc (pickle added to tar)
                         - 3 = Delete all dataset-specific files including *.upc and *.pickle (not *.tar.gz)
 
-    ### Advanced Output Options III: Additional Motif Filtering ### 
+    ### Advanced Output Options III - Additional Motif Filtering: ###
     topranks=X      : Will only output top X motifs meeting probcut [1000]
     minic=X         : Minimum information content for returned motifs [2.1]
     allsig=T/F      : Whether to also output all SLiMChance combinations (Sig/SigV/SigPrime/SigPrimeV) [False]
     * See also rje_slimcalc options for occurrence-based calculations and filtering *
     
-	comparimotif_V3, gablam, gopher, ned_eigenvalues, ned_rankbydistribution, peptcluster, rje_aaprop, rje_ancseq, rje_blast_V1, rje_blast_V2, rje_db, rje_dismatrix_V2, rje_dismatrix_V3, rje_disorder, rje_forker, rje_html, rje_menu, rje_motif_V3, rje_obj, rje_pam, rje_ppi, rje_scoring, rje_seqlist, rje_sequence, rje_svg, rje_tm, rje_tree, rje_tree_group, rje_uniprot, rje_xgmml, rje_zen, slimmaker, unifake
-tools	seqmapper	SeqMapper	Sequence Mapping Program	2.2.0	31/10/17	Dr Richard J. Edwards.	rje, rje_menu, rje_obj, rje_seq, rje_seqlist, rje_zen, rje_blast_V2, rje_sequence	slimsuite, rje_ensembl	Module:       SeqMapper
+	comparimotif_V3, gablam, gopher, ned_eigenvalues, ned_rankbydistribution, peptcluster, rje_aaprop, rje_ancseq, rje_blast_V1, rje_blast_V2, rje_db, rje_dismatrix_V2, rje_dismatrix_V3, rje_disorder, rje_forker, rje_html, rje_menu, rje_motif_V3, rje_obj, rje_paf, rje_pam, rje_ppi, rje_scoring, rje_seqlist, rje_sequence, rje_svg, rje_tm, rje_tree, rje_tree_group, rje_uniprot, rje_xgmml, rje_zen, slimmaker, unifake
+tools	samphaser	SAMPhaser	Diploid chromosome phasing from SAMTools Pileup format.	0.8.0	12/10/18	Dr Richard J. Edwards.	rje, rje_html, rje_obj, rje_db, rje_samtools, rje_seqlist	None	Module:       SAMPhaser
+Description:  Diploid chromosome phasing from SAMTools Pileup format.
+Version:      0.8.0
+Last Edit:    12/10/18
+Documentation: https://github.com/slimsuite/SLiMSuite/wiki/SAMPhaser
+Copyright (C) 2016  Richard J. Edwards - See source code for GNU License Notice
+
+Function:
+    SAMPhaser is a tool designed to take an input of long read (e.g. PacBio) data mapped onto a genome assembly and
+    phase the data into haplotype blocks before "unzipping" the assembly into phased "haplotigs". Unphased regions are
+    also output as single "collapsed" haplotigs. This is designed for phasing PacBio assemblies of diploid organisms.
+    By default, only SNPs are used for phasing, with indel polymorphisms being ignored. This is because indels are more
+    likely to be errors. In particular, mononucleotide repeats could have indels that look like false well-supported
+    polymorphisms.
+
+    ### SAMPhaser overview:
+    SAMPhaser first identifies variants from a pileup file generated using [SAMtools](https://github.com/samtools/samtools)
+    from a BAM file of mapped long reads. SNPs and indels are called for all positions where the minor allele is
+    supported by at least 10% of the reads (`mincut=X`), with an absolute minimum of two reads (`absmincut=X`).
+    The subset of biallelic SNPs with the minor variant supported by at least five reads (`absphasecut=X`) at a frequency
+    of at least 25% (`phasecut=X`) are used for phasing. Indels, and any SNPs not meeting these criteria, are used for
+    sequence correction, but not phasing.
+
+    Phasing is performed by iteratively assigning alleles and reads to haplotypes. Initially, each read is given an equal
+    probability of being in haplotype "A" or "B". The reference allele of the first SNP then defines haplotype A.
+    For each SNP, SAMPhaser iteratively calculates (1) the probability that each allele is in haplotype A given the
+    haplotype A probabilities for reads containing that allele, and then (2) the probability that each read is in
+    haplotype A given the haplotype A probabilities for that read's alleles at the last ten SNPs (`snpcalc=X`). This is
+    performed by modelling a SNP call error rate (`snperr=X` set at 5%) and then calculating the relative likelihood of
+    seeing the observed data if a read or allele is really in haplotype A versus haplotype B.
+
+    This progresses until all SNPs have been processed. If at any point, all reads with processed SNP positions reach
+    their ends before another SNP is reached, a new phasing block is started. Draft phase blocks are then resolved into
+    the final haplotype blocks by assigning reads and SNPs where the probability of assignment of a read to one haplotype
+    exceeds 95% (`trackprob=X`). Ambiguous reads and SNPs are ignored.
+
+    The final step is to "unzip" the reference sequence into "haplotigs". SAMPhaser unzips phase blocks with at least
+    five SNPs (`minsnp=X`). Regions that are not unzipped are output as "collapsed" haplotigs. First, phased reads are
+    assigned to the appropriate haplotig. Regions of 100+ base pairs without coverage (`splitzero=X`) are removed as
+    putative structural variants, and the haplotig split at this point. Haplotigs with an average depth of coverage
+    below 5X (`minhapx=X`) are removed. Note that this can result in "orphan" haplotigs, where the minor haplotig did not
+    have sufficient coverage for retention. Haplotigs ending within 10 bp (`endmargin=X`) of the end of the reference
+    sequence are extended. Next, collapsed blocks are established by identifying reads that (a) have not been assigned to
+    a haplotype, and (b) are not wholly overlapping a phased block.
+
+    Finally, unzipped blocks have their sequences corrected. This is performed by starting with the reference sequence
+    and then identifying the dominant haplotype allele (or consensus for collapsed blocks) at all variant positions
+    (not just those used for phasing) providing the variant has at least 10% (min. three) reads supporting it
+    (`unzipcut=X` `absunzipcut=X`). The final haplotig sequence is the original reference sequence with any assigned
+    non-reference alleles substituted in at the appropriate positions. Single base deletions are cut out of the sequence
+    and so it may end up shorter than the original contig. Insertions and longer deletions are not currently handled and
+    are ignored; for this reason, it is important to re-map reads and correct the final haplotig sequences.
+
+Commandline:
+    ### ~ Input/Output options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+    seqin=FASFILE   : Input genome to phase variants in []
+    pileup=FILE     : Pileup file of reads against input genome. []
+    basefile=FILE   : Root of output file names (same as Pileup input file by default) []
+    mincut=X        : Minimum read count for minor allele (proportion of QN if <1) for pileup parsing [0.1]
+    absmincut=X     : Absolute minimum read count for minor allele (used if mincut<1) [2]
+    indels=T/F      : Whether to include indels in "SNP" parsing [True]
+    snptableout=T/F : Output filtered alleles to SNP Table [False]
+    skiploci=LIST   : Optional list of loci (full names or accnum) to skip phasing []
+    phaseloci=LIST  : Optional list of loci (full names or accnum) to phase (will skip rest) []
+    ### ~ Phasing options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+    phasecut=X      : Minimum read count for minor allele for phasing (proportion of QN if <1) [0.25]
+    absphasecut=X   : Absolute minimum read count for phasecut (used if phasecut<1) [5]
+    phaseindels=T/F : Whether to include indels in "SNP" phasing [False]
+    snperr=X        : Probability of an incorrect (biallelic) SNP call for individual read nucleotides [0.05]
+    snpcalc=X       : Max number of SNPs to use for read probability calculations (fewer = quicker) [10]
+    trackprob=X     : Min probability for assigning a read/SNP to Track A/B [0.95]
+    ### ~ Unzipping options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+    minsnp=X        : Min number of SNPs per phased haplotype block [5]
+    endmargin=X     : Extend block ends within X nucleotides of sequence ends [10]
+    unzipcut=X      : Minimum read count for allele for unzipping haplotigs (proportion of QN if <1) [0.1]
+    absunzipcut=X   : Absolute minimum read count for unzipcut (used if unzipcut<1) [3]
+    minhapx=X       : Minimum mean coverage for haplotig [5]
+    halfhap=T/F     : Whether to allow "half haplotigs" where one halpotig in a pair is removed by minhapx [True]
+    splitzero=X     : Whether to split haplotigs at zero-coverage regions of X+ bp (-1 = no split) [100]
+    rgraphics=T/F   : Whether to generate PNG graphics using R. (Needs R installed and setup) [True]
+    poordepth=T/F   : Whether to include reads with poor track probability in haplotig depth plots (random track) [False]
+    ### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+	rje_disorder, rje_menu, rje_scoring, rje_sequence, rje_uniprot, rje_zen
+tools	seqmapper	SeqMapper	Sequence Mapping Program	2.3.0	17/10/18	Dr Richard J. Edwards.	rje, rje_menu, rje_obj, rje_seq, rje_seqlist, rje_zen, rje_blast_V2, rje_sequence	slimsuite, rje_ensembl	Module:       SeqMapper
 Description:  Sequence Mapping Program
-Version:      2.2.0
-Last Edit:    31/10/17
+Version:      2.3.0
+Last Edit:    17/10/18
 Copyright (C) 2006  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -10703,10 +10999,10 @@ Commandline:
     blastf=T/F  : Complexity Filter (BLAST -F X) [False]
 
 	gopher, ned_eigenvalues, rje_aaprop, rje_ancseq, rje_blast_V1, rje_db, rje_dismatrix_V2, rje_disorder, rje_html, rje_pam, rje_scoring, rje_slim, rje_slimcalc, rje_svg, rje_tree, rje_tree_group, rje_uniprot
-tools	seqsuite	SeqSuite	Miscellaneous biological sequence analysis toolkit	1.19.1	19/06/18	Dr Richard J. Edwards.	rje, rje_db, rje_obj, rje_zen, rje_dbase, rje_ensembl, rje_genbank, rje_gff, rje_mitab, rje_pydocs, rje_seq, rje_seqlist, rje_taxonomy, rje_tree, rje_uniprot, rje_xref, rje_blast_V2, fiesta, gablam, gasp, gopher, haqesac, multihaq, pingu_V4, pagsat, smrtscape, snapper, snp_mapper, rje_samtools	slimsuite	Module:       SeqSuite
+tools	seqsuite	SeqSuite	Miscellaneous biological sequence analysis toolkit	1.23.0	14/05/19	Dr Richard J. Edwards.	rje, rje_db, rje_obj, rje_zen, rje_dbase, rje_ensembl, rje_genbank, rje_gff, rje_mitab, rje_paf, rje_ppi, rje_pydocs, rje_seq, rje_seqlist, rje_taxonomy, rje_tree, rje_uniprot, rje_xref, rje_blast_V2, buscomp, fiesta, gablam, gasp, gopher, haqesac, multihaq, pingu_V4, pagsat, smrtscape, snapper, snp_mapper, rje_samtools	slimsuite	Module:       SeqSuite
 Description:  Miscellaneous biological sequence analysis toolkit
-Version:      1.19.1
-Last Edit:    19/06/18
+Version:      1.23.0
+Last Edit:    14/05/19
 Copyright (C) 2014  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -10736,8 +11032,10 @@ SeqSuite tools:
     - HAQESAC = haqesac.HAQESAC. Homologue Alignment Quality, Establishment of Subfamilies and Ancestor Construction.
     - MITAB = rje_mitab.MITAB. MITAB PPI parser.
     - MultiHAQ = multihaq.MultiHAQ. Multi-Query HAQESAC controller.
+    - PAF = rje_paf.PAF. Minimap2 PAF to GABLAM format converter.
     - PAGSAT = pagsat.PAGSAT. Pairwise Assembled Genome Sequence Analysis Tool. (Development only)
     - PINGU = pingu_V4.PINGU. Protein Interaction Network & GO Utility.
+    - PPI = rje_ppi.PPI. Protein-Protein Interaction Module.
     - PyDocs = rje_pydocs.PyDoc. Python Module Documentation & Distribution.
     - RJE_Seq = rje_seq.SeqList. Fasta file sequence manipulation/reformatting.
     - SAMTools = rje_samtools.SAMTools. SAMTools mpileup analysis tool. (Development only)
@@ -10764,11 +11062,11 @@ Commandline:
     batchbase=T/F       # Whether to give each batch run a separate basefile=X command in place of log=X [True]
     ### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
 See also rje.py generic commandline options.
-	comparimotif_V3, gopher_V2, ned_eigenvalues, ned_rankbydistribution, peptcluster, pingu_V3, qslimfinder, rje_aaprop, rje_ancseq, rje_biogrid, rje_blast, rje_blast_V1, rje_dismatrix_V2, rje_dismatrix_V3, rje_disorder, rje_forker, rje_genecards, rje_genemap, rje_go, rje_haq, rje_hmm_V1, rje_hpc, rje_hprd, rje_html, rje_iridis, rje_menu, rje_motif_V3, rje_pam, rje_ppi, rje_qsub, rje_scoring, rje_sequence, rje_slim, rje_slimcalc, rje_slimcore, rje_slimlist, rje_svg, rje_synteny, rje_tm, rje_tree_group, rje_xgmml, rje_xml, seqmapper, slimfarmer, slimfinder, slimmaker, unifake
-tools	slimbench	SLiMBench	Short Linear Motif prediction Benchmarking	2.18.2	23/05/18	Dr Richard J. Edwards.	rje, rje_db, rje_obj, rje_ppi, rje_seq, rje_seqlist, rje_slim, rje_slimcore, rje_slimlist, rje_uniprot, comparimotif_V3, slimmaker, slimprob, slimsearch	slimsuite	Module:       SLiMBench
+	comparimotif_V3, gopher_V2, ned_eigenvalues, ned_rankbydistribution, peptcluster, pingu_V3, qslimfinder, rje_aaprop, rje_ancseq, rje_biogrid, rje_blast, rje_blast_V1, rje_dismatrix_V2, rje_dismatrix_V3, rje_disorder, rje_forker, rje_genecards, rje_genemap, rje_go, rje_haq, rje_hmm_V1, rje_hpc, rje_hprd, rje_html, rje_iridis, rje_menu, rje_motif_V3, rje_pam, rje_qsub, rje_rmd, rje_scoring, rje_sequence, rje_slim, rje_slimcalc, rje_slimcore, rje_slimlist, rje_svg, rje_synteny, rje_tm, rje_tree_group, rje_xgmml, rje_xml, seqmapper, slimfarmer, slimfinder, slimmaker, unifake
+tools	slimbench	SLiMBench	Short Linear Motif prediction Benchmarking	2.19.0	31/01/19	Dr Richard J. Edwards.	rje, rje_db, rje_obj, rje_ppi, rje_seq, rje_seqlist, rje_slim, rje_slimcore, rje_slimlist, rje_uniprot, comparimotif_V3, slimmaker, slimprob, slimsearch	slimsuite	Module:       SLiMBench
 Description:  Short Linear Motif prediction Benchmarking
-Version:      2.18.2
-Last Edit:    23/05/18
+Version:      2.19.0
+Last Edit:    31/01/19
 Citation:     Palopoli N, Lythgow KT & Edwards RJ. Bioinformatics 2015; doi: 10.1093/bioinformatics/btv155 [PMID: 25792551]
 Copyright (C) 2012  Richard J. Edwards - See source code for GNU License Notice
 
@@ -10847,23 +11145,25 @@ Commandline:
     bymotif=T/F         : Whether to weight output by motif for OccBench (others always weighted) [True]
     benchbase=X         : Basefile for SLiMBench benchmarking output [slimbench]
     runid=LIST          : List of factors to split RunID column into (on '.') [Program,Analysis]
+    dataset=LIST        : List of headers to split dataset into (on '.'). If blank, will use datatype defaults. []
     bycloud=X           : Whether to compress results into clouds prior to assessment (True/False/Both) [Both]
     sigcut=LIST         : Significance thresholds to use for assessment [0.1,0.05,0.01,0.001,0.0001]
     iccut=LIST          : Minimum IC for (Q)SLiMFinder results for elm/sim/ppi benchmark assessment [2.0,2.1,3.0]
     slimlencut=LIST     : List of individual SLiM lengths to return results for (0=All) [0,3,4,5]
     noamb=T/F           : Filter out ambiguous patterns [False]
     assfilter=LIST      : List of motifs to filter out from assessment datasets post-rating (still count as OT) []
+    minocctp=INT        : Min number of occurence TP for OccBench motifs [1]
 
     ### ~ GENERAL OPTIONS ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     force=T/F           : Whether to force regeneration of outputs (True) or assume existing outputs are right [False]
     backups=T/F         : Whether to (prompt if interactive and) generate backups before overwriting files [True]
 
 See also rje.py generic commandline options.
-	gablam, gopher, ned_eigenvalues, peptcluster, rje_aaprop, rje_ancseq, rje_blast_V1, rje_blast_V2, rje_dismatrix_V2, rje_dismatrix_V3, rje_disorder, rje_forker, rje_html, rje_menu, rje_motif_V3, rje_pam, rje_scoring, rje_sequence, rje_slimcalc, rje_svg, rje_tm, rje_tree, rje_tree_group, rje_xgmml, rje_zen, unifake
-tools	slimfarmer	SLiMFarmer	SLiMSuite HPC job farming control program	1.9.0	30/05/18	Dr Richard J. Edwards.	rje, rje_hpc, rje_obj, rje_iridis, rje_qsub	multihaq, slimsuite	Module:       SLiMFarmer
+	gablam, gopher, ned_eigenvalues, peptcluster, rje_aaprop, rje_ancseq, rje_blast_V1, rje_blast_V2, rje_dismatrix_V2, rje_dismatrix_V3, rje_disorder, rje_forker, rje_html, rje_menu, rje_motif_V3, rje_paf, rje_pam, rje_scoring, rje_sequence, rje_slimcalc, rje_svg, rje_tm, rje_tree, rje_tree_group, rje_xgmml, rje_zen, unifake
+tools	slimfarmer	SLiMFarmer	SLiMSuite HPC job farming control program	1.10.0	30/10/18	Dr Richard J. Edwards.	rje, rje_hpc, rje_obj, rje_iridis, rje_qsub	multihaq, slimsuite	Module:       SLiMFarmer
 Description:  SLiMSuite HPC job farming control program
-Version:      1.9.0
-Last Edit:    30/05/18
+Version:      1.10.0
+Last Edit:    30/10/18
 Copyright (C) 2014  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -10874,8 +11174,11 @@ Function:
     run in a special way. (See SeqBySeq mode.) Otherwise `slimsuite=T` indicates that `farm=X` is a SLiMSuite program,
     for which the python call and `pypath` will be added. If this program uses forking then it should parallelise over a
     single multi-processor node. If `farm=X` contains a `/` path separator, this will be added to `pypath`, otherwise it
-    will be assumed that `farm` is in `tools/`. If `slimsuite=F` then farm should be a program call to be queued in the
-    PBS job file instead.
+    will be assumed that `farm` is in `tools/`.
+
+    If `slimsuite=F` then farm should be a program call to be queued in the PBS job file instead. In this case, the
+    contents of jobini=FILE will be added to the end of the farm call. This enables commands with double quotes to be
+    included in the farm command, for example.
 
     Currently recognised SLiMSuite programs for farming: SLiMFinder, QSLiMFinder, SLiMProb, SLiMCore.
 
@@ -10973,16 +11276,17 @@ Commandline:
     ### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
 See also rje.py generic commandline options.
 	gopher, gopher_V2, ned_eigenvalues, rje_aaprop, rje_ancseq, rje_blast_V1, rje_blast_V2, rje_db, rje_dismatrix_V2, rje_disorder, rje_html, rje_menu, rje_motif_V3, rje_pam, rje_scoring, rje_seq, rje_seqlist, rje_sequence, rje_slim, rje_slimcalc, rje_slimlist, rje_svg, rje_tree, rje_tree_group, rje_uniprot, rje_zen
-tools	slimfinder	SLiMFinder	Short Linear Motif Finder	5.3.4	18/05/18	Richard J. Edwards, Norman E. Davey & Denis C. Shields	rje, rje_seq, rje_sequence, rje_scoring, rje_xgmml, rje_slim, rje_slimcalc, rje_slimcore, rje_slimlist, slimmaker, rje_motif_V3, comparimotif_V3, ned_rankbydistribution	qslimfinder, slimsuite, rje_slimhtml, qslimfinder_V1.9	Program:      SLiMFinder
+tools	slimfinder	SLiMFinder	Short Linear Motif Finder	5.4.0	24/05/19	Richard J. Edwards, Norman E. Davey & Denis C. Shields	rje, rje_seq, rje_sequence, rje_scoring, rje_xgmml, rje_slim, rje_slimcalc, rje_slimcore, rje_slimlist, slimmaker, rje_motif_V3, comparimotif_V3, ned_rankbydistribution	qslimfinder, slimsuite, rje_slimhtml, qslimfinder_V1.9	Program:      SLiMFinder
 Description:  Short Linear Motif Finder
-Version:      5.3.4
-Last Edit:    18/05/18
+Version:      5.4.0
+Last Edit:    24/05/19
 Citation:     Edwards RJ, Davey NE & Shields DC (2007), PLoS ONE 2(10): e967. [PMID: 17912346]
 ConsMask Citation: Davey NE, Shields DC & Edwards RJ (2009), Bioinformatics 25(4): 443-50. [PMID: 19136552]
 SigV/SigPrime Citation: Davey NE, Edwards RJ & Shields DC (2010), BMC Bioinformatics 11: 14. [PMID: 20055997]
 SLiMScape/REST Citation: Olorin E, O'Brien KT, Palopoli N, Perez-Bercoff A & Shields DC, Edwards RJ (2015), F1000Research 4:477.
 SLiMMaker Citation: Palopoli N, Lythgow KT & Edwards RJ (2015), Bioinformatics 31(14): 2284-2293. [PMID: 25792551]
-Webserver:    http://bioware.ucd.ie/
+Webserver:    http://www.slimsuite.unsw.edu.au/servers/slimfinder.php
+Manual:       http://bit.ly/SFManual
 Copyright (C) 2007  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -11101,7 +11405,7 @@ SLiMBuild: ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     metmask=T/F     : Masks the N-terminal M (can be useful if termini=T) [True]
     posmask=LIST    : Masks list of position-specific aas, where list = pos1:aas,pos2:aas  [2:A]
     aamask=LIST     : Masks list of AAs from all sequences (reduces alphabet) []
-    qregion=X,Y     : Mask all but the region of the query from (and including) residue X to residue Y [0,-1]
+    qregion=X,Y     : Mask all but the region of the query from (and including) residue X to residue Y [1,-1]
 
     ### SLiMBuild Options III (Basic Motif Construction): ###
     termini=T/F     : Whether to add termini characters (^ & $) to search sequences [True]
@@ -11146,6 +11450,12 @@ SLiMChance: ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     probscore=X     : Score to be used for probability cut-off and ranking (Prob/Sig/S/R) [Sig]
 
 Advanced: ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+    ### Advanced Masking Options I (Conservation Masking): ###
+    usegopher=T/F   : Use GOPHER to generate orthologue alignments missing from alndir - see gopher.py options [False]
+    fullforce=T/F   : Whether to force regeneration of alignments using GOPHER [False]
+    orthdb=FILE     : File to use as source of orthologues for GOPHER []
+    * See also rje_slimcalc options for more conservation calculation options *
+
     ### Advanced Output Options I (Output data): ###
     clouds=X        : Identifies motif "clouds" which overlap at 2+ positions in X+ sequences (0=minocc / -1=off) [2]
     runid=X         : Run ID for resfile (allows multiple runs on same data) [DATE]
@@ -11184,7 +11494,7 @@ Advanced: ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     randir=PATH     : Output path for creation of randomised datasets [Random/]
     randbase=X      : Base for random dataset name [rand]
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-	gablam, gopher, ned_eigenvalues, peptcluster, rje_aaprop, rje_ancseq, rje_blast_V1, rje_blast_V2, rje_db, rje_dismatrix_V2, rje_dismatrix_V3, rje_disorder, rje_forker, rje_html, rje_menu, rje_obj, rje_pam, rje_ppi, rje_seqlist, rje_svg, rje_tm, rje_tree, rje_tree_group, rje_uniprot, rje_zen, unifake
+	gablam, gopher, ned_eigenvalues, peptcluster, rje_aaprop, rje_ancseq, rje_blast_V1, rje_blast_V2, rje_db, rje_dismatrix_V2, rje_dismatrix_V3, rje_disorder, rje_forker, rje_html, rje_menu, rje_obj, rje_paf, rje_pam, rje_ppi, rje_seqlist, rje_svg, rje_tm, rje_tree, rje_tree_group, rje_uniprot, rje_zen, unifake
 tools	slimmaker	SLiMMaker	SLiM generator from aligned peptide sequences	1.7.0	01/02/17	Dr Richard J. Edwards.	rje, rje_obj, rje_slim, rje_zen, peptcluster	slimbench, slimfinder, slimsuite, slimbench_V1, slimfinder_V4.9	Module:       SLiMMaker
 Description:  SLiM generator from aligned peptide sequences
 Version:      1.7.0
@@ -11336,11 +11646,11 @@ Commandline:
 
     ### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
 See also rje.py generic commandline options.
-"	comparimotif_V3, gablam, gopher, ned_eigenvalues, ned_rankbydistribution, peptcluster, pingu_V3, qslimfinder, rje_aaprop, rje_ancseq, rje_biogrid, rje_blast_V1, rje_blast_V2, rje_dismatrix_V2, rje_dismatrix_V3, rje_disorder, rje_forker, rje_genecards, rje_genemap, rje_go, rje_hprd, rje_html, rje_menu, rje_mitab, rje_motif_V3, rje_pam, rje_ppi, rje_scoring, rje_sequence, rje_slimcalc, rje_svg, rje_tm, rje_tree, rje_tree_group, rje_xgmml, rje_xref, rje_zen, slimfinder, slimmaker, unifake
-tools	slimparser	SLiMParser	SLiMSuite REST output parsing tool.	0.5.0	27/09/17	Dr Richard J. Edwards.	rje, rje_obj, rje_html	None	Module:       SLiMParser
+"	comparimotif_V3, gablam, gopher, ned_eigenvalues, ned_rankbydistribution, peptcluster, pingu_V3, qslimfinder, rje_aaprop, rje_ancseq, rje_biogrid, rje_blast_V1, rje_blast_V2, rje_dismatrix_V2, rje_dismatrix_V3, rje_disorder, rje_forker, rje_genecards, rje_genemap, rje_go, rje_hprd, rje_html, rje_menu, rje_mitab, rje_motif_V3, rje_paf, rje_pam, rje_ppi, rje_scoring, rje_sequence, rje_slimcalc, rje_svg, rje_tm, rje_tree, rje_tree_group, rje_xgmml, rje_xref, rje_zen, slimfinder, slimmaker, unifake
+tools	slimparser	SLiMParser	SLiMSuite REST output parsing tool.	0.6.0	22/05/19	Dr Richard J. Edwards.	rje, rje_obj, rje_html	None	Module:       SLiMParser
 Description:  SLiMSuite REST output parsing tool.
-Version:      0.5.0
-Last Edit:    27/09/17
+Version:      0.6.0
+Last Edit:    22/05/19
 Copyright (C) 2014  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -11374,7 +11684,9 @@ tools	slimprob	SLiMProb	Short Linear Motif Probability tool	2.5.1	06/09/17	Dr Ri
 Description:  Short Linear Motif Probability tool
 Version:      2.5.1
 Last Edit:    06/09/17
-Citation:     Davey, Haslam, Shields & Edwards (2010), Lecture Notes in Bioinformatics 6282: 50-61. 
+Citation:     Davey, Haslam, Shields & Edwards (2010), Lecture Notes in Bioinformatics 6282: 50-61.
+Webserver:    http://www.slimsuite.unsw.edu.au/servers/slimprob.php
+Manual:       http://bit.ly/SProbManual
 Copyright (C) 2007  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -11397,7 +11709,7 @@ Function:
     data and *.csv for the summary data for each motif/dataset pair. (This is a change since SLiMSearch.)
 
 Commandline: ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-    ### Basic Input/Output Options ###
+    ### Basic Input/Output Options: ###
     motifs=FILE     : File of input motifs/peptides (also motif=X) [None]
                       Single line per motif format = 'Name Sequence #Comments' (Comments are optional and ignored)
                       Alternative formats include fasta, SLiMDisc output and raw motif lists.
@@ -11417,7 +11729,7 @@ Commandline: ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     megaslim=FILE   : Make/use precomputed results for a proteome (FILE) in fasta format [None]
     megablam=T/F    : Whether to create and use all-by-all GABLAM results for (gablamdis) UPC generation [False]
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-    ### SearchDB Options I: Input Protein Sequence Masking ###
+    ### SearchDB Options I - Input Protein Sequence Masking: ###
     masking=T/F     : Master control switch to turn off all masking if False [True]
     dismask=T/F     : Whether to mask ordered regions (see rje_disorder for options) [False]
     consmask=T/F    : Whether to use relative conservation masking [False]
@@ -11430,7 +11742,7 @@ Commandline: ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     posmask=LIST    : Masks list of position-specific aas, where list = pos1:aas,pos2:aas  []
     aamask=LIST     : Masks list of AAs from all sequences (reduces alphabet) []
 
-    ### SearchDB Options II: Evolutionary Filtering  ###
+    ### SearchDB Options II - Evolutionary Filtering: ###
     efilter=T/F     : Whether to use evolutionary filter [True]
     blastf=T/F      : Use BLAST Complexity filter when determining relationships [True]
     blaste=X        : BLAST e-value threshold for determining relationships [1e=4]
@@ -11438,7 +11750,7 @@ Commandline: ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     gablamdis=FILE  : Alternative GABLAM results file [None] (!!!Experimental feature!!!)
     occupc=T/F      : Whether to output the UPC ID number in the occurrence output file [False]
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-    ### SLiMChance Options ###
+    ### SLiMChance Options: ###
     maskfreq=T/F    : Whether to use masked AA Frequencies (True), or (False) mask after frequency calculations [True]
     aafreq=FILE     : Use FILE to replace individual sequence AAFreqs (FILE can be sequences or aafreq) [None]
     aadimerfreq=FILE: Use empirical dimer frequencies from FILE (fasta or *.aadimer.tdt) [None]
@@ -11448,7 +11760,7 @@ Commandline: ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     seqocc=X        : Restrict to sequences with X+ occurrences (adjust for high frequency SLiMs) [1]
     mergesplits=T/F : Whether to merge split SLiMs for recalculating statistics. (Assumes unique RunIDs) [True]
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-    ### Output Options ###
+    ### Output Options: ###
     extras=X        : Whether to generate additional output files (alignments etc.) [2]
                         - 0 = No output beyond main results file
                         - 1 = Saved masked input sequences [*.masked.fas]
@@ -11466,7 +11778,7 @@ Commandline: ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Uses general modules: copy, glob, os, string, sys, time
 Uses RJE modules: rje
 Other modules needed: None
-	gablam, gopher, ned_eigenvalues, rje_aaprop, rje_ancseq, rje_blast_V1, rje_blast_V2, rje_dismatrix_V2, rje_dismatrix_V3, rje_disorder, rje_html, rje_menu, rje_motif_V3, rje_obj, rje_pam, rje_ppi, rje_seqlist, rje_svg, rje_tm, rje_tree, rje_tree_group, rje_uniprot, rje_xgmml, unifake
+	gablam, gopher, ned_eigenvalues, rje_aaprop, rje_ancseq, rje_blast_V1, rje_blast_V2, rje_dismatrix_V2, rje_dismatrix_V3, rje_disorder, rje_html, rje_menu, rje_motif_V3, rje_obj, rje_paf, rje_pam, rje_ppi, rje_seqlist, rje_svg, rje_tm, rje_tree, rje_tree_group, rje_uniprot, rje_xgmml, unifake
 tools	slimsearch	SLiMSearch	Short Linear Motif Search tool	1.7.1	03/12/15	Dr Richard J. Edwards.	rje, rje_seq, rje_sequence, rje_scoring, rje_slim, rje_slimcore, rje_slimcalc, rje_slimlist, rje_zen	slimbench, slimbench_V1	Program:      SLiMSearch
 Description:  Short Linear Motif Search tool
 Version:      1.7.1
@@ -11552,11 +11864,11 @@ Commandline: ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
                         - 2 = Delete all dataset-specific files including *.upc and *.pickle (not *.tar.gz)
     * See also rje_slimcalc options for occurrence-based calculations and filtering *
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-	gablam, gopher, ned_eigenvalues, rje_aaprop, rje_ancseq, rje_blast_V1, rje_blast_V2, rje_db, rje_dismatrix_V2, rje_dismatrix_V3, rje_disorder, rje_html, rje_menu, rje_motif_V3, rje_obj, rje_pam, rje_ppi, rje_seqlist, rje_svg, rje_tm, rje_tree, rje_tree_group, rje_uniprot, rje_xgmml, unifake
-tools	slimsuite	SLiMSuite	Short Linear Motif analysis Suite	1.7.1	08/05/17	Dr Richard J. Edwards.	rje, rje_obj, rje_slimcore, rje_slimlist, comparimotif_V3, seqsuite, qslimfinder, slimbench, slimfarmer, slimfinder, slimmaker, slimprob, slimmutant, gablam, gopher, haqesac, multihaq, peptcluster, pingu_V4, presto_V5, badasp, budapest, fiesta, gasp, gfessa, picsi, unifake, seqmapper, seqforker, rje_seqgen	None	Module:       SLiMSuite
+	gablam, gopher, ned_eigenvalues, rje_aaprop, rje_ancseq, rje_blast_V1, rje_blast_V2, rje_db, rje_dismatrix_V2, rje_dismatrix_V3, rje_disorder, rje_html, rje_menu, rje_motif_V3, rje_obj, rje_paf, rje_pam, rje_ppi, rje_seqlist, rje_svg, rje_tm, rje_tree, rje_tree_group, rje_uniprot, rje_xgmml, unifake
+tools	slimsuite	SLiMSuite	Short Linear Motif analysis Suite	1.8.1	09/05/19	Dr Richard J. Edwards.	rje, rje_obj, rje_slimcore, rje_slimlist, comparimotif_V3, seqsuite, qslimfinder, slimbench, slimfarmer, slimfinder, slimmaker, slimprob, slimmutant, gablam, gopher, haqesac, multihaq, peptcluster, pingu_V4, presto_V5, badasp, budapest, fiesta, gasp, gfessa, picsi, unifake, seqmapper, seqforker, rje_seqgen	None	Module:       SLiMSuite
 Description:  Short Linear Motif analysis Suite
-Version:      1.7.1
-Last Edit:    08/05/17
+Version:      1.8.1
+Last Edit:    09/05/19
 Citation:     Edwards RJ & Palopoli N (2015): Methods Mol Biol. 1268:89-141. [PMID: 25555723]
 Copyright (C) 2014  Richard J. Edwards - See source code for GNU License Notice
 
@@ -11594,14 +11906,15 @@ Please also see the SeqSuite documentation for additional utilities, which can b
 Commandline:
     ### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     prog=X      # Identifies the tool to be used. Will load defaults from X.ini (before slimsuite.ini) [help]
+    test=T/F    # Trigger test function for program X, if implemented. If `prog=test` a general test will run. [False]
     help=T/F    # Return the help documentation for program X. [False]
     ### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
 See also rje.py generic commandline options.
-	gopher_V2, ned_eigenvalues, ned_rankbydistribution, pagsat, pingu_V3, rje_aaprop, rje_ancseq, rje_biogrid, rje_blast, rje_blast_V1, rje_blast_V2, rje_conseq, rje_db, rje_dbase, rje_dismatrix_V2, rje_dismatrix_V3, rje_disorder, rje_ensembl, rje_forker, rje_genbank, rje_genecards, rje_genemap, rje_gff, rje_go, rje_haq, rje_hmm_V1, rje_hpc, rje_hprd, rje_html, rje_iridis, rje_markov, rje_mascot, rje_menu, rje_mitab, rje_motif_V3, rje_motif_stats, rje_motiflist, rje_motifocc, rje_pam, rje_ppi, rje_pydocs, rje_qsub, rje_samtools, rje_scoring, rje_seq, rje_seqlist, rje_sequence, rje_slim, rje_slimcalc, rje_specificity, rje_svg, rje_synteny, rje_taxonomy, rje_tm, rje_tree, rje_tree_group, rje_uniprot, rje_xgmml, rje_xml, rje_xref, rje_zen, slimsearch, smrtscape, snapper, snp_mapper
-tools	smrtscape	SMRTSCAPE	SMRT Subread Coverage & Assembly Parameter Estimator	2.2.2	05/02/18	Dr Richard J. Edwards.	rje, rje_db, rje_obj, rje_seqlist, rje_tree, rje_dismatrix_V3	seqsuite	Module:       SMRTSCAPE
+	buscomp, gopher_V2, ned_eigenvalues, ned_rankbydistribution, pagsat, pingu_V3, rje_aaprop, rje_ancseq, rje_biogrid, rje_blast, rje_blast_V1, rje_blast_V2, rje_conseq, rje_db, rje_dbase, rje_dismatrix_V2, rje_dismatrix_V3, rje_disorder, rje_ensembl, rje_forker, rje_genbank, rje_genecards, rje_genemap, rje_gff, rje_go, rje_haq, rje_hmm_V1, rje_hpc, rje_hprd, rje_html, rje_iridis, rje_markov, rje_mascot, rje_menu, rje_mitab, rje_motif_V3, rje_motif_stats, rje_motiflist, rje_motifocc, rje_paf, rje_pam, rje_ppi, rje_pydocs, rje_qsub, rje_rmd, rje_samtools, rje_scoring, rje_seq, rje_seqlist, rje_sequence, rje_slim, rje_slimcalc, rje_specificity, rje_svg, rje_synteny, rje_taxonomy, rje_tm, rje_tree, rje_tree_group, rje_uniprot, rje_xgmml, rje_xml, rje_xref, rje_zen, slimsearch, smrtscape, snapper, snp_mapper
+tools	smrtscape	SMRTSCAPE	SMRT Subread Coverage & Assembly Parameter Estimator	2.2.3	11/07/18	Dr Richard J. Edwards.	rje, rje_db, rje_obj, rje_seqlist, rje_tree, rje_dismatrix_V3	seqsuite	Module:       SMRTSCAPE
 Description:  SMRT Subread Coverage & Assembly Parameter Estimator
-Version:      2.2.2
-Last Edit:    05/02/18
+Version:      2.2.3
+Last Edit:    11/07/18
 Copyright (C) 2017  Richard J. Edwards - See source code for GNU License Notice
 
 Summary:
@@ -11898,10 +12211,10 @@ Commandline:
     predict=T/F     : Whether to add XCoverage prediction and efficiency estimation from parameters and subreads [False]
     ### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
 "	gopher, ned_eigenvalues, rje_aaprop, rje_ancseq, rje_blast_V1, rje_blast_V2, rje_dismatrix_V2, rje_disorder, rje_html, rje_menu, rje_pam, rje_scoring, rje_seq, rje_sequence, rje_slim, rje_slimcalc, rje_svg, rje_tree_group, rje_uniprot, rje_zen
-tools	snapper	Snapper	Genome-wide SNP Mapper	1.6.1	05/04/18	Dr Richard J. Edwards.	rje, rje_db, rje_obj, rje_genbank, rje_seqlist, rje_sequence, snp_mapper, rje_blast_V2, gablam	pagsat, pagsat_V1, seqsuite	Module:       Snapper
+tools	snapper	Snapper	Genome-wide SNP Mapper	1.7.0	30/01/19	Dr Richard J. Edwards.	rje, rje_db, rje_obj, rje_genbank, rje_seqlist, rje_sequence, snp_mapper, rje_blast_V2, gablam	pagsat, pagsat_V1, seqsuite	Module:       Snapper
 Description:  Genome-wide SNP Mapper
-Version:      1.6.1
-Last Edit:    05/04/18
+Version:      1.7.0
+Last Edit:    30/01/19
 Copyright (C) 2016  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -11949,6 +12262,8 @@ Function:
     designed for identifying unique and best-matching homologous contigs from whole genome assemblies, where seqin=FILE
     and reference=FILE are the same. In this case, it is recommended to increase the `localmin=X` cutoff.
 
+    Version 1.7.0 add the option to use minimap2 instead of BLAST+ for speed, using `mapper=minimap`.
+
 Commandline:
     ### ~ Input/Output options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     seqin=FASFILE   : Input genome to identify variants in []
@@ -11960,6 +12275,7 @@ Commandline:
     makesnp=T/F     : Whether or not to generate Query vs Reference SNP tables [True]
     localsAM=T/F    : Save local (and unique) hits data as SAM files in addition to TDT [False]
     filterself=T/F  : Filter out self-hits prior to Snapper pipeline (e.g for assembly all-by-all) [False]
+    mapper=X        : Program to use for mapping files against each other (blast/minimap) [blast]
     ### ~ Reference Feature Options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     spcode=X        : Overwrite species read from file (if any!) with X if generating sequence file from genbank [None]
     ftfile=FILE     : Input feature file (locus,feature,position,start,end) [*.Feature.tdt]
@@ -11975,7 +12291,7 @@ Commandline:
     localmin=X      : Minimum length of local alignment to output to local stats table [10]
     localidmin=PERC : Minimum local %identity of local alignment to output to local stats table [0.0]
     ### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-	gopher, ned_eigenvalues, rje_aaprop, rje_ancseq, rje_blast_V1, rje_dismatrix_V2, rje_disorder, rje_html, rje_menu, rje_pam, rje_ppi, rje_scoring, rje_seq, rje_slim, rje_slimcalc, rje_svg, rje_taxonomy, rje_tree, rje_tree_group, rje_uniprot, rje_xgmml, rje_zen
+	gopher, ned_eigenvalues, rje_aaprop, rje_ancseq, rje_blast_V1, rje_dismatrix_V2, rje_disorder, rje_html, rje_menu, rje_paf, rje_pam, rje_ppi, rje_scoring, rje_seq, rje_slim, rje_slimcalc, rje_svg, rje_taxonomy, rje_tree, rje_tree_group, rje_uniprot, rje_xgmml, rje_zen
 tools	unifake	UniFake	Fake UniProt DAT File Generator	1.3	17/04/12	Dr Richard J. Edwards.	rje, rje_seq, rje_tm, rje_uniprot, rje_zen	slimsuite, rje_slimcore	Program:      UniFake
 Description:  Fake UniProt DAT File Generator
 Version:      1.3

@@ -1,4 +1,8 @@
 Dir	Module	Version	Update	Release
+Error	SLiMSuite	1.4.0	SLiMSuite v1.4.0 (2018-07-02) release. Added this top level file to track overall version number.	2019-05-27
+Error	SLiMSuite	1.4.1	SLiMBench v2.18.3 - Added better handling of motifs without TP occurrences for OccBench. Added minocctp=INT.	2019-05-27
+Error	slimsuite	1.4.0	SLiMSuite v1.4.0 (2018-07-02) release. Added this top level file to track overall version number.	2019-05-27
+Error	slimsuite	1.4.1	SLiMBench v2.18.3 - Added better handling of motifs without TP occurrences for OccBench. Added minocctp=INT.	2019-05-27
 extras	file_monster	0.0	Initial Compilation.	2015-06-01
 extras	file_monster	1.0	Initial Working version	2015-06-01
 extras	file_monster	1.1	Broadened away from strict extension-based scavenging to whole file names with wildcards	2015-06-01
@@ -47,10 +51,12 @@ extras	rje_pydocs	2.16.0	Added Webserver tab to doc parsing from settings/*.form
 extras	rje_pydocs	2.16.1	Added parsing of imports within a try/except block. (Cannot be on same line as try: or except:)	2015-06-01
 extras	rje_pydocs	2.16.2	Tweaked makePages() output.	2015-06-01
 extras	rje_pydocs	2.16.3	Fixed docstring REST parsing to work with _V* modules.	2016-09-12
-extras	rje_pydocs	2.16.4	Tweaked formatDocString.	2018-07-02
-extras	rje_pydocs	2.16.5	Added general commands to docstring HTML for REST servers.	2018-07-02
-extras	rje_pydocs	2.16.6	Modified parsing to keep DocString for SPyDarm runs.	2018-07-02
-extras	rje_pydocs	2.16.7	Fixed T/F/FILE option type parsing bug.	2018-07-02
+extras	rje_pydocs	2.16.4	Tweaked formatDocString.	2018-07-02
+extras	rje_pydocs	2.16.5	Added general commands to docstring HTML for REST servers.	2018-07-02
+extras	rje_pydocs	2.16.6	Modified parsing to keep DocString for SPyDarm runs.	2018-07-02
+extras	rje_pydocs	2.16.7	Fixed T/F/FILE option type parsing bug.	2018-07-02
+extras	rje_pydocs	2.16.8	Updated to to parse https.	2019-05-27
+extras	rje_pydocs	2.16.9	Tweaked docstring parsing.	2019-05-27
 extras	rje_pydocs	2.17.4	Tweaked formatDocString.	2017-12-18
 extras	rje_pydocs	2.17.5	Added general commands to docstring HTML for REST servers.	2017-12-18
 extras	rje_pydocs	2.2	Minor bug fixes for distribution making code.	2015-06-01
@@ -202,7 +208,11 @@ libraries	rje	4.18.0	Added Roman numeral functions.	2017-12-18
 libraries	rje	4.18.1	Updated error handling for full REST output.	2017-12-18
 libraries	rje	4.18.2	Fixed rje module call bug.	2017-12-18
 libraries	rje	4.19.0	Tweaked Docstring. Added extra parameter catching. Added report of INI loading.	2017-12-18
+libraries	rje	4.19.1	Added code for catching non-ASCII log filenames.	2019-05-27
 libraries	rje	4.2	Modified INI reading across the board to look in ../settings/ and look for defaults.ini as well as rje.ini. Enabled handing on -ini FILE in addition to ini=FILE.	2015-06-01
+libraries	rje	4.20.0	Added quiet mode to log object and output of errors to stderr. Fixed rankList(unique=True)	2019-05-27
+libraries	rje	4.21.0	Added hashlib MD% functions.	2019-05-27
+libraries	rje	4.21.1	Fixed bug where silent=T wasn't running silent.	2019-05-27
 libraries	rje	4.3	Added ilist and nlist types to cmdRead for objects. (Lists of integers and floats). Add ratio() function.	2015-06-01
 libraries	rje	4.4	Added lineFromIndex(target,file,re_index='^(\S+)\s',sortunique=False,xreplace=True).	2015-06-01
 libraries	rje	4.5	Modified randomString() and added stringShuffle() methods.	2015-06-01
@@ -275,14 +285,15 @@ libraries	rje_blast_V2	2.17.0	qconsensus=X    : Whether to convert QAssemble ali
 libraries	rje_blast_V2	2.17.1	Modified QAssembleFas output sequence names for better combining of hits. Added QFasDir.	2017-12-18
 libraries	rje_blast_V2	2.17.2	Modified QAssembleFas output file names for better re-running. Fixed major QConsensus Bug.	2017-12-18
 libraries	rje_blast_V2	2.18.0	Added REST output. Fixed QConsensus=Full bug.	2017-12-18
-libraries	rje_blast_V2	2.19.0	Added blastgz=T/F     : Whether to zip and unzip BLAST results files [False]	2018-07-02
-libraries	rje_blast_V2	2.19.1	Fixed erroneous i=-1 blastprog over-ride but not sure why it was happening.	2018-07-02
+libraries	rje_blast_V2	2.19.0	Added blastgz=T/F     : Whether to zip and unzip BLAST results files [False]	2018-07-02
+libraries	rje_blast_V2	2.19.1	Fixed erroneous i=-1 blastprog over-ride but not sure why it was happening.	2018-07-02
 libraries	rje_blast_V2	2.2	Added gablamData() to return old-style GABLAM dictionary from table.	2015-06-01
-libraries	rje_blast_V2	2.20.0	Added localGFF output	2018-07-02
-libraries	rje_blast_V2	2.21.0	Added blasttask=X setting for BLAST -task ['megablast']	2018-07-02
-libraries	rje_blast_V2	2.22.0	Added dust filter for blastn and setting blastprog based on blasttask	2018-07-02
-libraries	rje_blast_V2	2.22.1	Added trimLocal error catching for exonerate issues.	2018-07-02
-libraries	rje_blast_V2	2.22.2	Fixed GFF attribute case issue.	2018-07-02
+libraries	rje_blast_V2	2.20.0	Added localGFF output	2018-07-02
+libraries	rje_blast_V2	2.21.0	Added blasttask=X setting for BLAST -task ['megablast']	2018-07-02
+libraries	rje_blast_V2	2.22.0	Added dust filter for blastn and setting blastprog based on blasttask	2018-07-02
+libraries	rje_blast_V2	2.22.1	Added trimLocal error catching for exonerate issues.	2018-07-02
+libraries	rje_blast_V2	2.22.2	Fixed GFF attribute case issue.	2018-07-02
+libraries	rje_blast_V2	2.23.3	Fixed LocalIDCut error for GABLAM and QAssemble stat filtering.	2019-05-27
 libraries	rje_blast_V2	2.3	Added blastCluster() method to return UPC clustering and GABLAM distance matrix from a file.	2015-06-01
 libraries	rje_blast_V2	2.4	Scrapped BLAST "Run" field to simplify code - keep a single run per BLASTRun object.	2015-06-01
 libraries	rje_blast_V2	2.5	Minor modifications for SLiMCore UPC generation.	2015-06-01
@@ -321,7 +332,8 @@ libraries	rje_db	1.8.3	Minor debugging message changes.	2017-12-18
 libraries	rje_db	1.8.4	Cosmetic log message changes.	2017-12-18
 libraries	rje_db	1.8.5	Added saveToFileName() function.	2017-12-18
 libraries	rje_db	1.8.6	Minor IndexReport tweak.	2017-12-18
-libraries	rje_db	1.9.0	Added comment output to saveToFile().	2018-07-02
+libraries	rje_db	1.9.0	Added comment output to saveToFile().	2018-07-02
+libraries	rje_db	1.9.1	Updated logging of adding/removing fields: default is now when debugging only.	2019-05-27
 libraries	rje_dismatrix_V2	0.0	Initial Compilation.	2015-06-01
 libraries	rje_dismatrix_V2	1.0	Working version used in several programs.	2015-06-01
 libraries	rje_dismatrix_V2	2.0	Updated module inline with newer modules and layout. Incorporation of Minimum Spanning Tree.	2015-06-01
@@ -358,9 +370,12 @@ libraries	rje_disorder	0.5	Added Minimum length of an ordered/disordered region	
 libraries	rje_disorder	0.6	Added ANCHOR prediction.	2015-06-01
 libraries	rje_disorder	0.7	Added globProportion calculation.	2015-06-01
 libraries	rje_disorder	0.8	Added makeRegions() method.	2015-06-01
-libraries	rje_disorder	1.0.0	Added random disorder function and elevated to v1.x as fully functional for SLiMSuite	2018-07-02
-libraries	rje_disorder	1.1.0	Added strict option for disorder method selection. Added minorder=X.	2018-07-02
-libraries	rje_disorder	1.2.0	Added saving and loading scores to IUScoreDir/.	2018-07-02
+libraries	rje_disorder	1.0.0	Added random disorder function and elevated to v1.x as fully functional for SLiMSuite	2018-07-02
+libraries	rje_disorder	1.1.0	Added strict option for disorder method selection. Added minorder=X.	2018-07-02
+libraries	rje_disorder	1.2.0	Added saving and loading scores to IUScoreDir/.	2018-07-02
+libraries	rje_disorder	1.3.0	Switched default behaviour to be md5acc=T.	2019-05-27
+libraries	rje_disorder	1.4.0	Fixed up disorder=parse and disorder=foldindex.	2019-05-27
+libraries	rje_disorder	1.5.0	Added iupred2 and anchor2 parsing from URL using accnum. Made default disorder=iushort2.	2019-05-27
 libraries	rje_ensembl	0.0	Initial compilation.	2015-06-01
 libraries	rje_ensembl	1.0	Initial working version with download and EnsLoci functions.	2015-06-01
 libraries	rje_ensembl	1.1	Added reformatDB() method to be called by rje_dbase	2015-06-01
@@ -409,6 +424,7 @@ libraries	rje_genbank	1.5.0	Added setupRefGenome() method based on PAGSAT code.	
 libraries	rje_genbank	1.5.1	Fixed logskip append locus sequence file bug.	2016-09-12
 libraries	rje_genbank	1.5.2	Fixed addtag(s) bug.	2016-09-12
 libraries	rje_genbank	1.5.3	Fixed https genbank download issue.	2017-12-18
+libraries	rje_genbank	1.5.4	Added recognition of *.gbff for genbank files.	2019-05-27
 libraries	rje_genecards	0.0	Initial Compilation.	2015-06-01
 libraries	rje_genecards	0.1	Added EnsLoci processing.	2015-06-01
 libraries	rje_genecards	0.2	Added altsource and generally improved function and commenting.	2015-06-01
@@ -421,8 +437,8 @@ libraries	rje_genemap	1.2	Fixed bug of mapping current Approved Gene Symbols to 
 libraries	rje_genemap	1.3	Add reduction of data to gene list.	2015-06-01
 libraries	rje_genemap	1.4	Modified to read in MOUSE data.	2015-06-01
 libraries	rje_genemap	1.5	Minor tweak of expected HGNC input following change to downloads.	2015-06-01
-libraries	rje_gff	0.0.0	Initial Compilation.	2018-07-02
-libraries	rje_gff	0.1.0	Basic functional version.	2018-07-02
+libraries	rje_gff	0.0.0	Initial Compilation.	2018-07-02
+libraries	rje_gff	0.1.0	Basic functional version.	2018-07-02
 libraries	rje_go	0.0	Initial Compilation.	2015-06-01
 libraries	rje_go	1.0	Working version with RJE modules. Added EnsGO Mapping from SLiMJIM.	2015-06-01
 libraries	rje_go	1.1	Updated EnsGO mapping for new BioMart structure.	2015-06-01
@@ -434,7 +450,7 @@ libraries	rje_hmm_V1	1.2	Cleaned up and debugged for rje_ensembl.ensDat()	2015-0
 libraries	rje_hmm_V1	1.3	Minor updates.	2015-06-01
 libraries	rje_hpc	1.0	Initial Compilation based on rje_iridis V1.10.	2015-06-01
 libraries	rje_hpc	1.1	Disabled memory checking in Windows and OSX.	2015-06-01
-libraries	rje_hpc	1.1.1	Added output of subjob command to log as run.	2018-07-02
+libraries	rje_hpc	1.1.1	Added output of subjob command to log as run.	2018-07-02
 libraries	rje_hprd	1.0	Working version based on rje_ppi.	2015-06-01
 libraries	rje_hprd	1.1	Added protein complexes and PPI Types.	2015-06-01
 libraries	rje_hprd	1.2	Added tracking of evidence.	2015-06-01
@@ -443,7 +459,7 @@ libraries	rje_html	0.0	Initial Compilation.	2015-06-01
 libraries	rje_html	0.1	Added additional commandline options, including Google Analytics	2015-06-01
 libraries	rje_html	0.2.0	Added delimited text to HTML table conversion.	2015-06-01
 libraries	rje_html	0.2.1	Updated default CSS to http://www.slimsuite.unsw.edu.au/stylesheets/slimhtml.css.	2015-06-01
-libraries	rje_html	0.3.0	Added optional loading of javascript files and stupidtable.js?dev default.	2018-07-02
+libraries	rje_html	0.3.0	Added optional loading of javascript files and stupidtable.js?dev default.	2018-07-02
 libraries	rje_iridis	0.0	Initial Compilation.	2015-06-01
 libraries	rje_iridis	1.0	Added additional functions to call other programs	2015-06-01
 libraries	rje_iridis	1.1	Added UniFake.	2015-06-01
@@ -507,6 +523,16 @@ libraries	rje_obj	2.1.3	Modified integer commands to read/convert floats.	2015-1
 libraries	rje_obj	2.2.0	Added screenwrap=X.	2016-09-12
 libraries	rje_obj	2.2.1	Improved handling of integer parameters when given bad commands.	2016-09-12
 libraries	rje_obj	2.2.2	Updated error handling for full REST output.	2017-12-18
+libraries	rje_obj	2.3.0	Added quiet mode to object and stderr output.	2019-05-27
+libraries	rje_obj	2.4.0	Added vLog() and bugLog() methods.	2019-05-27
+libraries	rje_obj	2.4.1	Fixed bug where silent=T wasn't running silent.	2019-05-27
+libraries	rje_paf	0.0.0	Initial Compilation.	2019-05-27
+libraries	rje_paf	0.1.0	Initial working version. Compatible with GABLAM v2.30.0 and Snapper v1.7.0.	2019-05-27
+libraries	rje_paf	0.2.0	Added endextend=X : Extend minimap2 hits to end of sequence if with X bp [10]	2019-05-27
+libraries	rje_paf	0.3.0	Added mapsplice mode for dealing with transcript mapping.	2019-05-27
+libraries	rje_paf	0.3.1	Correct PAF splicing bug.	2019-05-27
+libraries	rje_paf	0.4.0	Added TmpDir and forking for GABLAM conversion.	2019-05-27
+libraries	rje_paf	0.5.0	Added uniquehit=T/F : Option to use *.hitunique.tdt table of unique coverage for GABLAM coverage stats [False]	2019-05-27
 libraries	rje_ppi	2.0	Initial Compilation from earlier version. Complete reworking, including generation of PPI Object.	2015-06-01
 libraries	rje_ppi	2.1	Added method for generating subnetworks based on +/- scoring.	2015-06-01
 libraries	rje_ppi	2.2	Minor misc modifications.	2015-06-01
@@ -517,6 +543,7 @@ libraries	rje_ppi	2.6	Added addPPI(hub,spoke,evidence) method. Added nodelist op
 libraries	rje_ppi	2.7	Added tabout=T/F Output PPI data as Node and Edge tables [False]	2015-06-01
 libraries	rje_ppi	2.8	Tweaked Spring Layout. Stores original Hub and Spoke Field.	2015-06-01
 libraries	rje_ppi	2.8.1	Fixed bug with Spring Layout interruption message.	2015-06-01
+libraries	rje_ppi	2.9.0	Added ppiout=FILE : Save pairwise PPI file following processing (if rest=None) [None]	2019-05-27
 libraries	rje_qsub	1.0	Initial working script.	2015-06-01
 libraries	rje_qsub	1.1	Reworked for running on Iridis.	2015-06-01
 libraries	rje_qsub	1.2	Added showstart.	2015-06-01
@@ -531,7 +558,9 @@ libraries	rje_qsub	1.7.0	Added option for email when job started	2017-12-18
 libraries	rje_qsub	1.8.0	Added modpurge=T/F : Whether to purge loaded modules in qsub job file prior to loading [True]	2017-12-18
 libraries	rje_qsub	1.9.0	Added precall=LIST  : List of additional commands to run between module loading and program call []	2017-12-18
 libraries	rje_qsub	1.9.1	Removed default module list: causing conflicts. Better to have in INI file.	2017-12-18
-libraries	rje_qsub	1.9.2	Modified qsub() to return job ID.	2018-07-02
+libraries	rje_qsub	1.9.2	Modified qsub() to return job ID.	2018-07-02
+libraries	rje_qsub	1.9.3	Updates the order of the qsub -S /bin/bash flag.	2019-05-27
+libraries	rje_rmd	0.0.0	Initial Compilation.	2019-05-27
 libraries	rje_samtools	0.0	Initial Compilation.	2015-11-30
 libraries	rje_samtools	0.1.0	Modified version to handle multiple loci per file. (Original was for single bacterial chromosomes.)	2015-11-30
 libraries	rje_samtools	0.2.0	Added majmut=T/F : Whether to restrict output and stats to positions with non-reference Major Allele [False]	2016-09-12
@@ -553,7 +582,9 @@ libraries	rje_samtools	1.19.0	snptableout=T/F    : Output filtered alleles to SN
 libraries	rje_samtools	1.19.1	Fixed AltLocus SNP table bug.	2017-12-18
 libraries	rje_samtools	1.19.2	Updated forker parsing to hopefully fix bug.	2017-12-18
 libraries	rje_samtools	1.2.0	Added developmental combining of read mapping onto two different genomes.	2016-09-12
-libraries	rje_samtools	1.20.0	Added parsing of BAM file - needs samtools on system. Added minsoftclip=X, maxsoftclip=X and minreadlen=X.	2018-07-02
+libraries	rje_samtools	1.20.0	Added parsing of BAM file - needs samtools on system. Added minsoftclip=X, maxsoftclip=X and minreadlen=X.	2018-07-02
+libraries	rje_samtools	1.20.1	Fixed mlen bug. Added catching of unmapped reads in SAM file. Fixed RLen bug. Changed softclip defaults.	2019-05-27
+libraries	rje_samtools	1.20.2	Fixed readlen coverage bug and acut bug.	2019-05-27
 libraries	rje_samtools	1.3.0	Major debugging and code clean up.	2016-09-12
 libraries	rje_samtools	1.4.0	Added parsing of read number (to link SNPs) and fixed deletion error at same time. Added rid=T/F and snponly=T/F.	2016-09-12
 libraries	rje_samtools	1.5.0	Added biallelic=T/F   : Whether to restrict SNPs to pure biallelic SNPs (two alleles meeting mincut) [False]	2016-09-12
@@ -609,7 +640,9 @@ libraries	rje_seq	3.22.0	Added loading sequences from provided sequence files co
 libraries	rje_seq	3.22.1	Fixed problem if seqin is blank, triggering odd Uniprot download.	2015-06-01
 libraries	rje_seq	3.23.0	Add speclist to reformat options.	2015-06-01
 libraries	rje_seq	3.24.0	Added REST seqout output.	2016-09-12
-libraries	rje_seq	3.25.0	9spec=T/F   : Whether to treat 9XXXX species codes as actual species (generally higher taxa) [False]	2018-07-02
+libraries	rje_seq	3.25.0	9spec=T/F   : Whether to treat 9XXXX species codes as actual species (generally higher taxa) [False]	2018-07-02
+libraries	rje_seq	3.25.1	Fixed -long_seqids retrieval bug.	2019-05-27
+libraries	rje_seq	3.25.2	Fixed 9spec filtering bug.	2019-05-27
 libraries	rje_seq	3.3	Added 6RF reformatting for DNA sequences.	2015-06-01
 libraries	rje_seq	3.4	Added HAQBAT option	2015-06-01
 libraries	rje_seq	3.5	Added extra alignment program, MAFFT	2015-06-01
@@ -649,13 +682,18 @@ libraries	rje_seqlist	1.23.0	Added seqSequence() method.	2017-12-18
 libraries	rje_seqlist	1.24.0	Add NNN gaps option and "delete rest of sequences" to edit().	2017-12-18
 libraries	rje_seqlist	1.24.1	Minor edit bug fix and DNA toggle option.	2017-12-18
 libraries	rje_seqlist	1.25.0	Added loading of FASTQ files in seqmode=file mode.	2017-12-18
-libraries	rje_seqlist	1.26.0	Updated sequence statistics and fixed N50 underestimation bug.	2018-07-02
-libraries	rje_seqlist	1.26.1	Fixed median length overestimation bug.	2018-07-02
-libraries	rje_seqlist	1.26.2	Fixed sizesort bug. (Now big to small as advertised.)	2018-07-02
-libraries	rje_seqlist	1.27.0	Added grepNR() method (dev only). Switched default to RevCompNR=T.	2018-07-02
-libraries	rje_seqlist	1.28.0	Fixed second pass NR naming bug and added option to switch off altogether.	2018-07-02
-libraries	rje_seqlist	1.29.0	Added maker=T/F : Whether to extract MAKER2 statistics (AED, eAED, QI) from sequence names [False]	2018-07-02
+libraries	rje_seqlist	1.26.0	Updated sequence statistics and fixed N50 underestimation bug.	2018-07-02
+libraries	rje_seqlist	1.26.1	Fixed median length overestimation bug.	2018-07-02
+libraries	rje_seqlist	1.26.2	Fixed sizesort bug. (Now big to small as advertised.)	2018-07-02
+libraries	rje_seqlist	1.27.0	Added grepNR() method (dev only). Switched default to RevCompNR=T.	2018-07-02
+libraries	rje_seqlist	1.28.0	Fixed second pass NR naming bug and added option to switch off altogether.	2018-07-02
+libraries	rje_seqlist	1.29.0	Added maker=T/F : Whether to extract MAKER2 statistics (AED, eAED, QI) from sequence names [False]	2018-07-02
 libraries	rje_seqlist	1.3	Modified use of index file (appends, not replaces, file extension)	2015-06-01
+libraries	rje_seqlist	1.30.0	Updated and improved DNA2Protein.	2019-05-27
+libraries	rje_seqlist	1.31.0	Added genecounter to rename option for use with other programs, e.g. PAGSAT.	2019-05-27
+libraries	rje_seqlist	1.31.1	Fixed edit bug when not in DNA mode.	2019-05-27
+libraries	rje_seqlist	1.32.0	Added genomesize and NG50/LG50 to DNA summarise.	2019-05-27
+libraries	rje_seqlist	1.32.1	Fixed LG50/L50 bug.	2019-05-27
 libraries	rje_seqlist	1.4	Added dna2prot reformat function.	2015-06-01
 libraries	rje_seqlist	1.5	Added sampler=N(,X)   : Generate (X) file(s) sampling a random N sequences from input into seqout.N.X.fas [0]	2015-06-01
 libraries	rje_seqlist	1.6	Modified currSeq() and nextSeq() slightly to fix index mode breakage. Look out for other programs breaking. Add sequence fragment extraction.	2015-06-01
@@ -691,6 +729,7 @@ libraries	rje_sequence	2.5.1	Modified reverse complement code.	2015-11-30
 libraries	rje_sequence	2.5.2	Tried to speed up dna2prot code.	2015-11-30
 libraries	rje_sequence	2.5.3	Fixed genetic code warning error.	2016-09-12
 libraries	rje_sequence	2.6.0	Added mutation dictionary to Ks calculation.	2017-12-18
+libraries	rje_sequence	2.7.0	Added shift=X to maskRegion() for 1-L input. Fixed cterminal maskRegion.	2019-05-27
 libraries	rje_slim	0.0	Initial Compilation.	2015-06-01
 libraries	rje_slim	1.0	Initial working version.	2015-06-01
 libraries	rje_slim	1.1	Added DNA option.	2015-06-01
@@ -711,7 +750,7 @@ libraries	rje_slim	1.8	Modified use of aa/dna defaults to (hopefully) not break 
 libraries	rje_slim	1.9	Reinstated ambcut for slimToPattern()	2015-06-01
 libraries	rje_slimcalc	0.0	Initial Compilation based on rje_motifstats methods.	2015-06-01
 libraries	rje_slimcalc	0.1	Added new probability-based method, inspired by (but different to) Dinkel & Sticht (2007)	2015-06-01
-libraries	rje_slimcalc	0.10.0	Added extra disorder methods to slimcalc.	2018-07-02
+libraries	rje_slimcalc	0.10.0	Added extra disorder methods to slimcalc.	2018-07-02
 libraries	rje_slimcalc	0.2	Mended OccPos finding for wildcards. Added new relative conservation score.	2015-06-01
 libraries	rje_slimcalc	0.3	Added von Neumann entropy code.	2015-06-01
 libraries	rje_slimcalc	0.4	Added Webserver pickling of RLC lists.	2015-06-01
@@ -747,6 +786,10 @@ libraries	rje_slimcore	1.8	Added BLOSUM2equiv method for making equivalent lists
 libraries	rje_slimcore	1.9	Minor modifications to Log output. Updated motifSeq() function to output unmasked sequences.	2015-06-01
 libraries	rje_slimcore	2.0	Converted to use rje_obj.RJE_Object as base. Version 1.16 moved to legacy/.	2015-06-01
 libraries	rje_slimcore	2.1	Added megaslim=FILE option to make/use precomputed results for a proteome. Upgraded MotifSeq method.	2015-06-01
+libraries	rje_slimcore	2.10.0	Added seqfilter=T/F   : Whether to apply sequence filtering options (goodX, badX etc.) to input [False]	2019-05-27
+libraries	rje_slimcore	2.10.1	Fixed default results file bug.	2019-05-27
+libraries	rje_slimcore	2.10.2	Improved handling and REST output of disorder scores.	2019-05-27
+libraries	rje_slimcore	2.11.0	Modified qregion=X,Y to be 1-L numbering.	2019-05-27
 libraries	rje_slimcore	2.2	Modified aa frequency calculations to use alphabet to generate 0.0 frequencies (rather than missing aa).	2015-06-01
 libraries	rje_slimcore	2.3	Docstring edits. Minor tweak to walltime() to close open files.	2015-06-01
 libraries	rje_slimcore	2.4	Added megaslimfix=T/F : Whether to run megaslim in "fix" mode to tidy/repair existing files [False]	2015-06-01
@@ -813,6 +856,7 @@ libraries	rje_slimlist	1.7.0	Added direct feeding of motif file content for load
 libraries	rje_slimlist	1.7.1	Modified input to allow motif=X in additon to motifs=X.	2015-06-01
 libraries	rje_slimlist	1.7.2	Fixed bug that could not accept variable length motifs from commandline. Improved error message.	2015-06-01
 libraries	rje_slimlist	1.7.3	Fixed bug that could not accept variable length motifs from commandline. Improved error message.	2015-11-30
+libraries	rje_slimlist	1.7.4	Modified concetanation of SLiMSuite results to use "|" in place of "#" for better compatibility.	2019-05-27
 libraries	rje_svg	0.0	Initial Compilation.	2015-06-01
 libraries	rje_synteny	0.0.0	Initial Compilation.	2016-09-12
 libraries	rje_synteny	0.0.1	Altered problematic ValueError to warnLog()	2017-12-18
@@ -823,7 +867,7 @@ libraries	rje_taxonomy	0.1	Initial working version with rje_ensembl.	2015-06-01
 libraries	rje_taxonomy	1.0	Fully functional version with modified viral species code creation.	2015-06-01
 libraries	rje_taxonomy	1.1.0	Added parsing of yeast strains.	2015-11-30
 libraries	rje_taxonomy	1.2.0	Added storage of Parents.	2016-09-12
-libraries	rje_taxonomy	1.3.0	taxtable=T/F        : Whether to output results in a table rather than text lists [False]	2018-07-02
+libraries	rje_taxonomy	1.3.0	taxtable=T/F        : Whether to output results in a table rather than text lists [False]	2018-07-02
 libraries	rje_tm	0.0	Initial Compilation.	2015-06-01
 libraries	rje_tm	1.0	Basic functional version.	2015-06-01
 libraries	rje_tm	1.1	Output of 'truncated' proteins - cleaved signalp peptides replaced with Xs.	2015-06-01
@@ -854,8 +898,8 @@ libraries	rje_tree	2.13.0	Updated PNG saving with R to use newer code.	2015-11-3
 libraries	rje_tree	2.14.0	Added cladeSpec().	2016-09-12
 libraries	rje_tree	2.14.1	Fixed clustalw2 makeTree issue.	2017-12-18
 libraries	rje_tree	2.15.0	Added IQTree.	2017-12-18
-libraries	rje_tree	2.16.0	9spec=T/F   : Whether to treat 9XXXX species codes as actual species (generally higher taxa) [False]	2018-07-02
-libraries	rje_tree	2.16.1	Modified NSF reading to cope with extra information beyond the ";".	2018-07-02
+libraries	rje_tree	2.16.0	9spec=T/F   : Whether to treat 9XXXX species codes as actual species (generally higher taxa) [False]	2018-07-02
+libraries	rje_tree	2.16.1	Modified NSF reading to cope with extra information beyond the ";".	2018-07-02
 libraries	rje_tree	2.2	Added treeformats=LIST option to eventually replace savetype. Added te (TreeExplorer) format.	2015-06-01
 libraries	rje_tree	2.3	Added specdup=X   : Minimum number of different species in clade to be identified as a duplication [1]	2015-06-01
 libraries	rje_tree	2.4	Added fasttree generation of trees.	2015-06-01
@@ -907,8 +951,10 @@ libraries	rje_uniprot	3.22.0	Tweaked REST table output.	2016-09-12
 libraries	rje_uniprot	3.23.0	Added accnum map table output. Fixed REST output bug when bad IDs given. Added version and about output.	2017-12-18
 libraries	rje_uniprot	3.24.0	Added pfam out and changed map table headers.	2017-12-18
 libraries	rje_uniprot	3.24.1	Fixed process Uniprot error when uniprot=FILE given.	2017-12-18
-libraries	rje_uniprot	3.24.2	Updated HTTP to HTTPS. Having some download issues with server failures.	2018-07-02
-libraries	rje_uniprot	3.25.0	Fixed new Uniprot batch query URL. Added onebyone=T/F    : Whether to download one entry at a time. Slower but should maintain order [False].	2018-07-02
+libraries	rje_uniprot	3.24.2	Updated HTTP to HTTPS. Having some download issues with server failures.	2018-07-02
+libraries	rje_uniprot	3.25.0	Fixed new Uniprot batch query URL. Added onebyone=T/F    : Whether to download one entry at a time. Slower but should maintain order [False].	2018-07-02
+libraries	rje_uniprot	3.25.1	Fixed proteome download bug following Uniprot changes.	2019-05-27
+libraries	rje_uniprot	3.25.2	Fixed Uniprot protein extraction issues by using curl. (May not be a robust fix!)	2019-05-27
 libraries	rje_uniprot	3.3	Added DBase processing options.	2015-06-01
 libraries	rje_uniprot	3.4	Made modifications to allow extended EMBL functionality as part of rje_embl.	2015-06-01
 libraries	rje_uniprot	3.5	Added SplitOut to go with rje_embl V0.1	2015-06-01
@@ -942,7 +988,7 @@ libraries	rje_zen	1.2	Added a webserver mode to return text directly.	2015-06-01
 libraries	rje_zen	1.3.0	Modified output to work with new REST service calls.	2015-06-01
 libraries	rje_zen	1.3.1	Added some more words.	2015-06-01
 libraries	rje_zen	1.3.2	Added some more words.	2017-12-18
-libraries	rje_zen	1.4.0	Added some more words and "They fight crime!" structure.	2018-07-02
+libraries	rje_zen	1.4.0	Added some more words and "They fight crime!" structure.	2018-07-02
 libraries	snp_mapper	0.0	Initial Compilation. Batch mode for mapping SNPs needs updating.	2015-11-30
 libraries	snp_mapper	0.1	SNP mapping against a GenBank file.	2015-11-30
 libraries	snp_mapper	0.2	Fixed complement strand bug.	2015-11-30
@@ -985,6 +1031,24 @@ tools	budapest	2.0	Revised version using rje_mascot object for loading.	2015-06-
 tools	budapest	2.1	Improved handling of iTRAQ data using rje_mascot V1.2.	2015-06-01
 tools	budapest	2.2	Removed unrequired rje_dismatrix import.	2015-06-01
 tools	budapest	2.3	Updated to use rje_blast_V2. Needs further updates for BLAST+. Deleted obsolete OLDreadMascot() method.	2015-06-01
+tools	buscomp	0.0.0	Initial Compilation.	2019-05-27
+tools	buscomp	0.1.0	Basic working version.	2019-05-27
+tools	buscomp	0.2.0	Functional version with basic RMarkdown HTML output.	2019-05-27
+tools	buscomp	0.3.0	Added ratefas=FILELIST: Additional fasta files of assemblies to rate with BUSCOMPSeq (No BUSCO run) [].	2019-05-27
+tools	buscomp	0.4.0	Implemented forking and tidied up output a little.	2019-05-27
+tools	buscomp	0.5.0	Updated genome stats and RMarkdown HTML output. Reorganised assembly loading and proeccessing. Added menus.	2019-05-27
+tools	buscomp	0.5.1	Reorganised code for clearer flow and documentation. Unique and missing BUSCO output added.	2019-05-27
+tools	buscomp	0.5.2	Dropped paircomp method and added Rmarkdown control methods. Updated Rmarkdown descriptions. Updated log output.	2019-05-27
+tools	buscomp	0.5.3	Tweaked log output and fixed a few minor bugs.	2019-05-27
+tools	buscomp	0.5.4	Deleted some excess code and tweaked BUSCO percentage plot outputs.	2019-05-27
+tools	buscomp	0.5.5	Fixed minlocid bug and cleared up minimap temp directories. Added LnnIDxx to BUSCOMP outputs.	2019-05-27
+tools	buscomp	0.5.6	Added uniquehit=T/F : Option to use *.hitunique.tdt table of unique coverage for GABLAM coverage stats [False]	2019-05-27
+tools	buscomp	0.6.0	Added more minimap options, changed defaults and dev generation of a table changes in ratings from BUSCO to BUSCOMP.	2019-05-27
+tools	buscomp	0.6.1	Fixed bug that was including Duplicated sequences in the buscomp.fasta file. Added option to exclude from BUSCOMPSeq compilation.	2019-05-27
+tools	buscomp	0.6.2	Fixed bug introduced that had broken manual group review/editing.	2019-05-27
+tools	buscomp	0.7.0	Updated the defaults in the light of test analyses. Tweaked Rmd report.	2019-05-27
+tools	buscomp	0.7.1	Fixed unique group count bug when some genomes are not in a group. Fixed running with non-standard options.	2019-05-27
+tools	buscomp	0.7.2	Added loadsummary=T/F option to regenerate summaries and fixed bugs running without BUSCO results.	2019-05-27
 tools	comparimotif_V3	0.0	Initial Compilation.	2015-06-01
 tools	comparimotif_V3	1.0	Full working version with menu	2015-06-01
 tools	comparimotif_V3	1.1	Added extra output options	2015-06-01
@@ -996,6 +1060,7 @@ tools	comparimotif_V3	3.10	Added MemSaver option, which will read and process in
 tools	comparimotif_V3	3.11	Added additional overlap/matchfix checks during basic comparison to try and speed up.	2015-06-01
 tools	comparimotif_V3	3.12	Replaced deprecated sets.Set() with set().	2015-06-01
 tools	comparimotif_V3	3.13.0	Added REST server function.	2016-09-12
+tools	comparimotif_V3	3.14.0	Modified memsaver mode to take different input formats.	2019-05-27
 tools	comparimotif_V3	3.2	Added mismatches=X option. (NB. mismatch=X is used in SLiMSearch.)	2015-06-01
 tools	comparimotif_V3	3.3	Added "Match" column, summarising matches	2015-06-01
 tools	comparimotif_V3	3.4	Added a DNA option and AA frequencies.	2015-06-01
@@ -1064,8 +1129,10 @@ tools	gablam	2.28.0	Added localidmin=PERC to localUnique (and thus Snapper).	201
 tools	gablam	2.28.1	Fixed missing combinedfas when using existing blastres.	2017-12-18
 tools	gablam	2.28.2	Minor bug fix for NRSeq manual choice when i=-1.	2017-12-18
 tools	gablam	2.28.3	Fixed NRSeq query sorting bug.	2017-12-18
-tools	gablam	2.29.0	Added localGFF=T/F output	2018-07-02
+tools	gablam	2.29.0	Added localGFF=T/F output	2018-07-02
 tools	gablam	2.3	Added local alignment stat output.	2015-06-01
+tools	gablam	2.30.0	Added mapper=X : Program to use for mapping files against each other (blast/minimap) [blast]	2019-05-27
+tools	gablam	2.30.1	Fixed BLAST LocalIDCut error for GABLAM and QAssemble stat filtering.	2019-05-27
 tools	gablam	2.4	Added distance matrix output and visualisation.	2015-06-01
 tools	gablam	2.5	Miscellaneous cleanup and bug fixes. Updated output file names to use basefile.	2015-06-01
 tools	gablam	2.6	Added full name output for NSF tree.	2015-06-01
@@ -1078,13 +1145,13 @@ tools	gasp	1.1	Improved OO. Restriction to descendant AAs. (Good for BAD etc.)	2
 tools	gasp	1.2	No Out Object in Objects	2015-06-01
 tools	gasp	1.3	Added more interactive load options	2015-06-01
 tools	gasp	1.4	Minor tweaks to imports.	2015-06-01
-tools	gasp	2.0.0	Upgraded to rje_obj framework for REST server.	2018-07-02
-tools	gasp_V1	0.0	Initial Compilation.	2018-07-02
-tools	gasp_V1	1.0	Improved version with second pass.	2018-07-02
-tools	gasp_V1	1.1	Improved OO. Restriction to descendant AAs. (Good for BAD etc.)	2018-07-02
-tools	gasp_V1	1.2	No Out Object in Objects	2018-07-02
-tools	gasp_V1	1.3	Added more interactive load options	2018-07-02
-tools	gasp_V1	1.4	Minor tweaks to imports.	2018-07-02
+tools	gasp	2.0.0	Upgraded to rje_obj framework for REST server.	2018-07-02
+tools	gasp_V1	0.0	Initial Compilation.	2018-07-02
+tools	gasp_V1	1.0	Improved version with second pass.	2018-07-02
+tools	gasp_V1	1.1	Improved OO. Restriction to descendant AAs. (Good for BAD etc.)	2018-07-02
+tools	gasp_V1	1.2	No Out Object in Objects	2018-07-02
+tools	gasp_V1	1.3	Added more interactive load options	2018-07-02
+tools	gasp_V1	1.4	Minor tweaks to imports.	2018-07-02
 tools	gfessa	0.0	Initial Compilation using exact matches only.	2015-06-01
 tools	gfessa	0.1	BLAST-based inexact search method.	2015-06-01
 tools	gfessa	0.2	Removed sequence annotation and clustering. Added extra enrichment clustering.	2015-06-01
@@ -1100,7 +1167,10 @@ tools	gopher	3.3	Added rje_blast_V2 to use BLAST+. Run with oldblast=T to stick 
 tools	gopher	3.4	Fixed FullRBH paralogue duplication issue.	2015-06-01
 tools	gopher	3.4.1	Fixed stripXGap issue. (Why was this being implemented anyway?). Added REST output.	2015-06-01
 tools	gopher	3.4.2	Removed GOPHER System Exit on IOError to prevent breaking of REST server.	2015-11-30
-tools	gopher	3.4.3	Added checking and warning if no bootstraps for orthtree.	2018-07-02
+tools	gopher	3.4.3	Added checking and warning if no bootstraps for orthtree.	2018-07-02
+tools	gopher	3.5.0	Added separate outputs for trees with different alignment programs.	2019-05-27
+tools	gopher	3.5.1	Added capacity to run DNA GOPHER with tblastx. (Not tested!)	2019-05-27
+tools	gopher	3.5.2	Added acc=LIST as alias for uniprotid=LIST and updated docstring for REST to make it clear that rest=X needed.	2019-05-27
 tools	happi	0.0	Initial Compilation. Based on rje_hm_html.	2015-06-01
 tools	happi	0.1	Added special methods for specific analyses.	2015-06-01
 tools	happi	0.2	Added multiclass capability.	2015-06-01
@@ -1123,7 +1193,8 @@ tools	haqesac	1.10.1	Tweaked QryVar interactivity.	2015-06-01
 tools	haqesac	1.10.2	Corrected typos and disabled buggy post-HAQESAC data reduction.	2015-06-01
 tools	haqesac	1.10.3	Added catching of bad query when i=-1.	2017-12-18
 tools	haqesac	1.11.0	Added resdir=PATH [./HAQESAC/] for d>0 outputs.	2017-12-18
-tools	haqesac	1.12.0	9spec=T/F   : Whether to treat 9XXXX species codes as actual species (generally higher taxa) [False]	2018-07-02
+tools	haqesac	1.12.0	9spec=T/F   : Whether to treat 9XXXX species codes as actual species (generally higher taxa) [False]	2018-07-02
+tools	haqesac	1.13.0	Modified qregion=X,Y to be 1-L numbering.	2019-05-27
 tools	haqesac	1.2	Added basename and interactive menu to start if nothing given	2015-06-01
 tools	haqesac	1.3	Added specification of query subportion. Changed scoring to use sub matrix. Added GASP.	2015-06-01
 tools	haqesac	1.4	Added option to use BLAST coverage rather than ALIGN	2015-06-01
@@ -1140,8 +1211,8 @@ tools	multihaq	1.2	Changed defaults to autoskip=F.	2015-06-01
 tools	multihaq	1.2.1	Updated documentation to include the HAQESAC reference.	2015-06-01
 tools	multihaq	1.2.2	Switched default to keepblast=T. Added forking blasta=X command to BLAST.	2015-06-01
 tools	multihaq	1.3.0	MultiCut : Restrict BLAST to the top X hits from each database [100]	2017-12-18
-tools	multihaq	1.4.0	Added SLiMFarmer batch forking if autoskip=F and i=-1.	2018-07-02
-tools	multihaq	1.4.1	Added haqblastdir=PATH: Directory in which MultiHAQ BLAST2FAS BLAST runs will be performed [./HAQBLAST/]	2018-07-02
+tools	multihaq	1.4.0	Added SLiMFarmer batch forking if autoskip=F and i=-1.	2018-07-02
+tools	multihaq	1.4.1	Added haqblastdir=PATH: Directory in which MultiHAQ BLAST2FAS BLAST runs will be performed [./HAQBLAST/]	2018-07-02
 tools	pagsat	1.0.0	Initial working version for based on rje_pacbio assessment=T.	2015-11-30
 tools	pagsat	1.1.0	Fixed bug with gene and protein summary data. Removed gene/protein reciprocal searches. Added compare mode.	2015-11-30
 tools	pagsat	1.1.1	Added PAGSAT output directory for tidiness!	2015-11-30
@@ -1189,8 +1260,19 @@ tools	pagsat	2.3.0	Minor bug fixes and extra tidy options (join gaps and multi-d
 tools	pagsat	2.3.1	Minor bug fixes.	2017-12-18
 tools	pagsat	2.3.2	Updated the synteny mappings to be m::n instead of m:n for Excel compatibility.	2017-12-18
 tools	pagsat	2.3.3	Fixed bad assembly sequence name bug.	2017-12-18
-tools	pagsat	2.3.4	Fixed full.fas request bug.	2018-07-02
-tools	pagsat	2.4.0	Added PAGSAT compile mode to generate comparisons of reference chromosomes across assemblies.	2018-07-02
+tools	pagsat	2.3.4	Fixed full.fas request bug.	2018-07-02
+tools	pagsat	2.4.0	Added PAGSAT compile mode to generate comparisons of reference chromosomes across assemblies.	2018-07-02
+tools	pagsat	2.5.0	Reduced the executed code when mapfas=T assessment=F. (Recommended first run.) Added renaming.	2019-05-27
+tools	pagsat	2.5.1	Added recognition of *.gbff for genbank files.	2019-05-27
+tools	pagsat	2.6.0	Added mapper=X : Program to use for mapping files against each other (blast/minimap) [blast]	2019-05-27
+tools	pagsat	2.6.1	Switch failure to find key report files to a long warning, not program exit.	2019-05-27
+tools	pagsat	2.6.2	Fixed bugs with mapper=minimap mode and started adding more internal documentation.	2019-05-27
+tools	pagsat	2.6.3	Fixed default behaviour to run report=T mode.	2019-05-27
+tools	pagsat	2.6.4	Fixed summary table merge bug.	2019-05-27
+tools	pagsat	2.6.5	Fixed compile path bug.	2019-05-27
+tools	pagsat	2.6.6	Fixed BLAST LocalIDCut error for GABLAM and QAssemble stat filtering.	2019-05-27
+tools	pagsat	2.6.7	Generalised compile path bug fix.	2019-05-27
+tools	pagsat	2.6.8	Added ChromXcov fields to PAGSAT Compare.	2019-05-27
 tools	pagsat_V1	1.0.0	Initial working version for based on rje_pacbio assessment=T.	2017-12-18
 tools	pagsat_V1	1.1.0	Fixed bug with gene and protein summary data. Removed gene/protein reciprocal searches. Added compare mode.	2017-12-18
 tools	pagsat_V1	1.1.1	Added PAGSAT output directory for tidiness!	2017-12-18
@@ -1269,6 +1351,7 @@ tools	pingu_V3	3.8	Hopefully fixed issue of Fasta file generation log output wri
 tools	pingu_V3	3.9	Tidied imports.	2015-06-01
 tools	pingu_V4	4.0	Initial Compilation based on code from SLiMBench and PINGU 3.9 (inherited as pingu_V3).	2015-06-01
 tools	pingu_V4	4.1	Adding compilation of PPI databases using new rje_xref V1.1 and older objects from PINGU V3.	2015-06-01
+tools	pingu_V4	4.10.0	Added hubfield and spokefield options for parsing hublist.	2019-05-27
 tools	pingu_V4	4.2	Bug fixes for use of PPISource to create PPI databases. Add HGNC to sourcedata (xrefdata=HGNC)	2015-06-01
 tools	pingu_V4	4.3	Modified to use Pfam as hub field for DomPPI generation. Modified naming of PPI output after ppisource.	2015-06-01
 tools	pingu_V4	4.4.0	Converted ppicompile=T to ppicompile=LIST.	2015-06-01
@@ -1283,6 +1366,7 @@ tools	pingu_V4	4.6.3	Fixed issue with 1:many SpokeUni:Spoke mappings messing up 
 tools	pingu_V4	4.7.0	Added ppidbreport=T/F : Summary output for PPI compilation of evidence/PPIType/DB overlaps [True]	2016-09-12
 tools	pingu_V4	4.8.0	Fixed report duplication issue and added additional summary output	2016-09-12
 tools	pingu_V4	4.9.0	Updated HINT download and parsing details.	2017-12-18
+tools	pingu_V4	4.9.1	Fixed Pairwise parsing and filtering for more flexibility of input. Fixed fasid=X bug and ppiseqfile names.	2019-05-27
 tools	qslimfinder	0.0	Initial Compilation based on SLiMFinder 3.5.	2015-06-01
 tools	qslimfinder	1.0	Test & Modified to include AA masking.	2015-06-01
 tools	qslimfinder	1.1	Added sizesort.	2015-06-01
@@ -1298,6 +1382,23 @@ tools	qslimfinder	2.0	Converted to use rje_obj.RJE_Object as base. Version 1.9 m
 tools	qslimfinder	2.1.0	Added PTMData and PTMList options.	2015-06-01
 tools	qslimfinder	2.1.1	Switched feature masking OFF by default to give consistent Uniprot versus FASTA behaviour.	2016-09-12
 tools	qslimfinder	2.2.0	Added map and failed outputs for uniprotid=LIST input.	2017-12-18
+tools	qslimfinder	2.3.0	Modified qregion=X,Y to be 1-L numbering.	2019-05-27
+tools	samphaser	0.0.0	Initial Compilation.	2019-05-27
+tools	samphaser	0.1.0	Updated SAMPhaser to be more memory efficient.	2019-05-27
+tools	samphaser	0.2.0	Added reading of sequence and generation of SNP-altered haplotype blocks.	2019-05-27
+tools	samphaser	0.2.1	Fixed bug in which zero-phasing sequences were being excluded from blocks output.	2019-05-27
+tools	samphaser	0.3.0	Made a new unzip process.	2019-05-27
+tools	samphaser	0.4.0	Added RGraphics for unzip.	2019-05-27
+tools	samphaser	0.4.1	Fixed MeanX bug in devUnzip.	2019-05-27
+tools	samphaser	0.4.2	Made phaseindels=F by default: mononucleotide indel errors will probably add phasing noise. Fixed basefile R bug.	2019-05-27
+tools	samphaser	0.4.3	Fixed bug introduced by adding depthplot code. Fixed phaseindels bug. (Wasn't working!)	2019-05-27
+tools	samphaser	0.4.4	Modified mincut=X to adjust for samtools V1.12.0.	2019-05-27
+tools	samphaser	0.4.5	Updated for modified RJE_SAMTools output.	2019-05-27
+tools	samphaser	0.4.6	splitzero=X : Whether to split haplotigs at zero-coverage regions of X+ bp (-1 = no split) [100]	2019-05-27
+tools	samphaser	0.5.0	snptable=T/F    : Output filtered alleles to SNP Table [False]	2019-05-27
+tools	samphaser	0.6.0	Converted haplotig naming to be consistent for PAGSAT generation. Updated for rje_samtools v1.21.1.	2019-05-27
+tools	samphaser	0.7.0	Added skiploci=LIST and phaseloci=LIST  : Optional list of loci to skip phasing []	2019-05-27
+tools	samphaser	0.8.0	poordepth=T/F   : Whether to include reads with poor track probability in haplotig depth plots (random track) [False]	2019-05-27
 tools	seqmapper	0.0	Initial Compilation.	2015-06-01
 tools	seqmapper	1.0	Basic working version for protein databases.	2015-06-01
 tools	seqmapper	1.1	Modified run() method to be called from other programs	2015-06-01
@@ -1305,6 +1406,7 @@ tools	seqmapper	1.2	Added grep method	2015-06-01
 tools	seqmapper	2.0	Reworked with new Object format, new BLAST(+) module and new seqlist module.	2015-06-01
 tools	seqmapper	2.1	Added catching of failure to read input sequences. Removed 'Run' from GABLAM table.	2015-06-01
 tools	seqmapper	2.2.0	Updated basefile to set resfile.	2017-12-18
+tools	seqmapper	2.3.0	Added GABLAM-free method.	2019-05-27
 tools	seqsuite	0.0	Initial Compilation.	2015-06-01
 tools	seqsuite	0.1	Added rje_seq and FIESTA. Added Uniprot.	2015-06-01
 tools	seqsuite	1.0	Moved to tools/ for general release. Added HAQESAC and MultiHAQ. Moved mod to enable easy external access.	2015-06-01
@@ -1317,14 +1419,18 @@ tools	seqsuite	1.12.0	Added Snapper.	2016-09-12
 tools	seqsuite	1.12.1	Fixed possible download run bug. (No dev/ modules?)	2017-12-18
 tools	seqsuite	1.13.0	Changed GABLAM defaults to fullblast=T keepblast=T.	2017-12-18
 tools	seqsuite	1.14.0	Added BLAST run object, particularly for qassemblefas running.	2017-12-18
-tools	seqsuite	1.14.1	Added zentest for testing the REST servers.	2018-07-02
-tools	seqsuite	1.15.0	Added GASP to REST servers.	2018-07-02
-tools	seqsuite	1.16.0	Add rje_gff.GFF to REST servers.	2018-07-02
-tools	seqsuite	1.17.0	Added batch summarise mode.	2018-07-02
-tools	seqsuite	1.18.0	Added rje_apollo.Apollo to REST servers.	2018-07-02
-tools	seqsuite	1.19.0	Tweaked the output of batch summarise, adding Gap% and reducing dp for some fields.	2018-07-02
-tools	seqsuite	1.19.1	Fixed GapPC summarise output to be a percentage, not a fraction.	2018-07-02
+tools	seqsuite	1.14.1	Added zentest for testing the REST servers.	2018-07-02
+tools	seqsuite	1.15.0	Added GASP to REST servers.	2018-07-02
+tools	seqsuite	1.16.0	Add rje_gff.GFF to REST servers.	2018-07-02
+tools	seqsuite	1.17.0	Added batch summarise mode.	2018-07-02
+tools	seqsuite	1.18.0	Added rje_apollo.Apollo to REST servers.	2018-07-02
+tools	seqsuite	1.19.0	Tweaked the output of batch summarise, adding Gap% and reducing dp for some fields.	2018-07-02
+tools	seqsuite	1.19.1	Fixed GapPC summarise output to be a percentage, not a fraction.	2018-07-02
 tools	seqsuite	1.2	Added taxonomy.	2015-06-01
+tools	seqsuite	1.20.0	Added rje_paf.PAF.	2019-05-27
+tools	seqsuite	1.21.0	Added NG50 and LG50 to batch summarise.	2019-05-27
+tools	seqsuite	1.22.0	Added BUSCOMP to programs.	2019-05-27
+tools	seqsuite	1.23.0	Added rje_ppi.PPI to programs.	2019-05-27
 tools	seqsuite	1.3.0	Added rje_zen.Zen. Modified code to work with REST services.	2015-06-01
 tools	seqsuite	1.4.0	Added rje_tree.Tree, GABLAM and GOPHER.	2015-06-01
 tools	seqsuite	1.5.0	Added extatic.ExTATIC and revert.REVERT. NOTE: Dev only.	2015-06-01
@@ -1361,17 +1467,21 @@ tools	slimbench	2.13.0	Added balanced=T/F : Whether to reduce benchmarking to da
 tools	slimbench	2.13.1	Set tuplekeys=T for benchmark assessment runs.	2017-12-18
 tools	slimbench	2.13.2	Fixed tuplekeys=T bug for benchmark assessment runs.	2017-12-18
 tools	slimbench	2.14.0	Added wPPV = SN/(SN+FPR) for OccBench.	2017-12-18
-tools	slimbench	2.14.1	Fixed up PPIBench results loading.	2018-07-02
-tools	slimbench	2.14.2	Fixed ByCloud bug.	2018-07-02
-tools	slimbench	2.15.0	Updated assessSearchMemSaver() to handle different data types properly. dombench not yet supported.	2018-07-02
-tools	slimbench	2.16.0	Added ppi hub/slim summary and motif filter for assessment datasets post-rating (still count as OT)	2018-07-02
-tools	slimbench	2.16.1	Bug-fixing PPI generation from pairwise PPI files.	2018-07-02
-tools	slimbench	2.16.2	Fixed benchmarking setup bug.	2018-07-02
-tools	slimbench	2.16.3	Fixed bug when Hub-PPI links fail during PPI Benchmarking.	2018-07-02
-tools	slimbench	2.17.0	Added output of missing datasets when balanced=T.	2018-07-02
-tools	slimbench	2.18.0	Added dev OccBench with improved ratings and more efficient results handling. (dev only)	2018-07-02
-tools	slimbench	2.18.1	Added additional OccBench options (bymotif, occsource, occspec)	2018-07-02
-tools	slimbench	2.18.2	Fixed problem with source file selection ignoring i=-1.	2018-07-02
+tools	slimbench	2.14.1	Fixed up PPIBench results loading.	2018-07-02
+tools	slimbench	2.14.2	Fixed ByCloud bug.	2018-07-02
+tools	slimbench	2.15.0	Updated assessSearchMemSaver() to handle different data types properly. dombench not yet supported.	2018-07-02
+tools	slimbench	2.16.0	Added ppi hub/slim summary and motif filter for assessment datasets post-rating (still count as OT)	2018-07-02
+tools	slimbench	2.16.1	Bug-fixing PPI generation from pairwise PPI files.	2018-07-02
+tools	slimbench	2.16.2	Fixed benchmarking setup bug.	2018-07-02
+tools	slimbench	2.16.3	Fixed bug when Hub-PPI links fail during PPI Benchmarking.	2018-07-02
+tools	slimbench	2.17.0	Added output of missing datasets when balanced=T.	2018-07-02
+tools	slimbench	2.18.0	Added dev OccBench with improved ratings and more efficient results handling. (dev only)	2018-07-02
+tools	slimbench	2.18.1	Added additional OccBench options (bymotif, occsource, occspec)	2018-07-02
+tools	slimbench	2.18.2	Fixed problem with source file selection ignoring i=-1.	2018-07-02
+tools	slimbench	2.18.3	Added better handling of motifs without TP occurrences for OccBench. Added minocctp=INT.	2019-05-27
+tools	slimbench	2.18.4	Fixed ELMBench rating bug.	2019-05-27
+tools	slimbench	2.18.5	Fixed Balanced=F bug.	2019-05-27
+tools	slimbench	2.19.0	Implemented dataset=LIST: List of headers to split dataset into. If blank, will use datatype defaults. []	2019-05-27
 tools	slimbench	2.2	Replaced searchini=LIST with searchini=FILE and moved to SimBench commands. Modified the FN/TN and ResNum calculations. No longer rate TP in random data as OT.	2015-06-01
 tools	slimbench	2.3	Changed the default to queries=F. SearchINI bug fix. Added occbench generation.	2015-06-01
 tools	slimbench	2.4	Improved error messages.	2015-06-01
@@ -1385,6 +1495,7 @@ tools	slimbench	2.9.1	Enabled download only with generate=F benchmark=F.	2015-06
 tools	slimfarmer	0.0	Initial Compilation.	2015-06-01
 tools	slimfarmer	1.0	Functional version using rje_qsub and rje_iridis to fork out SLiMSuite runs.	2015-06-01
 tools	slimfarmer	1.1	Updated to use rje_hpc.JobFarmer and incorporate main SLiMSuite farming within SLiMFarmer class.	2015-06-01
+tools	slimfarmer	1.10.0	Added appending contents of jobini file to slimsuite=F farm commands.	2019-05-27
 tools	slimfarmer	1.2	Implemented the slimsuite=T/F option and got SLiMFarmer qsub to work with GOPHER forking.	2015-06-01
 tools	slimfarmer	1.3	Modified default vmem request to 127GB from 64GB.	2015-06-01
 tools	slimfarmer	1.4	Added modules=LIST : List of modules to add in job file [clustalo,mafft]	2015-06-01
@@ -1396,8 +1507,8 @@ tools	slimfarmer	1.4.5	Updated BLAST loading default to 2.2.31	2016-09-12
 tools	slimfarmer	1.5.0	mailstart=T/F : Whether to email user at start of run [False]	2017-12-18
 tools	slimfarmer	1.6.0	modpurge=T/F : Whether to purge loaded modules in qsub job file prior to loading [True]	2017-12-18
 tools	slimfarmer	1.7.0	precall=LIST : List of additional commands to run between module loading and program call []	2017-12-18
-tools	slimfarmer	1.8.0	jobforks=X : Number of forks to pass to farmed out run if >0 [0]	2018-07-02
-tools	slimfarmer	1.9.0	daisychain=X : Chain together a set of qsub runs of the same call that depend on the previous job.	2018-07-02
+tools	slimfarmer	1.8.0	jobforks=X : Number of forks to pass to farmed out run if >0 [0]	2018-07-02
+tools	slimfarmer	1.9.0	daisychain=X : Chain together a set of qsub runs of the same call that depend on the previous job.	2018-07-02
 tools	slimfinder	0.0	Initial Compilation.	2015-06-01
 tools	slimfinder	1.0	Preliminary working version with Poisson probabilities	2015-06-01
 tools	slimfinder	1.1	Binomial probabilities, bonferroni corrections and complexity masking	2015-06-01
@@ -1446,7 +1557,9 @@ tools	slimfinder	5.3.0	Added map and failed outputs for uniprotid=LIST input.	20
 tools	slimfinder	5.3.1	Modified placement of disorder masking warning.	2017-12-18
 tools	slimfinder	5.3.2	Tweaked REST output format presentation.	2017-12-18
 tools	slimfinder	5.3.3	Updated resfile to be set by basefile if no resfile=X setting given	2017-12-18
-tools	slimfinder	5.3.4	Fixed terminal (^/$) musthave bug.	2018-07-02
+tools	slimfinder	5.3.4	Fixed terminal (^/$) musthave bug.	2018-07-02
+tools	slimfinder	5.3.5	Fixed slimcheck and advanced stats models bug.	2019-05-27
+tools	slimfinder	5.4.0	Modified qregion=X,Y to be 1-L numbering.	2019-05-27
 tools	slimmaker	0.0	Initial Compilation.	2015-06-01
 tools	slimmaker	1.0	Initial Working Version. Some minor modifications for SLiMBench including iterative SLiMMaker.	2015-06-01
 tools	slimmaker	1.1	Modified to work with end of line characters.	2015-06-01
@@ -1477,6 +1590,8 @@ tools	slimparser	0.3.3	Tidied output names when restbase=jobid.	2015-11-30
 tools	slimparser	0.3.4	Tweaked error messages.	2016-09-12
 tools	slimparser	0.4.0	Added simple json format output.	2016-09-12
 tools	slimparser	0.5.0	Added restkeys/outputs output of REST output keys.	2017-12-18
+tools	slimparser	0.5.1	Minor docs and bug fixes.	2019-05-27
+tools	slimparser	0.6.0	Improved functionality as replacement pureapi with rest=jobid and rest=check functions.	2019-05-27
 tools	slimprob	1.0	SLiMProb 1.0 based on SLiMSearch 1.7. Altered output files to be *.csv and *.occ.csv.	2015-06-01
 tools	slimprob	1.1	Tidied import commands.	2015-06-01
 tools	slimprob	1.2	Increased extras=X levels. Adjusted maxsize=X assessment to be post-masking.	2015-06-01
@@ -1515,7 +1630,9 @@ tools	slimsuite	1.5.1	Changed disorder to iuscore to avoid module conflict.	2015
 tools	slimsuite	1.5.2	Updated XRef REST call.	2016-09-12
 tools	slimsuite	1.6.0	Removed SLiMCore as default. Default will now show help.	2016-09-12
 tools	slimsuite	1.7.0	Updated to work with symbolic link in main slimsuite/ path.	2017-12-18
-tools	slimsuite	1.7.1	Added error raising for protected REST alias data.	2018-07-02
+tools	slimsuite	1.7.1	Added error raising for protected REST alias data.	2018-07-02
+tools	slimsuite	1.8.0	Added BUSCOMP and basic test function.	2019-05-27
+tools	slimsuite	1.8.1	Updated documentation and added IUPred2. General tidy up and new example data for protocols paper.	2019-05-27
 tools	smrtscape	0.0.0	Initial Compilation.	2015-11-30
 tools	smrtscape	1.0.0	Initial working version for server.	2015-11-30
 tools	smrtscape	1.1.0	Added xnlist=LIST : Additional columns giving % sites with coverage >= Xn [10,25,50,100].	2015-11-30
@@ -1538,7 +1655,8 @@ tools	smrtscape	2.1.0	Added MapLen and MapX to optimise.tdt output.	2017-12-18
 tools	smrtscape	2.1.1	Fixed basefile bug.	2017-12-18
 tools	smrtscape	2.2.0	Updated to work with fasta files generated from Sequel BAM files. (No RQ values.)	2017-12-18
 tools	smrtscape	2.2.1	Fixed printLog typo bug.	2017-12-18
-tools	smrtscape	2.2.2	Added dna=T to all SeqList object generation.	2018-07-02
+tools	smrtscape	2.2.2	Added dna=T to all SeqList object generation.	2018-07-02
+tools	smrtscape	2.2.3	Fixed bug where SMRT subreads are not returned by seqlist in correct order. Fixed RQ=0 bug.	2019-05-27
 tools	smrtscape_V1	0.0.0	Initial Compilation.	2017-12-18
 tools	smrtscape_V1	1.0.0	Initial working version for server.	2017-12-18
 tools	smrtscape_V1	1.1.0	Added xnlist=LIST : Additional columns giving % sites with coverage >= Xn [10,25,50,100].	2017-12-18
@@ -1569,7 +1687,8 @@ tools	snapper	1.4.0	localidmin=PERC : Minimum local %identity of local alignment
 tools	snapper	1.4.1	Modified warning for AccNum/Locus mismatch in Reference.	2017-12-18
 tools	snapper	1.5.0	Added pNS and modified the "Positive" CDS rating to be pNS < 0.05.	2017-12-18
 tools	snapper	1.6.0	filterself=T/F  : Filter out self-hits prior to Snapper pipeline (e.g for assembly all-by-all) [False] Added renaming of alt sequences that are found in the Reference for self-comparisons.	2017-12-18
-tools	snapper	1.6.1	Fixed bug for reducing to unique-unique pairings that was over-filtering.	2018-07-02
+tools	snapper	1.6.1	Fixed bug for reducing to unique-unique pairings that was over-filtering.	2018-07-02
+tools	snapper	1.7.0	Added mapper=minimap setting, compatible with GABLAM v2.30.0 and rje_paf v0.1.0.	2019-05-27
 tools	unifake	0.0	Initial Compilation.	2015-06-01
 tools	unifake	1.0	Version with full functionality.	2015-06-01
 tools	unifake	1.1	Made changes to temp file names for parallel running	2015-06-01

@@ -29,14 +29,18 @@ var tabberOptions = {
 
 <body>
 <h1>SLiMSuite updates</h1>
+<h2>Updates in Error/:</h2>
+
+<p><b>&bull; SLiMSuite:</b> <i>Created/Renamed/moved.</i>
+<br>&rarr; Version 1.4.0: SLiMSuite v1.4.0 (2018-07-02) release. Added this top level file to track overall version number.
+<br>&rarr; Version 1.4.1: SLiMBench v2.18.3 - Added better handling of motifs without TP occurrences for OccBench. Added minocctp=INT.
+</p>
 <h2>Updates in extras/:</h2>
 
 </p>
-<p><b>&bull; rje_pydocs:</b> <i>Updated from Version 2.16.3.</i>
-<br>&rarr; Version 2.16.4: Tweaked formatDocString.
-<br>&rarr; Version 2.16.5: Added general commands to docstring HTML for REST servers.
-<br>&rarr; Version 2.16.6: Modified parsing to keep DocString for SPyDarm runs.
-<br>&rarr; Version 2.16.7: Fixed T/F/FILE option type parsing bug.
+<p><b>&bull; rje_pydocs:</b> <i>Updated from Version 2.16.7.</i>
+<br>&rarr; Version 2.16.8: Updated to to parse https.
+<br>&rarr; Version 2.16.9: Tweaked docstring parsing.
 </p>
 <h2>Updates in legacy/:</h2>
 
@@ -44,138 +48,200 @@ var tabberOptions = {
 <h2>Updates in libraries/:</h2>
 
 </p>
-<p><b>&bull; rje_blast_V2:</b> <i>Updated from Version 2.18.0.</i>
-<br>&rarr; Version 2.19.0: Added blastgz=T/F     : Whether to zip and unzip BLAST results files [False]
-<br>&rarr; Version 2.19.1: Fixed erroneous i=-1 blastprog over-ride but not sure why it was happening.
-<br>&rarr; Version 2.20.0: Added localGFF output
-<br>&rarr; Version 2.21.0: Added blasttask=X setting for BLAST -task ['megablast']
-<br>&rarr; Version 2.22.0: Added dust filter for blastn and setting blastprog based on blasttask
-<br>&rarr; Version 2.22.1: Added trimLocal error catching for exonerate issues.
-<br>&rarr; Version 2.22.2: Fixed GFF attribute case issue.
+<p><b>&bull; rje:</b> <i>Updated from Version 4.19.0.</i>
+<br>&rarr; Version 4.19.1: Added code for catching non-ASCII log filenames.
+<br>&rarr; Version 4.20.0: Added quiet mode to log object and output of errors to stderr. Fixed rankList(unique=True)
+<br>&rarr; Version 4.21.0: Added hashlib MD% functions.
+<br>&rarr; Version 4.21.1: Fixed bug where silent=T wasn't running silent.
 </p>
-<p><b>&bull; rje_db:</b> <i>Updated from Version 1.8.6.</i>
-<br>&rarr; Version 1.9.0: Added comment output to saveToFile().
+<p><b>&bull; rje_blast_V2:</b> <i>Updated from Version 2.22.2.</i>
+<br>&rarr; Version 2.23.3: Fixed LocalIDCut error for GABLAM and QAssemble stat filtering.
 </p>
-<p><b>&bull; rje_disorder:</b> <i>Updated from Version 0.8.</i>
-<br>&rarr; Version 1.0.0: Added random disorder function and elevated to v1.x as fully functional for SLiMSuite
-<br>&rarr; Version 1.1.0: Added strict option for disorder method selection. Added minorder=X.
-<br>&rarr; Version 1.2.0: Added saving and loading scores to IUScoreDir/.
+<p><b>&bull; rje_db:</b> <i>Updated from Version 1.9.0.</i>
+<br>&rarr; Version 1.9.1: Updated logging of adding/removing fields: default is now when debugging only.
 </p>
-<p><b>&bull; rje_gff:</b> <i>Created/Renamed/moved.</i>
+<p><b>&bull; rje_disorder:</b> <i>Updated from Version 1.2.0.</i>
+<br>&rarr; Version 1.3.0: Switched default behaviour to be md5acc=T.
+<br>&rarr; Version 1.4.0: Fixed up disorder=parse and disorder=foldindex.
+<br>&rarr; Version 1.5.0: Added iupred2 and anchor2 parsing from URL using accnum. Made default disorder=iushort2.
+</p>
+<p><b>&bull; rje_genbank:</b> <i>Updated from Version 1.5.3.</i>
+<br>&rarr; Version 1.5.4: Added recognition of *.gbff for genbank files.
+</p>
+<p><b>&bull; rje_obj:</b> <i>Updated from Version 2.2.2.</i>
+<br>&rarr; Version 2.3.0: Added quiet mode to object and stderr output.
+<br>&rarr; Version 2.4.0: Added vLog() and bugLog() methods.
+<br>&rarr; Version 2.4.1: Fixed bug where silent=T wasn't running silent.
+</p>
+<p><b>&bull; rje_paf:</b> <i>Created/Renamed/moved.</i>
 <br>&rarr; Version 0.0.0: Initial Compilation.
-<br>&rarr; Version 0.1.0: Basic functional version.
+<br>&rarr; Version 0.1.0: Initial working version. Compatible with GABLAM v2.30.0 and Snapper v1.7.0.
+<br>&rarr; Version 0.2.0: Added endextend=X : Extend minimap2 hits to end of sequence if with X bp [10]
+<br>&rarr; Version 0.3.0: Added mapsplice mode for dealing with transcript mapping.
+<br>&rarr; Version 0.3.1: Correct PAF splicing bug.
+<br>&rarr; Version 0.4.0: Added TmpDir and forking for GABLAM conversion.
+<br>&rarr; Version 0.5.0: Added uniquehit=T/F : Option to use *.hitunique.tdt table of unique coverage for GABLAM coverage stats [False]
 </p>
-<p><b>&bull; rje_hpc:</b> <i>Updated from Version 1.1.</i>
-<br>&rarr; Version 1.1.1: Added output of subjob command to log as run.
+<p><b>&bull; rje_ppi:</b> <i>Updated from Version 2.8.1.</i>
+<br>&rarr; Version 2.9.0: Added ppiout=FILE : Save pairwise PPI file following processing (if rest=None) [None]
 </p>
-<p><b>&bull; rje_html:</b> <i>Updated from Version 0.2.1.</i>
-<br>&rarr; Version 0.3.0: Added optional loading of javascript files and stupidtable.js?dev default.
+<p><b>&bull; rje_qsub:</b> <i>Updated from Version 1.9.2.</i>
+<br>&rarr; Version 1.9.3: Updates the order of the qsub -S /bin/bash flag.
 </p>
-<p><b>&bull; rje_qsub:</b> <i>Updated from Version 1.9.1.</i>
-<br>&rarr; Version 1.9.2: Modified qsub() to return job ID.
+<p><b>&bull; rje_rmd:</b> <i>Created/Renamed/moved.</i>
+<br>&rarr; Version 0.0.0: Initial Compilation.
 </p>
-<p><b>&bull; rje_samtools:</b> <i>Updated from Version 1.19.2.</i>
-<br>&rarr; Version 1.20.0: Added parsing of BAM file - needs samtools on system. Added minsoftclip=X, maxsoftclip=X and minreadlen=X.
+<p><b>&bull; rje_samtools:</b> <i>Updated from Version 1.20.0.</i>
+<br>&rarr; Version 1.20.1: Fixed mlen bug. Added catching of unmapped reads in SAM file. Fixed RLen bug. Changed softclip defaults.
+<br>&rarr; Version 1.20.2: Fixed readlen coverage bug and acut bug.
 </p>
-<p><b>&bull; rje_seq:</b> <i>Updated from Version 3.24.0.</i>
-<br>&rarr; Version 3.25.0: 9spec=T/F   : Whether to treat 9XXXX species codes as actual species (generally higher taxa) [False]
+<p><b>&bull; rje_seq:</b> <i>Updated from Version 3.25.0.</i>
+<br>&rarr; Version 3.25.1: Fixed -long_seqids retrieval bug.
+<br>&rarr; Version 3.25.2: Fixed 9spec filtering bug.
 </p>
-<p><b>&bull; rje_seqlist:</b> <i>Updated from Version 1.25.0.</i>
-<br>&rarr; Version 1.26.0: Updated sequence statistics and fixed N50 underestimation bug.
-<br>&rarr; Version 1.26.1: Fixed median length overestimation bug.
-<br>&rarr; Version 1.26.2: Fixed sizesort bug. (Now big to small as advertised.)
-<br>&rarr; Version 1.27.0: Added grepNR() method (dev only). Switched default to RevCompNR=T.
-<br>&rarr; Version 1.28.0: Fixed second pass NR naming bug and added option to switch off altogether.
-<br>&rarr; Version 1.29.0: Added maker=T/F : Whether to extract MAKER2 statistics (AED, eAED, QI) from sequence names [False]
+<p><b>&bull; rje_seqlist:</b> <i>Updated from Version 1.29.0.</i>
+<br>&rarr; Version 1.30.0: Updated and improved DNA2Protein.
+<br>&rarr; Version 1.31.0: Added genecounter to rename option for use with other programs, e.g. PAGSAT.
+<br>&rarr; Version 1.31.1: Fixed edit bug when not in DNA mode.
+<br>&rarr; Version 1.32.0: Added genomesize and NG50/LG50 to DNA summarise.
+<br>&rarr; Version 1.32.1: Fixed LG50/L50 bug.
 </p>
-<p><b>&bull; rje_slimcalc:</b> <i>Updated from Version 0.9.3.</i>
-<br>&rarr; Version 0.10.0: Added extra disorder methods to slimcalc.
+<p><b>&bull; rje_sequence:</b> <i>Updated from Version 2.6.0.</i>
+<br>&rarr; Version 2.7.0: Added shift=X to maskRegion() for 1-L input. Fixed cterminal maskRegion.
 </p>
-<p><b>&bull; rje_taxonomy:</b> <i>Updated from Version 1.2.0.</i>
-<br>&rarr; Version 1.3.0: taxtable=T/F        : Whether to output results in a table rather than text lists [False]
+<p><b>&bull; rje_slimcore:</b> <i>Updated from Version 2.9.0.</i>
+<br>&rarr; Version 2.10.0: Added seqfilter=T/F   : Whether to apply sequence filtering options (goodX, badX etc.) to input [False]
+<br>&rarr; Version 2.10.1: Fixed default results file bug.
+<br>&rarr; Version 2.10.2: Improved handling and REST output of disorder scores.
+<br>&rarr; Version 2.11.0: Modified qregion=X,Y to be 1-L numbering.
 </p>
-<p><b>&bull; rje_tree:</b> <i>Updated from Version 2.15.0.</i>
-<br>&rarr; Version 2.16.0: 9spec=T/F   : Whether to treat 9XXXX species codes as actual species (generally higher taxa) [False]
-<br>&rarr; Version 2.16.1: Modified NSF reading to cope with extra information beyond the ";".
+<p><b>&bull; rje_slimlist:</b> <i>Updated from Version 1.7.3.</i>
+<br>&rarr; Version 1.7.4: Modified concetanation of SLiMSuite results to use "|" in place of "#" for better compatibility.
 </p>
-<p><b>&bull; rje_uniprot:</b> <i>Updated from Version 3.24.1.</i>
-<br>&rarr; Version 3.24.2: Updated HTTP to HTTPS. Having some download issues with server failures.
-<br>&rarr; Version 3.25.0: Fixed new Uniprot batch query URL. Added onebyone=T/F    : Whether to download one entry at a time. Slower but should maintain order [False].
+<p><b>&bull; rje_uniprot:</b> <i>Updated from Version 3.25.0.</i>
+<br>&rarr; Version 3.25.1: Fixed proteome download bug following Uniprot changes.
+<br>&rarr; Version 3.25.2: Fixed Uniprot protein extraction issues by using curl. (May not be a robust fix!)
 </p>
-<p><b>&bull; rje_zen:</b> <i>Updated from Version 1.3.2.</i>
-<br>&rarr; Version 1.4.0: Added some more words and "They fight crime!" structure.
+<h2>Updates in Error/:</h2>
+
+<p><b>&bull; slimsuite:</b> <i>Created/Renamed/moved.</i>
+<br>&rarr; Version 1.4.0: SLiMSuite v1.4.0 (2018-07-02) release. Added this top level file to track overall version number.
+<br>&rarr; Version 1.4.1: SLiMBench v2.18.3 - Added better handling of motifs without TP occurrences for OccBench. Added minocctp=INT.
 </p>
 <h2>Updates in tools/:</h2>
 
 </p>
-<p><b>&bull; gablam:</b> <i>Updated from Version 2.28.3.</i>
-<br>&rarr; Version 2.29.0: Added localGFF=T/F output
+<p><b>&bull; buscomp:</b> <i>Created/Renamed/moved.</i>
+<br>&rarr; Version 0.0.0: Initial Compilation.
+<br>&rarr; Version 0.1.0: Basic working version.
+<br>&rarr; Version 0.2.0: Functional version with basic RMarkdown HTML output.
+<br>&rarr; Version 0.3.0: Added ratefas=FILELIST: Additional fasta files of assemblies to rate with BUSCOMPSeq (No BUSCO run) [].
+<br>&rarr; Version 0.4.0: Implemented forking and tidied up output a little.
+<br>&rarr; Version 0.5.0: Updated genome stats and RMarkdown HTML output. Reorganised assembly loading and proeccessing. Added menus.
+<br>&rarr; Version 0.5.1: Reorganised code for clearer flow and documentation. Unique and missing BUSCO output added.
+<br>&rarr; Version 0.5.2: Dropped paircomp method and added Rmarkdown control methods. Updated Rmarkdown descriptions. Updated log output.
+<br>&rarr; Version 0.5.3: Tweaked log output and fixed a few minor bugs.
+<br>&rarr; Version 0.5.4: Deleted some excess code and tweaked BUSCO percentage plot outputs.
+<br>&rarr; Version 0.5.5: Fixed minlocid bug and cleared up minimap temp directories. Added LnnIDxx to BUSCOMP outputs.
+<br>&rarr; Version 0.5.6: Added uniquehit=T/F : Option to use *.hitunique.tdt table of unique coverage for GABLAM coverage stats [False]
+<br>&rarr; Version 0.6.0: Added more minimap options, changed defaults and dev generation of a table changes in ratings from BUSCO to BUSCOMP.
+<br>&rarr; Version 0.6.1: Fixed bug that was including Duplicated sequences in the buscomp.fasta file. Added option to exclude from BUSCOMPSeq compilation.
+<br>&rarr; Version 0.6.2: Fixed bug introduced that had broken manual group review/editing.
+<br>&rarr; Version 0.7.0: Updated the defaults in the light of test analyses. Tweaked Rmd report.
+<br>&rarr; Version 0.7.1: Fixed unique group count bug when some genomes are not in a group. Fixed running with non-standard options.
+<br>&rarr; Version 0.7.2: Added loadsummary=T/F option to regenerate summaries and fixed bugs running without BUSCO results.
 </p>
-<p><b>&bull; gasp:</b> <i>Updated from Version 1.4.</i>
-<br>&rarr; Version 2.0.0: Upgraded to rje_obj framework for REST server.
+<p><b>&bull; comparimotif_V3:</b> <i>Updated from Version 3.13.0.</i>
+<br>&rarr; Version 3.14.0: Modified memsaver mode to take different input formats.
 </p>
-<p><b>&bull; gasp_V1:</b> <i>Created/Renamed/moved.</i>
-<br>&rarr; Version 0.0: Initial Compilation.
-<br>&rarr; Version 1.0: Improved version with second pass.
-<br>&rarr; Version 1.1: Improved OO. Restriction to descendant AAs. (Good for BAD etc.)
-<br>&rarr; Version 1.2: No Out Object in Objects
-<br>&rarr; Version 1.3: Added more interactive load options
-<br>&rarr; Version 1.4: Minor tweaks to imports.
+<p><b>&bull; gablam:</b> <i>Updated from Version 2.29.0.</i>
+<br>&rarr; Version 2.30.0: Added mapper=X : Program to use for mapping files against each other (blast/minimap) [blast]
+<br>&rarr; Version 2.30.1: Fixed BLAST LocalIDCut error for GABLAM and QAssemble stat filtering.
 </p>
-<p><b>&bull; gopher:</b> <i>Updated from Version 3.4.2.</i>
-<br>&rarr; Version 3.4.3: Added checking and warning if no bootstraps for orthtree.
+<p><b>&bull; gopher:</b> <i>Updated from Version 3.4.3.</i>
+<br>&rarr; Version 3.5.0: Added separate outputs for trees with different alignment programs.
+<br>&rarr; Version 3.5.1: Added capacity to run DNA GOPHER with tblastx. (Not tested!)
+<br>&rarr; Version 3.5.2: Added acc=LIST as alias for uniprotid=LIST and updated docstring for REST to make it clear that rest=X needed.
 </p>
-<p><b>&bull; haqesac:</b> <i>Updated from Version 1.11.0.</i>
-<br>&rarr; Version 1.12.0: 9spec=T/F   : Whether to treat 9XXXX species codes as actual species (generally higher taxa) [False]
+<p><b>&bull; haqesac:</b> <i>Updated from Version 1.12.0.</i>
+<br>&rarr; Version 1.13.0: Modified qregion=X,Y to be 1-L numbering.
 </p>
-<p><b>&bull; multihaq:</b> <i>Updated from Version 1.3.0.</i>
-<br>&rarr; Version 1.4.0: Added SLiMFarmer batch forking if autoskip=F and i=-1.
-<br>&rarr; Version 1.4.1: Added haqblastdir=PATH: Directory in which MultiHAQ BLAST2FAS BLAST runs will be performed [./HAQBLAST/]
+<p><b>&bull; pagsat:</b> <i>Updated from Version 2.4.0.</i>
+<br>&rarr; Version 2.5.0: Reduced the executed code when mapfas=T assessment=F. (Recommended first run.) Added renaming.
+<br>&rarr; Version 2.5.1: Added recognition of *.gbff for genbank files.
+<br>&rarr; Version 2.6.0: Added mapper=X : Program to use for mapping files against each other (blast/minimap) [blast]
+<br>&rarr; Version 2.6.1: Switch failure to find key report files to a long warning, not program exit.
+<br>&rarr; Version 2.6.2: Fixed bugs with mapper=minimap mode and started adding more internal documentation.
+<br>&rarr; Version 2.6.3: Fixed default behaviour to run report=T mode.
+<br>&rarr; Version 2.6.4: Fixed summary table merge bug.
+<br>&rarr; Version 2.6.5: Fixed compile path bug.
+<br>&rarr; Version 2.6.6: Fixed BLAST LocalIDCut error for GABLAM and QAssemble stat filtering.
+<br>&rarr; Version 2.6.7: Generalised compile path bug fix.
+<br>&rarr; Version 2.6.8: Added ChromXcov fields to PAGSAT Compare.
 </p>
-<p><b>&bull; pagsat:</b> <i>Updated from Version 2.3.3.</i>
-<br>&rarr; Version 2.3.4: Fixed full.fas request bug.
-<br>&rarr; Version 2.4.0: Added PAGSAT compile mode to generate comparisons of reference chromosomes across assemblies.
+<p><b>&bull; pingu_V4:</b> <i>Updated from Version 4.9.0.</i>
+<br>&rarr; Version 4.9.1: Fixed Pairwise parsing and filtering for more flexibility of input. Fixed fasid=X bug and ppiseqfile names.
+<br>&rarr; Version 4.10.0: Added hubfield and spokefield options for parsing hublist.
 </p>
-<p><b>&bull; seqsuite:</b> <i>Updated from Version 1.14.0.</i>
-<br>&rarr; Version 1.14.1: Added zentest for testing the REST servers.
-<br>&rarr; Version 1.15.0: Added GASP to REST servers.
-<br>&rarr; Version 1.16.0: Add rje_gff.GFF to REST servers.
-<br>&rarr; Version 1.17.0: Added batch summarise mode.
-<br>&rarr; Version 1.18.0: Added rje_apollo.Apollo to REST servers.
-<br>&rarr; Version 1.19.0: Tweaked the output of batch summarise, adding Gap% and reducing dp for some fields.
-<br>&rarr; Version 1.19.1: Fixed GapPC summarise output to be a percentage, not a fraction.
+<p><b>&bull; qslimfinder:</b> <i>Updated from Version 2.2.0.</i>
+<br>&rarr; Version 2.3.0: Modified qregion=X,Y to be 1-L numbering.
 </p>
-<p><b>&bull; slimbench:</b> <i>Updated from Version 2.14.0.</i>
-<br>&rarr; Version 2.14.1: Fixed up PPIBench results loading.
-<br>&rarr; Version 2.14.2: Fixed ByCloud bug.
-<br>&rarr; Version 2.15.0: Updated assessSearchMemSaver() to handle different data types properly. dombench not yet supported.
-<br>&rarr; Version 2.16.0: Added ppi hub/slim summary and motif filter for assessment datasets post-rating (still count as OT)
-<br>&rarr; Version 2.16.1: Bug-fixing PPI generation from pairwise PPI files.
-<br>&rarr; Version 2.16.2: Fixed benchmarking setup bug.
-<br>&rarr; Version 2.16.3: Fixed bug when Hub-PPI links fail during PPI Benchmarking.
-<br>&rarr; Version 2.17.0: Added output of missing datasets when balanced=T.
-<br>&rarr; Version 2.18.0: Added dev OccBench with improved ratings and more efficient results handling. (dev only)
-<br>&rarr; Version 2.18.1: Added additional OccBench options (bymotif, occsource, occspec)
-<br>&rarr; Version 2.18.2: Fixed problem with source file selection ignoring i=-1.
+<p><b>&bull; samphaser:</b> <i>Created/Renamed/moved.</i>
+<br>&rarr; Version 0.0.0: Initial Compilation.
+<br>&rarr; Version 0.1.0: Updated SAMPhaser to be more memory efficient.
+<br>&rarr; Version 0.2.0: Added reading of sequence and generation of SNP-altered haplotype blocks.
+<br>&rarr; Version 0.2.1: Fixed bug in which zero-phasing sequences were being excluded from blocks output.
+<br>&rarr; Version 0.3.0: Made a new unzip process.
+<br>&rarr; Version 0.4.0: Added RGraphics for unzip.
+<br>&rarr; Version 0.4.1: Fixed MeanX bug in devUnzip.
+<br>&rarr; Version 0.4.2: Made phaseindels=F by default: mononucleotide indel errors will probably add phasing noise. Fixed basefile R bug.
+<br>&rarr; Version 0.4.3: Fixed bug introduced by adding depthplot code. Fixed phaseindels bug. (Wasn't working!)
+<br>&rarr; Version 0.4.4: Modified mincut=X to adjust for samtools V1.12.0.
+<br>&rarr; Version 0.4.5: Updated for modified RJE_SAMTools output.
+<br>&rarr; Version 0.4.6: splitzero=X : Whether to split haplotigs at zero-coverage regions of X+ bp (-1 = no split) [100]
+<br>&rarr; Version 0.5.0: snptable=T/F    : Output filtered alleles to SNP Table [False]
+<br>&rarr; Version 0.6.0: Converted haplotig naming to be consistent for PAGSAT generation. Updated for rje_samtools v1.21.1.
+<br>&rarr; Version 0.7.0: Added skiploci=LIST and phaseloci=LIST  : Optional list of loci to skip phasing []
+<br>&rarr; Version 0.8.0: poordepth=T/F   : Whether to include reads with poor track probability in haplotig depth plots (random track) [False]
 </p>
-<p><b>&bull; slimfarmer:</b> <i>Updated from Version 1.7.0.</i>
-<br>&rarr; Version 1.8.0: jobforks=X : Number of forks to pass to farmed out run if >0 [0]
-<br>&rarr; Version 1.9.0: daisychain=X : Chain together a set of qsub runs of the same call that depend on the previous job.
+<p><b>&bull; seqmapper:</b> <i>Updated from Version 2.2.0.</i>
+<br>&rarr; Version 2.3.0: Added GABLAM-free method.
 </p>
-<p><b>&bull; slimfinder:</b> <i>Updated from Version 5.3.3.</i>
-<br>&rarr; Version 5.3.4: Fixed terminal (^/$) musthave bug.
+<p><b>&bull; seqsuite:</b> <i>Updated from Version 1.19.1.</i>
+<br>&rarr; Version 1.20.0: Added rje_paf.PAF.
+<br>&rarr; Version 1.21.0: Added NG50 and LG50 to batch summarise.
+<br>&rarr; Version 1.22.0: Added BUSCOMP to programs.
+<br>&rarr; Version 1.23.0: Added rje_ppi.PPI to programs.
 </p>
-<p><b>&bull; slimsuite:</b> <i>Updated from Version 1.7.0.</i>
-<br>&rarr; Version 1.7.1: Added error raising for protected REST alias data.
+<p><b>&bull; slimbench:</b> <i>Updated from Version 2.18.2.</i>
+<br>&rarr; Version 2.18.3: Added better handling of motifs without TP occurrences for OccBench. Added minocctp=INT.
+<br>&rarr; Version 2.18.4: Fixed ELMBench rating bug.
+<br>&rarr; Version 2.18.5: Fixed Balanced=F bug.
+<br>&rarr; Version 2.19.0: Implemented dataset=LIST: List of headers to split dataset into. If blank, will use datatype defaults. []
 </p>
-<p><b>&bull; smrtscape:</b> <i>Updated from Version 2.2.1.</i>
-<br>&rarr; Version 2.2.2: Added dna=T to all SeqList object generation.
+<p><b>&bull; slimfarmer:</b> <i>Updated from Version 1.9.0.</i>
+<br>&rarr; Version 1.10.0: Added appending contents of jobini file to slimsuite=F farm commands.
 </p>
-<p><b>&bull; snapper:</b> <i>Updated from Version 1.6.0.</i>
-<br>&rarr; Version 1.6.1: Fixed bug for reducing to unique-unique pairings that was over-filtering.
+<p><b>&bull; slimfinder:</b> <i>Updated from Version 5.3.4.</i>
+<br>&rarr; Version 5.3.5: Fixed slimcheck and advanced stats models bug.
+<br>&rarr; Version 5.4.0: Modified qregion=X,Y to be 1-L numbering.
+</p>
+<p><b>&bull; slimparser:</b> <i>Updated from Version 0.5.0.</i>
+<br>&rarr; Version 0.5.1: Minor docs and bug fixes.
+<br>&rarr; Version 0.6.0: Improved functionality as replacement pureapi with rest=jobid and rest=check functions.
+</p>
+<p><b>&bull; slimsuite:</b> <i>Updated from Version 1.7.1.</i>
+<br>&rarr; Version 1.8.0: Added BUSCOMP and basic test function.
+<br>&rarr; Version 1.8.1: Updated documentation and added IUPred2. General tidy up and new example data for protocols paper.
+</p>
+<p><b>&bull; smrtscape:</b> <i>Updated from Version 2.2.2.</i>
+<br>&rarr; Version 2.2.3: Fixed bug where SMRT subreads are not returned by seqlist in correct order. Fixed RQ=0 bug.
+</p>
+<p><b>&bull; snapper:</b> <i>Updated from Version 1.6.1.</i>
+<br>&rarr; Version 1.7.0: Added mapper=minimap setting, compatible with GABLAM v2.30.0 and rje_paf v0.1.0.
 </p>
 <!-- ~~~~~~~~~~~~~~ HTML tail data ~~~~~~~~~~~~~~~~~ -->
-<HR><FONT COLOR=#979E45 SIZE=2>&copy; RJ Edwards 2018. Last modified 2 Jul 2018.</FONT></P>
+<HR><FONT COLOR=#979E45 SIZE=2>&copy; RJ Edwards 2019. Last modified 27 May 2019.</FONT></P>
 
 <script type="text/javascript">
 /* manualStartup=true so need to run it now */
