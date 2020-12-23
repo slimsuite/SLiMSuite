@@ -19,8 +19,8 @@
 """
 Module:       PAGSAT
 Description:  Pairwise Assembled Genome Sequence Analysis Tool
-Version:      2.6.8
-Last Edit:    08/04/19
+Version:      2.7.1
+Last Edit:    03/09/20
 Copyright (C) 2015  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -126,7 +126,7 @@ slimsuitepath = os.path.abspath(os.path.join(os.path.dirname(os.path.realpath(__
 sys.path.append(os.path.join(slimsuitepath,'libraries/'))
 sys.path.append(os.path.join(slimsuitepath,'tools/'))
 ### User modules - remember to add *.__doc__ to cmdHelp() below ###
-import rje, rje_db, rje_genbank, rje_html, rje_menu, rje_obj, rje_samtools, rje_seqlist, rje_sequence, rje_synteny, rje_tree, rje_tree_group, rje_xref
+import rje, rje_db, rje_genbank, rje_html, rje_menu, rje_obj, rje_paf, rje_samtools, rje_seqlist, rje_sequence, rje_synteny, rje_tree, rje_tree_group, rje_xref
 import rje_blast_V2 as rje_blast
 import rje_dismatrix_V3 as rje_dismatrix
 import gablam, snapper
@@ -193,6 +193,9 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 2.6.6 - Fixed BLAST LocalIDCut error for GABLAM and QAssemble stat filtering.
     # 2.6.7 - Generalised compile path bug fix.
     # 2.6.8 - Added ChromXcov fields to PAGSAT Compare.
+    # 2.6.9 - Fixed renamed assembly bug when basefile not set.
+    # 2.7.0 - Added BAM generation for assembly if reads given.
+    # 2.7.1 - Fixed bug that caused assembly PNGs to disappear.
    '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -244,11 +247,17 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
     # [ ] : Update compare mode to assess coverage based on Snapper output.
     # [ ] : Tidy up assessment of blast outputs etc. if using mapper=minimap.
     # [ ] : Fix covplot output for mapper=minimap runs.
+    # [Y] : Check for bug where renamed assembly becomes None.renamed.fas
+    # [ ] : Fix chromosome mapping bug. (Use PAFScaff?)
+    # [ ] : Add depthtrim=X option, for trimming ends falling below X coverage.
+    # [Y] : Add reporting of Internal Start/End matches for non-linking Chromosome contigs during Tidy.
+    # [ ] : Add option to split or trim contig in above internal matching.
+    # [ ] : Add reporting of Internal Start/End matches for non-linking Chromosome contigs during Tidy when 3+ contigs.
     '''
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copy_right) = ('PAGSAT', '2.6.8', 'April 2019', '2015')
+    (program, version, last_edit, copy_right) = ('PAGSAT', '2.7.0', 'February 2020', '2015')
     description = 'Pairwise Assembled Genome Sequence Analysis Tool'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_obj.zen()]
@@ -283,6 +292,9 @@ def setupProgram(extracmd=[]): ### Basic Setup of Program when called from comma
     '''
     try:### ~ [1] ~ Initial Command Setup & Info ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         info = makeInfo()                                   # Sets up Info object with program details
+        if len(sys.argv) == 2 and sys.argv[1] in ['version','-version','--version']: rje.printf(info.version); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: rje.printf('{0} v{1}'.format(info.program,info.version)); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['description','-description','--description']: rje.printf('%s: %s' % (info.program,info.description)); sys.exit(0)
         cmd_list = rje.getCmdList(sys.argv[1:]+extracmd,info=info)   # Reads arguments and load defaults from program.ini
         out = rje.Out(cmd_list=cmd_list)                    # Sets up Out object for controlling output to screen
         out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2 
@@ -641,7 +653,10 @@ class PAGSAT(rje_obj.RJE_Object):
                             if not newacc.endswith('.'): newacc = '%s.' % newacc
                             assseqlist.setStr({'NewAcc':newacc})
                             assseqlist.setStr({'NewGene':self.getStr('NewChr')})
-                            assseqlist.setStr({'SeqOut':'%s.renamed.fas' % self.baseFile()}) # rje.baseFile(self.getStr('Assembly'),True)})
+                            if self.getStrLC('Basefile'):
+                                assseqlist.setStr({'SeqOut':'%s.renamed.fas' % self.baseFile()})
+                            else:
+                                assseqlist.setStr({'SeqOut':rje.baseFile(self.getStr('Assembly'),True)})
                             self.setStr({ 'Assembly':assseqlist.getStr('SeqOut') })
                             assseqlist.setBool({'AutoFilter':False})
                             assseqlist.rename(genecounter=True)
@@ -740,14 +755,19 @@ class PAGSAT(rje_obj.RJE_Object):
                 self.printLog('#CMD','Assembly file seems to be a mapping output file (*.map.fasta): switched mapfas=F')
                 self.setBool({'MapFas':False})
             samfile = '%s.sam' % assbase
+            bamfile = '%s.bam' % assbase
             ridfile = '%s.rid.tdt' % assbase
             depfile = '%s.depthplot.tdt' % assbase
-            if self.i() > -1 and not (rje.exists(samfile) or rje.exists(ridfile) or rje.exists(depfile)):
-                if not rje.yesNo('SAM, RID or depthplot.tdt file needed for read depth plots. (Not found.) Proceed without them (not required), copy files into assembly directory first, or "N" to Quit. Proceed?'):
+            self.obj['PAF'] = paf = rje_paf.PAF(self.log, self.cmd_list+['basefile=%s' % assbase,'seqin=%s' % self.getStr('Assembly')])
+            if paf.list['Reads'] and not (rje.exists(samfile) or rje.exists(bamfile) or rje.exists(ridfile) or rje.exists(depfile)):
+                bamfile = paf.longreadMPileup()
+            if self.i() > -1 and not (rje.exists(samfile) or rje.exists(bamfile) or rje.exists(ridfile) or rje.exists(depfile)):
+                if not rje.yesNo('SAM/BAM, RID or depthplot.tdt file needed for read depth plots. (Not found.) Proceed without them (not required), copy files into assembly directory first, or "N" to Quit and rerun with reads=LIST. Proceed?'):
                     return False
-            if rje.exists(samfile) or rje.exists(ridfile) or rje.exists(depfile):
+            if rje.exists(samfile) or rje.exists(bamfile) or rje.exists(ridfile) or rje.exists(depfile):
                 #!# Why is this not picking up the files in the assembly directory? Had to move to run directory!
                 #!# SAMTools is stripping path. Why? Something to do with conflicting RID files in different modes? Give different names? #!#
+                if rje.exists(bamfile) and not rje.exists(samfile): samfile = bamfile
                 samcmd = ['seqin=%s' % self.getStr('Assembly'),'readcheck=%s' % samfile,'depthplot=T','control=None','treatment=None','basefile=%s' % assbase,'readlen=%s' % (rje.exists(samfile) or rje.exists(ridfile))]
                 rje_samtools.SAMtools(self.log,self.cmd_list+samcmd).run()
 
@@ -884,7 +904,8 @@ class PAGSAT(rje_obj.RJE_Object):
             if not self.force():
                 runfound = True
                 if gtype in ['Reference','Assembly','RefMap'] and not rje.exists('%s.hitsum.tdt' % gbase): runfound = False
-                if gtype in ['Reference','Assembly','RefMap'] and not rje.exists('%s.gablam.tdt' % gbase): runfound = False
+                #if gtype in ['Reference','Assembly','RefMap'] and not rje.exists('%s.gablam.tdt' % gbase): runfound = False
+                if not rje.exists('%s.gablam.tdt' % gbase): runfound = False
                 if gtype in ['Reference','Assembly','RefMap'] and not rje.exists('%s.local.tdt' % gbase): runfound = False
                 if gtype in ['Reference','Assembly','RefMap'] and not rje.exists('%s.hitsum.tdt' % (gbase)): runfound = False
                 #!# Add Snapper output check for Reference and RefMap
@@ -2551,7 +2572,7 @@ class PAGSAT(rje_obj.RJE_Object):
                 hbody = sectdata[section]['HTML']
                 hbody += ['<a name="%s"></a><h2 title="%s">%s %s</h2>' % (sectdata[section]['Link'],sectdata[section]['LinkDesc'],basename,section),hlink,'']
                 for pnglink in glob.glob('%s.assembly*png' % plotbase):
-                    if not rje.matchExp('%s.assembly\.(\d+)\.png' % plotbase,pnglink): continue # Individual chromosome or contig
+                    #if not rje.matchExp('%s.assembly\.(\d+)\.png' % plotbase,pnglink): continue # Individual chromosome or contig
                     pngdesc = 'Reference chromosomes plotted against assembly contigs.'
                     hbody.append('<a href="%s"><img src="%s" width="100%%" title="%s"></a>' % (pnglink,pnglink,pngdesc))
 
@@ -2791,7 +2812,7 @@ class PAGSAT(rje_obj.RJE_Object):
             # Establish files needed for tidy=T
             wanted = ['%s.tdt' % maptable]    # Mapping file
             # Check for files
-            if not rje.checkForFiles(wanted,'%s.' % self.baseFile(),log=self.log,cutshort=True,missingtext=' Will generate.'):
+            if not rje.checkForFiles(wanted,'%s.' % self.baseFile(),log=self.log,cutshort=True,missingtext='Not found: Will generate.'):
                 self.assessment()
                 # Check for files again. (Should have been made if missing during first check.)
                 rje.checkForFiles(wanted,'%s.' % self.baseFile(),log=self.log,cutshort=True,ioerror=True)
@@ -3049,7 +3070,7 @@ class PAGSAT(rje_obj.RJE_Object):
             ### ~ [6] Option for regenerating new plots etc. using PAGSAT ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if self.yesNo('Run self-PAGSAT of full contig set vs "haploid core" (tidy=F)?'):
                 self.printLog('#PAGSAT','Running PAGSAT: see %s.ploidy.log' % pagbase)
-                pagcmd = ['assembly=%s' % hapfile['Contigs'],'refgenome=%s' % hapfile['Haploid'],'basefile=%s.ploidy' % pagbase,'tidy=F',
+                pagcmd = ['assembly=%s' % hapfile['contigs'],'refgenome=%s' % hapfile['haploid'],'basefile=%s.ploidy' % pagbase,'tidy=F',
                           'genesummary=F','protsummary=F','mapfas=F']
                 (info,out,mainlog,cmd_list) = setupProgram(pagcmd)
                 PAGSAT(mainlog,cmd_list).run()
@@ -3130,14 +3151,14 @@ class PAGSAT(rje_obj.RJE_Object):
                 menulist.append(('E','Edit contigs'))
                 menulist.append(('S','Save sequences and tidy table to *.assembly.fas and *.tidy.tdt'))
                 menulist.append(('Q','Quit Assembly (back to tidy menu)'))
-                if prev: menulist.append(('P','Previous chromosome'))
+                #!# Disabling this due to bug #!# if prev: menulist.append(('P','Previous chromosome'))
                 menulist.append(('N','Next chromosome'))
                 menulist.append(('L','Log manual assembly note. (#NOTE log entry)'))
                 choice = rje_menu.menu(self,headtext,menulist,default=default,confirm=False)
                 while choice:
                     if choice == 'C': circularise = True; break
                     if choice == 'N': return 1
-                    if prev and choice == 'P': return -1
+                    #!# Disabling this due to bug #!# if prev and choice == 'P': return -1
                     if choice == 'W': walk = True; break
                     if choice == 'A': walk = False; break
                     if choice == 'L':
@@ -3262,6 +3283,7 @@ class PAGSAT(rje_obj.RJE_Object):
             # Reduce to terminal overlaps
             invseq = []
             clocdb.dropEntriesDirect('QryType',['Start','End'],inverse=True)
+            intdb = self.db().copyTable(clocdb,'inthits',replace=True,add=True)
             for htype in clocdb.index('HitType'):
                 if htype in ['InvStart','InvFull','InvEnd']:
                     self.warnLog('%s inverted terminal hits detected: possible local inversion or RevComp errors' % rje.iLen(clocdb.index('HitType')[htype]))
@@ -3275,7 +3297,8 @@ class PAGSAT(rje_obj.RJE_Object):
             if eqx: self.printLog('#TYPE','%s Start:Start or End:End hits removed.' % rje.iStr(eqx))
             if clocdb.entryNum() % 2: raise ValueError('Something has gone wrong with BLAST. Odd number of hits. Should be reciprocal!')
             clocdb.dropEntriesDirect('HitType',['Start'],inverse=True)
-            while not clocdb.entryNum() and invseq:
+            dipskip = self.getBool('Diploid') and len(rje.sortUnique(invseq)) == 2
+            while not clocdb.entryNum() and invseq and not dipskip:
                 invseq = rje.sortUnique(invseq)
                 self.printLog('#CJOIN','No possible contig joins: %d possible inverted sequences.' % len(invseq))
                 ctext = '\n'
@@ -3376,8 +3399,16 @@ class PAGSAT(rje_obj.RJE_Object):
                 qrylist = clocdb.indexKeys('Qry',force=True,log=False)
                 hitlist = clocdb.indexKeys('Hit',force=True,log=False)
 
-
             ## ~ [3b] Present choices ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            self.bugPrint('Internal ends...')
+            intdb.dropEntriesDirect('HitType',['Internal'],inverse=True)
+            intdb.dropEntriesDirect('Qry',qrylist+hitlist)
+            for entry in intdb.entries():
+                qacc = string.split(entry['Qry'],'__')[-1]
+                hacc = string.split(entry['Hit'],'__')[-1]
+                self.printLog('#INT', 'Possible internal match for %s %s (%s-%s): %s %s-%s (%s nt = %.2f%% identity)\n' % (qacc,entry['QryType'],rje.iStr(entry['QryStart']),rje.iStr(entry['QryEnd']),hacc,rje.iStr(entry['HitStart']),rje.iStr(entry['HitEnd']),rje.iStr(entry['Length']),100.0*float(entry['Identity'])/entry['Length']))
+            self.db().deleteTable(intdb)
+
             ctext = '\n'
             #i# Report a list of sequences without any join entries
             nojoins = []

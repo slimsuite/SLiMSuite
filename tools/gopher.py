@@ -19,8 +19,8 @@
 '''
 Program:      GOPHER
 Description:  Generation of Orthologous Proteins from Homology-based Estimation of Relationships
-Version:      3.5.2
-Last Edit:    30/04/19
+Version:      3.5.4
+Last Edit:    21/12/20
 Citation:     Davey, Edwards & Shields (2007), Nucleic Acids Res. 35(Web Server issue):W455-9. [PMID: 17576682]
 Manual:       http://bit.ly/GOPHERManual
 Copyright (C) 2005 Richard J. Edwards - See source code for GNU License Notice
@@ -193,6 +193,8 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 3.5.0 - Added separate outputs for trees with different alignment programs.
     # 3.5.1 - Added capacity to run DNA GOPHER with tblastx. (Not tested!)
     # 3.5.2 - Added acc=LIST as alias for uniprotid=LIST and updated docstring for REST to make it clear that rest=X needed.
+    # 3.5.3 - Removed bootstrap warning in wrong place.
+    # 3.5.4 - Added a try/except to catch some errors Norman was getting.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -222,7 +224,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo():     ### Makes Info object
     '''Makes rje.Info object for program.'''
-    (program, version, last_edit, cyear) = ('GOPHER', '3.5.2', 'April 2019', '2005')
+    (program, version, last_edit, cyear) = ('GOPHER', '3.5.4', 'December 2020', '2005')
     description = 'Generation of Orthologous Proteins from Homology-based Estimation of Relationships'
     author = 'Dr Richard J. Edwards.'
     comments = ['Please cite SLiMDisc webserver paper. (Davey, Edwards & Shields 2007)']
@@ -232,10 +234,12 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
     '''Prints *.__doc__ and asks for more sys.argv commands.'''
     try:
         if not info: info = makeInfo()
+        if len(sys.argv) == 2 and sys.argv[1] in ['version','-version','--version']: rje.printf(info.version); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: rje.printf('{0} v{1}'.format(info.program,info.version)); sys.exit(0)
         if not out: out = rje.Out()
-        helpx = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
-        if helpx > 0:
-            print '\n\nHelp for %s %s: %s\n' % (info.program, info.version, time.asctime(time.localtime(info.start_time)))
+        help = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h') + cmd_list.count('--help')
+        if help > 0:
+            rje.printf('\n\nHelp for {0} {1}: {2}\n'.format(info.program, info.version, time.asctime(time.localtime(info.start_time))))
             out.verbose(-1,4,text=__doc__)
             if rje.yesNo('Show general commandline options?'): out.verbose(-1,4,text=rje.__doc__)
             if rje.yesNo('Show RJE_SEQ commandline options (redundancy etc.)?'): out.verbose(-1,4,text=rje_seq.__doc__)
@@ -246,7 +250,7 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         return cmd_list
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Major Problem with cmdHelp()'
+    except: rje.printf('Major Problem with cmdHelp()')
 #########################################################################################################################
 def setupProgram(): ### Basic Setup of Program
     '''
@@ -258,6 +262,9 @@ def setupProgram(): ### Basic Setup of Program
     try:
         ### Initial Command Setup & Info ###
         info = makeInfo()
+        if len(sys.argv) == 2 and sys.argv[1] in ['version','-version','--version']: rje.printf(info.version); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: rje.printf('{0} v{1}'.format(info.program,info.version)); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['description','-description','--description']: rje.printf('%s: %s' % (info.program,info.description)); sys.exit(0)
         cmd_list = rje.getCmdList(sys.argv[1:],info=info)      ### Load defaults from program.ini
         ### Out object ###
         out = rje.Out(cmd_list=cmd_list)
@@ -271,7 +278,7 @@ def setupProgram(): ### Basic Setup of Program
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
     except:
-        print 'Problem during initial setup.'
+        rje.printf('Problem during initial setup.')
         raise
 #########################################################################################################################
 ### END OF SECTION I                                                                                                    #
@@ -445,7 +452,6 @@ class Gopher(rje.RJE_Object):
             self.stickySetup(seqfile,startfrom) #!# Experimental #!#
             ## ~ [1e] Tree bootstrapping ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             if self.setMode() == 'orthtree':
-                self.warnLog('Default bootstrap value is 0: use bootstraps=X to set.')
                 # Check boot
                 tree = rje_tree.Tree(log=self.log,cmd_list=['root=mid']+self.cmd_list+['autoload=F'])
                 # Option to set higher
@@ -975,7 +981,7 @@ class GopherFork(rje.RJE_Object):
         if 'TREE' in subdir and self.opt['Organise']: subdir = self.info['AlnProg'] + subdir
         #subdir = string.replace(rje.makePath(subdir),'ORTH',self.info['OrthID'].upper())
         subdir = rje.makePath(subdir)
-        extension = string.replace(extension,'orth',self.info['OrthID'].lower())
+        extension = rje.replace(extension,'orth',self.info['OrthID'].lower())
         return rje.makePath('%s%s%s.%s' % (self.info['OutPath'],subdir,acc,extension),wholepath=True)
 #########################################################################################################################
     def restOutputs(self):   ### Updates REST outputs that have been generated.
@@ -1526,45 +1532,47 @@ class GopherFork(rje.RJE_Object):
             else: cseq = None
             ## ~ [7b] Work through each potential orthologue ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             for hseq in idseq.seq:
-                hspec = hseq.info['SpecCode']   # Species code for hit sequence
-                if hspec == spec: continue      # Paralogue - do not consider here                    
-                qvh = gablamo_matrix.getDis(qseq,hseq)  # Query vs Hit similarity
-                hvq = gablamo_matrix.getDis(hseq,qseq)  # Hit vs Query similarity
-                hvp = -1        # Hit vs Paralogue Similarity
-                pseq = None
-                if not best_qspec.has_key(hseq):  #!# Why not??!! Looking at all idseq sequences: should all be in best_qseq #!#
-                    self.log.errorLog('Hit "%s" behaving strangely for %s: excluded.' % (hseq.shortName(),self.info['Name']),printerror=False,quitchoice=False)
-                    best_hspec[hspec] = {'Seq':None}
-                    stickhits.append(hseq.shortName())   
-                    continue
-                if best_qspec[hseq]['Seq'] != qseq:     # This should be the closest Query species seq to Hit
-                    if self.opt['Reciprocal']:          # Simple Reciprocal Best Hit Method: rejected!
-                        best_hspec[hspec]['Seq'] = None  
+                try:
+                    hspec = hseq.info['SpecCode']   # Species code for hit sequence
+                    if hspec == spec: continue      # Paralogue - do not consider here
+                    qvh = gablamo_matrix.getDis(qseq,hseq)  # Query vs Hit similarity
+                    hvq = gablamo_matrix.getDis(hseq,qseq)  # Hit vs Query similarity
+                    hvp = -1        # Hit vs Paralogue Similarity
+                    pseq = None
+                    if not best_qspec.has_key(hseq):  #!# Why not??!! Looking at all idseq sequences: should all be in best_qseq #!#
+                        self.log.errorLog('Hit "%s" behaving strangely for %s: excluded.' % (hseq.shortName(),self.info['Name']),printerror=False,quitchoice=False)
+                        best_hspec[hspec] = {'Seq':None}
+                        stickhits.append(hseq.shortName())
                         continue
-                    pseq = best_qspec[hseq]['Seq']
-                    hvp = gablamo_matrix.getDis(hseq,pseq)
-                    pvh = gablamo_matrix.getDis(pseq,hseq)
-                    pvq = gablamo_matrix.getDis(pseq,qseq)
-                    qvp = gablamo_matrix.getDis(qseq,pseq)
-                else: continue                          # Reciprocal best hits
-                ### ~~~ Strict within orthologous clade? ~~~ ###
-                if self.opt['PostDup'] and cseq:
-                    cvq = gablamo_matrix.getDis(cseq,qseq)
-                    qvc = gablamo_matrix.getDis(qseq,cseq)
-                    cvh = gablamo_matrix.getDis(cseq,hseq)
-                    hvc = gablamo_matrix.getDis(hseq,cseq)
-                    if (hvc >= hvq or qvc >= qvh):    # Query or Hit closer to paralogue
-                        best_hspec[hspec]['Seq'] = None    
+                    if best_qspec[hseq]['Seq'] != qseq:     # This should be the closest Query species seq to Hit
+                        if self.opt['Reciprocal']:          # Simple Reciprocal Best Hit Method: rejected!
+                            best_hspec[hspec]['Seq'] = None
+                            continue
+                        pseq = best_qspec[hseq]['Seq']
+                        hvp = gablamo_matrix.getDis(hseq,pseq)
+                        pvh = gablamo_matrix.getDis(pseq,hseq)
+                        pvq = gablamo_matrix.getDis(pseq,qseq)
+                        qvp = gablamo_matrix.getDis(qseq,pseq)
+                    else: continue                          # Reciprocal best hits
+                    ### ~~~ Strict within orthologous clade? ~~~ ###
+                    if self.opt['PostDup'] and cseq:
+                        cvq = gablamo_matrix.getDis(cseq,qseq)
+                        qvc = gablamo_matrix.getDis(qseq,cseq)
+                        cvh = gablamo_matrix.getDis(cseq,hseq)
+                        hvc = gablamo_matrix.getDis(hseq,cseq)
+                        if (hvc >= hvq or qvc >= qvh):    # Query or Hit closer to paralogue
+                            best_hspec[hspec]['Seq'] = None
+                            continue
+                    ### ~~~ May be outside of clade but not within a different paralogous clade ~~~ ###
+                    ## >> Hit closer to query than to paralogue. Query closer to hit than to paralogue.
+                    if hvq > hvp and qvh > qvp: continue    # Orthologue within query clade
+                    ## >> Query closer to paralogue than to hit. Paralogue closer to query than to hit.
+                    elif pvq > pvh and qvp > qvh:           # Orthologue outside of query/paralogue duplication clade
+                        stickhits.append(pseq.shortName())
                         continue
-                ### ~~~ May be outside of clade but not within a different paralogous clade ~~~ ###
-                ## >> Hit closer to query than to paralogue. Query closer to hit than to paralogue.
-                if hvq > hvp and qvh > qvp: continue    # Orthologue within query clade
-                ## >> Query closer to paralogue than to hit. Paralogue closer to query than to hit.
-                elif pvq > pvh and qvp > qvh:           # Orthologue outside of query/paralogue duplication clade
-                    stickhits.append(pseq.shortName())                    
-                    continue
-                ## >> Otherwise, may be in clade with paralogue to exclusion of Query
-                else: best_hspec[hspec]['Seq'] = None
+                    ## >> Otherwise, may be in clade with paralogue to exclusion of Query
+                    else: best_hspec[hspec]['Seq'] = None
+                except: pass
             ## ~ [7c] Recreate list, ordered by similarity ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             simseq = {} # Dictionary of {sim_spec:seq}
             for hspec in best_hspec.keys():
@@ -2256,7 +2264,10 @@ def runMain():
     ### ~ Basic Setup of Program ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try: [info,out,mainlog,cmd_list] = setupProgram()
     except SystemExit: return  
-    except: print 'Unexpected error during program setup:', sys.exc_info()[0]; return 
+    except:
+        print('Unexpected error during program setup: .{0}'.format(sys.exc_info()[1]))
+        rje.errorMsg()
+        return
     ### ~ Rest of Functionality... ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try: Gopher(log=mainlog,cmd_list=cmd_list).run()
     ### ~ End ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -2271,7 +2282,7 @@ def runMain():
 if __name__ == "__main__":      ### Call runMain 
     try: runMain()
     except SystemExit: sys.exit(1)
-    except: print 'Cataclysmic run error:', sys.exc_info()[0]
+    except: print('Cataclysmic run error: {0}'.format(sys.exc_info()[0]))
     sys.exit()
 #########################################################################################################################
 ### END OF SECTION IV

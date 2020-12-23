@@ -19,8 +19,8 @@
 """
 Module:       rje_pydocs
 Description:  Python Module Documentation & Distribution
-Version:      2.16.9
-Last Edit:    22/05/19
+Version:      2.17.1
+Last Edit:    11/09/20
 Copyright (C) 2011 Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -106,6 +106,8 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 2.16.7 - Fixed T/F/FILE option type parsing bug.
     # 2.16.8 - Updated to to parse https.
     # 2.16.9 - Tweaked docstring parsing.
+    # 2.17.0 - Added markdown parsing of _italics_ and **bold** for REST docstring parsing.
+    # 2.17.1 - Added testRun() method to test new code.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -142,7 +144,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copyyear) = ('RJE_PYDOCS', '2.16.9', 'May 2019', '2011')
+    (program, version, last_edit, copyyear) = ('RJE_PYDOCS', '2.17.1', 'September 2020', '2011')
     description = 'Python Module Documentation & Distribution'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_zen.Zen().wisdom()]
@@ -312,6 +314,7 @@ class PyDoc(rje_obj.RJE_Object):
         '''Main run method.'''
         try:### ~ [1] ~ Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if not self.setup(): return False
+            if self.test(): return self.testRun()
             if self.dev(): print self.list['PyList'][0:]; return
             self.parseModules()
             if self.getBool('MakePages'): return self.makePages()
@@ -1652,6 +1655,17 @@ class PyDoc(rje_obj.RJE_Object):
             while rje.matchExp('(`[^`]+`)',docstring):    # `code`
                 codestr = rje.matchExp('(`[^`]+`)',docstring)[0]
                 docstring = string.replace(docstring,codestr,'<code>%s</code>' % (string.replace(codestr,'`','')),1)
+            while rje.matchExp('(\*\*[^\*\n]+\*\*)',docstring):    # **Bold**
+                codestr = rje.matchExp('(\*\*[^\*\n]+\*\*)',docstring)[0]
+                docstring = string.replace(docstring,codestr,'<b>%s</b>' % (string.replace(codestr,'**','')),1)
+                #self.debug(codestr)
+            while rje.matchExp('\W(_.+_)\W',docstring):    # `code`
+                self.bugPrint(docstring)
+                codestr = rje.matchExp('\W(_.+_)\W',docstring)[0]
+                docstring = string.replace(docstring,codestr,'<i>%s</i>' % (codestr[1:-1]))
+                self.debug(codestr)
+                self.debug(codestr[1:-1])
+                self.debug(docstring)
             while rje.matchExp('(\S+)\.py',docstring):
                 docmod = rje.matchExp('(\S+)\.py',docstring)[0]
                 if self.findModule(docmod): docstring = string.replace(docstring,'%s.py' % docmod,'[%s!!.!!py]{module:%s}' % (docmod,docmod),1)
@@ -1964,6 +1978,17 @@ class PyDoc(rje_obj.RJE_Object):
             ### [3] End of Page Generation ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             return
         except: return self.errorLog('Error in PyDoc.makePages()')
+#########################################################################################################################
+#########################################################################################################################
+    def testRun(self):  ### Testing code
+        '''Testing code'''
+        #pydoccmd = self.cmd_list + ['pypath=%s' % slimsuitepath,'docsource=%sdocs/' % slimsuitepath]
+        #pydoccmd += ['sourcedir=tools,extras,libraries,legacy,dev','resturl=%s' % self.getStr('RestURL')]
+        #pydoc = rje_pydocs.PyDoc(self.log,pydoccmd)
+        pymod = 'diploidocus' # string.split(page,'/')[-1]
+        pydata = self.parseToDocTabs(pymod)
+        print(pydata['DocString'])
+        return True
 #########################################################################################################################
 ### End of SECTION II: PyDoc Class                                                                                      #
 #########################################################################################################################

@@ -19,8 +19,8 @@
 """
 Module:       rje_uniprot
 Description:  RJE Module to Handle Uniprot Files
-Version:      3.25.2
-Last Edit:    23/05/19
+Version:      3.25.3
+Last Edit:    21/04/20
 Copyright (C) 2007 Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -57,7 +57,7 @@ Input/Output:
     tmconvert=T/F   : Whether to convert TOPO_DOM features, using first description word as Type [False]
     reviewed=T/F    : Whether to restrict input to reviewed entries only [False]
     complete=T/F    : Whether to restrict proteome downloads to "complete proteome" sets [False]
-    uniformat=X     : Desired UniProt format for URL download (over-rules normal processing). Append gz to compress. [txt]
+    uniformat=X     : Desired UniProt format for proteome download. Append gz to compress. [txt]
                         - html | tab | xls | fasta | gff | txt | xml | rdf | list | rss
     onebyone=T/F    : Whether to download one entry at a time. Slower but should maintain order [False]
 
@@ -107,7 +107,11 @@ Uses RJE modules: rje, rje_db, rje_sequence
 #########################################################################################################################
 ### SECTION I: GENERAL SETUP & PROGRAM DETAILS                                                                          #
 #########################################################################################################################
-import glob, os, re, string, sys, time, urllib2
+import glob, os, re, string, sys, time
+try:
+    import urllib2 as urllib2
+except:
+    import urllib.request as urllib2
 #########################################################################################################################
 sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)),'../libraries/'))
 sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)),'../tools/'))
@@ -172,6 +176,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 3.25.0 - Fixed new Uniprot batch query URL. Added onebyone=T/F    : Whether to download one entry at a time. Slower but should maintain order [False].
     # 3.25.1 - Fixed proteome download bug following Uniprot changes.
     # 3.25.2 - Fixed Uniprot protein extraction issues by using curl. (May not be a robust fix!)
+    # 3.25.3 - Fixed some problems with new Uniprot feature format.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -202,7 +207,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo():     ### Makes Info object
     '''Makes rje.Info object for program.'''
-    (program, version, last_edit, copyyear) = ('RJE_UNIPROT', '3.25.2', 'May 2019', '2007')
+    (program, version, last_edit, copyyear) = ('RJE_UNIPROT', '3.25.3', 'April 2020', '2007')
     description = 'RJE Uniprot Parsing/Extraction Module'
     author = 'Dr Richard J. Edwards.'
     comments = []
@@ -215,7 +220,7 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         if not out: out = rje.Out()
         helpx = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
         if helpx > 0:
-            print '\n\nHelp for %s %s: %s\n' % (info.program, info.version, time.asctime(time.localtime(info.start_time)))
+            print('\n\nHelp for %s %s: %s\n' % (info.program, info.version, time.asctime(time.localtime(info.start_time))))
             out.verbose(-1,4,text=__doc__)
             if rje.yesNo('Show general commandline options?',default='N'): out.verbose(-1,4,text=rje.__doc__)
             if rje.yesNo('Quit?'): sys.exit()
@@ -224,7 +229,7 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         return cmd_list
     except SystemExit: sys.exit(0)
     except KeyboardInterrupt: sys.exit()
-    except: print 'Major Problem with cmdHelp()'
+    except: print('Major Problem with cmdHelp()')
 #########################################################################################################################
 def setupProgram(): ### Basic Setup of Program
     '''
@@ -236,7 +241,7 @@ def setupProgram(): ### Basic Setup of Program
     try:
         ### Initial Command Setup & Info ###
         info = makeInfo()
-        if len(sys.argv) == 2 and sys.argv[1] in ['version','-version','--version']: print(info.version); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['version','-version','--version']: rje.printf(info.version); sys.exit(0)
         cmd_list = rje.getCmdList(sys.argv[1:],info=info)      ### Load defaults from program.ini
         ### Out object ###
         out = rje.Out(cmd_list=cmd_list)
@@ -251,7 +256,7 @@ def setupProgram(): ### Basic Setup of Program
     except SystemExit: sys.exit(0)
     except KeyboardInterrupt: sys.exit()
     except:
-        print 'Problem during initial setup.'
+        print('Problem during initial setup.')
         raise
 #########################################################################################################################
 ### END OF SECTION I                                                                                                    #
@@ -264,7 +269,7 @@ def setupProgram(): ### Basic Setup of Program
 #########################################################################################################################
 ### UniProt Parsing dictionary: Add crucial information to parse out here. Used by UniProtEntry.process()   ###
 uniparse = {
-    'ID' : string.join(['^(\S+)','(\S.+);','(\d+)\s+(AA|BP)'], '\s+'),    # ID, Type, Length
+    'ID' : '\s+'.join(['^(\S+)','(\S.+);','(\d+)\s+(AA|BP)']),    # ID, Type, Length
     'AC' : '(\S+);',     # Primary Acc
     'DE' : '\s*(\S.+)',  # Description
     'GN' : 'Name=(\S+);?',   # Gene Name
@@ -276,7 +281,7 @@ uniparse = {
     'RC' : 'TISSUE=(.+);',  # Tissue(s)
     'DR' : '^(\S+);\s+(\S.+)$',  # Database links (Dbase,Details)
     'CC' : '^-!-\s+(\S.+):\s+(\S.+)$',  # Comments (Type, Details)
-    'FT' : string.join(['(\S+)','<*(\d+)','>*(\d+)\.*','(\S.+)\s*$'], '\s+')   # Feature type, start, stop, desc
+    'FT' : '\s+'.join(['(\S+)','<*(\d+)','>*(\d+)\.*','(\S.+)\s*$'])   # Feature type, start, stop, desc
     }
 #########################################################################################################################
 useful_data = ['ID','AC','DE','GN','OS','OC','OX','RX','CC','DR','RC','KW','FT']     # Data to retain following parsing # ?? #
@@ -2372,6 +2377,10 @@ class UniProtEntry(rje.RJE_Object):
                     parse = rje.matchExp(uniparse['FT'],ft)
                     parse_nodesc = rje.matchExp('(\S+)\s+<*(\d+)\s+>*(\d+)\.*',ft)
                     parse_onepos = rje.matchExp('(\S+)\s+(\d+)\.*\s+(\S+)',ft)
+                    parse_newpos = rje.matchExp('(\S+)\s+<*(\d+)\.\.>*(\d+) /note="(.+)"',ft)
+                    parse_newid = rje.matchExp('(\S+)\s+<*(\d+)\.\.>*(\d+) .*/id="(.+)"',ft)
+                    parse_newev = rje.matchExp('(\S+)\s+<*(\d+)\.\.>*(\d+) /evidence="(.+)"',ft)
+                    parse_newnull = rje.matchExp('(\S+)\s+<*(\d+)\.\.>*(\d+)',ft)
                     parse_cntd = rje.matchExp('\s+(\S.*)$',ft)
                     if parse:
                         ftdic = {
@@ -2409,6 +2418,42 @@ class UniProtEntry(rje.RJE_Object):
                                 'Desc' : parse[2]
                                 }
                             self.list['Feature'].append(ftdic)
+                    elif parse_newpos:
+                        parse = parse_newpos
+                        ftdic = {
+                            'Type' : parse[0],
+                            'Start' : string.atoi(parse[1]),
+                            'End' : string.atoi(parse[2]),
+                            'Desc' : parse[3]
+                            }
+                        self.list['Feature'].append(ftdic)
+                    elif parse_newid:
+                        parse = parse_newid
+                        ftdic = {
+                            'Type' : parse[0],
+                            'Start' : string.atoi(parse[1]),
+                            'End' : string.atoi(parse[2]),
+                            'Desc' : parse[3]
+                            }
+                        self.list['Feature'].append(ftdic)
+                    elif parse_newev:
+                        parse = parse_newev
+                        ftdic = {
+                            'Type' : parse[0],
+                            'Start' : string.atoi(parse[1]),
+                            'End' : string.atoi(parse[2]),
+                            'Desc' : 'evidence='+parse[3]
+                            }
+                        self.list['Feature'].append(ftdic)
+                    elif parse_newnull:
+                        parse = parse_newnull
+                        ftdic = {
+                            'Type' : parse[0],
+                            'Start' : string.atoi(parse[1]),
+                            'End' : string.atoi(parse[2]),
+                            'Desc' : ''
+                            }
+                        self.list['Feature'].append(ftdic)
                     elif parse_cntd:
                         try:
                             ftdic = self.list['Feature'][-1]
@@ -2812,7 +2857,7 @@ class UniProtEntry(rje.RJE_Object):
             if not seq:
                 seq = self.obj['Sequence']
             if not seq:
-                raise ValueError, 'No sequence information given'
+                raise ValueError('No sequence information given')
             self.obj['Sequence'] = seq
 
             ### Update self ###
@@ -3440,7 +3485,7 @@ def runMain():
     try: [info,out,mainlog,cmd_list] = setupProgram()
     except SystemExit: return  
     except:
-        print 'Unexpected error during program setup:', sys.exc_info()[0]
+        print('Unexpected error during program setup:', sys.exc_info()[0])
         return
         
     ### Rest of Functionality... ###
@@ -3457,7 +3502,7 @@ def runMain():
 #########################################################################################################################
 if __name__ == "__main__":      ### Call runMain 
     try: runMain()
-    except: print 'Cataclysmic run error:', sys.exc_info()[0]
+    except: print('Cataclysmic run error: {0}'.format(sys.exc_info()[0]))
     sys.exit()
 #########################################################################################################################
 ### END OF SECTION V                                                                                                    #

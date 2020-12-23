@@ -19,8 +19,8 @@
 """
 Module:       rje_archive
 Description:  KDM Archive Manager
-Version:      0.5.0
-Last Edit:    16/01/18
+Version:      0.7.3
+Last Edit:    28/04/20
 Copyright (C) 2017  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -112,8 +112,8 @@ Output:
 Commandline:
     ### ~ Main Archive Options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     rds=X           : UNSW_RDS ResData ID project code to use (e.g. D0234444) []
-    uploadsh=X      : Full path for runnining upload.sh script ['/share/apps/unswdataarchive/2015-09-10/upload.sh']
-    homedir=PATH    : Home directory from which the archive script will be run ['/home/z3452659']
+    uploadsh=X      : Full path for runnining upload.sh script ['/home/z3452659/unswdataarchive/upload.sh']
+    homedir=PATH    : Home directory from which the archive script will be run ['~']
     projects=FILE   : Delimited file of `Project` and `RDS` code. If provided, will not use rds=X ['projects.tdt']
     strict=T/F      : Restrict processing to projects found in Projects file and add no new ones. [False]
     backupdirs=LIST : List of directories to backup (should be project subdirectory full paths) []
@@ -121,16 +121,21 @@ Commandline:
     rmdirs=T/F      : Delete archived directories. (Will ask if i>0) [False]
     targz=T/F       : Whether to tar and zip directories to be deleted [True]
     checknum=T/F    : Whether to check numbers of files consumed by upload.sh versus directory contents [True]
-    tryparent=T/F   : Whether to try to run backup parent directory in case of failure [True]
+    tryparent=T/F   : Whether to try to run backup parent directory in case of failure [False]
     basefile=FILE   : This will set the 'root' filename for output files (FILE.*), including the log ['rds']
     backupdb=FILE   : File to output backup summaries into  ['BASEFILE.backups.tdt']
     archived=FILE   : File to output archive summaries into  ['BASEFILE.archived.tdt']
     cleanup=T/F     : Whether to perform post-upload cleanup of backups and archived files [True]
     quiet=X         : Min number of days of inactivity before a directory gets rates as quiet [1]
     skipquiet=T/F   : Whether to skip uploads for quiet directories [True]
+    checkarchive=T/F: Whether to run upload.sh on on directories that have been uploaded in last run [False]
     dormancy=X      : Min number of days of inactivity before a directory gets rated as dormant (0=no dormancy) [30]
     skipdormant=T/F : Whether to skip uploads for dormant directories [True]
     dormant=FILE    : File to output dormant directories into  ['BASEFILE.dormant.tdt']
+    maxfiles=INT    : Maximum number of files in a directory to generate backups (0 = no limit) [10000]
+    maxdirsize=INT  : Maximum directory size in bytes to generate backup (0 = no limit) [1e11 (~100Gb)]
+    archivetgz=T/F  : Whether to tar and zip then backup directories exceeding maxfiles=INT cutoff [False]
+    useqsub=T/F     : Whether to use QSub for tarballing and then archiving the tarball [False]
     ### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
 """
 #########################################################################################################################
@@ -154,6 +159,11 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 0.4.0 - Replaced module with uploadsh=X Full path for runnining upload.sh script ['/share/apps/unswdataarchive/2015-09-10/']
     # 0.4.1 - Added tryparent=T/F : Whether to try to run backup parent directory in case of failure [True]
     # 0.5.0 - Updated to run on Mac with OSX=T.
+    # 0.6.0 - Added toggle to skip quiet created/updated/modified.
+    # 0.7.0 - Added maxfiles cap and option to targz directories exceeding threshold.
+    # 0.7.1 - Set checkarchive=F tryparent=F by default to make standard running quicker.
+    # 0.7.2 - Added maxdirsize=INT  : Maximum directory size in bytes to generate backup [1e11 (~100Gb)]
+    # 0.7.3 - Python 2.6 compatibility.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -171,11 +181,12 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
     # [ ] : Add projmode=X setting to recognise projects using different criteria?
     # [ ] : Update docstring to current running version.
     # [ ] : Add generation of the backup directory list when backing up whole project?
+    # [ ] : Use tree for better documentation/checking of contents?
     '''
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copy_right) = ('Archive', '0.5.0', 'January 2018', '2017')
+    (program, version, last_edit, copy_right) = ('Archive', '0.7.3', 'April 2020', '2017')
     description = 'KDM Archive Manager'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_obj.zen()]
@@ -234,26 +245,31 @@ class Archive(rje_obj.RJE_Object):
     Archive Class. Author: Rich Edwards (2017).
 
     Str:str
-    Archived=FILE   : File to output archive summaries into (dir, project, rds, date, files, imports) ['archived.tdt']
-    BackupDB=FILE   : File to output backup summaries into  ['backups.tdt']
-    Dormant=FILE    : File to output dormant directories into  ['dormant.tdt']
-    HomeDir=PATH    : Home directory from which the archive script will be run ['/home/z3452659']
-    Projects=FILE   : Delimited file of Project and RDS code. If provided, will not use rds=X ['projects.tdt']
-    RDS=X           : UNSW_RDS project code to use (e.g. D0234444) []
-    UploadSH=X      : Full path for runnining upload.sh script ['/share/apps/unswdataarchive/2015-09-10/']
+    - Archived=FILE   : File to output archive summaries into (dir, project, rds, date, files, imports) ['archived.tdt']
+    - BackupDB=FILE   : File to output backup summaries into  ['backups.tdt']
+    - Dormant=FILE    : File to output dormant directories into  ['dormant.tdt']
+    - HomeDir=PATH    : Home directory from which the archive script will be run ['/home/z3452659']
+    - Projects=FILE   : Delimited file of Project and RDS code. If provided, will not use rds=X ['projects.tdt']
+    - RDS=X           : UNSW_RDS project code to use (e.g. D0234444) []
+    - UploadSH=X      : Full path for runnining upload.sh script ['/share/apps/unswdataarchive/2015-09-10/']
 
     Bool:boolean
-    - CheckNum=T/F    : Whether to check numbers of files consumed by upload.sh versus directory contents [False]
+    - ArchiveTGZ=T/F  : Whether to tar and zip then backup directories exceeding maxfiles=INT cutoff [False]
+    - CheckArchive=T/F: Whether to run upload.sh on on directories that have been uploaded in last run [False]
+    - CheckNum=T/F    : Whether to check numbers of files consumed by upload.sh versus directory contents [True]
     - Cleanup=T/F     : Whether to perform post-upload cleanup of backups and archived files [True]
     - RmDirs=T/F      : Delete archived directories. (Will ask if i>0) [False]
     - SkipDormant=T/F : Whether to skip uploads for dormant directories [True]
     - SkipQuiet=T/F   : Whether to skip uploads for quiet directories [True]
     - Strict=T/F      : Restrict processing to projects found in Projects file and add no new ones. [False]
     - TarGZ=T/F       : Whether to tar and zip directories to be deleted [True]
-    - TryParent=T/F   : Whether to try to run backup parent directory in case of failure [True]
+    - TryParent=T/F   : Whether to try to run backup parent directory in case of failure [False]
+    - UseQSub=T/F     : Whether to use QSub for tarballing and then archiving the tarball [False]
 
     Int:integer
     - Dormancy=X      : Min number of days of inactivity before a directory gets rated as dormant [30]
+    - MaxDirSize=INT  : Maximum directory size in bytes to generate backup (0 = no limit) [1e11 (~100Gb)]
+    - MaxFiles=INT    : Maximum number of files in a directory to generate backups [10000]
     - Quiet=X     : Min number of days of inactivity before a directory will be deleted [1]
 
     Num:float
@@ -279,8 +295,8 @@ class Archive(rje_obj.RJE_Object):
         '''Sets Attributes of Object.'''
         ### ~ Basics ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         self.strlist = ['Archived','BackupDB','Dormant','HomeDir','Projects','RDS','UploadSH']
-        self.boollist = ['CheckNum','Cleanup','RmDirs','SkipDormant','SkipQuiet','Strict','TarGZ','TryParent']
-        self.intlist = ['Dormancy','Quiet']
+        self.boollist = ['CheckArchive','CheckNum','Cleanup','RmDirs','SkipDormant','SkipQuiet','Strict','TarGZ','TryParent','ArchiveTGZ','UseQSub']
+        self.intlist = ['Dormancy','MaxDirSize','MaxFiles','Quiet']
         self.numlist = []
         self.filelist = []
         self.listlist = ['ArchiveDirs','BackupDirs']
@@ -288,9 +304,9 @@ class Archive(rje_obj.RJE_Object):
         self.objlist = ['DB']
         ### ~ Defaults ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         self._setDefaults(str='None',bool=False,int=0,num=0.0,obj=None,setlist=True,setdict=True,setfile=True)
-        self.setStr({'HomeDir':os.path.expanduser('~'),'UploadSH':'/share/apps/unswdataarchive/2015-09-10/upload.sh','Projects':'projects.tdt'})
-        self.setBool({'CheckNum':True,'Cleanup':True,'RmDirs':False,'SkipDormant':True,'SkipQuiet':True,'Strict':False,'TarGZ':True,'TryParent':True})
-        self.setInt({'Dormancy':30,'Quiet':1})
+        self.setStr({'HomeDir':os.path.expanduser('~'),'UploadSH':'/home/z3452659/unswdataarchive/upload.sh','Projects':'projects.tdt'})
+        self.setBool({'CheckArchive':False,'CheckNum':True,'Cleanup':True,'RmDirs':False,'SkipDormant':True,'SkipQuiet':True,'Strict':False,'TarGZ':True,'TryParent':False,'ArchiveTGZ':False,'UseQSub':False})
+        self.setInt({'Dormancy':30,'MaxDirSize':1e11,'MaxFiles':10000,'Quiet':1})
         self.setNum({})
         ### ~ Other Attributes ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         self.baseFile('rds')
@@ -312,8 +328,8 @@ class Archive(rje_obj.RJE_Object):
                 self._cmdReadList(cmd,'path',['HomeDir'])  # String representing directory path
                 self._cmdReadList(cmd,'file',['Archived','BackupDB','Dormant','Projects','UploadSH'])  # String representing file path
                 #self._cmdReadList(cmd,'date',['Att'])  # String representing date YYYY-MM-DD
-                self._cmdReadList(cmd,'bool',['CheckNum','Cleanup','RmDirs','SkipDormant','SkipQuiet','Strict','TarGZ','TryParent'])  # True/False Booleans
-                self._cmdReadList(cmd,'int',['Dormancy','Quiet'])   # Integers
+                self._cmdReadList(cmd,'bool',['CheckArchive','CheckNum','Cleanup','RmDirs','SkipDormant','SkipQuiet','Strict','TarGZ','TryParent','ArchiveTGZ','UseQSub'])  # True/False Booleans
+                self._cmdReadList(cmd,'int',['Dormancy','MaxDirSize','MaxFiles','Quiet'])   # Integers
                 #self._cmdReadList(cmd,'float',['Att']) # Floats
                 #self._cmdReadList(cmd,'min',['Att'])   # Integer value part of min,max command
                 #self._cmdReadList(cmd,'max',['Att'])   # Integer value part of min,max command
@@ -337,6 +353,8 @@ class Archive(rje_obj.RJE_Object):
             bdb = self.db('Backups')
             afields = bdb.fields()
             #!# Add a new method for selecting directories based on latest bdb.index('status')
+            skipstatus = ['archived','dormant']
+            if not self.getBool('CheckArchive'): skipstatus += ['modified','updated','created']
             ## ~ [1a] Setup up rmdirs list for removing redundancy from backupdirs ~~~~~~~~~~~~~~~~ ##
             rmdirs = []
             for rdir in self.list['ArchiveDirs']:
@@ -351,6 +369,7 @@ class Archive(rje_obj.RJE_Object):
                 self.printLog('#BACKUP','Details will be output to %s' % self.getStr('BackupDB'))
                 for adir in self.list['BackupDirs']:
                     apath = string.split(adir)[0]
+                    self.headLog(apath,line='=')
                     if not rje.exists(apath):
                         self.warnLog('%s missing: cannot backup' % apath)
                         if apath in bdb.index('dir') and bdb.indexEntries('dir',apath)[-1]['status'] != 'deleted':
@@ -368,7 +387,7 @@ class Archive(rje_obj.RJE_Object):
                     #!#    self.printLog('#SKIP','Skipping ArchiveDir: %s' % apath)
                     if (self.getBool('SkipDormant') or self.getBool('SkipQuiet')) and apath in bdb.index('dir'):
                         lastentry = bdb.indexEntries('dir',apath)[-1]
-                        if lastentry['status'] in ['archived','dormant']:
+                        if lastentry['status'] in skipstatus:
                             postdata = self.dirDetails(apath)
                             postdata['date'] = rje.dateTime()
                             editdays = self.dayDif(self.lastEdit(apath,postdata),postdata['date'])
@@ -384,10 +403,10 @@ class Archive(rje_obj.RJE_Object):
                                     bdb.addEntry(postdata)
                             elif self.getBool('SkipQuiet') and editdays > self.getInt('Quiet') > 0:
                                 self.printLog('#QUIET','Skipped %s: no change in %.1f (> %d) days' % (apath,editdays,self.getInt('Quiet')))
-                            elif self.archiveDirectory(apath,postdata)['status'] != 'failed':
+                            elif self.archiveDirectory(apath,postdata)['status'] not in ['failed','denied','targz']:
                                 backups.append(apath)
                             continue
-                    if self.archiveDirectory(apath)['status'] != 'failed':
+                    if self.archiveDirectory(apath)['status'] not in ['failed','denied','targz']:
                         backups.append(apath)
 
             ## ~ [2b] Remove directories ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
@@ -533,28 +552,83 @@ class Archive(rje_obj.RJE_Object):
             project = self.getProject(dpath)
             rds = self.getRDS(project,add=not self.getBool('Strict'))
             #if self.getBool('CheckNum'): ftot = len(rje.getFileList(callobj=self,folder=dpath))
-            if self.getBool('CheckNum'):
+            if self.getBool('CheckNum') or self.getInt('MaxFiles') > 0:
                 ftot = len(rje.listDir(callobj=self,folder=dpath,folders=False))
                 dtot = len(rje.listDir(callobj=self,folder=dpath,files=False))
             else: ftot = dtot = 0
             ### ~ [3] Return ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             dirdata = {'dir':dpath,'project':project,'rds':rds,'size':size,'fnum':fnum,'dnum':dnum,'ftot':ftot,'dtot':dtot}
             if log:
-                for dkey in string.split('dir project rds size fnum dnum ftot dtot'):
+                for dkey in string.split('dir project rds'):
                     self.printLog('#%s' % dkey[:4].upper(),dirdata[dkey])
+                for dkey in string.split('size fnum dnum ftot dtot'):
+                    self.printLog('#%s' % dkey[:4].upper(),rje.iStr(dirdata[dkey]))
             return {'dir':dpath,'project':project,'rds':rds,'size':size,'fnum':fnum,'dnum':dnum,'ftot':ftot,'dtot':dtot}
         except: self.errorLog('%s.dirDetails error' % self.prog()); raise
 #########################################################################################################################
     ### <5> ### Data Archive Script Methods                                                                             #
 #########################################################################################################################
-    def archiveDirectory(self,directory,predata=None):     ### Archives directory contents and returns details as dictionary.
+    def archiveDirectory(self,directory,predata=None,parent=False):     ### Archives directory contents and returns details as dictionary.
         '''Archives directory contents and returns details as dictionary.'''
         try:### ~ [1] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            self.printLog('#~~#','## ~~~~~ Backup: %s ~~~~~ ##' % directory)
+            self.headLog('Backup: %s' % directory,line='~')
+            #self.printLog('#~~#','## ~~~~~ Backup: %s ~~~~~ ##' % directory)
             adb = self.db('Backups')    # dir project rds date files imports size fnum dnum status
             afields = adb.fields()
             if not predata: predata = self.dirDetails(directory)    # Directory details pre-import
             date = rje.dateTime()
+            ## ~ [1a] Check size ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            if self.getInt('MaxDirSize') > 0 and predata['size'] > self.getInt('MaxDirSize'):
+                predata['date'] = date
+                predata['files'] = 0            # No. files consumed
+                predata['imports'] = 0          # No. files imported
+                predata['status'] = 'denied'     # Whether directory looks the same post-import
+                self.printLog('#STATUS','%s exceeds maxdirsize=%s threshold' % (predata['dir'],rje.iStr(self.getInt('MaxDirSize'))))
+                self.warnLog('%s exceeds maxdirsize=%s threshold. Does this really need backup? If so, consider deleting/compressing some files first.' % (predata['dir'],rje.iStr(self.getInt('MaxDirSize'))))
+                adb.addEntry(predata)
+                return predata
+            ## ~ [1b] Check filecount ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            if self.getInt('MaxFiles') > 0 and predata['ftot'] > self.getInt('MaxFiles'):
+                predata['date'] = date
+                predata['files'] = 0            # No. files consumed
+                predata['imports'] = 0          # No. files imported
+                predata['status'] = 'denied'     # Whether directory looks the same post-import
+                self.printLog('#STATUS','%s exceeds maxfiles=%s threshold' % (predata['dir'],rje.iStr(self.getInt('MaxFiles'))))
+                #!# Perform tgz and update directory then continue archiving
+                if self.getBool('ArchiveTGZ') and not parent:
+                    while directory.endswith('/'): directory = directory[:-1]
+                    (parentdir, tardir) = os.path.split(directory)
+                    tgzfile = '{0}.tgz'.format(directory)
+                    if rje.exists(tgzfile) and not self.force() and rje.isYounger(tgzfile,directory) != directory:
+                        self.printLog('\r#TARGZ','Tarball {0} found (force=F)'.format(tgzfile))
+                        predata['status'] = 'targz'
+                        adb.addEntry(predata)
+                        return predata
+                    elif rje.exists(tgzfile) and rje.isYounger(tgzfile,directory) == directory:
+                        self.printLog('\r#TARGZ','Tarball {0} found but {1} younger (ignoredate=F)'.format(tgzfile,directory))
+                    cwd = os.getcwd()
+                    os.chdir(parentdir)
+                    TARGZ = os.popen('tar -cvzf {0}.tgz {1}'.format(tardir,tardir))
+                    line = TARGZ.readline()
+                    filex = 0
+                    while line:
+                        filex += 1
+                        if self.v() < 2:
+                            self.progLog('\r#TARGZ','Tarballing %s files: %.f%%' % (rje.iStr(predata['ftot']),100.0*filex/predata['ftot']))
+                        else: self.vPrint(rje.chomp(line),v=2)
+                        line = TARGZ.readline()
+                    TARGZ.close()
+                    os.chdir(cwd)
+                    self.printLog('\r#TARGZ','Tarballed %s files -> %s/%s.tgz' % (rje.iStr(predata['ftot']),parentdir,tardir))
+                    predata['status'] = 'targz'
+                    adb.addEntry(predata)
+                    predata['dir'] = '%s/%s.tgz' % (parentdir,tardir)
+                    predata['ftot'] = 1
+                #predata['status'] = 'targz'     # Whether directory looks the same post-import
+                else:
+                    self.warnLog('%s exceeds maxfiles=%s threshold (archivetgz=F)' % (predata['dir'],rje.iStr(self.getInt('MaxFiles'))))
+                    adb.addEntry(predata)
+                    return predata
             filex = 0          # No. files consumed
             importx = -1       # No. files imported
             skipx = 0          # No. files skipped
@@ -599,7 +673,7 @@ class Archive(rje_obj.RJE_Object):
                 if ignorex: self.printLog('#IGNORE','%s files ignored.' % (rje.iStr(ignorex)))
             ### ~ [3] Check for changes ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             postdata = self.dirDetails(directory)    # Directory details pre-import
-            static = predata == postdata
+            static = self.dirStatic(predata,postdata)
             if importx < 0:
                 status = 'failed'
                 self.printLog('#STATUS','%s backup to %s failed!' % (predata['dir'],predata['rds']))
@@ -610,7 +684,7 @@ class Archive(rje_obj.RJE_Object):
                     if project in psplit:   # Can go up a level
                         directory = string.join(psplit, os.sep)
                         self.printLog('#PARENT','Trying to backup parent directory: %s' % directory)
-                        if self.archiveDirectory(directory)['status'] != 'failed':
+                        if self.archiveDirectory(directory,parent=True)['status'] != 'failed':
                             status = 'parent'
                     else: self.printLog('#STATUS','Total backup failure for %s' % project)
             elif importx > 0:

@@ -19,8 +19,8 @@
 """
 Module:       rje_apollo
 Description:  WebApollo genome search program
-Version:      0.6.2
-Last Edit:    26/11/18
+Version:      0.6.3
+Last Edit:    19/12/19
 Webserver:    http://www.slimsuite.unsw.edu.au/servers/apollo.php
 Copyright (C) 2018  Richard J. Edwards - See source code for GNU License Notice
 
@@ -67,7 +67,6 @@ sys.path.append(os.path.join(slimsuitepath,'libraries/'))
 sys.path.append(os.path.join(slimsuitepath,'tools/'))
 ### User modules - remember to add *.__doc__ to cmdHelp() below ###
 import rje, rje_db, rje_exonerate, rje_obj, rje_html, rje_seqlist
-import tga_exonerate
 import rje_blast_V2 as rje_blast
 import gablam
 #########################################################################################################################
@@ -83,6 +82,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 0.6.0 - Added cdict parsing to genomeid.
     # 0.6.1 - Debugging genomeID dict and fixed cdict parsing bug.
     # 0.6.2 - Added QryDesc to HTML output.
+    # 0.6.3 - Made protein synonym for prot as qrytype.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -96,11 +96,12 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
     # [ ] : Consider adding samtools conversion to BAM format.
     # [ ] : Add proper GFF output
     # [ ] : Add QBLAST equivalent output from unique hits table.
+    # [ ] : Add Minimap2 as a mapper option.
     '''
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copy_right) = ('RJE_APOLLO', '0.6.2', 'November 2018', '2018')
+    (program, version, last_edit, copy_right) = ('RJE_APOLLO', '0.6.3', 'December 2019', '2018')
     description = 'WebApollo genome search program'
     author = 'Dr Richard J. Edwards & Timothy G. Amos'
     comments = ['This program is still in development and has not been published.',rje_obj.zen()]
@@ -355,7 +356,7 @@ class Apollo(rje_obj.RJE_Object):
             if self.getStrLC('BlastTask') in ['est2genome','protein2genome']:
                 exmodel = self.getStrLC('BlastTask')
             elif self.getStrLC('QryType') in ['cds','transcript','trans']: exmodel = 'est2genome'
-            elif self.getStrLC('QryType') == 'prot': exmodel = 'protein2genome'
+            elif self.getStrLC('QryType') in ['prot','protein']: exmodel = 'protein2genome'
             elif self.getStrLC('QryType') != 'dna': raise ValueError('Unrecognised qrytype: %s' % self.getStrLC('QryType'))
             if self.getInt('MaxQry') > 0:
                 seqlist = rje_seqlist.SeqList(self.log,self.cmd_list+['autoload=T','seqmode=file'])

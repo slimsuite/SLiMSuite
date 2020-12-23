@@ -19,8 +19,8 @@
 """
 Module:       rje_disorder
 Description:  Disorder Prediction Module
-Version:      1.5.1
-Last Edit:    28/05/19
+Version:      1.6.0
+Last Edit:    21/08/20
 Copyright (C) 2006  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -82,7 +82,7 @@ Commandline:
     md5acc=T/F      : Whether to use md5sum hexdigest hashing of sequence in place of accession numbers [True]
 
     ### System Settings: ###
-    iupath=PATH     : The full path to the IUPred executable [c:/bioware/iupred/iupred.exe]
+    iupath=PATH     : The full path to the IUPred executable [iupred]
     anchor=PATH     : Full path to ANCHOR executable []
     filoop=INT      : Number of times to try connecting to FoldIndex server [10]
     fisleep=INT     : Number of seconds to sleep between attempts [2]
@@ -95,7 +95,11 @@ Other modules needed: None
 #########################################################################################################################
 ### SECTION I: GENERAL SETUP & PROGRAM DETAILS                                                                          #
 #########################################################################################################################
-import hashlib, os, random, string, sys, time, urllib2
+import hashlib, os, random, string, sys, time
+try:
+    import urllib2 as urllib2
+except:
+    import urllib.request as urllib2
 sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)),'../libraries/'))
 sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)),'../tools/'))
 ### User modules - remember to add *.__doc__ to cmdHelp() below ###
@@ -119,6 +123,8 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 1.4.0 - Fixed up disorder=parse and disorder=foldindex.
     # 1.5.0 - Added iupred2 and anchor2 parsing from URL using accnum. Made default disorder=iushort2.
     # 1.5.1 - Fixed iupred2 URL generation error.
+    # 1.5.2 - Changed iupath default.
+    # 1.6.0 - Initial Python3 code conversion.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -134,7 +140,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo():     ### Makes Info object
     '''Makes rje.Info object for program.'''
-    (program, version, last_edit, cyear) = ('RJE_DISORDER', '1.5.1', 'May 2019', '2008')
+    (program, version, last_edit, cyear) = ('RJE_DISORDER', '1.6.0', 'August 2020', '2008')
     description = 'Disorder Prediction Module'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.']
@@ -147,7 +153,7 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         if not out: out = rje.Out()
         help = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
         if help > 0:
-            print '\n\nHelp for %s %s: %s\n' % (info.program, info.version, time.asctime(time.localtime(info.start_time)))
+            print('\n\nHelp for %s %s: %s\n' % (info.program, info.version, time.asctime(time.localtime(info.start_time))))
             out.verbose(-1,4,text=__doc__)
             if rje.yesNo('Show general commandline options?'): out.verbose(-1,4,text=rje.__doc__)
             if rje.yesNo('Quit?'): sys.exit()
@@ -156,7 +162,7 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         return cmd_list
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Major Problem with cmdHelp()'
+    except: print('Major Problem with cmdHelp()')
 #########################################################################################################################
 def setupProgram(): ### Basic Setup of Program
     '''
@@ -181,7 +187,7 @@ def setupProgram(): ### Basic Setup of Program
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
     except:
-        print 'Problem during initial setup.'
+        print('Problem during initial setup.')
         raise
 #########################################################################################################################
 ### END OF SECTION I                                                                                                    #
@@ -243,7 +249,7 @@ class Disorder(rje.RJE_Object):
         self.objlist = []
         ### Defaults ###
         self._setDefaults(info='',opt=False,stat=0.2,obj=None,setlist=True,setdict=True)
-        self.setInfo({'IUPath':rje.makePath('c:/bioware/iupred/iupred.exe',wholepath=True),'IUMethod':'short',
+        self.setInfo({'IUPath':'iupred','IUMethod':'short',
                       'Disorder':'iushort2','Smoothing':'foldfirst','IUScoreDir':''})
         self.setStat({'FILoop':10,'FISleep':2,'MinOrder':-1,'MinRegion':0,'IUCut':0.2})
         self.setOpt({'MD5Acc':True,'DisCalculate':True})
@@ -947,7 +953,7 @@ def runMain():
     try: [info,out,mainlog,cmd_list] = setupProgram()
     except SystemExit: return  
     except:
-        print 'Unexpected error during program setup:', sys.exc_info()[0]
+        print('Unexpected error during program setup:', sys.exc_info()[0])
         return 
     ### ~ [2] ~ Rest of Functionality... ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try: Disorder(mainlog,cmd_list)
@@ -959,7 +965,7 @@ def runMain():
 #########################################################################################################################
 if __name__ == "__main__":      ### Call runMain 
     try: runMain()
-    except: print 'Cataclysmic run error:', sys.exc_info()[0]
+    except: print('Cataclysmic run error: {0}'.format(sys.exc_info()[0]))
     sys.exit()
 #########################################################################################################################
 ### END OF SECTION III                                                                                                  #

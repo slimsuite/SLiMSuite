@@ -7,8 +7,8 @@
 """
 Module:       rje_sequence
 Description:  DNA/Protein sequence object
-Version:      2.7.0
-Last Edit:    24/05/19
+Version:      2.7.1
+Last Edit:    25/06/19
 Copyright (C) 2006  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -64,6 +64,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 2.5.3 - Fixed genetic code warning error.
     # 2.6.0 - Added mutation dictionary to Ks calculation.
     # 2.7.0 - Added shift=X to maskRegion() for 1-L input. Fixed cterminal maskRegion.
+    # 2.7.1 - Added spCode() to sequence.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -81,7 +82,7 @@ re_gnspec = re.compile('^(\S+)_(\S+)')
 re_gnspacc = re.compile('^(\S+)_([A-Za-z0-9]+)\/(\S+)')
 re_gn_sp__acc = re.compile('^(\S+)_([A-Za-z0-9]+)__(\S+)')
 re_uniprot = re.compile('^(sp|tr|sw|uniprot)\|(\S+)\|(\S+)_(\S+)')
-re_uniref = re.compile('^(UniRef\S+)_(\S+)\s.*\Tax=(\S.+)\sRepID=(\S+)')
+re_uniref = re.compile('^(UniRef\S+)_(\S+)\s.*Tax=(\S.+)\sRepID=(\S+)')
 re_uniprot2 = re.compile('^(\S+)_(\S+)\s+\((\S+)\)')
 re_uniprot3 = re.compile('^([A-Za-z0-9\-]+)\|([A-Za-z0-9]+)_([A-Za-z0-9]+)\s+')
 re_unirefprot = re.compile('^([A-Za-z0-9\-]+)\s+([A-Za-z0-9]+)_([A-Za-z0-9]+)\s+')
@@ -495,7 +496,7 @@ class Sequence(rje.RJE_ObjectLite):
                 cdata = rje.matchExp(chlam_re,self.info['Name'])
                 if not cdata: cdata = rje.matchExp(chlam_re2,self.info['Name'])
                 if not cdata: cdata = rje.matchExp(chlam_re3,self.info['Name'])
-                if not cdata: print self.info['Name'], cdata; raw_input('???'); return
+                if not cdata: print(self.info['Name'], cdata); raw_input('???'); return
                 self.info['Gene'] = cdata[1]
                 if not rje.matchExp(chlam_re,self.info['Name']) and string.split(cdata[2])[-1][:2] == 'CT': self.info['Gene'] = string.split(cdata[2])[-1]; self.info['DBase'] = 'ct'
                 elif rje.matchExp(chlam_re,self.info['Name']): self.info['DBase'] = 'gene'
@@ -553,6 +554,8 @@ class Sequence(rje.RJE_ObjectLite):
         except:
             self.log.errorLog('Major problem with shortName(%s)' % self.info['Name'])
             raise
+#########################################################################################################################
+    def spCode(self): return self.getStr('SpecCode')
 #########################################################################################################################
     def seqType(self):  ### Returns (and possible guesses) Sequence Type - Protein/DNA/RNA
         '''
@@ -1431,8 +1434,8 @@ def mapGaps(inseq,gapseq,callobj=None):  ### Returns inseq with gaps inserted as
                 while len(newseq) < len(gapseq): newseq += '-'
         return newseq
     except:
-        print newseq, inseq
-        print gapseq
+        print(newseq, inseq)
+        print(gapseq)
         return newseq
 #########################################################################################################################
 def geneticCode(transl='1',warnobj=None):   ### Returns a specific genetic code.
@@ -1756,8 +1759,8 @@ def maskAA(sequence,maskaa,mask='X'):    ### Masks given residues by type
 ### SECTION IV: MAIN PROGRAM                                                                                            #
 #########################################################################################################################
 if __name__ == "__main__":      ### Call runMain 
-    try: print 'Not for standalone running!'
-    except: print 'Cataclysmic run error:', sys.exc_info()[0]
+    try: print('Not for standalone running!')
+    except: print('Cataclysmic run error: {0}'.format(sys.exc_info()[0]))
     sys.exit()
 #########################################################################################################################
 ### END OF SECTION IV

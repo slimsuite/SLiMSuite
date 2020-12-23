@@ -7,8 +7,8 @@
 """
 Module:       rje_pam
 Description:  Contains Objects for PAM matrices
-Version:      1.2.1
-Last Edit:    27/11/15
+Version:      1.3.0
+Last Edit:    21/08/20
 Copyright (C) 2005  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -59,6 +59,7 @@ import rje
 # 1.1 - Tidied module up and improved text logging slightly
 # 1.2 - Added WAG to PAM conversion
 # 1.2.1 - Fixed path to PAM file.
+# 1.3.0 - Initial Python3 code conversion.
 #########################################################################################################################
 ### Major Functionality to Add
 # [ ] : Update Module in line with more recent structure. (Tidy up.)
@@ -69,14 +70,14 @@ def makeInfo():     ### Makes Info object
     try:
         start_time = time.time()
         program = 'RJE_PAM'
-        version = '1.2.1'
-        last_edit = 'November 2015'
+        version = '1.3.0'
+        last_edit = 'August 2020'
         description = 'PAM Matrix Module'
         author = 'Dr Richard J. Edwards.'
         info = rje.Info(program,version,last_edit,description,author,start_time)
         return info
     except:
-        print 'Problem making Info object.'
+        print('Problem making Info object.')
         raise
 #########################################################################################################################
 def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for more sys.argv commands
@@ -88,7 +89,7 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
             out = rje.Out()
         help = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
         if help > 0:
-            print '\n\nHelp for %s %s: %s\n' % (info.program, info.version, time.asctime(time.localtime(info.start_time)))
+            print('\n\nHelp for %s %s: %s\n' % (info.program, info.version, time.asctime(time.localtime(info.start_time))))
             out.verbose(-1,4,text=__doc__)
             if rje.yesNo('Show general commandline options?'):
                 out.verbose(-1,4,text=rje.__doc__)
@@ -103,7 +104,7 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
     except KeyboardInterrupt:
         sys.exit()
     except:
-        print 'Major Problem with cmdHelp()'
+        print('Major Problem with cmdHelp()')
 #########################################################################################################################
 def setupProgram(): ### Basic Setup of Program
     '''
@@ -132,7 +133,7 @@ def setupProgram(): ### Basic Setup of Program
     except KeyboardInterrupt:
         sys.exit()
     except:
-        print 'Problem during initial setup.'
+        print('Problem during initial setup.')
         raise
 #########################################################################################################################
 ### END OF SECTION I                                                                                                    #
@@ -672,7 +673,7 @@ class PAM(object):
                 row[r]=row[r]+self.pamp[r+c]
                 col[c]=col[c]+self.pamp[r+c]
         for r in self.alphabet:
-            print "PAM%d %r: row=%f, col=%f" % (self.PAM, r, row[r], col[r])
+            print("PAM%d %r: row=%f, col=%f" % (self.PAM, r, row[r], col[r]))
 #########################################################################################################################
     def pamAdjust(self):    # Makes sure rows total 1
         for r in self.alphabet:
@@ -718,7 +719,7 @@ def runMain():
     except SystemExit:
         return  
     except:
-        print 'Unexpected error during program setup:', sys.exc_info()[0]
+        print('Unexpected error during program setup:', sys.exc_info()[0])
         return
         
     ### Rest of Functionality... ###
@@ -739,8 +740,7 @@ def runMain():
 if __name__ == "__main__":      ### Call runMain 
     try:
         runMain()
-    except:
-        print 'Cataclysmic run error:', sys.exc_info()[0]
+    except: print('Cataclysmic run error: {0}'.format(sys.exc_info()[0]))
     sys.exit()
 #########################################################################################################################
 ### END OF SECTION IV                                                                                                   #

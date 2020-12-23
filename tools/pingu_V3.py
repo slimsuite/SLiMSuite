@@ -18,7 +18,7 @@
 
 """
 Program:      PINGU
-Description:  Protein Interaction Network & GO Utility
+Description:  Protein Interaction Network & GO Utility (v3)
 Version:      3.9
 Last Edit:    16/07/13
 Copyright (C) 2007  Richard J. Edwards - See source code for GNU License Notice
@@ -198,7 +198,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 def makeInfo():     ### Makes Info object
     '''Makes rje.Info object for program.'''
     (program, version, last_edit, copyyear) = ('PINGU', '3.9', 'July 2013', '2007')
-    description = 'Protein Interaction Network & GO Utility'
+    description = 'Protein Interaction Network & GO Utility (v3.x)'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program needs an R installation for PNG visualisations.',
                 'WARNING: This program remains in test phase only',rje_zen.Zen(None,[]).wisdom()]
@@ -234,6 +234,9 @@ def setupProgram(): ### Basic Setup of Program
     try:
         ### Initial Command Setup & Info ###
         info = makeInfo()
+        if len(sys.argv) == 2 and sys.argv[1] in ['version','-version','--version']: rje.printf(info.version); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: rje.printf('{0} v{1}'.format(info.program,info.version)); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['description','-description','--description']: rje.printf('%s: %s' % (info.program,info.description)); sys.exit(0)
         cmd_list = rje.getCmdList(sys.argv[1:],info=info)      ### Load defaults from program.ini
         ### Out object ###
         out = rje.Out(cmd_list=cmd_list)

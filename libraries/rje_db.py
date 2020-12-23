@@ -19,8 +19,8 @@
 """
 Module:       rje_db
 Description:  R Edwards Relational Database module
-Version:      1.9.1
-Last Edit:    09/03/19
+Version:      1.10.0
+Last Edit:    21/08/20
 Copyright (C) 2007  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -81,6 +81,9 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 1.8.6 - Minor IndexReport tweak.
     # 1.9.0 - Added comment output to saveToFile().
     # 1.9.1 - Updated logging of adding/removing fields: default is now when debugging only.
+    # 1.9.2 - Tweaked entrySummary - added collapse=True.
+    # 1.9.3 - Added highest tied ranking.
+    # 1.10.0 - Initial Python3 code conversion.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -99,7 +102,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo():     ### Makes Info object
     '''Makes rje.Info object for program.'''
-    (program, version, last_edit, copy_right) = ('RJE_DB', '1.9.1', 'March 2019', '2008')
+    (program, version, last_edit, copy_right) = ('RJE_DB', '1.10.0', 'August 2020', '2008')
     description = 'R Edwards Relational Database module'
     author = 'Dr Richard J. Edwards.'
     comments = ['Please report bugs to Richard.Edwards@UNSW.edu.au']
@@ -112,7 +115,7 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         if not out: out = rje.Out()
         helpx = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
         if helpx > 0:
-            print '\n\nHelp for %s %s: %s\n' % (info.program, info.version, time.asctime(time.localtime(info.start_time)))
+            print('\n\nHelp for %s %s: %s\n' % (info.program, info.version, time.asctime(time.localtime(info.start_time))))
             out.verbose(-1,4,text=__doc__)
             if rje.yesNo('Show general commandline options?','N'): out.verbose(-1,4,text=rje.__doc__)
             if rje.yesNo('Quit?'): sys.exit()
@@ -121,7 +124,7 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         return cmd_list
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Major Problem with cmdHelp()'
+    except: print('Major Problem with cmdHelp()')
 #########################################################################################################################
 def setupProgram(): ### Basic Setup of Program
     '''
@@ -146,7 +149,7 @@ def setupProgram(): ### Basic Setup of Program
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
     except:
-        print 'Problem during initial setup.'
+        print('Problem during initial setup.')
         raise
 #########################################################################################################################
 ### END OF SECTION I                                                                                                    #
@@ -335,6 +338,15 @@ class Database(rje.RJE_Object):
             if not delimit and filename: delimit = rje.delimitFromExt(filename=filename)
             elif not delimit: delimit = self.info['Delimit']
             if not filename and name: filename = '%s.%s.%s' % (self.basefile(),name,rje.delimitExt(delimit))
+            ## Check Ignore list Mainkey clashes
+            ignore = list(ignore)
+            if type(mainkeys) == str: checkkeys = [mainkeys]
+            else: checkkeys = list(mainkeys)
+            for itext in ignore[0:]:
+                for mkey in checkkeys:
+                    if mkey.startswith(itext):
+                        ignore.remove(itext); break
+            ## Mainkeys
             #self.deBug(filename)
             if not rje.exists(filename): raise IOError
             try:
@@ -443,7 +455,6 @@ class Database(rje.RJE_Object):
         >> newkey:list [] = If None, will make a new "AutoID" key field. Else, will use the given Fields.
         >> cleanup:bool [True] = If True will delete any Fields generated just to make the join
         >> delimit:str ['\t'] = Delimiter to be used to join the key fields
-        >> delimit:str ['\t'] = Delimiter to be used to join the key fields
         >> empties:bool [True] = Whether to keep entries that do not link to 1+ tables with empty values or delete them.
         >> check:bool [False] = Whether to check for entries that are not being joined.
         >> keeptable:bool [True] = Whether to add new table to self.list['Tables']
@@ -518,6 +529,7 @@ class Database(rje.RJE_Object):
             ## ~ [2b] Add one more table at a time to the new table ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             for joins in join[1:]:
                 jtable = self.getTable(joins[0],errors=True)
+                self.bugPrint(jtable.name())
                 jfield = joins[1]
                 (olddata,newdata,tmpx) = (newdata,{},0)
                 icheck = jtable.dict['Index'][jfield].keys()[0:]
@@ -648,8 +660,8 @@ class Database(rje.RJE_Object):
                 else: self.printLog('#WARNING','Table "%s" already exists!' % newname)
             ### ~ [2] ~ Make new table ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             itable.info['Name'] = newname
-            itable.info['Basefile'] = table.info['Basefile']
-            itable.info['Delimit'] = table.info['Delimit']
+            itable.info['Basefile'] = table.getStr('Basefile')
+            itable.info['Delimit'] = table.getStr('Delimit')
             for datatype in ['Keys','Fields']: itable.list[datatype] = table.list[datatype][0:]
             for tkey in table.datakeys(): itable.dict['Data'][tkey] = rje.combineDict({},table.dict['Data'][tkey])
             ## ~ [2a] Add table ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
@@ -797,6 +809,9 @@ class Table(rje.RJE_Object):
             if logstr: self.printLog(logstr,'%s "%s" %s:%s entries.' % (rje.iLen(self.indexEntries(index,ikey)),ikey,self.name(),index))
             else: self.printLog('#%s' % index.upper()[:6],'%s %s %s:%s entries.' % (rje.iLen(self.indexEntries(index,ikey)),ikey,self.name(),index))
         return ikeys
+    def entrySort(self,keys=None):
+        if keys: keys.sort()
+        return self.entries(keys,sorted=True)
     def entries(self,keys=None,sorted=False):
         '''Returns all entries as a list.'''
         if not keys and not sorted: return self.dict['Data'].values()
@@ -807,12 +822,15 @@ class Table(rje.RJE_Object):
         self.dict['Data'] = {}
         self.dict['Index'] = {}
 #########################################################################################################################
-    def entrySummary(self,entry,fields=[],invert=False):   ### Returns a string summary of an entry - useful for debugging etc.
+    def entrySummary(self,entry,fields=[],invert=False,collapse=False):   ### Returns a string summary of an entry - useful for debugging etc.
         '''Returns a string summary of an entry - useful for debugging etc.'''
         if not fields: fields = self.fields()
-        estr = 'Entry "%s"\n' % self.makeKey(entry)
+        estr = 'Entry "%s"\n' % str(self.makeKey(entry))
+        if collapse: estr += '|--'
         for field in self.fields():
-            if field in fields != invert: estr += '|-- %s:\t%s\n' % (field,entry[field])
+            if field in fields != invert:
+                if collapse: estr += ' %s:"%s";' % (field,entry[field])
+                else: estr += '|-- %s:\t%s\n' % (field,entry[field])
         return estr
 #########################################################################################################################
     def indexDataKeys(self,index,value=None):     ### Return list of datakeys from index & value
@@ -1188,6 +1206,9 @@ class Table(rje.RJE_Object):
             return filename
         except: self.errorLog('Problem generating table "%s" filename' % (self.info['Name']))
 #########################################################################################################################
+    def saveTable(self,filename=None,delimit=None,backup=True,append=False,savekeys=[],savefields=[],sfdict={},log=True,headers=True,comments=[],buglog=False):    ### Saves data to delimited file
+        return self.saveToFile(filename,delimit,backup,append,savekeys,savefields,sfdict,log,headers,comments,buglog)
+#########################################################################################################################
     def saveToFile(self,filename=None,delimit=None,backup=True,append=False,savekeys=[],savefields=[],sfdict={},log=True,headers=True,comments=[],buglog=False):    ### Saves data to delimited file
         '''
         Saves data to delimited file.
@@ -1360,8 +1381,8 @@ class Table(rje.RJE_Object):
                     elif evalue != None: data[fieldname] = evalue
                     else: data[fieldname] = ''
                 except:
-                    print self.dict['Data']
-                    print data, fieldname; raise
+                    print(self.dict['Data'])
+                    print(data, fieldname); raise
             if after and after in self.list['Fields']: self.list['Fields'].insert(self.list['Fields'].index(after)+1,fieldname)
             else: self.list['Fields'].append(fieldname)
             if log: self.printLog('\r#FIELD','Added field "%s" to table "%s"' % (fieldname,self.info['Name']))
@@ -1467,7 +1488,7 @@ class Table(rje.RJE_Object):
         except: self.log.errorLog(rje_zen.Zen().wisdom())
         self.deleteField(field)        
 #########################################################################################################################
-    def rankField(self,field,newfield='',rev=False,absolute=True,lowest=False,unique=False,warn=True): ### Add ranks of field as new field
+    def rankField(self,field,newfield='',rev=False,absolute=True,lowest=False,unique=False,warn=True,highest=False): ### Add ranks of field as new field
         '''
         Add ranks of field as new field.
         >> field:str = Field to rank on
@@ -1476,6 +1497,7 @@ class Table(rje.RJE_Object):
         >> absolute:boolean [True] = return 1 to n, rather than 0 to 1
         >> lowest:boolean [False] = returns lowest rank rather mean rank in case of ties
         >> unique:boolean [False] = give each element a unique rank (ties rank in random order)
+        >> highest:boolean [False] = returns highest rank rather mean rank in case of ties (only if lowest=False unique=False)
         '''
         try:### ~ [0] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if not newfield: newfield = '%s.Rank' % field
@@ -1484,13 +1506,13 @@ class Table(rje.RJE_Object):
             entries = self.entries()    # Fix order
             for entry in entries: scorelist.append(entry[field])
             ### ~ [1] Rank and add newfield ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            ranks = rje.rankList(scorelist,rev,absolute,lowest,unique)
+            ranks = rje.rankList(scorelist,rev,absolute,lowest,unique,highest)
             for entry in entries: entry[newfield] = ranks.pop(0)
             if newfield not in self.fields(): self.list['Fields'].append(newfield)
             self.printLog('#RANK','Added ranked "%s" as field "%s" to Table "%s"' % (field,newfield,self.info['Name']))
         except: self.errorLog('Problem with Table.rankField()')
 #########################################################################################################################
-    def rankFieldByIndex(self,index,rankfield,newfield='',rev=False,absolute=True,lowest=False,unique=False,warn=True):    ### Add ranks of field with index group as new field
+    def rankFieldByIndex(self,index,rankfield,newfield='',rev=False,absolute=True,lowest=False,unique=False,warn=True,highest=False):    ### Add ranks of field with index group as new field
         '''
         Add ranks of field with index group as new field.
         >> index:str = field upon which to separate rank lists.
@@ -1500,6 +1522,7 @@ class Table(rje.RJE_Object):
         >> absolute:boolean [True] = return 1 to n, rather than 0 to 1
         >> lowest:boolean [False] = returns lowest rank rather mean rank in case of ties
         >> unique:boolean [False] = give each element a unique rank (ties rank in random order)
+        >> highest:boolean [False] = returns highest rank rather mean rank in case of ties (only if lowest=False unique=False)
         '''
         try:### ~ [0] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             self.index(index)
@@ -1510,7 +1533,7 @@ class Table(rje.RJE_Object):
                 scorelist = []
                 entries = self.entryList(self.dict['Index'][index][group])    # Fix order
                 for entry in entries: scorelist.append(entry[rankfield])
-                ranks = rje.rankList(scorelist,rev,absolute,lowest,unique)
+                ranks = rje.rankList(scorelist,rev,absolute,lowest,unique,highest)
                 for entry in entries: entry[newfield] = ranks.pop(0)
             self.list['Fields'].append(newfield)
         except: self.errorLog('Problem with Table.rankFieldByIndex()')
@@ -1804,12 +1827,21 @@ class Table(rje.RJE_Object):
 #########################################################################################################################
     def dropEntry(self,entry):    ### Drops specific entry from Table
         ekey = self.makeKey(entry)
+        if ekey not in self.dict['Data']:
+            if entry not in self.dict['Data'].values():
+                self.warnLog('Could not find table %s entry: %s' % (self.name(),entry))
+                return
+            for ekey in self.dict['Data']:
+                if self.dict['Data'][ekey] == entry: break
         for ikey in self.dict['Index'].keys():
             try:
                 self.dict['Index'][ikey][entry[ikey]].remove(ekey)
                 if not self.dict['Index'][ikey][entry[ikey]]: self.dict['Index'][ikey].pop(entry[ikey])
             except: self.dict['Index'].pop(ikey)
-        self.dict['Data'].pop(ekey)
+        try:
+            self.dict['Data'].pop(ekey)
+        except:
+            self.errorLog('DropEntry error!')
 #########################################################################################################################
     def dropEntries(self,filters,inverse=False,log=True,logtxt='',purelist=False,keylist=False):    ### Drops certain entries from Table
         '''
@@ -1842,7 +1874,7 @@ class Table(rje.RJE_Object):
     def dropEntriesDirect(self,field,values,inverse=False,log=True,force=False):    ### Drops certain entries from Table
         '''
         Drops certain entries from Table.
-        >> filters:list of str = Criteria that entries must meet
+        >> values:list of str = Criteria that entries must meet in field
         >> inverse:bool [False] = Whether entries matching criteria should be exclusively kept rather than dropped.
         >> log:bool [True] = Whether to report reduction in log
         >> force:bool [False] = Whether to force regeneration of index
@@ -1970,7 +2002,7 @@ class Table(rje.RJE_Object):
                             else: entry[field] = False
                     except:
                         fx += 1
-                        self.deBug('%s %s - %s?' % (field,entry[field],self.dict['DataTypes'][field]))
+                        self.deBug('%s "%s" - %s?' % (field,entry[field],self.dict['DataTypes'][field]))
                 if rekey:
                     newkey = self.makeKey(entry)
                     self.dict['Data'][newkey] = self.dict['Data'].pop(oldkey)
@@ -1991,10 +2023,10 @@ def runMain():
     try: [info,out,mainlog,cmd_list] = setupProgram()
     except SystemExit: return  
     except:
-        print 'Unexpected error during program setup:', sys.exc_info()[0]
+        print('Unexpected error during program setup:', sys.exc_info()[0])
         return 
     ### ~ [2] ~ Rest of Functionality... ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-    try: print '\n\n *** No standalone functionality! *** \n\n'
+    try: print('\n\n *** No standalone functionality! *** \n\n')
     ### ~ [3] ~ End ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     except SystemExit: return  # Fork exit etc.
     except KeyboardInterrupt: mainlog.errorLog('User terminated.')
@@ -2003,7 +2035,7 @@ def runMain():
 #########################################################################################################################
 if __name__ == "__main__":      ### Call runMain 
     try: runMain()
-    except: print 'Cataclysmic run error:', sys.exc_info()[0]
+    except: print('Cataclysmic run error: {0}'.format(sys.exc_info()[0]))
     sys.exit()
 #########################################################################################################################
 ### END OF SECTION IV                                                                                                   #

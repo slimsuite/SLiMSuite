@@ -19,8 +19,8 @@
 """
 Program:      MultiHAQ
 Description:  Multi-Query HAQESAC controller
-Version:      1.4.1
-Last Edit:    26/03/18
+Version:      1.4.3
+Last Edit:    31/07/20
 Citation:     Jones, Edwards et al. (2011), Marine Biotechnology 13(3): 496-504. [PMID: 20924652]
 Copyright (C) 2009  Richard J. Edwards - See source code for GNU License Notice
 
@@ -90,6 +90,8 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 1.3.0 - MultiCut : Restrict BLAST to the top X hits from each database [100]
     # 1.4.0 - Added SLiMFarmer batch forking if autoskip=F and i=-1.
     # 1.4.1 - Added haqblastdir=PATH: Directory in which MultiHAQ BLAST2FAS BLAST runs will be performed [./HAQBLAST/]
+    # 1.4.2 - Fixed issue with SLiMFarmer for i<0 runs.
+    # 1.4.3 - Updated warnings if BLAST2FAS files not found.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -99,11 +101,12 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
     # [ ] : Add HTML output. Currently coded up in ProtHunter.
     # [Y] : Separate the MultiHAQ and HAQESAC blastcut values.
     # [ ] : Name the _HAQESAC output directory using basefile, not seqin, by default.
+    # [ ] : Add an error in the BLAST2Fas does not find any BLAST databases.
     '''
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, cyear) = ('MULTIHAQ', '1.4.1', 'March 2018', '2009')
+    (program, version, last_edit, cyear) = ('MULTIHAQ', '1.4.2', 'July 2020', '2009')
     description = 'Multi-Query HAQESAC controller'
     author = 'Dr Richard J. Edwards.'
     comments = ['Please cite: Jones, Edwards et al. (2011), Marine Biotechnology 13(3): 496-504.',
@@ -140,6 +143,9 @@ def setupProgram(): ### Basic Setup of Program when called from commandline.
     '''
     try:### ~ [1] ~ Initial Command Setup & Info ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         info = makeInfo()                                   # Sets up Info object with program details
+        if len(sys.argv) == 2 and sys.argv[1] in ['version','-version','--version']: rje.printf(info.version); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: rje.printf('{0} v{1}'.format(info.program,info.version)); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['description','-description','--description']: rje.printf('%s: %s' % (info.program,info.description)); sys.exit(0)
         cmd_list = rje.getCmdList(sys.argv[1:],info=info)   # Reads arguments and load defaults from program.ini
         out = rje.Out(cmd_list=cmd_list)                    # Sets up Out object for controlling output to screen
         out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2 
@@ -198,7 +204,7 @@ class MultiHAQ(rje.RJE_Object):
     def _setAttributes(self):   ### Sets Attributes of Object
         '''Sets Attributes of Object.'''
         ### ~ Basics ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-        self.infolist = ['HaqDir','HAQBLASTDir']
+        self.infolist = ['Blast2Fas','HaqDir','HAQBLASTDir']
         self.optlist = ['AddQueries','AutoSkip','Chaser','HAQESAC','MultiHAQ','ScreenQry']
         self.statlist = ['BlastCut','MultiCut']
         self.listlist = []
@@ -222,6 +228,7 @@ class MultiHAQ(rje.RJE_Object):
                 self._generalCmd(cmd)   ### General Options ### 
                 self._forkCmd(cmd)  # Delete if no forking
                 ### Class Options ### 
+                self._cmdReadList(cmd,'info',['Blast2Fas'])
                 self._cmdReadList(cmd,'path',['HaqDir','HAQBLASTDir'])
                 self._cmdReadList(cmd,'int',['BlastCut','MultiCut'])
                 self._cmdReadList(cmd,'opt',['AddQueries','AutoSkip','Chaser','HAQESAC','MultiHAQ','ScreenQry'])
@@ -237,7 +244,7 @@ class MultiHAQ(rje.RJE_Object):
             blast2fas = not self.opt['Chaser'] and self.blast2fas()
             if not self.opt['Chaser']: self.haqBatch(force=blast2fas)
             if self.opt['HAQESAC']:
-                if self.i() < 0 and not self.getBool('AutoSkip'):
+                if self.i() < 0 and not self.getBool('AutoSkip') and self.seqNum() > 1 and self.getInt('Forks') > 1:
                     self.farmHAQ()
                 else:
                     self.multiHAQ(secondrun=self.opt['Chaser'])
@@ -251,6 +258,8 @@ class MultiHAQ(rje.RJE_Object):
             self.obj['SeqList'] = rje_seq.SeqList(self.log,['keepblast=T']+self.cmd_list+['autofilter=F','align=F','haqbat=None'])
             self.obj['SeqList']._checkForDup(True)
             if not self.seqNum(): self.errorLog('No sequences loaded!',printerror=False); return False
+            if not self.obj['SeqList'].list['Blast2Fas']:
+                if not self.getStrLC('Blast2Fas'): self.warnLog('No blast2fas=FILES paths given. Check for rogue spaces etc. unless only self-searching seqin=FILE',quitchoice=True)
             if self.opt['AddQueries'] and self.name() not in self.obj['SeqList'].list['Blast2Fas']: self.obj['SeqList'].list['Blast2Fas'].append(self.name())
             ### ~ [2] Setup Results Directory ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if self.info['HaqDir'].lower() in ['','none']: self.info['HaqDir'] = '%s_HAQESAC/' % rje.baseFile(self.name(), strip_path=True)

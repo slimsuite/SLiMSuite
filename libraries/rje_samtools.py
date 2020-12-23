@@ -19,8 +19,8 @@
 """
 Module:       rje_samtools
 Description:  RJE SAMtools parser and processor
-Version:      1.20.2
-Last Edit:    17/10/18
+Version:      1.20.3
+Last Edit:    06/06/19
 Copyright (C) 2013  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -210,6 +210,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 1.20.0 - Added parsing of BAM file - needs samtools on system. Added minsoftclip=X, maxsoftclip=X and minreadlen=X.
     # 1.20.1 - Fixed mlen bug. Added catching of unmapped reads in SAM file. Fixed RLen bug. Changed softclip defaults.
     # 1.20.2 - Fixed readlen coverage bug and acut bug.
+    # 1.20.3 - Fixed RLen bug.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -247,11 +248,18 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
     # [ ] : Tidy, clarify and document re-use of files and use of strip_path. Set OutDir to overcome?
     # [ ] : Swap the order of X versus Y - should be Treatment versus Control.
     # [Y] : Add MinSoftClip=INT = minimum length of terminal soft-clipping allowed for SAM/BAM parsing (Also MaxSoftClip)
+    # [ ] : Add scdepth=INT [0] to over-ride use of modal read depth as the 1n line on depth plots.
+    # [ ] : Add WIG format:
+    variableStep  chrom=chrN
+    [span=windowSize]
+    chromStartA  dataValueA
+    chromStartB  dataValueB
+    ... etc ...  ... etc ...
     '''
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copyyear) = ('rje_samtools', '1.20.2', 'October 2018', '2013')
+    (program, version, last_edit, copyyear) = ('rje_samtools', '1.20.3', 'June 2019', '2013')
     description = 'RJE SAMtools parser and processor'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_zen.Zen().wisdom()]
@@ -959,8 +967,10 @@ class SAMtools(rje_obj.RJE_Object):
                     # Update read data
                     if rseq[:1] in ['.',',']:   # Matches reference (+/- strand)
                         reads.append(entry['Ref']); rseq = rseq[1:]   # Matches reference
-                    elif rseq[:1] == '*':   # Check for existing deletions
-                        if ri > -1:
+                    elif rseq[:1] == '*':   # Check for existing deletions - this should be the missing bases
+                        if rid not in rdel:
+                            self.warnLog('Deletion sequence confusion @ %s:%s (RID:%s not in rdel)' % (data[0],data[1],rid),warntype='del_confusion',quitchoice=True,suppress=True,dev=True)
+                        elif ri > -1:
                             if rdel[rid][:1] != entry['Ref']: self.warnLog('Deletion sequence mismatch @ %s:%s (%s vs %s)' % (data[0],data[1],rdel[rid][:1],entry['Ref']),warntype='del_mismatch',quitchoice=True,suppress=True,dev=True)
                             rdel[rid] = rdel[rid][1:]
                             if not rdel[rid]: rdel.pop(rid) # End of deletion
@@ -1294,7 +1304,7 @@ class SAMtools(rje_obj.RJE_Object):
                 entry = self.parsePileupLine(line,ri,ridlist,rdel,qc)
                 self.bugPrint(entry)
                 self.bugPrint(rje.sortKeys(rstart))
-                self.debug(ridlist)
+                #self.debug(ridlist)
                 ## ~ [2c] Filter non-SNP positions for SNPFreq ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
                 freqskip = False    # Whether to skip this position for QXX output.
                 if self.getBool('SNPFreq'):
@@ -1440,7 +1450,7 @@ class SAMtools(rje_obj.RJE_Object):
                     acc = self.mapLocus(locus,locfmt)
                     pos = int(cdata[1])
                     ikey = '%s|%d' % (acc,pos)
-                    self.debug(ikey)
+                    #self.debug(ikey)
                     #?# Add warning for multiple alleles in Pileup data #?#
                     if alt: snpfound = ikey in snpdb.index(snpindex)
                     else: snpfound = ikey in snpdb.index(snpindex)
@@ -1598,8 +1608,8 @@ class SAMtools(rje_obj.RJE_Object):
             snpdb.rankField('MajProb',newfield='FDR',rev=True,absolute=True,lowest=True,unique=False)
             # FDR field now has number of entries with higher Prob (+1)
             for entry in snpdb.entries():
-                self.bugPrint(entry)
-                self.debug('%s vs %s' % (entry['MajProb'] * fdrx,(totx - entry['FDR'] + 1)))
+                #self.bugPrint(entry)
+                #self.debug('%s vs %s' % (entry['MajProb'] * fdrx,(totx - entry['FDR'] + 1)))
                 try: entry['FDR'] = entry['MajProb'] * fdrx / (totx - entry['FDR'] + 1)
                 except:
                     self.warnLog('FDR Error: %s vs %s' % (entry['MajProb'] * fdrx,(totx - entry['FDR'] + 1)))
@@ -1746,7 +1756,7 @@ class SAMtools(rje_obj.RJE_Object):
             ## ~ [0a] Load SNP Mapping table ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             snpdb = self.loadSNPTable('combined')   #X# ,indels=False) - Use existing SNP Table if loaded
             if not snpdb: raise IOError('Cannot perform AltControl/AltTreatment analysis without SNPTable.')
-            self.debug(snpdb.keys())
+            #self.debug(snpdb.keys())
             mapfields = ['Locus','Pos','AltLocus','AltPos','#Locus#|#Pos#','#AltLocus#|#AltPos#']
             for field in mapfields[0:4]:
                 if field not in snpdb.fields(): raise ValueError('Cannot perform AltControl/AltTreatment analysis without SNPTable field "%s".' % field)
@@ -1769,7 +1779,7 @@ class SAMtools(rje_obj.RJE_Object):
             snpdb.index('#Locus#|#Pos#')
             snpdb.index('#AltLocus#|#AltPos#')
             snpdb.remakeKeys()
-            self.debug(snpdb.datakeys()[:10])
+            #self.debug(snpdb.datakeys()[:10])
             sentry = snpdb.entries()[0]
             ### ~ [1] Generate SNP tables for the two genomes ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             refdb = db.addTable(self.pileUpStats(snpdb,alt=False,locfmt=self.locusFormat(sentry['Locus'])),mainkeys=['Locus','Pos'],datakeys='All',name='ref',expect=True)
@@ -1890,7 +1900,7 @@ class SAMtools(rje_obj.RJE_Object):
                 if entry['REF'] != entry['Ref'] and entry['Ref'] != 'X':
                     self.warnLog('REF/Ref Sequence mismatch: %s' % entry)   #!# Make these better
                     entry['Ref'] = 'X'
-            self.debug(snpdb.keys())
+            #self.debug(snpdb.keys())
             snpdb.dropEntriesDirect('Ref',['X'])
             snpdb.dropEntriesDirect('Alt',['X'])
             snpdb.newKey(['Locus','Pos','AltLocus','AltPos'])
@@ -2002,7 +2012,7 @@ class SAMtools(rje_obj.RJE_Object):
             # This is self.getStr('CheckPos')
             if self.getStrLC('CheckPos') and not readlen:
                 cdb = db.addTable(self.getStr('CheckPos'),mainkeys=self.list['CheckFields'],name='check',expect=True)
-                cdb.dataFormat({'Start':'int','End':'int'})
+                cdb.dataFormat({startfield:'int',endfield:'int'})
                 cdb.setStr({'Delimit':'\t'})
                 for covx in covflanks: cdb.addField('Span%d' % covx,evalue=0)
                 cdb.addField('MeanX',evalue=0.0)
@@ -2031,7 +2041,7 @@ class SAMtools(rje_obj.RJE_Object):
 
             ### ~ [2] Calculate read coverage ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             fullcalc = depthplot and 'RLen' in rdb.fields() and 'MLen' in rdb.fields()
-            self.debug(self.getNum('FullCut'))
+            #self.debug(self.getNum('FullCut'))
             dirdb = None    # DirnlenPlot data
             if readlen: covdb = db.addEmptyTable('readlen',['Locus','Length','MeanX'],['Locus'])
             else: covdb = db.addEmptyTable('coverage',['Locus','Length','MeanX'],['Locus'])
@@ -2056,7 +2066,7 @@ class SAMtools(rje_obj.RJE_Object):
                 centry = {'Locus':locus,'Length':0,'MeanX':0.0}
                 if locus in seqdict: centry['Length'] = seqlist.seqLen(seqdict[locus])
                 else: centry['Length'] = max(rdb.indexDataList('Locus',locus,'End',sortunique=False))
-                self.debug('%s: %s (%s)' % (locus,centry['Length'],type(centry['Length'])))
+                #self.debug('%s: %s (%s)' % (locus,centry['Length'],type(centry['Length'])))
                 if depthplot: depth[locus] = [0] * centry['Length']
                 dirpos = [] # DirnLen assay points
                 if dirdb:
@@ -2068,7 +2078,7 @@ class SAMtools(rje_obj.RJE_Object):
                         dirdb.addEntry({'Locus':locus,'Pos':di,'Len5':0,'Len3':0})
                     dirdb.addEntry({'Locus':locus,'Pos':centry['Length'],'Len5':0,'Len3':0})
                     dirpos.append(centry['Length'])
-                    self.debug('%s: %s' % (locus,dirpos))
+                    #self.debug('%s: %s' % (locus,dirpos))
                 fullpos = [[],[]]   # [Start,End] of RID with MLen/RLen meeting the 'FullCut' threshold (1-L)
                 partpos = [[],[]]   # [Start,End] of RID with MLen/RLen failing the 'FullCut' threshold (1-L)
                 for rentry in rdb.indexEntries('Locus',locus):
@@ -2083,7 +2093,7 @@ class SAMtools(rje_obj.RJE_Object):
                     rlen = rentry['End'] - rentry['Start'] + 1
                     centry['MeanX'] += rlen
                     if fullcalc:
-                        if float(rentry['MLen']) / rentry['RLen'] >= self.getNum('FullCut'):
+                        if rentry['RLen'] and float(rentry['MLen']) / rentry['RLen'] >= self.getNum('FullCut'):
                             fullpos[0].append(rentry['Start'])
                             fullpos[1].append(rentry['End'])
                         else:
@@ -2091,7 +2101,7 @@ class SAMtools(rje_obj.RJE_Object):
                             partpos[1].append(rentry['End'])
                     # Directional read length data
                     if dirdb:
-                        self.debug(rentry)
+                        #self.debug(rentry)
                         #x#if dirpos[0] > rentry['Start']: dirdb.addEntry({'Locus':locus,'Pos':rentry['Start'],'Len5':0,'Len3':rlen-1})
                         #x#if dirpos[0] > rentry['End']: dirdb.addEntry({'Locus':locus,'Pos':rentry['End'],'Len5':rlen-1,'Len3':0})
                         for pos in dirpos[0:]:
@@ -2100,9 +2110,9 @@ class SAMtools(rje_obj.RJE_Object):
                                 dentry = dirdb.data((locus,pos))
                                 dentry['Len5'] = max(dentry['Len5'],pos-rentry['Start'])
                                 dentry['Len3'] = max(dentry['Len3'],rentry['End']-pos)
-                                self.debug(dentry)
+                                #self.debug(dentry)
                             else: break
-                        self.debug('%s: %s' % (locus,dirpos))
+                        #self.debug('%s: %s' % (locus,dirpos))
                     # Position check data
                     if locus in cdict:
                         # Cycle through CheckPos entries
@@ -2195,10 +2205,10 @@ class SAMtools(rje_obj.RJE_Object):
                         partpos[0].sort()
                         partpos[1].sort()
                         partx = 0
-                        self.debug(fullpos[0])
-                        self.debug(fullpos[1])
-                        self.debug(partpos[0])
-                        self.debug(partpos[1])
+                        #self.debug(fullpos[0])
+                        #self.debug(fullpos[1])
+                        #self.debug(partpos[0])
+                        #self.debug(partpos[1])
                     # Output
                     for (pos,x) in depdata:
                         posdata = [locus,str(pos),str(x)]
@@ -2209,7 +2219,7 @@ class SAMtools(rje_obj.RJE_Object):
                             while partpos[0] and partpos[0][0] <= pos: partx += 1; partpos[0].pop(0)
                             while partpos[1] and partpos[1][0] <= pos: partx -= 1; partpos[1].pop(0)
                             posdata += [str(fullx),str(partx)]
-                            self.debug('%s: %s -> %s | %s -> %s' % (pos,fullpos[0][:10],fullpos[1][:10],partpos[0][:10],partpos[1][:10]))
+                            #self.debug('%s: %s -> %s | %s -> %s' % (pos,fullpos[0][:10],fullpos[1][:10],partpos[0][:10],partpos[1][:10]))
                         DEPFILE.write('%s\n' % string.join(posdata,'\t'))
                 covdb.addEntry(centry)
             self.printLog('\r#COV','Calculating %s coverage: complete (%d of %d loci)' % (readdesc,lx,ltot))

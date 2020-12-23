@@ -7,8 +7,8 @@
 """
 Module:       rje_tree_group
 Description:  Contains all the Grouping Methods for rje_tree.py
-Version:      1.2.1
-Last Edit:    28/01/15
+Version:      1.3.1
+Last Edit:    11/07/19
 Copyright (C) 2005  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -40,6 +40,8 @@ import rje, rje_seq
 # 1.1 - Modified some of the automated group naming
 # 1.2 - Added
 # 1.2.1 - Tweaked QryVar interactivity.
+# 1.3.0 - Added KeepVar list to tree object.
+# 1.3.1 - Fixed checkvar question bug.
 #########################################################################################################################
 ### Major Functionality to Add
 # [Y] Change name of group when renaming genes in group
@@ -144,7 +146,9 @@ def _checkGroups(_tree): ### Checks that Group selection does not break 'rules'
             ## ~ [2b] ~ Variants ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             if not _tree.opt['AllowVar']:
                 for node1 in clade:
+                    if node1.spCode() in _tree.list['KeepVar']: continue
                     for node2 in clade:
+                        if node2.spCode() in _tree.list['KeepVar']: continue
                         if node1 != node2 and node1.obj['Sequence'].sameSpec(node2.obj['Sequence']): # Same species (see rje_sequence)
                             if not query or not _tree.opt['QryVar'] or not node1.obj['Sequence'].sameSpec(query): return False
             ## ~ [2c] ~ BootCut ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
@@ -187,7 +191,7 @@ def _checkGroupNames(_tree):    ### Automatically names groups after given gene 
                     maxocc = geneocc[gene]
                     bestgene = gene
             ### Assess best gene name ###
-            if bestgene.lower() in ['ipi','ens','nvl','unknown','ref','hyp','nem','p','tr']:
+            if bestgene.lower() in ['ipi','ens','nvl','unknown','ref','hyp','nem','p','tr','prot','cds']:
                 bestgene = None
                 maxocc = 0
             #X#print 'Best gene = %s (%.1f%%) %s' % (bestgene,(100.0*maxocc/len(clade)),genelist)
@@ -399,15 +403,15 @@ def _groupChoice(_tree):    ### Gives manual options for grouping.
         ### <0> ### Summary
         _stage = '<0> Summary'
         _checkGroupNames(_tree)
-        print '\n#*# Grouping Options #*#\n'
-        print '[Bootstrap cut-off: %d (%f)]' % (int(_tree.stat['Bootstraps'] * _tree.stat['BootCut']), _tree.stat['BootCut'])
-        print '[Min Family Size: %d]' % _tree.stat['MinFamSize']
-        print '[Min Family Number: %d]' % _tree.stat['MinFamNum']
-        print '[Group by Query Species: %s (%s)]' % (_tree.opt['QueryGroup'],_tree.info['GroupSpecies'])
-        print '[Allow Sequence Variants: %s]' % _tree.opt['AllowVar']
-        print '[Allow Query species Variants: %s]' % _tree.opt['QryVar']
-        print '[Allow Orphan Sequences: %s]' % _tree.opt['Orphans']
-        print '\n#*# Grouping Summary #*#\n',
+        print('\n#*# Grouping Options #*#\n')
+        print('[Bootstrap cut-off: %d (%f)]' % (int(_tree.stat['Bootstraps'] * _tree.stat['BootCut']), _tree.stat['BootCut']))
+        print('[Min Family Size: %d]' % _tree.stat['MinFamSize'])
+        print('[Min Family Number: %d]' % _tree.stat['MinFamNum'])
+        print('[Group by Query Species: %s (%s)]' % (_tree.opt['QueryGroup'],_tree.info['GroupSpecies']))
+        print('[Allow Sequence Variants: %s]' % _tree.opt['AllowVar'])
+        print('[Allow Query species Variants: %s]' % _tree.opt['QryVar'])
+        print('[Allow Orphan Sequences: %s]' % _tree.opt['Orphans'])
+        rje.printf('\n#*# Grouping Summary #*#\n', newline=False)
         _sumGroups(_tree)
 #        if _tree.stat['MinFamNum'] > 0:
 #            print 'Grouping Needed (Min. %d Families).' % _tree.stat['MinFamNum']
@@ -416,33 +420,33 @@ def _groupChoice(_tree):    ### Gives manual options for grouping.
 
         ### <1> ### Options
         _stage = '<1> Options'
-        print ' <K>eep current grouping. ',
+        rje.printf(' <K>eep current grouping. ', newline=False)
         keepok = _checkGroups(_tree)
         if keepok:
-            print '(Current Grouping OK.)'
+            print('(Current Grouping OK.)')
         else:
-            print '*** WARNING: Current Grouping breaks 1+ rules. ***'
-        print ' --- '
-        print " <O>ptions (Change Grouping 'rules')."
-        print ' --- '
-        print ' <L>oad Grouping.'
-        print ' <D>uplication Grouping. ',
+            print('*** WARNING: Current Grouping breaks 1+ rules. ***')
+        print(' --- ')
+        print(" <O>ptions (Change Grouping 'rules').")
+        print(' --- ')
+        print(' <L>oad Grouping.')
+        rje.printf(' <D>uplication Grouping. ', newline=False)
         if _tree.opt['QueryGroup']:
-            print ' (%s Duplications)' % _tree.info['GroupSpecies']
+            print(' (%s Duplications)' % _tree.info['GroupSpecies'])
         else:
-            print '(All Duplications)'
-        print ' <M>anual Grouping.'
-        print ' <N>o Grouping (MinFamNum=0).'
-        print ' <A>ll sequences in one group.'
+            print('(All Duplications)')
+        print(' <M>anual Grouping.')
+        print(' <N>o Grouping (MinFamNum=0).')
+        print(' <A>ll sequences in one group.')
         if len(_tree.subfam) > 0:
-            print ' <E>dit Grouping (Manual)'
-            print ' --- '
-            print ' <R>eview Groups'
-            print ' <G>roup in SeqList (Reorder)'
-            print ' <P>urge Orphan Sequences (not in a group)'
-            print ' <S>ave Groups'
-        print ' --- \n <F>ull auto mode'
-        print ' --- \n <Q>uit'
+            print(' <E>dit Grouping (Manual)')
+            print(' --- ')
+            print(' <R>eview Groups')
+            print(' <G>roup in SeqList (Reorder)')
+            print(' <P>urge Orphan Sequences (not in a group)')
+            print(' <S>ave Groups')
+        print(' --- \n <F>ull auto mode')
+        print(' --- \n <Q>uit')
         # ! # Line up group options to save vertical space?
         
         ### <2> ### Make Choice
@@ -553,7 +557,7 @@ def _sumGroups(_tree):      ### Prints summary of Groups
 def _groupRules(_tree):     ### Options to change grouping options
     '''Options to change grouping options.'''
     try:
-        print '\nEdit Grouping Rules.\nEnter new values or leave Blank to retain.\n'
+        print('\nEdit Grouping Rules.\nEnter new values or leave Blank to retain.\n')
         for stat in ['BootCut','MinFamSize','MinFamNum']:
             _tree.stat[stat] = _tree._editChoice(stat,_tree.stat[stat],numeric=True)
         for opt in ['QueryGroup','Orphans','AllowVar','QryVar']:
@@ -841,21 +845,24 @@ def _reviewGroups(_tree,interactive=1):    ### Summarise, scan for variants (sam
                     masters.remove(seq)
             vardel = False; nextbreak = False
             while len(masters) > 1:
-                _tree.verbose(0,3,'\n%d %s variants. ("Best" = %s) Choice:' % (len(masters),grpmaster.info['SpecCode'],masters[0].shortName()),1)
+                _tree.verbose(0,3,'\n%d %s variants. ("Best" Master = %s) Choice:' % (len(masters),grpmaster.info['SpecCode'],masters[0].shortName()),1)
                 ctext = ''
                 if _tree.stat['Verbose'] > 0 or _tree.stat['Interactive'] >= 0:
                     for m in range(len(masters)):
-                        print '\n<%d> %s' % (m, _groupDisSum(_tree,masters[m],query,qtxt)),
+                        rje.printf('\n<%d> %s' % (m, _groupDisSum(_tree,masters[m],query,qtxt)), newline=False)
                         ctext += '<%d> %s; ' % (m, masters[m].shortName())
-                    ctext += '<K> keep variants; <N>ext group:'
+                    ctext += '<K> keep variants; <M> Group menu:'
                 if _tree.stat['Interactive'] < 1 and _tree.opt['QryVar'] and query and grpmaster.info['SpecCode'] == query.info['SpecCode']: choice = len(masters)
                 elif _tree.stat['Interactive'] >= 0:
                     if (_tree.opt['AllowVar'] or _tree.opt['QryVar']) and query and grpmaster.info['SpecCode'] == query.info['SpecCode']: choice = rje.choice('\n %s?: ' % ctext,default='k').lower()
                     #choice = rje.getInt('\n %s?: ' % ctext,blank0=True)
                     elif grpmaster.info['SpecCode'].startswith('9') and _tree.opt['9SPEC']: choice = rje.choice('\n %s?: ' % ctext,default='k').lower()
                     else: choice = rje.choice('\n %s?: ' % ctext,default='0').lower()
-                    if choice == 'k': choice = len(masters)
+                    if choice == 'k':
+                        choice = len(masters)
+                        if rje.yesNo('Add %s to keepvar=LIST?' % grpmaster.spCode(),default='N'): _tree.list['KeepVar'].append(grpmaster.spCode())
                     elif choice == 'n': choice = -1
+                    elif choice == 'm': break
                     else:
                         try: choice = string.atoi(choice)
                         except: continue
@@ -889,12 +896,20 @@ def _reviewGroups(_tree,interactive=1):    ### Summarise, scan for variants (sam
             ## <f> ## Scan for Variants (i.e. same species)
             _stage ='<1f> Scan for Variants'
             seqspec.pop(grpmaster.info['SpecCode'])
+            checkvar = None
             for spec in seqspec.keys():
                 # Ignore 9XXXX species codes for variant removal
                 if spec.startswith('9') and not _tree.getBool('9SPEC'): continue
+                if spec in _tree.list['KeepVar']: continue
                 # Identify variants
                 vseq = []
                 if seqspec[spec] > 1:   # Variants
+                    # Option to check for variants
+                    if checkvar == None:
+                        checkvar = not _tree.opt['AllowVar']
+                        if checkvar and _tree.stat['Interactive'] >= 1: checkvar = rje.yesNo('Check for species variants?')
+                    if not checkvar: break
+                    # get variants
                     fam = _tree.subfam[g]
                     grpseq = _tree._nodeSeqs(_tree._nodeClade(fam))     # List of Sequence Objects in group
                     for seq in grpseq:
@@ -906,17 +921,23 @@ def _reviewGroups(_tree,interactive=1):    ### Summarise, scan for variants (sam
                     ctext = ''
                     if _tree.stat['Verbose'] > 0 or _tree.stat['Interactive'] >= 0:
                         for v in range(len(vseq)):
-                            print '<%d> %s' % (v, _groupDisSum(_tree,vseq[v],grpmaster))
+                            print('<%d> %s' % (v, _groupDisSum(_tree,vseq[v],grpmaster)))
                             ctext += '<%d> %s; ' % (v, vseq[v].shortName())
-                        ctext += '<K> keep variants; <N>ext group'
+                        ctext += '<K> keep variants; <M> Group menu'
 
                     if _tree.stat['Interactive'] < 1 and _tree.opt['QryVar'] and query and vseq[0].info['SpecCode'] == query.info['SpecCode']: choice = len(vseq)
                     elif _tree.stat['Interactive'] >= 0:
                         #choice = rje.getInt('%s?: ' % ctext,blank0=True)
                         if (_tree.opt['AllowVar'] or _tree.opt['QryVar']) and query and vseq[0].info['SpecCode'] == query.info['SpecCode']: choice = rje.choice('\n %s?: ' % ctext,default='k').lower()
                         choice = rje.choice('\n %s?: ' % ctext,default='0').lower()
-                        if choice == 'k': choice = len(vseq)
-                        elif choice == 'n': choice = -1
+                        if choice == 'k':
+                            choice = len(vseq)
+                            if rje.yesNo('Add %s to keepvar=LIST?' % spec,default='N'):
+                                _tree.list['KeepVar'].append(spec)
+                                break
+                        elif choice == 'm': break
+                        elif choice == 'n':
+                            if g < (_tree.groupNum() - 1): g += 1; nextbreak = True
                         else:
                             try: choice = string.atoi(choice)
                             except: continue
@@ -925,7 +946,7 @@ def _reviewGroups(_tree,interactive=1):    ### Summarise, scan for variants (sam
                     else: choice = 0
 
                     if choice < 0:
-                        if g < (_tree.groupNum() - 1): g += 1; nextbreak = True
+                        #if g < (_tree.groupNum() - 1): g += 1; nextbreak = True
                         break
                     elif choice < len(vseq):
                         var = vseq.pop(choice)
@@ -1048,9 +1069,9 @@ def _groupDisSum(_tree,seq1,seq2,text=''):    ### Prints ID, Gaps and Extra Summ
 #########################################################################################################################
 if __name__ == "__main__":      ### Call runMain 
     try:
-        print 'This module is not for standalone running.'
+        print('This module is not for standalone running.')
     except:
-        print 'Cataclysmic run error:', sys.exc_info()[0]
+        print('Cataclysmic run error:', sys.exc_info()[0])
     sys.exit()
 #########################################################################################################################
 ### END OF SECTION III                                                                                                  #

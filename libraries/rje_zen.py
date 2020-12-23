@@ -19,8 +19,8 @@
 """
 Module:       rje_zen
 Description:  Random Zen Wisdom Generator
-Version:      1.4.0
-Last Edit:    19/12/17
+Version:      1.4.2
+Last Edit:    28/04/20
 Copyright (C) 2007  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -54,6 +54,8 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 1.3.1 - Added some more words.
     # 1.3.2 - Added some more words.
     # 1.4.0 - Added some more words and "They fight crime!" structure.
+    # 1.4.1 - Added some more words and started reformatting for Python3 compatibility.
+    # 1.4.2 - Fixed formatting for Python 2.6 back compatibility for servers.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -65,7 +67,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo():     ### Makes Info object
     '''Makes rje.Info object for program.'''
-    (program, version, last_edit, cyear) = ('RJE_ZEN', '1.4.0', 'December 2017', '2007')
+    (program, version, last_edit, cyear) = ('RJE_ZEN', '1.4.2', 'April 2020', '2007')
     description = 'Random Zen Wisdom Generator'
     author = 'Dr Richard J. Edwards.'
     comments = ['WARNING: These wisdoms are computer-generated garbage.', 'Heed them at your own peril.']
@@ -75,10 +77,12 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
     '''Prints *.__doc__ and asks for more sys.argv commands.'''
     try:
         if not info: info = makeInfo()
+        if len(sys.argv) == 2 and sys.argv[1] in ['version','-version','--version']: rje.printf(info.version); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: rje.printf('{0} v{1}'.format(info.program,info.version)); sys.exit(0)
         if not out: out = rje.Out()
         help = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
         if help > 0:
-            print '\n\nHelp for %s %s: %s\n' % (info.program, info.version, time.asctime(time.localtime(info.start_time)))
+            rje.printf('\n\nHelp for {0} {1}: {2}\n'.format(info.program, info.version, time.asctime(time.localtime(info.start_time))))
             out.verbose(-1,4,text=__doc__)
             if rje.yesNo('Show general commandline options?'): out.verbose(-1,4,text=rje.__doc__)
             if rje.yesNo('Quit?'): sys.exit()
@@ -87,7 +91,7 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         return cmd_list
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Major Problem with cmdHelp()'
+    except: rje.printf('Major Problem with cmdHelp()')
 #########################################################################################################################
 def setupProgram(): ### Basic Setup of Program
     '''
@@ -112,7 +116,7 @@ def setupProgram(): ### Basic Setup of Program
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
     except:
-        print 'Problem during initial setup.'
+        rje.printf('Problem during initial setup.')
         raise
 #########################################################################################################################
 ### END OF SECTION I                                                                                                    #
@@ -168,7 +172,7 @@ class Zen(rje.RJE_Object):
                 self._generalCmd(cmd)
                 self._cmdReadList(cmd,'int',['Wisdoms','ZenSleep'])
                 self._cmdReadList(cmd,'num',['FightCrime'])
-            except:self.log.errorLog('Problem with cmd:%s' % cmd)
+            except: self.log.errorLog('Problem with cmd:%s' % cmd)
 #########################################################################################################################
     def restSetup(self):    ### Sets up self.dict['Output'] and associated output options if appropriate.
         '''
@@ -197,18 +201,19 @@ class Zen(rje.RJE_Object):
             wisdoms = []
             for w in range(self.stat['Wisdoms']):
                 zenwisdom = self.wisdom()
-                wisdoms.append('%s.' % zenwisdom)
+                wisdoms.append('{0}.'.format(zenwisdom))
                 if self.getStrLC('Rest') or not self.server(): self.log.printLog('#ZEN',zenwisdom)
                 time.sleep(self.getInt('ZenSleep'))
-            self.dict['Output']['wisdoms'] = string.join(wisdoms,'\n')
-            if self.server(): return string.join(wisdoms,'\n')
+            self.dict['Output']['wisdoms'] = '\n'.join(wisdoms)
+            if self.server(): return '\n'.join(wisdoms)
             if self.stat['Interactive'] >= 0 and self.opt['Win32']: rje.choice('\n<ENTER> to Quit')
         except: self.log.errorLog('Bad vibes from Zen.run()')
 #########################################################################################################################
     def wisdom(self,wtype=None):      ### Generates and returns a random Zen wisdom
         '''Generates and returns a random Zen wisdom'''
         try:### ~ Call the appropriate Zen Method ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            if type in ['A','B','C','D','E']: mytype = wtype
+            zen = []
+            if wtype in ['A','B','C','D','E']: mytype = wtype
             else:
                 if random.random() < self.getNum('FightCrime'): mytype = 'E'
                 else: mytype = rje.randomList(['A'] * 8 + ['B'] * 10 + ['C'] * 5 + ['D'] * 1)[0]
@@ -220,17 +225,17 @@ class Zen(rje.RJE_Object):
             ### ~ Tidy, join and return Zen as string ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             while '' in zen: zen.remove('')
             ## Try to improve by removing repetition ##
-            zen = string.join(zen)
+            zen = rje.jstring.join(zen)
             if mytype not in ['D']:
                 wordlist = []
-                for word in string.split(zen):
+                for word in zen.split():
                     if len(word) < 5: continue
                     if word[:5].lower() in wordlist: return self.wisdom()
                     else: wordlist.append(word[:5].lower())
             for vowel in 'aeiou':
-                zen = string.replace(zen,' a %s' % vowel,' an %s' % vowel)
+                zen = zen.replace(' a %s' % vowel,' an %s' % vowel)
                 if zen.find('A %s' % vowel) == 0: zen = 'An %s' % zen[2:]
-            return string.join(string.split(zen))
+            return rje.jstring.join(zen.split())
         except: self.log.errorLog('Bad vibes from Zen.wisdom()')
 #########################################################################################################################
     ### <3> ### Random Wisdom Methods                                                                                   #
@@ -271,9 +276,9 @@ class Zen(rje.RJE_Object):
     def _zenE(self):    ### Generates Zen of the type 'He is a X1. She is a X2. Together, they fight crime!'
         '''Generates Zen of the type "The WISE MAN X BUT THE WWW XXX Y"'''
         zen = ['He is a', rje.randomList([self._adjective(),self._adverb()])[0], '%s.' % self._noun()]
-        if random.random > 0.5: zen[-1] = zen[-1][:-1]; zen += self._suffix(); zen[-1] += '.'
+        if random.random() > 0.5: zen[-1] = zen[-1][:-1]; zen += self._suffix(); zen[-1] += '.'
         zen += ['She is a', rje.randomList([self._adjective(),self._adverb()])[0], '%s.' % self._noun()]
-        if random.random > 0.5: zen[-1] = zen[-1][:-1]; zen += self._suffix(); zen[-1] += '.'
+        if random.random() > 0.5: zen[-1] = zen[-1][:-1]; zen += self._suffix(); zen[-1] += '.'
         zen += ['Together, they fight crime!']
         return zen
 #########################################################################################################################
@@ -287,22 +292,25 @@ class Zen(rje.RJE_Object):
 #########################################################################################################################
     def _adjective(self,ztype='A'): ### Returns a random adjective
         '''Returns a random adjective.'''
-        alist = ['altruistic','benchmarking', 'better', 'bold', 'brave', 'cheesy', 'cocky', 'cowardly', 'crazy','coding',
+        alist = ['altruistic','academic',
+                 'benchmarking', 'better', 'bold', 'brave', 'cheesy', 'cocky', 'cowardly', 'crazy','coding',
                  'deadly', 'deceitful', 'degenerate',
-                 'delicate', 'disillusioned', 'dynamic', 'existential','extraordinary',
+                 'delicate', 'disillusioned', 'dynamic', 'existential','extraordinary','experimental',
                  'foolhardy', 'foolish','frantic','freaky','greedy','honest',
                  'kind','monastic','old','ordinary',
                  'passionate', 'pointless','prudent','quirky','quintessential',
                  'random', 'religious','RESTful','risky','running',
-                 'scary','shrill','slippery', 'smooth', 'spiritual','semantic',
-                 'stochastic','story-telling', 'superfluous', 'tasteless','unusual','usual',
-                 'weird', 'wise', 'wise','young',
+                 'scary','shrill','slippery', 'smooth', 'spiritual','semantic','silly',
+                 'stochastic','story-telling', 'superfluous', 'tasteless','theoretical',
+                 'unusual','usual',
+                 'weird', 'wise', 'wise','whimsical','young',
                  'zealous'] + ['zen'] * 3
-        if ztype == 'A': alist += ['aerodynamic','aromatic','black','blue','Belgian','blessed',
+        if ztype == 'A': alist += ['aerodynamic','aromatic',
+                                   'black','blue','Belgian','blessed',
                                    'cantankerous','cancerous','cursed','drug-addled','elongated','ghostly',
                                    'Greek','Herculian','illiterate','killer','kindred',
                                    'opaque','orange','pale','pink','polymorphic','quality',
-                                   'shell-like','short','strong','stringy','spongy','secular',
+                                   'shell-like','short','strong','stringy','spongy','secular','squishy',
                                    'talented','tall','tiny','toxic','venomous',
                                    'white','yellow','youthful','zombie']
         if ztype == 'B': alist += ['folly','worse','nonsense','death','risky']
@@ -310,38 +318,39 @@ class Zen(rje.RJE_Object):
 #########################################################################################################################
     def _noun(self,ztype='A'):    ### Returns a random noun
         '''Returns a random noun.'''
-        nlist = ['annotator','ant', 'atheist', 'athelete','armadillo','assassin',
+        nlist = ['annotator','ant', 'atheist', 'athelete','armadillo','assassin','Academic',
                  'badger', 'beetle', 'Bishop', 'boy', 'bushbaby', 'butterfly','cheerleader','billionaire','bilby',
-                 'bull',
+                 'bull','brown snake',
                  'cat','cheese', 'chemist','child','child','child', 'cloud', 'communist', 'computer scientist','Creationist',
                  'cow','chatbot','curator','Donald',
                  'diplomat', 'doctor', 'dragon', 'duck','elf', 'firefly',
                  'fish', 'fool', 'freak','fruit','fruitfly', 'fungus',
                  'girl', 'ghost', 'heretic','hound', 'jellyfish', 'kangaroo', 'knight', 'lady', 'ladybird',
-                 'ladyboy','lion','kitten','kingfisher','king','killer',
+                 'ladyboy','lion','kitten','kingfisher','king','killer','kitty',
                  'journalist',
                  'marsupial', 'mind', 'monkey', 'monster', 'mosquito', 'misogynist', 'nazi',
-                 'philosopher', 'pig','pirate','postgrad',
+                 'philosopher', 'pig','pirate','postgrad','puppy',
                  'President','Professor','priest', 'prince', 'princess', 'programmer','python',
-                 'queen', 'rabbit', 'Republican','runner',
-                 'samurai', 'scientist', 'shrew', 'slug', 'snail',
+                 'queen', 'quokka',
+                 'rabbit', 'Republican','runner','rodent',
+                 'samurai', 'scientist', 'shrew', 'slug', 'snail','sparrow',
                  'snake', 'soldier', 'spider', 'student', 'syntax error','smuggler',
                  'teapot', 'teenager', 'termite', 'theologian','theoretical physicist', 'Thespian','tiger','tiger snake',
                  'toddler',
-                 'wallaby',
+                 'wallaby','wombat','waster',
                  'warrior', 'wren','yeast','zealot','zombie','zulu'] + ['man'] * 8 + ['woman'] * 5
         if ztype == 'C':
             nlist = ['misery','happiness','poverty','wisdom','enlightenment','zen','dreams','passion','lunacy','plenty',
-                     'alternative facts','truth','ultimate truth',
+                     'alternative facts','truth','ultimate truth','knowledge',
                      'death','disease','discovery','Chaos','religion','peril','philosophy','the Soul','debuggery','youth']
-        if ztype == 'Z': return string.join([rje.randomList(['A','The'])[0].lower(),rje.randomList([self._adjective('A'),self._adverb('A'),''])[0], self._noun('A')])
+        if ztype == 'Z': return rje.jstring.join([rje.randomList(['A','The'])[0].lower(),rje.randomList([self._adjective('A'),self._adverb('A'),''])[0], self._noun('A')])
         if ztype == 'of' or (ztype in ['A','B'] and random.random() < 0.2):
             nlist = nlist + ['shroom','pie','wine','gravy','egg','chocolate','cheese','banana','stool','horn','custard',
                              'tea','teacup','mug','motif', 'gene','genome', 'bucket','bucket','bucket','genome assembly',
                              'kebab','fruit','falafel','teapot','transcriptome','vase',
                              'coffee','river','cake','cookie','sponge','abundance','repository','collection','library'] * 2
             nlist += ['cgi-bin']
-            return string.join([rje.randomList(nlist)[0],'of',self._noun('C')])
+            return rje.jstring.join([rje.randomList(nlist)[0],'of',self._noun('C')])
         return rje.randomList(nlist)[0]
 #########################################################################################################################
     def _linker(self,ztype='A'):    ### Returns a random linker
@@ -415,7 +424,7 @@ def runMain():
     try: [info,out,mainlog,cmd_list] = setupProgram()
     except SystemExit: return  
     except:
-        print 'Unexpected error during program setup:', sys.exc_info()[0]
+        print('Unexpected error during program setup: .{0}'.format(sys.exc_info()[0]))
         return 
         
     ### Rest of Functionality... ###
@@ -429,7 +438,7 @@ def runMain():
 #########################################################################################################################
 if __name__ == "__main__":      ### Call runMain 
     try: runMain()
-    except: print 'Cataclysmic run error:', sys.exc_info()[0]
+    except: print('Cataclysmic run error: {0}'.format(sys.exc_info()[0]))
     sys.exit()
 #########################################################################################################################
 ### END OF SECTION IV                                                                                                   #

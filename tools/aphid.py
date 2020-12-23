@@ -79,7 +79,8 @@ sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)),'../lib
 sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)),'../tools/'))
 ### User modules - remember to add *.__doc__ to cmdHelp() below ###
 import rje, rje_db, rje_genemap, rje_scoring, rje_seq, rje_slimcore
-import gablam, pingu_V3
+import gablam
+import pingu_V3 as pingu
 import rje_dismatrix_V2 as rje_dismatrix
 #########################################################################################################################
 def history():  ### Program History - only a method for PythonWin collapsing! ###
@@ -96,6 +97,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 2.0 - Reduced options and tidied code substantially with additional intermediate data outputs.
     # 2.1 - Reduced import commands.
     # 2.2 - Updated for revised SLiMCore.
+    # 2.2.1 - Minor bug fix.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -110,7 +112,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo():     ### Makes Info object
     '''Makes rje.Info object for program.'''
-    (program, version, last_edit, copyright) = ('APHID', '2.2', 'July 2014', '2007')
+    (program, version, last_edit, copyright) = ('APHID', '2.2.1', 'December 2020', '2007')
     description = 'Automated Processing of High-resolution Intensity Data'
     author = 'Dr Richard J. Edwards.'
     comments = [#'Note: R is required for PNG visualisations.',
@@ -147,6 +149,9 @@ def setupProgram(): ### Basic Setup of Program
     try:
         ### Initial Command Setup & Info ###
         info = makeInfo()
+        if len(sys.argv) == 2 and sys.argv[1] in ['version','-version','--version']: rje.printf(info.version); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: rje.printf('{0} v{1}'.format(info.program,info.version)); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['description','-description','--description']: rje.printf('%s: %s' % (info.program,info.description)); sys.exit(0)
         cmd_list = rje.getCmdList(sys.argv[1:],info=info)      ### Load defaults from program.ini
         ### Out object ###
         out = rje.Out(cmd_list=cmd_list)

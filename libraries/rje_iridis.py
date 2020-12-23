@@ -92,6 +92,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 1.10- Modified freemem setting to run on Katana. Made rsh optional. Removed defunct IRIDIS3 option.
     # 1.10.1 - Attempted to fix SLiMFarmer batch run problem. (Should not be setting irun=batch!)
     # 1.10.2 - Trying to clean up unknown 30s pause. Might be freemem issue?
+    # 1.10.3 - Fix issues with batch farming of subjobs splitting on commas.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -105,7 +106,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo():     ### Makes Info object
     '''Makes rje.Info object for program.'''
-    (program, version, last_edit, copyright) = ('RJE_IRIDIS', '1.10.2', 'November 2015', '2008')
+    (program, version, last_edit, copyright) = ('RJE_IRIDIS', '1.10.3', 'July 2019', '2008')
     description = 'Parallel processing on IRIDIS'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_zen.Zen().wisdom()]
@@ -243,7 +244,8 @@ class IRIDIS(rje.RJE_Object):
                 self._cmdRead(cmd,'info','Pickup','pickhead')
                 self._cmdReadList(cmd,'int',['IOError','KeepFree'])
                 self._cmdReadList(cmd,'stat',['SubSleep','MemFree'])  
-                self._cmdReadList(cmd,'list',['SubJobs','OutList'])
+                self._cmdReadList(cmd,'list',['OutList'])
+                self._cmdReadList(cmd,'flist',['SubJobs'])
                 self._cmdReadList(cmd,'opt',['RjePy','SeqBySeq','Test','RSH'])
             except: self.log.errorLog('Problem with cmd:%s' % cmd)
         if 'iIni' not in self.info or self.info['iIni'].lower() in ['none']: self.info['iIni'] = ''

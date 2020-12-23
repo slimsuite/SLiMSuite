@@ -482,7 +482,7 @@ def expectString(_expect):  ### Returns formatted string for _expect value
         elif _expect >= 0.001: return '%.3f' % _expect
         else: return '%.2e' % _expect
     except:
-        print _expect
+        print(_expect)
         raise
 #########################################################################################################################
 def checkSlimFormat(sequence):  ### Checks whether given sequence is in correct "Slim" format
@@ -597,7 +597,7 @@ def patternFromCode(slim,ambcut=20,dna=False):  ### Returns pattern with wildcar
             else: pattern += '.{%d,%d}' % (int(x[0]),int(x[-1]))
         return pattern
     except:
-        print slim, pattern
+        print(slim, pattern)
         raise
 #########################################################################################################################
 def prestoFromCode(slim):   ### Returns old PRESTO list from new SLiM code
@@ -611,7 +611,7 @@ def prestoFromCode(slim):   ### Returns old PRESTO list from new SLiM code
             if slist: presto += ['X'] * string.atoi(slist.pop(0)[-1])
         return presto
     except:
-        print slim, presto
+        print(slim, presto)
         raise
 #########################################################################################################################
 def convertDNA(slimcode):   ### Splits, converts to DNA and recombines
@@ -741,7 +741,7 @@ def slimFromPattern(inseq,reverse=False,trimx=False,motif=None,dna=False):     #
             nm = inseq[:inseq.find('>')+1]      
             nofm = rje.matchExp('<(\D+):(\d+):(\d+)>',nm)
             if not nofm: nofm = rje.matchExp('<(\D+):(\d+):(\d+):(\D+)>',nm)
-            if not nofm: print 'NofM ("<") Problem: %s' % nm; raise ValueError
+            if not nofm: print('NofM ("<") Problem: %s' % nm); raise ValueError
             #!# Reformat n of m ambiguities #!#
             m1 = ambigPos(nofm[0],defaults)
             if len(nofm) == 4:
@@ -764,7 +764,7 @@ def slimFromPattern(inseq,reverse=False,trimx=False,motif=None,dna=False):     #
             slim = slim[:-1]
             inseq = inseq[len(mult[0]):]
         else:
-            print 'Problem: %s' % inseq
+            print('Problem: %s' % inseq)
             raise ValueError
     ## ~ [2h] Final Wildcards ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
     if w[1] > 0 and not trimx:
@@ -1129,16 +1129,16 @@ def test(motif,cmd_list=[],mm={}):    ### Temp test method
     slim = SLiM(cmd_list=cmd_list)
     slim.info['Name'] = slim.info['Sequence'] = motif
     slim.format()
-    print slim.info
+    print(slim.info)
     slim.misMatch(mm)
-    print slim.dict['MM']
+    print(slim.dict['MM'])
     slim.searchDict()
-    print slim.dict['Search']
+    print(slim.dict['Search'])
     return slim
 #########################################################################################################################
 if __name__ == "__main__":      ### Call runMain 
-    try: print 'This module is not for standalone running.'
-    except: print 'Cataclysmic run error:', sys.exc_info()[0]
+    try: print('This module is not for standalone running.')
+    except: print('Cataclysmic run error: {0}'.format(sys.exc_info()[0]))
     sys.exit()
 #########################################################################################################################
 ### END OF SECTION IV                                                                                                   #

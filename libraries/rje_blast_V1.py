@@ -7,8 +7,8 @@
 """
 Module:       rje_blast
 Description:  BLAST Control Module
-Version:      1.15
-Last Edit:    20/08/13
+Version:      1.16.0
+Last Edit:    21/08/20
 Copyright (C) 2005  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -78,6 +78,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 1.13- Added localcut=X : Cut-off length for local alignments contributing to global GABLAM stats) [0]
     # 1.14- Added blast.checkProg(qtype,stype) to check whether blastp setting matches sequence formats.
     # 1.15- Added OldBLAST/Legacy option to Object for compatibility with rje_blast_V2. (Always True!)
+    # 1.16.0 - Initial Python3 code conversion.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -100,10 +101,10 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copy_right) = ('RJE_BLAST', '1.15', 'July 2013', '2005')
+    (program, version, last_edit, copy_right) = ('RJE_BLAST', '1.16.0', 'August 2018', '2005')
     description = 'RJE BLAST Module'
     author = 'Dr Richard J. Edwards.'
-    comments = ['Please contact R.Edwards@Soton.ac.uk if this breaks - BLAST changes sometimes!']
+    comments = ['Please contact seqsuite@gmail.com if this breaks - BLAST changes sometimes!']
     return rje.Info(program,version,last_edit,description,author,time.time(),copy_right,comments)
 #########################################################################################################################
 def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for more sys.argv commands
@@ -114,7 +115,7 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         ### ~ [2] ~ Look for help commands and print options if found ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         helpx = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
         if helpx > 0:
-            print '\n\nHelp for %s %s: %s\n' % (info.program, info.version, time.asctime(time.localtime(info.start_time)))
+            print('\n\nHelp for %s %s: %s\n' % (info.program, info.version, time.asctime(time.localtime(info.start_time))))
             out.verbose(-1,4,text=__doc__)
             if rje.yesNo('Show general commandline options?'): out.verbose(-1,4,text=rje.__doc__)
             if rje.yesNo('Quit?'): sys.exit()           # Option to quit after help
@@ -124,7 +125,7 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         return cmd_list
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Major Problem with cmdHelp()'
+    except: print('Major Problem with cmdHelp()')
 #########################################################################################################################
 def setupProgram(): ### Basic Setup of Program when called from commandline.
     '''
@@ -144,7 +145,7 @@ def setupProgram(): ### Basic Setup of Program when called from commandline.
         return (info,out,log,cmd_list)                      # Returns objects for use in program
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Problem during initial setup.'; raise
+    except: print('Problem during initial setup.'); raise
 #########################################################################################################################
 ### END OF SECTION I                                                                                                    #
 #########################################################################################################################
@@ -1164,9 +1165,9 @@ class BLASTHit(rje.RJE_Object):
                         dres = ((qres - aln.stat['QryStart']) * 3) + aln.stat['QryStart'] + 2
                         if dres != aln.stat['QryEnd']:
                             self.log.errorLog('Hit %s: Query end position should be %d but reached %d (or %d) in Aln process!' % (self.info['Name'],aln.stat['QryEnd'],qres,dres),False,False)
-                            print aln.info
-                            print aln.stat
-                            print gablam
+                            print(aln.info)
+                            print(aln.stat)
+                            print(gablam)
                             raw_input('Continue?')
                             for aln in ['Qry','Hit','QryO','HitO']:  # O = ordered
                                 gablam[aln] = ['X'] * qrylen    #!# Hit!! #!#
@@ -1343,7 +1344,7 @@ def formatDB(fasfile,blastpath,protein=True,log=None):  ### Formats a blastDB
         os.system(command)
     except:
         if log: log.errorLog('Major Problem during rje_blast.formatDB(%s).' % fasfile)
-        else: print 'Major Problem during rje_blast.formatDB(%s).' % fasfile
+        else: print('Major Problem during rje_blast.formatDB(%s).' % fasfile)
         raise
 #########################################################################################################################
 def checkForDB(dbfile=None,checkage=True,log=None,protein=True):     ### Checks for BLASTDB files and returns True or False as appropriate
@@ -1377,7 +1378,7 @@ def checkForDB(dbfile=None,checkage=True,log=None,protein=True):     ### Checks 
         return True
     except:
         if log: log.errorLog('Major Problem during rje_blast.checkForDB().')
-        else: print 'Major Problem during rje_blast.checkForDB().'
+        else: print('Major Problem during rje_blast.checkForDB().')
         raise
 #########################################################################################################################
 def cleanupDB(callobj=None,dbfile=None,deletesource=False):     ### Deletes files created by formatdb
@@ -1396,7 +1397,7 @@ def cleanupDB(callobj=None,dbfile=None,deletesource=False):     ### Deletes file
         if deletesource and os.path.exists(dbfile): os.unlink(dbfile)
     except:
         if callobj: callobj.log.errorLog('Major Problem during rje_blast.cleanupDB().')
-        else: print 'Major Problem during rje_blast.cleanupDB().'
+        else: print('Major Problem during rje_blast.cleanupDB().')
         raise
 #########################################################################################################################
 def expectString(_expect):  ### Returns formatted string for _expect value
@@ -1406,7 +1407,7 @@ def expectString(_expect):  ### Returns formatted string for _expect value
         elif _expect > 0.1: return '%.2f' % _expect
         elif _expect > 0.001: return '%.3f' % _expect
         else: return '%.2e' % _expect
-    except: print expect; raise
+    except: print(expect); raise
 #########################################################################################################################
 ### END OF SECTION VI                                                                                                   #
 #########################################################################################################################
@@ -1421,7 +1422,7 @@ def runMain():
     try: [info,out,mainlog,cmd_list] = setupProgram()
     except SystemExit: return  
     except:
-        print 'Unexpected error during program setup:', sys.exc_info()[0]
+        print('Unexpected error during program setup:', sys.exc_info()[0])
         return 
     ### ~ [2] ~ Rest of Functionality... ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try:
@@ -1435,7 +1436,7 @@ def runMain():
 #########################################################################################################################
 if __name__ == "__main__":      ### Call runMain 
     try: runMain()
-    except: print 'Cataclysmic run error:', sys.exc_info()[0]
+    except: print('Cataclysmic run error: {0}'.format(sys.exc_info()[0]))
     sys.exit()
 #########################################################################################################################
 ### END OF SECTION IV                                                                                                   #

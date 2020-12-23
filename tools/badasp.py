@@ -199,6 +199,9 @@ def setupProgram(): ### Basic Setup of Program
         ## <a> ## Initial Command Setup & Info
         cmd_list = sys.argv[1:]
         info = makeInfo()
+        if len(sys.argv) == 2 and sys.argv[1] in ['version','-version','--version']: rje.printf(info.version); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: rje.printf('{0} v{1}'.format(info.program,info.version)); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['description','-description','--description']: rje.printf('%s: %s' % (info.program,info.description)); sys.exit(0)
         cmd_list = rje.getCmdList(cmd_list,info=info)      ### Load defaults from program.ini
         ## <b> ## Out object
         out = rje.Out(cmd_list=cmd_list)

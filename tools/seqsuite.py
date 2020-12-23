@@ -19,8 +19,8 @@
 """
 Module:       SeqSuite
 Description:  Miscellaneous biological sequence analysis toolkit
-Version:      1.23.0
-Last Edit:    14/05/19
+Version:      1.24.0
+Last Edit:    22/12/20
 Copyright (C) 2014  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -37,6 +37,7 @@ Function:
 
 SeqSuite tools:
     The list of tools recognised by `prog=X` will be added here as the relevant code is added:
+    - Apollo = rje_apollo.Apollo GABLAM wrapper for searching against apollo genomes.
     - BLAST = rje_blast_V2.BLASTRun. BLAST+ Control Module.
     - DBase = rje_dbase.DatabaseController. Database downloading and processing.
     - Ensembl = rje_ensembl.EnsEMBL. EnsEMBL Processing/Manipulation.
@@ -101,13 +102,15 @@ import rje_dbase, rje_ensembl, rje_genbank, rje_gff, rje_mitab, rje_paf, rje_ppi
 import rje_blast_V2 as rje_blast
 import buscomp, fiesta, gablam, gasp, gopher, haqesac, multihaq
 import pingu_V4 as pingu
-import pagsat, smrtscape, snapper, snp_mapper, rje_samtools
+import pagsat, smrtscape, snapper, snp_mapper, rje_samtools, rje_apollo
+import revert
+import saaga, diploidocus, synbad
 #########################################################################################################################
 # Dev modules (not in main download):
 try:
     sys.path.append(os.path.join(slimsuitepath,'dev/'))
-    import revert, extatic, rje_apollo
-except: print 'Note: Failed to import dev modules etc. Some experimental features unavailable.\n|--------------------------------------|'
+    import extatic, rje_genomics
+except: print('Note: Failed to import dev modules etc. Some experimental features unavailable.\n|--------------------------------------|')
 #########################################################################################################################
 def history():  ### Program History - only a method for PythonWin collapsing! ###
     '''
@@ -145,6 +148,9 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 1.21.0 - Added NG50 and LG50 to batch summarise.
     # 1.22.0 - Added BUSCOMP to programs.
     # 1.23.0 - Added rje_ppi.PPI to programs.
+    # 1.23.1 - Fixed GCPC bug in summarise().
+    # 1.23.2 - Dropped pacbio as synonym for smrtscape. (Causing REST server issues.)
+    # 1.24.0 - Added SAAGA, Diploidocus, SynBad and rje_genomics to programs.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -161,7 +167,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copy_right) = ('SeqSuite', '1.23.0', 'May 2019', '2014')
+    (program, version, last_edit, copy_right) = ('SeqSuite', '1.24.0', 'December 2020', '2014')
     description = 'Miscellaneous biological sequence analysis tools suite'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_obj.zen()]
@@ -196,6 +202,9 @@ def setupProgram(): ### Basic Setup of Program when called from commandline.
     '''
     try:### ~ [1] ~ Initial Command Setup & Info ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         info = makeInfo()                                   # Sets up Info object with program details
+        if len(sys.argv) == 2 and sys.argv[1] in ['version','-version','--version']: rje.printf(info.version); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: rje.printf('{0} v{1}'.format(info.program,info.version)); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['description','-description','--description']: rje.printf('%s: %s' % (info.program,info.description)); sys.exit(0)
         cmd_list = rje.getCmdList(sys.argv[1:],info=info)   # Reads arguments and load defaults from program.ini
         out = rje.Out(cmd_list=cmd_list)                    # Sets up Out object for controlling output to screen
         out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2 
@@ -216,7 +225,8 @@ mod = {'seqlist':rje_seqlist,'rje_seqlist':rje_seqlist,'rje_seq':rje_seq,'seq':r
        'pydocs':rje_pydocs,'genbank':rje_genbank,'gopher':gopher,'gablam':gablam,'pagsat':pagsat,'smrtscape':smrtscape,
        'gasp':gasp,'gff':rje_gff,'summarise':None,'apollo':rje_apollo,'rje_apollo':rje_apollo,'webapollo':rje_apollo,
        'samtools':rje_samtools,'snapper':snapper,'snp_mapper':snp_mapper,
-       'ensembl':rje_ensembl,'rje_ensembl':rje_ensembl,'extatic':extatic,'pacbio':smrtscape,
+       'saaga':saaga, 'diploidocus':diploidocus, 'synbad':synbad,'rje_genomics':rje_genomics,'genomics':rje_genomics,
+       'ensembl':rje_ensembl,'rje_ensembl':rje_ensembl,'extatic':extatic,
        'fiesta':fiesta,'haqesac':haqesac,'multihaq':multihaq,'revert':revert}
 #########################################################################################################################
 # List of queries to remove from command list in REST server output
@@ -352,9 +362,7 @@ class SeqSuite(rje_obj.RJE_Object):
                 self.printLog('#CMD','Full %s CmdList: %s' % (i.program,rje.argString(rje.tidyArgs(progcmd,nopath=self.getStrLC('Rest') and not self.dev(),purgelist=purgelist))),screen=False)
                 #self.debug(prog); self.debug(progcmd)
             ## ~ [1a] ~ Make self.obj['Prog'] ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-                if prog in ['seqlist','rje_seqlist']:
-                    progcmd = ['reformat=rest'] + progcmd
-                    self.obj['Prog'] = rje_seqlist.SeqList(self.log,progcmd)
+                if prog in ['seqlist','rje_seqlist']: self.obj['Prog'] = rje_seqlist.SeqList(self.log,['reformat=rest'] + progcmd)
                 elif prog in ['uniprot','rje_uniprot']: self.obj['Prog'] = rje_uniprot.UniProt(self.log,progcmd)
                 elif prog in ['taxonomy','rje_taxonomy']: self.obj['Prog'] = rje_taxonomy.Taxonomy(self.log,progcmd)
                 elif prog in ['tree','rje_tree']: self.obj['Prog'] = rje_tree.Tree(self.log,progcmd)
@@ -377,7 +385,7 @@ class SeqSuite(rje_obj.RJE_Object):
                 elif prog in ['paf','rje_paf']: self.obj['Prog'] = rje_paf.PAF(self.log,progcmd)
                 elif prog in ['ppi','rje_ppi']: self.obj['Prog'] = rje_ppi.PPI(self.log,progcmd)
                 elif prog in ['pingu']: self.obj['Prog'] = pingu.PINGU(self.log,progcmd)
-                #elif prog in ['pacbio']: self.obj['Prog'] = rje_pacbio.PacBio(self.log,progcmd)
+                #X# Disabled: elif prog in ['pacbio']: self.obj['Prog'] = rje_pacbio.PacBio(self.log,progcmd)
                 elif prog in ['pagsat']: self.obj['Prog'] = pagsat.PAGSAT(self.log,progcmd)
                 elif prog in ['smrtscape','pacbio']: self.obj['Prog'] = smrtscape.SMRTSCAPE(self.log,progcmd)
                 elif prog in ['samtools']: self.obj['Prog'] = rje_samtools.SAMtools(self.log,progcmd)
@@ -385,8 +393,12 @@ class SeqSuite(rje_obj.RJE_Object):
                 elif prog in ['snp_mapper']: self.obj['Prog'] = snp_mapper.SNPMap(self.log,progcmd)
                 elif prog in ['rje_zen','zen','zentest']: self.obj['Prog'] = rje_zen.Zen(self.log,progcmd)
                 elif prog in ['rje_blast','blast','blast+']: self.obj['Prog'] = rje_blast.BLASTRun(self.log,progcmd)
-                elif prog in ['rje_apollo','apollo','webapollo']: self.obj['Prog'] = rje_apollo.Apollo(self.log,progcmd)
+                elif prog in ['apollo','rje_apollo','webapollo']: self.obj['Prog'] = rje_apollo.Apollo(self.log,progcmd)
                 elif prog in ['buscomp']: self.obj['Prog'] = buscomp.BUSCOMP(self.log,progcmd)
+                elif prog in ['diploidocus']: self.obj['Prog'] = diploidocus.Diploidocus(self.log,progcmd)
+                elif prog in ['saaga']: self.obj['Prog'] = saaga.SAAGA(self.log,progcmd)
+                elif prog in ['synbad']: self.obj['Prog'] = synbad.SynBad(self.log,progcmd)
+                elif prog in ['rje_genomics','genomics']: self.obj['Prog'] = rje_genomics.Genomics(self.log,progcmd)
 
             ### ~ [2] ~ Failure to recognise program ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if not self.obj['Prog']:
@@ -471,13 +483,14 @@ class SeqSuite(rje_obj.RJE_Object):
             self.printLog('#BATCH','Batch summarising %s input files' % rje.iLen(self.list['BatchRun']))
             for file in self.list['BatchRun']:
                 seqdata = rje_seqlist.SeqList(self.log,self.cmd_list+['seqin=%s' % file,'autoload=T','summarise=F']).summarise()
+                #!# For gapstats and fracstats, add retrieval and integration of SeqList.db() 'fracstats' and 'gaps' tables
                 if seqdata:
-                    if 'GC' in seqdata:
+                    if 'GC' in seqdata and 'GCPC' in seqdata:
                         seqdata.pop('GC')
                         seqdata['GCPC'] = '%.2f' % seqdata['GCPC']
                     if 'GapLength' in seqdata: seqdata['GapPC'] = '%.2f' % (100.0*seqdata['GapLength']/seqdata['TotLength'])
                     seqdata['MeanLength'] = '%.1f' % seqdata['MeanLength']
-                    for field in string.split('SeqNum, TotLength, MinLength, MaxLength, MeanLength, MedLength, N50Length, L50Count, NG50Length, LG50Count, GapLength, GapPC, GCPC',', '):
+                    for field in string.split('SeqNum, TotLength, MinLength, MaxLength, MeanLength, MedLength, N50Length, L50Count, NG50Length, LG50Count, N50Ctg, L50Ctg, GapLength, GapPC, GCPC',', '):
                         if field in seqdata and field not in sdb.fields(): sdb.addField(field)
                     for field in seqdata.keys():
                         if field not in sdb.fields(): sdb.addField(field)

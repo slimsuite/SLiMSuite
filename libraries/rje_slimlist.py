@@ -19,8 +19,8 @@
 """
 Module:       rje_slimlist
 Description:  SLiM dataset manager
-Version:      1.8.0
-Last Edit:    17/05/19
+Version:      1.7.5
+Last Edit:    12/11/19
 Copyright (C) 2007  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -119,6 +119,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 1.7.2 - Fixed bug that could not accept variable length motifs from commandline. Improved error message.
     # 1.7.3 - Fixed bug that could not accept variable length motifs from commandline. Improved error message.
     # 1.7.4 - Modified concetanation of SLiMSuite results to use "|" in place of "#" for better compatibility.
+    # 1.7.5 - Added '>' and '<' to list of patterns to ignore during loading.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -126,11 +127,12 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
     # [ ] : Add defined ambiguities to automatically include. (e.g. MSMS mode)
     # [ ] : Make sure that (A|B) would be replaced with [AB] and not split.
     # [Y] : Replace ? with {0,1}
+    # [ ] : Make sure that (Q)SLiMFinder data is compatible with memsaver mode.
     '''
 #########################################################################################################################
 def makeInfo():     ### Makes Info object
     '''Makes rje.Info object for program.'''
-    (program, version, last_edit, cyear) = ('RJE_SLiMList', '1.8.0', 'May 2019', '2007')
+    (program, version, last_edit, cyear) = ('RJE_SLiMList', '1.7.5', 'November 2019', '2007')
     description = 'SLiM List Management Module'
     author = 'Dr Richard J. Edwards.'
     comments = ['In development',rje_zen.Zen().wisdom()]
@@ -472,7 +474,7 @@ class SLiMList(rje.RJE_Object):
                 sfdata = rje.dataDict(self,motfile,mainkeys=namekeys,datakeys=['Pattern'],delimit=delimit)
                 for returned in rje.sortKeys(sfdata):
                     data = sfdata[returned]
-                    if data['Pattern'] and data['Pattern'] not in ['.','-','X','!']:
+                    if data['Pattern'] and data['Pattern'] not in ['.','-','X','!','>','<']:
                         #i# Changed this for memsaver and motifout compatibility:
                         # name = string.replace(string.join(string.split(returned,delimit),'#'),' ','_')
                         name = string.replace(string.join(string.split(returned,delimit),'|'),' ','_')

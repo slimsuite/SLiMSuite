@@ -19,8 +19,8 @@
 """
 Program:      RJE_SEQ
 Description:  DNA/Protein sequence list module
-Version:      3.25.2
-Last Edit:    15/05/19
+Version:      3.25.3
+Last Edit:    21/12/20
 Copyright (C) 2005  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -202,6 +202,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 3.25.0 - 9spec=T/F   : Whether to treat 9XXXX species codes as actual species (generally higher taxa) [False]
     # 3.25.1 - Fixed -long_seqids retrieval bug.
     # 3.25.2 - Fixed 9spec filtering bug.
+    # 3.25.3 - Added some bug fixes from Norman that were giving him errors.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -1138,14 +1139,18 @@ class SeqList(rje.RJE_Object):
         if query:
             rawq = query
             for seq in self.seqs():
-                prenum = rje.matchExp('^(\d+_)(.+)$',seq.info['ID'])
-                if prenum and prenum[1] == query: query = prenum[0] + query
-                if query in [seq.info['ID'],seq.info['AccNum'],seq.shortName()]:
-                    if self.obj['QuerySeq'] != seq and old_qry != seq:     # Not Already query
-                        self.printLog('#QRY','Query Sequence = %s (%s %s).' % (seq.shortName(),seq.aaNum(),self.units()))
-                    self.obj['QuerySeq'] = seq
-                    self.seq.remove(seq)
-                    self.seq = [seq] + self.seqs()
+                try:
+                    prenum = rje.matchExp('^(\d+_)(.+)$',seq.info['ID'])
+                    if prenum and prenum[1] == query: query = prenum[0] + query
+                    if query in [seq.info['ID'],seq.info['AccNum'],seq.shortName()]:
+                        if self.obj['QuerySeq'] != seq and old_qry != seq:     # Not Already query
+                            self.printLog('#QRY','Query Sequence = %s (%s %s).' % (seq.shortName(),seq.aaNum(),self.units()))
+                        self.obj['QuerySeq'] = seq
+                        self.seq.remove(seq)
+                        self.seq = [seq] + self.seqs()
+                except:
+                    pass
+
             if not self.obj['QuerySeq'] and rje.matchExp('^(\d+)$',rawq):
                 qx = string.atoi(rje.matchExp('^(\d+)$',rawq)[0]) - 1
                 try: seq = self.seqs()[qx]
@@ -1584,23 +1589,25 @@ class SeqList(rje.RJE_Object):
             if name.lower() == 'teiresias': linelen = 0; id = False
             ### ~ [1] ~ Build output list ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             for seq in seqs:
-                ## ~ [1a] ~ Sequence name ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-                if name.lower() == 'short': outname = seq.shortName()
-                elif name.lower() == 'teiresias': outname = '%s 1' % seq.shortName()
-                elif name.lower() in ['num','number']: outname = '%d' % (self.seqs().index(seq)+1); id = False
-                else: outname = seq.info[name]
-                if id: outname = '%d %s' % (self.seqs().index(seq)+1,outname)
-                if (namelen > 0) & (len(outname) >= namelen): outname = outname[0:(namelen-3)] + '...'
-                outlist.append('>%s\n' % outname)
-                ## ~ [1b] ~ Sequence data ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-                sequence = seq.getSequence(case)
-                if (linelen > 0) and (seq.seqLen() > linelen):
-                    r = linelen
-                    while r < seq.seqLen():
-                        outlist.append('%s\n' % sequence[(r-linelen):r])
-                        r += linelen
-                    if seq.seq[(r-linelen):]: outlist.append('%s\n' % sequence[(r-linelen):])
-                else: outlist.append('%s\n' % sequence)
+                try:
+                    ## ~ [1a] ~ Sequence name ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+                    if name.lower() == 'short': outname = seq.shortName()
+                    elif name.lower() == 'teiresias': outname = '%s 1' % seq.shortName()
+                    elif name.lower() in ['num','number']: outname = '%d' % (self.seqs().index(seq)+1); id = False
+                    else: outname = seq.info[name]
+                    if id: outname = '%d %s' % (self.seqs().index(seq)+1,outname)
+                    if (namelen > 0) & (len(outname) >= namelen): outname = outname[0:(namelen-3)] + '...'
+                    outlist.append('>%s\n' % outname)
+                    ## ~ [1b] ~ Sequence data ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+                    sequence = seq.getSequence(case)
+                    if (linelen > 0) and (seq.seqLen() > linelen):
+                        r = linelen
+                        while r < seq.seqLen():
+                            outlist.append('%s\n' % sequence[(r-linelen):r])
+                            r += linelen
+                        if seq.seq[(r-linelen):]: outlist.append('%s\n' % sequence[(r-linelen):])
+                    else: outlist.append('%s\n' % sequence)
+                except: pass
             ### ~ [2] ~ Open file & write lines ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if append: open(seqfile, 'a').writelines(outlist)
             else: open(seqfile, 'w').writelines(outlist)
@@ -1827,26 +1834,29 @@ class SeqList(rje.RJE_Object):
             seqdic = {}
             (sx,seqnum) = (0.0,self.seqNum())
             for seq in self.seqs():
-                if proglog: self.printLog('\r#DICT','Making "%s" seqName dictionary: %.1f%%' % (key,sx/seqnum),newline=False,log=False)
-                sx += 100.0
-                if key == 'short': seqdic[seq.shortName()] = seq
-                elif key == 'NumName':
-                    name = seq.info['Name']
-                    if re.search('^\d+\s(\S.+)$',name):
-                        name = rje.matchExp('^\d+\s(\S.+)$',name)[0]
-                    seqdic[name] = seq
-                elif key == 'UniProt':
-                    seqdic[seq.info['ID']] = seq
-                    seqdic['%s_%s' % (seq.info['AccNum'],seq.info['SpecCode'])] = seq
-                elif key == 'Max':
-                    seqdic[seq.shortName()] = seq
-                    seqdic[seq.info['ID']] = seq
-                    seqdic[seq.info['AccNum']] = seq
-                    try:
-                        if seq.info['NCBI']: seqdic[seq.info['NCBI']] = seq
-                    except: pass
-                elif seq.info.has_key(key): seqdic[seq.info[key]] = seq
-                #!# else will return an empty dictionary #!#
+                try:
+                    if proglog: self.printLog('\r#DICT','Making "%s" seqName dictionary: %.1f%%' % (key,sx/seqnum),newline=False,log=False)
+                    sx += 100.0
+                    if key == 'short': seqdic[seq.shortName()] = seq
+                    elif key == 'NumName':
+                        name = seq.info['Name']
+                        if re.search('^\d+\s(\S.+)$',name):
+                            name = rje.matchExp('^\d+\s(\S.+)$',name)[0]
+                        seqdic[name] = seq
+                    elif key == 'UniProt':
+                        seqdic[seq.info['ID']] = seq
+                        seqdic['%s_%s' % (seq.info['AccNum'],seq.info['SpecCode'])] = seq
+                    elif key == 'Max':
+                        seqdic[seq.shortName()] = seq
+                        seqdic[seq.info['ID']] = seq
+                        seqdic[seq.info['AccNum']] = seq
+                        try:
+                            if seq.info['NCBI']: seqdic[seq.info['NCBI']] = seq
+                        except: pass
+                    elif seq.info.has_key(key): seqdic[seq.info[key]] = seq
+                    #!# else will return an empty dictionary #!#
+                except:
+                    pass
             if seqnum and proglog: self.printLog('\r#DICT','Made "%s" seqName dictionary: %s seq; %s keys.' % (key,rje.iStr(seqnum),rje.iStr(len(seqdic))))
             return seqdic
         except:

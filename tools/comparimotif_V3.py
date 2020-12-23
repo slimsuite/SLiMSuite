@@ -19,8 +19,8 @@
 """
 Program:      CompariMotif
 Description:  Motif vs Motif Comparison Software
-Version:      3.14.0
-Last Edit:    17/05/19
+Version:      3.14.1
+Last Edit:    12/11/19
 Citation:     Edwards, Davey & Shields (2008), Bioinformatics 24(10):1307-9. [PMID: 18375965]
 Webserver:    New webserver coming soon!
 Manual:       http://bit.ly/CompariMotifManual
@@ -179,6 +179,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 3.12- Replaced deprecated sets.Set() with set().
     # 3.13.0 - Added REST server function.
     # 3.14.0 - Modified memsaver mode to take different input formats.
+    # 3.14.1 - Fixed forking memsaver mode to take (Q)SLiMFinder input format.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -201,7 +202,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo():     ### Makes Info object
     '''Makes rje.Info object for program.'''
-    (program, version, last_edit, cyear) = ('CompariMotif', '3.14.0', 'May 2019', '2007')
+    (program, version, last_edit, cyear) = ('CompariMotif', '3.14.1', 'November 2019', '2007')
     description = 'Motif vs Motif Comparison'
     author = 'Dr Richard J. Edwards.'
     comments = ['Cite: Edwards RJ, Davey NE & Shields DC (2008). Bioinformatics 24(10):1307-9.']
@@ -236,6 +237,9 @@ def setupProgram(): ### Basic Setup of Program
     try:
         ### Initial Command Setup & Info ###
         info = makeInfo()
+        if len(sys.argv) == 2 and sys.argv[1] in ['version','-version','--version']: rje.printf(info.version); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: rje.printf('{0} v{1}'.format(info.program,info.version)); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['description','-description','--description']: rje.printf('%s: %s' % (info.program,info.description)); sys.exit(0)
         cmd_list = rje.getCmdList(sys.argv[1:],info=info)      ### Load defaults from program.ini
         ### Out object ###
         out = rje.Out(cmd_list=cmd_list)
@@ -555,6 +559,7 @@ class CompariMotif(rje.RJE_Object):
                 self.printLog('#TEST','Testing input for memaver compatibility.')
                 testline = string.split(MOTIFS.readline())
                 if 'Dataset' in testline: raise ValueError  # (Q)SLiMFinder output
+                elif 'Dataset,' in testline[0]: raise ValueError  # (Q)SLiMFinder output
                 testmot = testline[0]
                 while testmot.startswith('#'): testmot = string.split(MOTIFS.readline())[0]
                 #i# This should either return an acceptable motif, or raise a ValueError
@@ -1388,7 +1393,7 @@ class CompariMotif(rje.RJE_Object):
         '''Compares two lists of motifs against each other'''
         try:### ~ [0] Setup Motif Lists and Output Headers ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if not self.setupCompareForker(): return False
-            self.warnLog('Running CompariMotif in MemSaver mode. Not all outputs etc. will be possible.')
+            self.warnLog('Running CompariMotif in MemSaver forking mode. Not all outputs etc. will be possible.')
             motifs = self.obj['SlimList']          
             resfile = self.info['Resfile']
             minshare = self.stat['MinShare']
@@ -1396,6 +1401,26 @@ class CompariMotif(rje.RJE_Object):
             motfile = rje.baseFile(self.info['Name'],strip_path=True)
             searchdb =  rje.baseFile(self.info['SearchDB'])
             compdb = self.obj['SearchDB']
+            ## ~ [0a] Convert format if required ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            #!# If not in PRESTO format, will need to convert, save and use converted file
+            MOTIFS = open(motifs.info['Motifs'],'r')
+            try:
+                if motifs.info['MotInfo'].lower() not in ['','none']: motifs.motifInfo()    # Do after IC adjustment
+                self.printLog('#TEST','Testing input for memaver compatibility.')
+                testline = string.split(MOTIFS.readline())
+                if 'Dataset' in testline: raise ValueError  # (Q)SLiMFinder output
+                elif 'Dataset,' in testline[0]: raise ValueError  # (Q)SLiMFinder output
+                testmot = testline[0]
+                while testmot.startswith('#'): testmot = string.split(MOTIFS.readline())[0]
+                #i# This should either return an acceptable motif, or raise a ValueError
+                test = rje_slim.slimFromPattern(testmot)
+                MOTIFS.close()
+            except:
+                MOTIFS.close()
+                self.warnLog('Input format not compatible with MemSaver: will try to reformat')
+                motifs.loadMotifs()
+                motifs.info['Motifs'] = '%s.reformatted.motif' % rje.baseFile(motifs.info['Motifs'])
+                motifs.motifOut(filename=motifs.info['Motifs'])
 
             ### ~ [1] Compare Motifs ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             mtotx = 0

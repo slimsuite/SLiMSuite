@@ -107,6 +107,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 1.7.1 - Added error raising for protected REST alias data.
     # 1.8.0 - Added BUSCOMP and basic test function.
     # 1.8.1 - Updated documentation and added IUPred2. General tidy up and new example data for protocols paper.
+    # 1.9.0 - Added SAAGA, Diploidocus, SynBad and Genomics. Slight module tidy for GitHub updates.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -121,7 +122,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copy_right) = ('SLiMSuite', '1.8.1', 'May 2019', '2014')
+    (program, version, last_edit, copy_right) = ('SLiMSuite', '1.9.0', 'December 2020', '2014')
     description = 'Short Linear Motif analysis Suite'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',
@@ -158,7 +159,9 @@ def setupProgram(argcmd,fullcmd=True): ### Basic Setup of Program when called fr
     '''
     try:### ~ [1] ~ Initial Command Setup & Info ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         info = makeInfo()                                   # Sets up Info object with program details
-        if len(sys.argv) == 2 and sys.argv[1] in ['version','-version','--version']: print('%s v%s' % (info.program,info.version)); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['version','-version','--version']: rje.printf(info.version); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: rje.printf('{0} v{1}'.format(info.program,info.version)); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['description','-description','--description']: rje.printf('%s: %s' % (info.program,info.description)); sys.exit(0)
         cmd_list = rje.getCmdList(argcmd,info=info)         # Reads arguments and load defaults from program.ini
         out = rje.Out(cmd_list=cmd_list)                    # Sets up Out object for controlling output to screen
         out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2 

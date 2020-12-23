@@ -190,6 +190,8 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
     # [ ] : Reorganise and tidy.
     # [ ] : Update Docs.
     # [ ] : Check gablamfrag, fragmerge and addflanks in the light of GABLAM updates.
+    # [ ] : See if mmseq2 can speed up some of these steps. (Initial pre-screen and mask for the blast search?)
+    # [ ] : Possible mmseq2 pre-screen of the viruses? Keep those with hits within given range (min->max)
     '''
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.

@@ -19,8 +19,8 @@
 """
 Module:       rje_gff
 Description:  GFF File Parser and Manipulator
-Version:      0.1.0
-Last Edit:    23/03/18
+Version:      0.2.1
+Last Edit:    20/11/20
 Webserver:    http://www.slimsuite.unsw.edu.au/servers/gff.php
 Copyright (C) 2018  Richard J. Edwards - See source code for GNU License Notice
 
@@ -60,7 +60,7 @@ Commandline:
     gfffasta=T/F    : Whether to output parsed GFF sequences to `*.fasta` [False]
     attributes=LIST : List of attributes (X=Y;) to pull out into own fields ("*" or "all" for all) [*]
     attfield=T/F    : Whether to keep the full attribute field as parsed from the GFF file [False]
-    gffout=FILE     : Save updated GFF format to FILE [*Not yet implemented*] [None]
+    gffout=FILE     : Save updated GFF format to FILE [None]
     gffseq=T/F      : Whether to include sequences in updated GFF file [False]
 
     ### ~ GFF Processing Options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -79,7 +79,7 @@ Commandline:
 #########################################################################################################################
 ### SECTION I: GENERAL SETUP & PROGRAM DETAILS                                                                          #
 #########################################################################################################################
-import os, string, sys, time
+import os, random, string, sys, time
 slimsuitepath = os.path.abspath(os.path.join(os.path.dirname(os.path.realpath(__file__)),'../')) + os.path.sep
 sys.path.append(os.path.join(slimsuitepath,'libraries/'))
 sys.path.append(os.path.join(slimsuitepath,'tools/'))
@@ -91,6 +91,11 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     '''
     # 0.0.0 - Initial Compilation.
     # 0.1.0 - Basic functional version.
+    # 0.1.1 - Modified for splice isoform handling
+    # 0.1.2 - Fixed parsing of GFFs with sequence-region information interspersed with features.
+    # 0.1.3 - Added option to parseGFF to switch off the attribute parsing.
+    # 0.2.0 - Added gff output with ability to fix GFF of tab delimit errors
+    # 0.2.1 - Added restricted feature parsing from GFF.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -108,7 +113,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copy_right) = ('RJE_GFF', '0.1.0', 'March 2018', '2018')
+    (program, version, last_edit, copy_right) = ('RJE_GFF', '0.2.1', 'November 2020', '2018')
     description = 'GFF File Parser and Manipulator'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_obj.zen()]
@@ -359,9 +364,14 @@ class GFF(rje_obj.RJE_Object):
 #########################################################################################################################
     ### <3> ### GFF Parsing Methods                                                                                     #
 #########################################################################################################################
-    def parseGFF(self,gfile):      ### Generic method
+    def parseGFF(self,gfile,parseattributes=True,attfields=None,fix=True,ftypes=()):      ### Generic method
         '''
         Main GFF Parsing method. Parses comments, sequences and features from gfile.
+        >> gfile:str = GFF file to parse
+        >> parseattributes:bool [True] = Whether to parse attributes
+        >> attfields:dict [None] = translation of attributes to field names. Defaults to lower case attribute.
+        >> fix:bool [True] = Whether to try to fix entries without tab separation.
+        >> ftypes:tuple [()] = Tuple or list of restricted feature types to parse (case sensitive)
 
         ##gff-version 3
         ##sequence-region fca0000601_BEN4355A1__BEN4355A1F4A.0000601 1 28423
@@ -379,17 +389,41 @@ class GFF(rje_obj.RJE_Object):
         try:### ~ [1] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             db = self.db()
             sdb = db.addEmptyTable('loci',['locus','start','end','sequence'],['locus'])
-            gfields = ['locus', 'source', 'ftype', 'start', 'end', 'score', 'strand', 'phase']
+            gfields = ['#','locus', 'source', 'ftype', 'start', 'end', 'score', 'strand', 'phase']
+            #i# attfield=F does not stop parsing of attributes but stops storage of attributes field
             if self.getBool('AttField'): gfields.append('attributes')
+            ## ~ [1a] Setup parsing of attributes ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             addatt = False
-            if 'all' in rje.listLower(self.list['Attributes']) or '*' in self.list['Attributes']: addatt = True
-            else:
-                gfields += self.list['Attributes']
-                for fstr in ['WarnField','IDField']:
-                    if fstr not in self.list['Attributes']:
-                        gfields.append(self.getStr(fstr))
-                        self.printLog('#FIELD','Added %s field (%s) to Attributes parsing list' % (fstr,self.getStr(fstr)))
-            gdb = db.addEmptyTable('features',gfields,['locus','strand','start','end','source','ftype'])
+            attfieldlist = []
+            afields = []
+            if not attfields: attfields = {}
+            if parseattributes:
+                if 'all' in rje.listLower(self.list['Attributes']) or '*' in self.list['Attributes']: addatt = True
+                else:
+                    #attfieldlist = rje.listLower(self.list['Attributes'])
+                    attfieldlist = self.list['Attributes']
+                    for fstr in ['WarnField','IDField']:
+                        #ffield = self.getStrLC(fstr)
+                        #if ffield and ffield not in gfields:
+                        #    gfields.append(ffield)
+                        #    self.printLog('#FIELD','Added %s=%s field to Attributes parsing list' % (fstr,ffield))
+                        if self.getStrLC(fstr) and self.getStr(fstr) not in attfieldlist:
+                            attfieldlist.append(self.getStr(fstr))
+                            self.printLog('#FIELD','Added %s=%s to Attributes parsing list' % (fstr,self.getStr(fstr)))
+                    for field in attfieldlist:
+                        if field not in attfields:
+                            if field.lower() in gfields:
+                                attfields[field] = 'att-{0}'.format(field.lower())
+                                self.warnLog('Attribute "%s" will be parsed as "att-%s"' % (field,field.lower()))
+                            else: attfields[field] = field.lower()
+                        elif attfields[field] in gfields: self.warnLog('Attribute "%s" will replace GFF field "%s"' % (field,field.lower()))
+                        if attfields[field] not in gfields:
+                            afields.append(attfields[field])
+            #gdb = db.addEmptyTable('features',gfields,['locus','strand','start','end','source','ftype'])
+            gdb = db.addEmptyTable('features',gfields+afields,['#'])
+            gffdata = gdb.dict['Data'] = {}   # Entries being parsed
+            gx = 0  # Feature counter
+            nx = 0  # Skipped feature counter
             comments = self.list['Comments'] = []
             ### ~ [2] Parse file ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             #i# NOTE: This is not designed to be memory efficient. May want a memsaver version in future.
@@ -402,25 +436,78 @@ class GFF(rje_obj.RJE_Object):
                 seqdata = rje.matchExp('##sequence-region (\S+) (\d+) (\d+)',gtext)
                 if seqdata: sdb.addEntry({'locus':seqdata[0],'start':int(seqdata[1]),'end':int(seqdata[2]),'sequence':''})
             self.printLog('\r#COMM','%s comments parsed; %s sequence-regions' % (rje.iLen(comments),rje.iStr(sdb.entryNum())))
+            sregx = sdb.entryNum()
             ## ~ [2b] Features ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            if ftypes:
+                self.debug('%s' % ftypes)
+                ftnr = rje.sortUnique(ftypes)
+                if '' in ftnr: ftnr.remove('')
+                self.printLog('#GFF','Parsing %d feature types: %s' % (len(ftnr),','.join(ftnr)))
+            else: self.printLog('#GFF','Parsing all feature types.')
             self.progLog('#GFF','Parsing GFF features...')
-            while glines and not glines[0].startswith('#'):
+            prand = random.randint(1,200)
+            while glines:
+                if self.dev() or not prand:
+                    self.progLog('\r#GFF','Parsing GFF features... %s features; %s sequence-regions; %s features skipped' % (rje.iStr(gx),rje.iStr(sregx),rje.iStr(nx)))
+                    prand = random.randint(1,200)
+                else: prand -= 1
+                if glines[0].startswith('##FASTA'): break
                 gtext = rje.chomp(glines.pop(0))
+                if gtext.startswith('#'):
+                    comments.append(gtext)
+                    seqdata = rje.matchExp('##sequence-region (\S+) (\d+) (\d+)',gtext)
+                    if seqdata: sdb.addEntry({'locus':seqdata[0],'start':int(seqdata[1]),'end':int(seqdata[2]),'sequence':''})
+                    sregx = sdb.entryNum()
+                    continue
                 gdata = string.split(gtext,'\t')
                 gentry = {}
                 try:
+                    if ftypes and gdata[2] not in ftypes: nx +=1; continue
                     for col in ['locus', 'source', 'ftype', 'start', 'end', 'score', 'strand', 'phase', 'attributes']:
                         gentry[col] = gdata.pop(0)
                     for col in ['start', 'end']:
                         gentry[col] = int(gentry[col])
                     if gdata: raise ValueError('Too many fields in GFF line!')
-                except: self.errorLog('Problem parsing GFF line: %s' % gtext)
-                for attdata in string.split(gentry['attributes'],';'):
-                    [att,val] = string.split(attdata,'=')
-                    if addatt and att not in gdb.fields(): gdb.addField(att)
-                    if att in gdb.fields(): gentry[att] = val
-                gdb.addEntry(gentry)
-            self.printLog('\r#GFF','%s features parsed from %s' % (rje.iStr(gdb.entryNum()),gfile))
+                except:
+                    try:
+                        if not fix: raise
+                        #i# Add attempt to fix
+                        gdata = gtext.split()
+                        for col in ['locus', 'source', 'ftype', 'start', 'end', 'score', 'strand', 'phase']:
+                            gentry[col] = gdata.pop(0)
+                        for col in ['start', 'end']:
+                            gentry[col] = int(gentry[col])
+                        gentry['attributes'] = ' '.join(data)
+                    except: self.errorLog('Problem parsing GFF line: %s' % gtext)
+
+                if parseattributes:
+                    if addatt:
+                        attlist = rje.longCmd(string.split(gentry['attributes'],';'))
+                        #self.debug('%s' % attlist)
+                        for attdata in attlist:
+                            if not attdata: continue
+                            try:
+                                [att,val] = string.split(attdata,'=')
+                                if att not in attfields:
+                                    if att.lower() in gfields:
+                                        attfields[att] = 'att-{0}'.format(att.lower())
+                                        self.warnLog('Attribute "%s" will be parsed as "att-%s"' % (att,att.lower()))
+                                    else: attfields[att] = att.lower()
+                                gentry[attfields[att]] = val
+                                if attfields[att] not in gdb.fields(): gdb.addField(attfields[att])
+                            except:
+                                self.warnLog('Problem with GFF attribute: {0}'.format(attdata))
+                    else:
+                        attstr = ';{0};'.format(gentry['attributes'])
+                        for att in attfieldlist:
+                            if rje.matchExp(';{0}=([^;]+);'.format(att),attstr):
+                                gentry[attfields[att]] = rje.matchExp(';{0}=([^;]+);'.format(att),attstr)[0]
+                gx += 1
+                gentry['#'] = gx
+                gffdata[gentry['#']] = gentry
+            #if self.dev(): self.printLog('\r#GFF','%s features and %s sequence-regions parsed from %s' % (rje.iStr(gx),rje.iStr(sregx),gfile))
+            self.printLog('\r#GFF','Parsing GFF features complete: %s features; %s sequence-regions; %s features skipped.' % (rje.iStr(gx),rje.iStr(sregx),rje.iStr(nx)))
+            self.printLog('\r#GFF','%s features and %s sequence-regions parsed from %s' % (rje.iStr(gdb.entryNum()),rje.iStr(sregx),gfile))
             gdb.indexReport('ftype')
             ## ~ [2c] Sequences ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             fx = 0
@@ -709,7 +796,13 @@ class GFF(rje_obj.RJE_Object):
             if self.getBool('GFFFasta'):
                 self.printLog('#DEV','GFFFasta output not yet implemented.')
             if self.getStrLC('GFFOut'):
-                self.printLog('#DEV','GFFOut output not yet implemented.')
+                gffdb = self.db('features')
+                if not gffdb or not gffdb.entryNum():
+                    self.printLog('#OUT','Cannot save to GFFOut: no GFF features parsed.')
+                else:
+                    gfields = ['locus', 'source', 'ftype', 'start', 'end', 'score', 'strand', 'phase']
+                    #i# Save comments first then, table with selected headers, minus the headers!
+                    gffdb.saveToFile(self.getStr('GFFOut'),delimit='\t',backup=True,append=False,savefields=gfields,log=True,headers=False,comments=self.list['Comments'])
 
             return True     # Setup successful
         except: self.errorLog('Problem during %s saveGFFData.' % self.prog()); return False  # Setup failed

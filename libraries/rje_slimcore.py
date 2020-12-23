@@ -24,7 +24,7 @@ Last Edit:    24/05/19
 Copyright (C) 2007  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
-    This module is primarily to contain core dataset processing methods for both SLiMFinder and SLiMProv to inherit and
+    This module is primarily to contain core dataset processing methods for both SLiMFinder and SLiMProb to inherit and
     use. This primarily consists of the options and methods for masking datasets and generating UPC. This module can
     therefore be run in standalone mode to generate UPC files for SLiMFinder or SLiMProb. It can also be used to generate
     "MegaSLiM" files of precomputed scores that can be used for subsequent subdata.

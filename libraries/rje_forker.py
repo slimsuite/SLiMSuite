@@ -19,8 +19,8 @@
 """
 Module:       rje_forker
 Description:  Generic RJE Forking Module
-Version:      0.0
-Last Edit:    15/08/13
+Version:      0.1.0
+Last Edit:    10/12/20
 Copyright (C) 2013  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -38,6 +38,7 @@ Commandline:
     noforks=T/F     : Whether to avoid forks [False]
     forks=X         : Number of parallel sequences to process at once [0]
     killforks=X     : Number of seconds of no activity before killing all remaining forks. [36000]
+    killmain=T/F    : Whether to kill main thread rather than individual forks when killforks reached. [True]
     forksleep=X     : Sleep time (seconds) between cycles of forking out more process [0]
     rjepy=T/F       : Whether forked commands are rje Python commands [False]
     logfork=T/F     : Whether to log forking in main log [True]
@@ -56,7 +57,10 @@ import rje, rje_obj
 #########################################################################################################################
 def history():  ### Program History - only a method for PythonWin collapsing! ###
     '''
-    # 0.0 - Initial Compilation.
+    # 0.0.0 - Initial Compilation.
+    # 0.0.1 - Tweaked the logfork=F log forking output.
+    # 0.0.2 - Fixed formatting for Python 2.6 back compatibility for servers.
+    # 0.1.0 - Added killmain=T/F    : Whether to kill main thread rather than individual forks when killforks reached. [True]
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -69,7 +73,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copy_right) = ('rje_forker', '0.0', 'August 2013', '2013')
+    (program, version, last_edit, copy_right) = ('rje_forker', '0.1.0', 'December 2020', '2013')
     description = 'Generic RJE Forking Module'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_obj.zen()]
@@ -141,6 +145,7 @@ class Forker(rje_obj.RJE_Object):
     Num:float
     - ForkSleep = Sleep time (seconds) between cycles of forking out more process [0]
     - KillForks = Time to monitor for killing of hanging forks [36000]
+    - KillMain=T/F    : Whether to kill main thread rather than individual forks when killforks reached. [True]
     - KillTime = Monitors start of time period to be assessed for hanging forks [time.time()]
     - MemFree = Minimum % memory that should be free to start new fork. (Not yet implemented.)
 
@@ -160,7 +165,7 @@ class Forker(rje_obj.RJE_Object):
         '''Sets Attributes of Object.'''
         ### ~ Basics ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         self.strlist = []
-        self.boollist = ['PIDCheck','RjePy','LogFork']
+        self.boollist = ['PIDCheck','RjePy','LogFork','KillMain']
         self.intlist = ['IOLimit']
         self.numlist = ['MemFree','ForkSleep','KillForks','KillTime']
         self.listlist = ['ToFork','Forked','ResFile']
@@ -169,7 +174,7 @@ class Forker(rje_obj.RJE_Object):
         ### ~ Defaults ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         self._setDefaults(str='None',bool=False,int=0,num=0.0,obj=None,setlist=True,setdict=True)
         self.setStr({})
-        self.setBool({'RjePy':False,'LogFork':True})
+        self.setBool({'RjePy':False,'LogFork':True,'KillMain':True})
         self.setInt({'IOLimit':50})
         self.setNum({'MemFree':0.0,'ForkSleep':0.0,'KillForks':36000,'KillTime':time.time()})
         ### ~ Other Attributes ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -189,7 +194,7 @@ class Forker(rje_obj.RJE_Object):
                 #self._cmdReadList(cmd,'str',['Att'])   # Normal strings
                 self._cmdReadList(cmd,'path',['ForkDir'])  # String representing directory path 
                 #self._cmdReadList(cmd,'file',['Att'])  # String representing file path 
-                self._cmdReadList(cmd,'bool',['LogFork','PIDCheck','RjePy'])  # True/False Booleans
+                self._cmdReadList(cmd,'bool',['KillMain','LogFork','PIDCheck','RjePy'])  # True/False Booleans
                 self._cmdReadList(cmd,'int',['IOLimit'])   # Integers
                 self._cmdReadList(cmd,'float',['MemFree','ForkSleep','KillForks']) # Floats
                 #self._cmdReadList(cmd,'min',['Att'])   # Integer value part of min,max command
@@ -214,7 +219,7 @@ class Forker(rje_obj.RJE_Object):
             self.setup()
             ### ~ [2] ~ Add main run code here ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             self.forking()
-            self.printLog('#FORK','Forking of %s jobs completed.' % (rje.iStr(forkx)))
+            self.printLog('#FORK','Forking of %s jobs completed.' % (rje.iStr(forkx)),log=self.getBool('LogFork'))
         except:  self.errorLog('Forker.run() Error')
         if self.list['Forked']:
             self.warnLog('%s fork jobs remain unforked.' % rje.iLen(self.list['Forked']))
@@ -236,6 +241,8 @@ class Forker(rje_obj.RJE_Object):
         #self.deBug(pidcheck)
         ### ~ [2] ~ Monitor jobs and set next one running as they finish ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         while self.list['Forked']:
+            if not self.getBool('LogFork'):
+                self.progLog('\r#FORK','Forking jobs: {0} running; {1} remain.'.format(len(self.list['Forked']),rje.iLen(self.list['ToFork'])))
             if pidcheck: PIDCHECK = open(pidcheck,'w')
             for fdict in self.list['Forked'][0:]:
                 try:
@@ -257,9 +264,10 @@ class Forker(rje_obj.RJE_Object):
                 self.verbose(0,1,'\n%d seconds of main thread inactivity. %d forks still active!' % (self.getNum('KillForks'),len(self.list['Forked'])),1)
                 for fdict in self.list['Forked']:
                     self.verbose(0,2,' => Fork %s, PID %d still Active!' % (fdict['ID'],fdict['PID']),1)
-                if self.i() < 0 or rje.yesNo('Kill Main Thread?'):
+                if (self.i() < 0 and self.getBool('KillMain')) or rje.yesNo('Kill Main Thread?'):
                     raise ValueError('%d seconds of main thread inactivity. %d forks still active!' % (self.getNum('KillForks'),len(self.list['Forked'])))
-                elif rje.yesNo('Kill hanging forks?'):
+                elif self.i() < 0 or rje.yesNo('Kill hanging forks?'):
+                    self.printLog('#KILL','KillForks=%d seconds walltime reached.' % (self.getNum('KillForks')))
                     for fdict in self.list['Forked']:
                         self.printLog('#KILL','Killing Fork %s, PID %d.' % (fdict['ID'],fdict['PID']))
                         os.system('kill %d' % fdict['PID'])
@@ -286,7 +294,7 @@ class Forker(rje_obj.RJE_Object):
         '''Sets a new fork going using the data in fdict.'''
         try:### ~ [0] ~ Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             fdict['cmd'] = self.list['ToFork'].pop(0)
-            fdict['ID'] = 'Fork %d' % self.list['Forked'].index(fdict)
+            fdict['ID'] = 'Fork -%d' % (len(self.list['ToFork'])+1)
             fdict['FID'] = 'f_%s' % rje.randomString(6)
             if self.getBool('RjePy'):
                 fdict['Log'] = '%s%s.log' % (self.getStr('RunPath'),fdict['FID'])
@@ -299,8 +307,8 @@ class Forker(rje_obj.RJE_Object):
             cpid = os.fork()        # Fork child process
             if cpid:                # parent process records pid of child rsh process
                 fdict['PID'] = cpid
-                self.printLog('#FORK','Forking cmd as %s: %d remain; %.1f%% mem free' % (cpid,len(self.list['ToFork']),fdict['Mem']))
-                self.printLog('#FORK','%s cmd: %s' % (cpid,fdict['cmd']))
+                self.printLog('\r#FORK','Forking cmd as %s: %d remain; %.1f%% mem free' % (cpid,len(self.list['ToFork']),fdict['Mem']),log=self.getBool('LogFork'),screen=self.getBool('LogFork') or self.v() > 1)
+                self.printLog('#FORK','%s cmd: %s' % (cpid,fdict['cmd']),log=self.getBool('LogFork'),screen=self.getBool('LogFork') or self.v() > 1)
             else:                   # child process
                 os.system(fdict['cmd'])
                 os._exit(0)
@@ -328,7 +336,7 @@ class Forker(rje_obj.RJE_Object):
                 #if self.dev(): self.deBug(fdict['Log'])
                 #if self.dev(): self.deBug(rje.exists(fdict['Log']))
             elif 'PID' in fdict and string.split('%s' % fdict['PID'])[0] == 'WAIT': pass
-            else: self.printLog('#END','Fork %s ended.' % fdict['PID'])
+            else: self.printLog('#END','Fork %s ended.' % fdict['PID'],log=self.getBool('LogFork'),screen=self.getBool('LogFork') or self.v() > 1)
         except IOError:
             if self.getInt('IOError') == 1: self.errorLog('Forker.endFork IOError limit reached'); raise
             else: self.int['IOError'] -= 1; self.errorLog('Forker.endFork')

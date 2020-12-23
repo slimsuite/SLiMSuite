@@ -68,6 +68,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
     # [X] : Add REST outputs to restSetup() and restOutputOrder()
     # [ ] : Add to SLiMSuite or SeqSuite.
     # [ ] : Add clade counts
+    # [ ] : Give a new name once standalone functions set.
     '''
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.

@@ -19,8 +19,8 @@
 """
 Program:      GABLAM
 Description:  Global Analysis of BLAST Local AlignMents
-Version:      2.30.1
-Last Edit:    01/04/19
+Version:      2.30.5
+Last Edit:    13/11/19
 Citation:     Davey, Shields & Edwards (2006), Nucleic Acids Res. 34(12):3546-54. [PMID: 16855291]
 Manual:       http://bit.ly/GABLAMManual
 Copyright (C) 2006  Richard J. Edwards - See source code for GNU License Notice
@@ -185,10 +185,10 @@ Commandline:
     fragmerge=X     : Max Length of gaps between fragmented local hits to merge [0]
     addflanks=X     : Add flanking regions of length X to fragmented hits [0]
     combinedfas=T/F : Whether to generate a combined fasta file [False]
-
-    ### ~ Advanced/Obselete Search/Output Options ~ ###
     dotplots=T/F    : Whether to use gablam.r to output dotplots. (Needs R installed and setup) [False]
     dotlocalmin=X   : Minimum length of local alignment to output to local hit dot plots [1000]
+
+    ### ~ Advanced/Obsolete Search/Output Options ~ ###
     mysql=T/F       : Whether to output column headers for mysql table build [False]
     missing=LIST    : This will go through and add missing results for AccNums in FILE (or list of AccNums X,Y,..) [None]
     startfrom=X     : Accession number to start from [None]
@@ -298,6 +298,10 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 2.29.0 - Added localGFF=T/F output.
     # 2.30.0 - Added mapper=X : Program to use for mapping files against each other (blast/minimap) [blast]
     # 2.30.1 - Fixed BLAST LocalIDCut error for GABLAM and QAssemble stat filtering.
+    # 2.30.2 - Stopped BLAST program checks and FormatDB when mapper isn't BLAST.
+    # 2.30.3 - Minor tweak to NRSeq removal to work through GABLAM hits in reverse query size order.
+    # 2.30.4 - Removed duplication error messages when combining fasout results.
+    # 2.30.5 - Fixed missing BLAST database for sequence extraction.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -338,11 +342,13 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
     # [ ] : Check that blastres=FILE is not deleted if keepblast=F.
     # [ ] : Make fullblast=T keepblast=T the default.
     # [ ] : Recommend keepblast=F if fullblast=F (and i>0).
+    # [ ] : Add checking of BLAST+ version and formatdb version (v4 or v5).
+    # [ ] : Add mseq2 as a search option for both DNA and protein? (Not sure how to get local alignments.)
     '''
 #########################################################################################################################
 def makeInfo():     ### Makes Info object
     '''Makes rje.Info object for program.'''
-    (program, version, last_edit, copyyear) = ('GABLAM', '2.30.1', 'April 2019', '2006')
+    (program, version, last_edit, copyyear) = ('GABLAM', '2.30.5', 'November 2019', '2006')
     description = 'Global Analysis of BLAST Local AlignMents'
     author = 'Dr Richard J. Edwards.'
     comments = ['Please cite: Davey, Shields & Edwards (2006), Nucleic Acids Res. 34(12):3546-54. [PMID: 16855291]']
@@ -376,6 +382,9 @@ def setupProgram(): ### Basic Setup of Program
     try:
         ### Initial Command Setup & Info ###
         info = makeInfo()
+        if len(sys.argv) == 2 and sys.argv[1] in ['version','-version','--version']: rje.printf(info.version); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: rje.printf('{0} v{1}'.format(info.program,info.version)); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['description','-description','--description']: rje.printf('%s: %s' % (info.program,info.description)); sys.exit(0)
         cmd_list = rje.getCmdList(sys.argv[1:],info=info)      ### Load defaults from program.ini
         ### Out object ###
         out = rje.Out(cmd_list=cmd_list)
@@ -553,6 +562,8 @@ class GABLAM(rje.RJE_Object):
                 self._forkCmd(cmd)  
                 ### Class Options ###
                 self._cmdRead(cmd,type='file',att='QueryDB',arg='seqin')  
+                self._cmdRead(cmd,type='int',att='LocalMin',arg='minloclen')
+                self._cmdRead(cmd,type='perc',att='LocalIDMin',arg='minlocid')
                 self._cmdReadList(cmd,'path',['FasDir','BlastDir'])
                 self._cmdReadList(cmd,'file',['QueryDB','SearchDB','BlastRes'])
                 self._cmdReadList(cmd,'info',['StartFrom','CutStat','CutFocus','OutStats','BLASTP','DisKey','NRStat',
@@ -588,7 +599,10 @@ class GABLAM(rje.RJE_Object):
         if self.getStr('Mapper') not in ['minimap','minimap2','blast']:
             self.warnLog('mapper=%s not recognised (blast/minimap): switched to blast' % self.getStr('Mapper'))
             self.setStr({'Mapper':'blast'})
-        if self.getStr('Mapper') != 'blast': self.setBool({'FullBlast':True})
+        if self.getStr('Mapper') != 'blast':
+            self.setBool({'FullBlast':True})
+            #i# Set options to stop BLAST doing unneccessary checks etc.
+            self.cmd_list += ['checkblast=F','formatdb=F']
         ### Update options for FullBlast=True ###
         #!# Need to neaten this up somewhat! #!#
         if not self.getBool('Local') and self.getBool('SNPTable'):
@@ -622,6 +636,7 @@ class GABLAM(rje.RJE_Object):
             else:
                 self.printLog('#CMD','Switching combinedfas=F for compatibility with fullblast=F.')
                 self.setBool({'CombinedFas':False})
+        ### Setup BLAST object
         blast = rje_blast.blastObj(self.log,['blastf=F','gablamfrag=1']+self.cmd_list,type='dev')
         if blast.getInt('GablamFrag') == 0 and not self.getBool('FullBlast'):
             if self.i() < 0 or rje.yesNo('gablamfrag=0 incompatible with fullblast=F. Switch fullblast=T?'):
@@ -694,10 +709,11 @@ class GABLAM(rje.RJE_Object):
             #else: blast = rje_blast.blastObj(self.log,['blastf=F','gablamfrag=100']+self.cmd_list,type='Old')
             blast = rje_blast.blastObj(self.log,['blastf=F','gablamfrag=1']+self.cmd_list,type='dev')
             btype = blast.getStr('Type')
-            if self.getBool('CheckType'): blast.checkProg(qtype=qseq.readSeqType(log=False),stype=sdbseq.readSeqType(log=False))
-            if btype != blast.getStr('Type'): self.cmd_list += ['blastp=%s' % blast.getStr('Type')]
-            if blast.getStr('Type') in ['blastn','tblastn','tblastx']:  blast.formatDB(fasfile=self.getStr('SearchDB'),protein=False,force=False)
-            else: blast.formatDB(fasfile=self.getStr('SearchDB'),protein=True,force=False)
+            if self.getStr('Mapper') == 'blast':
+                if self.getBool('CheckType'): blast.checkProg(qtype=qseq.readSeqType(log=False),stype=sdbseq.readSeqType(log=False))
+                if btype != blast.getStr('Type'): self.cmd_list += ['blastp=%s' % blast.getStr('Type')]
+                if blast.getStr('Type') in ['blastn','tblastn','tblastx']:  blast.formatDB(fasfile=self.getStr('SearchDB'),protein=False,force=False)
+                else: blast.formatDB(fasfile=self.getStr('SearchDB'),protein=True,force=False)
             self.setInt({'DBSize':rje_seq.SeqCount(self,self.getStr('SearchDB'))})
             if blast.getStr('Type') not in ['blastn','tblastn','tblastx']:
                 for bcmd in ['LocalSAM','LocalGFF','CDSGFF']:
@@ -889,7 +905,8 @@ class GABLAM(rje.RJE_Object):
                 self.printLog('#GABLAM','Results file %s found (force=F)' % gfile)
             ### ~ [3] ~ Load/Process Results ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             gdb = db.addTable(gfile,['Qry','Hit'],name='gablam')
-            if qcut not in gdb.fields(): raise ValueError('Cannot find nrstat field "%s" in %s' % (qcut,gfile))
+            if qcut not in gdb.fields():
+                raise ValueError('Cannot find nrstat field "%s" in %s' % (qcut,gfile))
             if hcut not in gdb.fields(): raise ValueError('Cannot find nrstat field "%s" in %s' % (hcut,gfile))
             gdbformat = {}
             gscores = {True:'float',False:'int'}[self.getBool('PercRes')]
@@ -928,8 +945,8 @@ class GABLAM(rje.RJE_Object):
             gdb.index('Qry'); gdb.index('Hit')
             ex = 0.0; etot = gdb.entryNum()
             self.debug(self.list['NRChoice'])
-            for ekey in gdb.dataKeys():
-                entry = gdb.data(ekey)
+            # Work through entries starting with longest queries first
+            for entry in gdb.sortedEntries('QryLen',reverse=True):
                 self.progLog('\r#NR','GABLAM NR filtering: %.1f%%' % (ex/etot)); ex += 100.0
                 if entry['Qry'] in nrbad or entry['Hit'] in nrbad: continue
                 if entry['Qry'] == entry['Hit']: continue
@@ -1042,7 +1059,9 @@ class GABLAM(rje.RJE_Object):
             ## ~ [2a] ~ Minimap ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             if self.getStr('Mapper') in ['minimap','minimap2']:
                 pafin = '%s.paf' % self.baseFile()
-                paf = rje_paf.PAF(self.log, self.cmd_list+['pafin=%s' % pafin,'basefile=%s' % self.baseFile()])
+                paf = rje_paf.PAF(self.log, self.cmd_list+['pafin=%s' % pafin,'basefile=%s' % self.baseFile(),'seqin=%s' % self.getStr('QueryDB'),'reference=%s' % self.getStr('SearchDB')])
+                paf.setInt({'MinLocLen':self.getInt('LocalMin')})
+                paf.setNum({'MinLocID':self.getNum('LocalIDMin')})
                 defaults = paf_defaults
                 paf.dict['MapOpt'] = rje.combineDict(defaults,paf.dict['MapOpt'],overwrite=True)
                 paf.setup()
@@ -1056,9 +1075,12 @@ class GABLAM(rje.RJE_Object):
                 paf.db('unique').renameField('Qry','Query')
                 paf.db('unique').renameField('AlnNum','AlnID')
                 paf.db('unique').saveToFile()
-                self.obj['BLAST'] = rje_blast.BLASTRun(log=self.log,cmd_list=['blastf=F']+self.cmd_list)
+                self.obj['BLAST'] = rje_blast.BLASTRun(log=self.log,cmd_list=['blastf=F']+self.cmd_list+['checkblast=F'])
                 self.obj['BLAST'].obj['DB'] = self.obj['DB'] = paf.db()
                 self.debug('PAF to GABLAM conversion complete')
+                if self.getStr('NRStat') == 'OrderedAlnID':
+                    self.printLog('#NRSTAT','NRStat updated to AlnID for minimap2 run.')
+                    self.setStr({'NRStat':'AlnID'})
                 return True
             ## ~ [2b] ~ BLAST !!!!~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             if (self.getBool('FullBlast') and self.fullBlastGABLAM()) or (not self.getBool('FullBlast') and self.bamForker()):
@@ -1595,6 +1617,7 @@ class GABLAM(rje.RJE_Object):
                 blast.setStr({'DBase':self.getStr('SearchDB')})
                 blast.localFragFas(byquery=True,combined=self.getBool('CombinedFas'),fragdir=self.getStr('FasDir'),outbase=self.baseFile(),minfrag=minfrag,addflanks=addflanks,revcomp=self.getBool('FragRevComp'),append=self.getBool('Append'))
             elif self.getBool('FasOut') and hdb.entryNum():               # Data to output
+                blast.setStr({'DBase':self.getStr('SearchDB')})
                 outfas = rje_seqlist.SeqList(self.log,self.cmd_list+['seqin=%s' % self.getStr('SearchDB'),'autoload=T','autofilter=F','mode=file'])
                 qx = 0; qtot = len(hdb.index('Query')); fasx = 0
                 for Qry in hdb.index('Query'):
@@ -2203,7 +2226,7 @@ class GABLAM(rje.RJE_Object):
         try:### ~ [0] ~ Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             combinedfas = []    # List of (seqname,sequence) tuples
             bugger = '0'
-            hitseq = rje_seqlist.SeqList(self.log,self.cmd_list+['autoload=F','seqmode=list'])
+            hitseq = rje_seqlist.SeqList(self.log,self.cmd_list+['autoload=F','seqmode=list','duperr=F'])
             seqlist = rje_seqlist.SeqList(log=self.log,cmd_list=self.cmd_list+['autoload=T'])   #self.obj['SeqList']
             qryx = qseqx = 0   # Counter for sequences
             qtot = seqlist.seqNum()

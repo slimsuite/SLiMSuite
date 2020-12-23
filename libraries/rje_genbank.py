@@ -19,8 +19,8 @@
 """
 Module:       rje_genbank
 Description:  RJE GenBank Module
-Version:      1.5.4
-Last Edit:    10/10/18
+Version:      1.5.5
+Last Edit:    06/06/19
 Copyright (C) 2011  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -77,6 +77,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 1.5.2 - Fixed addtag(s) bug.
     # 1.5.3 - Fixed https genbank download issue.
     # 1.5.4 - Added recognition of *.gbff for genbank files.
+    # 1.5.5 - Fixed bug to use Locus for *.full.fas and thus link to Feature table properly.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -89,7 +90,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copy_right) = ('RJE_GenBank', '1.5.4', 'October 2018', '2011')
+    (program, version, last_edit, copy_right) = ('RJE_GenBank', '1.5.5', 'May 2019', '2011')
     description = 'RJE GenBank Module'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_zen.Zen().wisdom()]
@@ -707,7 +708,7 @@ class GenBank(rje_obj.RJE_Object):
                 for locus in rje.sortKeys(self.dict['Sequence']):
                     entry = locdb.data(locus)
                     code = entry['spcode']
-                    name = 'gb_%s__%s %s|gi:%s %s' % (code,entry['accession'],locus,entry['gi'],entry['definition'])
+                    name = 'gb_%s__%s %s|gi:%s %s' % (code,locus,entry['accession'],entry['gi'],entry['definition'])
                     addorg = '[%s]' % entry['organism']
                     if addorg not in name: name = '%s %s' % (name,addorg)
                     if bylocus:
@@ -843,7 +844,7 @@ def setupRefGenome(callobj):    ### This is a generic reference genome setup met
             gcmd += self.cmd_list   # Can over-ride/add. This include spcode=X
             gcmd += ['seqin=%s.gb' % self.getStr('RefBase'),'taxdir=','tabout=T','fasout=full,gene,cds,prot']
             GenBank(self.log,gcmd).run()
-            rje.checkForFiles(filelist=checkfiles,basename=self.getStr('RefBase'),log=self.log,cutshort=False,ioerror=True,missingtext=' Genbank parsing failed?')
+            rje.checkForFiles(filelist=checkfiles,basename=self.getStr('RefBase'),log=self.log,cutshort=False,ioerror=True,missingtext='Not found: Genbank parsing failed?')
         ## ~ [1d] Features file ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
         ftfile = '%s.Feature.tdt' % self.getStr('RefBase')
         self.setBool({'Features':os.path.exists(ftfile)})   # Whether features table generated

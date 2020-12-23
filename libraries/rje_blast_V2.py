@@ -19,8 +19,8 @@
 """
 Module:       rje_blast
 Description:  BLAST+ Control Module
-Version:      2.22.3
-Last Edit:    01/04/19
+Version:      2.26.1
+Last Edit:    30/11/20
 Copyright (C) 2013  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -75,10 +75,12 @@ Commandline:
     blasto=FILE     : Output file (BLAST -o FILE) [*.blast]
     restab=LIST     : Whether to output summary results tables (Run/Search/Hit/Local/GABLAM) [Search,Hit]
     runfield=T/F    : Whether to include Run Field in summary tables. (Useful if appending.) [False]
+    bitscore=T/F    : Toggle local output field between BitScore (True) and regular Score (False) [True]
 
     ## System Parameters ##
     blastpath=PATH  : Path to BLAST programs ['']
     blast+path=PATH : Path to BLAST+ programs (will use blastpath if not given) ['']
+    checkblast=T/F  : Whether to check BLAST paths etc. on inititiaion [True]
     legacy=T/F      : Whether to run in "legacy" mode using old BLAST commands etc. (Currently uses BLAST) [False]
     oldblast=T/F    : Whether to run with old BLAST programs rather than new BLAST+ ones [False]
     blasta=X        : Number of processors to use (BLAST -a X) [1]
@@ -135,6 +137,11 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 2.22.1 - Added trimLocal error catching for exonerate issues.
     # 2.22.2 - Fixed GFF attribute case issue.
     # 2.23.3 - Fixed LocalIDCut error for GABLAM and QAssemble stat filtering.
+    # 2.24.0 - Added checkblast=T/F  : Whether to check BLAST paths etc. on inititiaion [True]
+    # 2.24.1 - Fixed GFF output for atypical local tables.
+    # 2.25.0 - Added bitscore=T/F toggle to switch between BitScore (True) and regular Score (False) [True]
+    # 2.26.0 - Initial Python3 code conversion.
+    # 2.26.1 - Tweaked to handle BLAST v5 formatting.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -169,10 +176,10 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, cyear) = ('RJE_BLAST', '2.23.3', 'April 2019', '2013')
+    (program, version, last_edit, cyear) = ('RJE_BLAST', '2.26.1', 'November 2020', '2013')
     description = 'BLAST+ Control Module'
     author = 'Dr Richard J. Edwards.'
-    comments = ['This program is still in development and has not been published.']
+    comments = ['Please report any unexpected behaviour.']
     return rje.Info(program,version,last_edit,description,author,time.time(),cyear,comments)
 #########################################################################################################################
 def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for more sys.argv commands
@@ -183,7 +190,7 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         ### ~ [2] ~ Look for help commands and print options if found ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         helpx = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
         if helpx > 0:
-            print '\n\nHelp for %s %s: %s\n' % (info.program, info.version, time.asctime(time.localtime(info.start_time)))
+            print('\n\nHelp for %s %s: %s\n' % (info.program, info.version, time.asctime(time.localtime(info.start_time))))
             out.verbose(-1,4,text=__doc__)
             if rje.yesNo('Show general commandline options?',default='N'): out.verbose(-1,4,text=rje.__doc__)
             if rje.yesNo('Quit?'): sys.exit()           # Option to quit after help
@@ -193,7 +200,7 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         return cmd_list
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Major Problem with cmdHelp()'
+    except: print('Major Problem with cmdHelp()')
 #########################################################################################################################
 def setupProgram(): ### Basic Setup of Program when called from commandline.
     '''
@@ -213,7 +220,7 @@ def setupProgram(): ### Basic Setup of Program when called from commandline.
         return (info,out,log,cmd_list)                      # Returns objects for use in program
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Problem during initial setup.'; raise
+    except: print('Problem during initial setup.'); raise
 #########################################################################################################################
 formats = {'Complexity Filter':'bool','Composition Statistics':'bool','GappedBLAST':'bool','Rank':'int',
            'OneLine':'int','HitAln':'int','DBLen':'int','DBNum':'int','Length':'int','Hits':'int','FragMerge':'int',
@@ -253,11 +260,14 @@ class BLASTRun(rje_obj.RJE_Object):
     Bool:boolean
     - Composition Statistics
     - Complexity Filter = (BLAST -F) [True]
+    - BitScore=T/F    : Toggle local output field between BitScore (True) and regular Score (False) [True]
     - BlastForce = Whether to force regeneration of new BLAST results if already existing [False]
     - BlastGZ = Whether to (un)zip main BLAST results file if keeping [True]
+    - CheckBLAST=T/F  : Whether to check BLAST paths etc. on inititiaion [True]
     - FormatDB = whether to (re)format database before blasting
     - GappedBLAST = Gapped BLAST (BLAST -g X) [True]
     - IgnoreDate = Ignore date stamps when deciding whether to regenerate files [False]
+    - KeepBLAST = Option storing whether to keep BLAST results. Not currently used by Class itself [True]
     - OldBLAST = Whether to run in "oldblast" mode using old BLAST commands etc. [False]
     - QAssemble = Whether to fully assemble query stats from all hits [False]
     - QAssembleFas=T/F: Special mode for running with outfmt=4 and then converting to fasta file [False]
@@ -297,8 +307,8 @@ class BLASTRun(rje_obj.RJE_Object):
         '''Sets Attributes of Object.'''
         ### ~ Basics ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         self.strlist = ['Name','Type','DBase','InFile','OptionFile','QConsensus','QFasDir','BLAST Path','BLAST+ Path','BLASTCmd','BLASTOpt','RefType','REST','BLASTTask']
-        self.boollist = ['Complexity Filter','FormatDB','Composition Statistics','GappedBLAST','IgnoreDate','BlastGZ',
-                         'OldBLAST','QAssemble','SoftMask','SelfSum','BlastForce','QAssembleFas','QComplete']
+        self.boollist = ['Complexity Filter','FormatDB','Composition Statistics','GappedBLAST','IgnoreDate','BlastGZ','KeepBLAST','BitScore',
+                         'OldBLAST','QAssemble','SoftMask','SelfSum','BlastForce','QAssembleFas','QComplete','CheckBLAST']
         self.intlist = ['OneLine','HitAln','DBLen','DBNum','BLASTa','FragMerge','GablamFrag','LocalCut']
         self.numlist = ['E-Value','LocalIDCut']
         self.listlist = ['ResTab','SaveLocal']
@@ -308,7 +318,7 @@ class BLASTRun(rje_obj.RJE_Object):
         self._setDefaults(str='None',bool=False,int=0,num=0.0,obj=None,setlist=True,setdict=True)
         self.setStr({'BLAST Path':'','BLAST+ Path':'','Type':'blastp','RefType':'Hit','QFasDir':rje.makePath('./QFAS/')})
         self.setBool({'FormatDB':False,'Composition Statistics':False,'Complexity Filter':True,'IgnoreDate':False,'SoftMask':True,
-                      'GappedBLAST':True,'RunField':False})  #!# Check defaults!!
+                      'GappedBLAST':True,'RunField':False,'CheckBLAST':True,'KeepBLAST':True,'BitScore':True})  #!# Check defaults!!
         self.setInt({'OneLine':500,'HitAln':500,'GablamFrag':100,'FragMerge':0})
         self.setNum({'E-Value':0.0001})
         self.list['ResTab'] = ['Search','Hit']
@@ -335,7 +345,7 @@ class BLASTRun(rje_obj.RJE_Object):
                 self._cmdRead(type='file',att='InFile',arg='blasti',cmd=cmd)
                 self._cmdRead(type='bool',att='Complexity Filter',arg='blastf',cmd=cmd)
                 self._cmdRead(type='bool',att='Composition Statistics',arg='blastcf',cmd=cmd)
-                self._cmdReadList(cmd,'bool',['BlastForce','FormatDB','IgnoreDate','BlastGZ','OldBLAST','QAssemble','SelfSum','SoftMask','RunField','QAssembleFas','QComplete'])
+                self._cmdReadList(cmd,'bool',['BitScore','BlastForce','CheckBLAST','KeepBLAST','FormatDB','IgnoreDate','BlastGZ','OldBLAST','QAssemble','SelfSum','SoftMask','RunField','QAssembleFas','QComplete'])
                 self._cmdReadList(cmd,'int',['BLASTa','FragMerge','GablamFrag','LocalCut'])
                 self._cmdRead(type='bool',att='GappedBLAST',arg='blastg',cmd=cmd)
                 self._cmdRead(type='bool',att='OldBLAST',arg='legacy',cmd=cmd)
@@ -360,37 +370,40 @@ class BLASTRun(rje_obj.RJE_Object):
                 #self._cmdReadList(cmd,'cdictlist',['Att']) # As cdict but also enters keys into list
             except: self.errorLog('Problem with cmd:%s' % cmd)
         ### ~ [2] ~ Check BLAST(+) Path settings ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-        if self.getStrLC('BLASTTask') == 'exonerate': return    #i# Don't perform checks: should be called from rje_exonerate
-        pathfail = False
-        if self.oldBLAST(): blast = 'BLAST'
-        else: blast = 'BLAST+'
-        if not self.getStrLC('%s Path' % blast): self.setStr({'%s Path' % blast:''})
-        pathfound = os.path.exists(self.getStr('%s Path' % blast))
-        oldfound = os.path.exists(self.getStr('%s Path' % blast)+'formatdb')
-        newfound = os.path.exists(self.getStr('%s Path' % blast)+'makeblastdb')
-        #?# Should BLAST installation detection over-ride blastpath setting #?#
-        if not self.getStr('%s Path' % blast):
-            if os.popen({'BLAST':'formatdb','BLAST+':'makeblastdb -help'}[blast]).read():
-                self.printLog('#NCBI','Installation of %s detected. Path not required.' % blast)
-            else:
-                self.printLog('#NCBI','Installation of %s not detected and no path given.' % blast)
+        if self.getStrLC('BLASTTask') == 'exonerate':
+            self.setBool({'CheckBLAST':False,'FormatDB':False})
+            return    #i# Don't perform checks: should be called from rje_exonerate
+        if self.getBool('CheckBLAST'):
+            pathfail = False
+            if self.oldBLAST(): blast = 'BLAST'
+            else: blast = 'BLAST+'
+            if not self.getStrLC('%s Path' % blast): self.setStr({'%s Path' % blast:''})
+            pathfound = os.path.exists(self.getStr('%s Path' % blast))
+            oldfound = os.path.exists(self.getStr('%s Path' % blast)+'formatdb')
+            newfound = os.path.exists(self.getStr('%s Path' % blast)+'makeblastdb')
+            #?# Should BLAST installation detection over-ride blastpath setting #?#
+            if not self.getStr('%s Path' % blast):
+                if os.popen({'BLAST':'formatdb','BLAST+':'makeblastdb -help'}[blast]).read():
+                    self.printLog('#NCBI','Installation of %s detected. Path not required.' % blast)
+                else:
+                    self.printLog('#NCBI','Installation of %s not detected and no path given.' % blast)
+                    pathfail = True
+            elif not pathfound:
+                self.errorLog('%s Path not found: "%s"' % (blast,self.getStr('%s Path' % blast)),printerror=False)
                 pathfail = True
-        elif not pathfound:
-            self.errorLog('%s Path not found: "%s"' % (blast,self.getStr('%s Path' % blast)),printerror=False)
-            pathfail = True
-        elif self.oldBLAST() and not oldfound:
-            if newfound: self.errorLog('BLAST path seems to point to BLAST+ programs! Use oldblast=F for BLAST+.',printerror=False)
-            else: self.errorLog('%s programs not found in %s directory!' % (blast,blast),printerror=False)
-            pathfail = True
-        elif not self.oldBLAST() and not newfound:
-            if oldfound: self.errorLog('BLAST+ path seems to point to BLAST programs! Use oldblast=T for old BLAST.',printerror=False)
-            else: self.errorLog('%s programs not found in %s directory!' % (blast,blast),printerror=False)
-            pathfail = True
-        if pathfail and not self.getStr('%s Path' % blast): self.warnLog('Installation of %s not detected and no path given. %s functions may fail. (Check %spath=PATH/).' % (blast,blast,blast.lower()),'blastpath',quitchoice=False)
-        elif pathfail: self.warnLog('Cannot execute %s functions without correct %s Path (%spath=PATH/). Bad things might happen if you proceed.' % (blast,blast,blast.lower()),'fatal',quitchoice=True)
+            elif self.oldBLAST() and not oldfound:
+                if newfound: self.errorLog('BLAST path seems to point to BLAST+ programs! Use oldblast=F for BLAST+.',printerror=False)
+                else: self.errorLog('%s programs not found in %s directory!' % (blast,blast),printerror=False)
+                pathfail = True
+            elif not self.oldBLAST() and not newfound:
+                if oldfound: self.errorLog('BLAST+ path seems to point to BLAST programs! Use oldblast=T for old BLAST.',printerror=False)
+                else: self.errorLog('%s programs not found in %s directory!' % (blast,blast),printerror=False)
+                pathfail = True
+            if pathfail and not self.getStr('%s Path' % blast): self.warnLog('Installation of %s not detected and no path given. %s functions may fail. (Check %spath=PATH/).' % (blast,blast,blast.lower()),'blastpath',quitchoice=False)
+            elif pathfail: self.warnLog('Cannot execute %s functions without correct %s Path (%spath=PATH/). Bad things might happen if you proceed.' % (blast,blast,blast.lower()),'fatal',quitchoice=True)
         ### ~ [3] ~ Special ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-        self.checkProgTask()
-        if not rje.exists(self.getStr('OptionFile')): self.setStr({'BLASTOpt':self.getStr('OptionFile')})
+            self.checkProgTask()
+            if not rje.exists(self.getStr('OptionFile')): self.setStr({'BLASTOpt':self.getStr('OptionFile')})
         if self.getBool('FormatDB'):
             if self.getStr('Type') in ['blastn','tblastn','tblastx']: self.formatDB(protein=False,force=self.force())
             else: self.formatDB(force=self.force())
@@ -507,7 +520,7 @@ class BLASTRun(rje_obj.RJE_Object):
                 else: db = self.obj['DB'] = rje_db.Database(self.log,self.cmd_list)
             db.baseFile(self.baseFile())
             load = load and not self.force()
-            if load: self.warnLog('WARNING: Correct number handling not implemented - tables might sort oddly if reloaded')
+            if load: self.warnLog('WARNING: Correct BLAST table number handling not implemented - tables might sort oddly if reloaded')
             ## ~ [1a] BLAST Runs ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             if 'Run' not in self.list['ResTab'] or not load or not db.addTable(mainkeys=['Run'],name='Run',expect=False):
                 #self.deBug(self.db('Run',add=False))
@@ -525,7 +538,9 @@ class BLASTRun(rje_obj.RJE_Object):
             ## ~ [1d] Local Alignments ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             if 'Local' not in self.list['ResTab'] or not load or not db.addTable(mainkeys=['Query','Hit','AlnID'],name='Local',expect=False):
                 if self.db('Local',add=False): self.db('Local').clear()
-                else: db.addEmptyTable('Local',['Query','Hit','AlnID','BitScore','Expect','Length','Identity','Positives','QryStart','QryEnd','SbjStart','SbjEnd','QrySeq','SbjSeq','AlnSeq'],
+                elif self.getBool('BitScore'): db.addEmptyTable('Local',['Query','Hit','AlnID','BitScore','Expect','Length','Identity','Positives','QryStart','QryEnd','SbjStart','SbjEnd','QrySeq','SbjSeq','AlnSeq'],
+                                       ['Query','Hit','AlnID'],log=False)
+                else: db.addEmptyTable('Local',['Query','Hit','AlnID','Score','Expect','Length','Identity','Positives','QryStart','QryEnd','SbjStart','SbjEnd','QrySeq','SbjSeq','AlnSeq'],
                                        ['Query','Hit','AlnID'],log=False)
             ## ~ [1e] GABLAM Statistics ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             if 'GABLAM' not in self.list['ResTab'] or not load or not db.addTable(mainkeys=['Query','Hit','QryHit'],name='GABLAM',expect=False):
@@ -1067,15 +1082,15 @@ class BLASTRun(rje_obj.RJE_Object):
                         if rje.matchExp('^\s*Length\s*=\s*(\d+)',line):
                             hit['Length'] = string.atoi(rje.matchExp('^\s*Length\s*=\s*(\d+)',line)[0])
                         ## New Aln Block ##
-                        elif hit['Length'] and rje.matchExp('^\s*Score\s+=\s+(\S+)\s.+Expect.+=\s+(\S+\d)\D*\s*',line):
+                        elif hit['Length'] and rje.matchExp('^\s*Score\s+=\s+(\S+)\sbits\s(\S+).+Expect.+=\s+(\S+\d)\D*\s*',line):
                             #self.deBug('%s' % aln)
                             if aln:
                                 hitaln[hit['Hit']].append(aln); hit['Aln'] += 1
                                 if local: self.db('Local').addEntry(aln)
-                            scores = rje.matchExp('^\s*Score\s+=\s+(\S+)\s.+Expect.+=\s+(\S+\d)\D*\s*',line)
-                            evalue = scores[1]
+                            scores = rje.matchExp('^\s*Score\s+=\s+(\S+)\sbits\s\((\S+)\).+Expect.+=\s+(\S+\d)\D*\s*',line)
+                            evalue = scores[2]
                             if evalue.find('e') == 0: evalue = '1' + evalue
-                            aln = {'Query':search['Query'],'Hit':hit['Hit'],'AlnID':hit['Aln']+1,'BitScore':string.atof(scores[0]),'Expect':string.atof(evalue),
+                            aln = {'Query':search['Query'],'Hit':hit['Hit'],'AlnID':hit['Aln']+1,'BitScore':string.atof(scores[0]),'Score':string.atof(scores[1]),'Expect':string.atof(evalue),
                                    'Length':0,'Identity':0,'Positives':0,'QryStart':-1,'QryEnd':-1,'SbjStart':-1,'SbjEnd':-1,'QrySeq':'','SbjSeq':'','AlnSeq':''}
                             fpos = RESFILE.tell(); line = RESFILE.readline()
                             if re.search('Identities\s+=\s+(\d+)/(\d+)\s?.+Positives = (\d+)/(\d+)\s?',line):
@@ -1297,8 +1312,8 @@ class BLASTRun(rje_obj.RJE_Object):
                         dres = ((qres - aln['QryStart']) * 3) + aln['QryStart'] + 2
                         if dres != aln['QryEnd']:
                             self.errorLog('Hit %s: Query end position should be %d but reached %d (or %d) in Aln process!' % (hit['Hit'],aln['QryEnd'],qres,dres),False,False)
-                            print aln
-                            print gablam
+                            print(aln)
+                            print(gablam)
                             raw_input('Continue?')
                             for aln in ['Qry','Hit','QryO','HitO']:  # O = ordered
                                 gablam[aln] = ['X'] * qrylen    #!# Hit!! #!#
@@ -1419,9 +1434,12 @@ class BLASTRun(rje_obj.RJE_Object):
         << returns dictionary of {Hit:Sequence}
         '''
         try:### ~ [1] ~ Map hits to seqlist sequences and return dictionary ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            self.debug(self.getStr('DBase'))
             seqobj = '%s' % seqlist
             newseqlist = seqobj.startswith('<rje_seqlist')
-            if newseqlist: seqdic = seqlist.seqNameDic()
+            if newseqlist:
+                seqdic = seqlist.makeSeqNameDic('max')
+                seqlist.setStr({'BLAST+ Path': self.getStr('BLAST+ Path')})
             else: seqdic = seqlist.seqNameDic(proglog=False)
             hitseq = {}; hx = 0; hitseqlist = []
             if not hitlist: hitlist = self.queryHits(query)
@@ -1434,7 +1452,11 @@ class BLASTRun(rje_obj.RJE_Object):
                     newseq = seqlist.seqFromBlastDBCmd(hit,self.getStr('DBase'))
                     if newseq:
                         hitseq[hit] = newseq; hx += 1
-                        self.verbose(2,4,'Seq %d retrieved from %s: %s.' % (seqlist.seqNum(),self.getStr('DBase'),newseq.shortName()),1)
+                        if newseqlist:
+                            hitseqlist.append(newseq)
+                            sname = string.split(newseq[0])[0]
+                            self.verbose(2,4,'Seq %d retrieved from %s: %s.' % (len(hitseqlist),self.getStr('DBase'),sname),1)
+                        else: self.verbose(2,4,'Seq %d retrieved from %s: %s.' % (seqlist.seqNum(),self.getStr('DBase'),newseq.shortName()),1)
                     else: self.errorLog('No Seq retrieval for %s using BLASTRun.hitToSeq().' % hit,printerror=False)
             if hx and hitseq and filename and filename.lower() != 'none':
                 if newseqlist: seqlist.saveSeq(seqs=hitseqlist,seqfile=filename,append=appendfile)
@@ -2343,20 +2365,21 @@ class BLASTRun(rje_obj.RJE_Object):
             gffdb.dataFormat({'QryStart':'int','QryEnd':'int','SbjStart':'int','SbjEnd':'int','Identity':'int'})
             gffdb.renameField('SbjStart','HitStart')
             gffdb.renameField('SbjEnd','HitEnd')
-            gffdb.renameField('SbjSeq','HitSeq')
+            if 'SbjSeq' in gffdb.fields():
+                gffdb.renameField('SbjSeq','HitSeq')
             if '*' in attributes: attributes = gffdb.fields()
             # Generate GFF format fields:
             # seqid source type start end score strand phase attributes
             #i# seqid, start and end created later
             gffdb.addField('source',evalue=source)
             gffdb.addField('type',evalue=fttype)
-            gffdb.addField('strand',evalue='+')
+            if 'Strand' in gffdb.fields(): gffdb.renameField('Strand','strand')
+            else: gffdb.addField('strand',evalue='+')
             gffdb.addField('phase',evalue=0)
             gffdb.addField('ID')
             gffdb.addField('attributes',evalue='')
-            gffdb.addField('QryLen',evalue=0)
-            gffdb.addField('HitLen',evalue=0)
-            gffdb.addField('SeqLen',evalue=0)
+            for field in ['QryLen','HitLen','SeqLen']:
+                if field not in gffdb.fields(): gffdb.addField(field,evalue=0)
             fullgff = {}    # Dictionary of {(qry,hit):gffentry}
             for entry in gffdb.sortedEntries('Identity',reverse=True):
                 self.bugPrint(entry)
@@ -2708,11 +2731,12 @@ class BLASTRun(rje_obj.RJE_Object):
                         if re.search('^\s+Length\s+=\s+(\d+)',line):
                             hit.stat['Length'] = string.atoi(rje.matchExp('^\s+Length = (\d+)',line)[0])
                         ## New Aln Block ##
-                        elif hit.stat['Length'] and rje.matchExp('^\s*Score\s+=\s+(\S+)\s.+Expect.+=\s+(\S+\d)\D*\s*',line):
+                        elif hit.stat['Length'] and rje.matchExp('^\s*Score\s+=\s+(\S+)\sbits\s\((\S+)\).+Expect.+=\s+(\S+\d)\D*\s*',line):
                             aln = hit._addAln()
-                            scores = rje.matchExp('^\s*Score\s+=\s+(\S+)\s.+Expect.+=\s+(\S+\d)\D*\s*',line)
+                            scores = rje.matchExp('^\s*Score\s+=\s+(\S+)\sbits\s\((\S+)\).+Expect.+=\s+(\S+\d)\D*\s*',line)
                             aln.stat['BitScore'] = string.atof(scores[0])
-                            eval = scores[1]
+                            aln.stat['Score'] = string.atof(scores[1])
+                            eval = scores[2]
                             if eval.find('e') == 0: eval = '1' + eval
                             aln.stat['Expect'] = string.atof(eval)
                             i += 1
@@ -2946,10 +2970,10 @@ def formatDB(fasfile,blastpath,protein=True,log=None,oldblast=False,details=Fals
         if log: log.printLog('#DB ',command,screen=log.v()>0)
         for oline in os.popen(command):  #?# Use os.popen() and catch/output STDOUT to log #?#
             if rje.chomp(oline) and log: log.printLog('#NCBI',oline,log=details,screen=details and log.v()>0)
-            elif rje.chomp(oline) and details: print oline
+            elif rje.chomp(oline) and details: print(oline)
     except:
         if log: log.errorLog('Major Problem during rje_blast.formatDB(%s).' % fasfile)
-        else: print 'Major Problem during rje_blast.formatDB(%s).' % fasfile
+        else: print('Major Problem during rje_blast.formatDB(%s).' % fasfile)
         raise
 #########################################################################################################################
 def checkForDB(dbfile=None,checkage=True,log=None,protein=True,oldblast=False):     ### Checks for BLASTDB files and returns True or False as appropriate
@@ -2965,8 +2989,8 @@ def checkForDB(dbfile=None,checkage=True,log=None,protein=True,oldblast=False): 
         if not os.path.exists(dbfile):
             if log: log.errorLog('%s missing' % dbfile,False,False)
             return False
-        if protein: suffix = ['phr','pin','psd','psi','psq','pog']
-        else: suffix = ['nhr','nin','nsd','nsi','nsq','nog']
+        if protein: suffix = ['phr','pin','psq','pog']    # v5 db compatible: drop 'psd','psi'
+        else: suffix = ['nhr','nin','nsq','nog']        # v5 db dropped 'nsd','nsi'
         if oldblast: suffix.pop(-1)
         missing = []
         for suf in suffix:
@@ -2980,12 +3004,12 @@ def checkForDB(dbfile=None,checkage=True,log=None,protein=True,oldblast=False): 
                     return False
             else: missing.append(suf)
         if missing:
-            if log and len(missing) < 5: log.errorLog('%s.%s missing' % (dbfile,string.join(missing,'/')),False,False)
+            if log and len(missing) < 4: log.errorLog('%s.%s missing' % (dbfile,string.join(missing,'/')),False,False)
             return False
         return True
     except:
         if log: log.errorLog('Major Problem during rje_blast.checkForDB().')
-        else: print 'Major Problem during rje_blast.checkForDB().'
+        else: print('Major Problem during rje_blast.checkForDB().')
         raise
 #########################################################################################################################
 def cleanupDB(callobj=None,dbfile=None,deletesource=False):     ### Deletes files created by formatdb
@@ -3004,7 +3028,7 @@ def cleanupDB(callobj=None,dbfile=None,deletesource=False):     ### Deletes file
         if deletesource and os.path.exists(dbfile): os.unlink(dbfile)
     except:
         if callobj: callobj.log.errorLog('Major Problem during rje_blast.cleanupDB().')
-        else: print 'Major Problem during rje_blast.cleanupDB().'
+        else: print('Major Problem during rje_blast.cleanupDB().')
         raise
 #########################################################################################################################
 def expectString(_expect): return rje.expectString(_expect)
@@ -3051,7 +3075,7 @@ def runMain():
     ### ~ [1] ~ Basic Setup of Program  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try: (info,out,mainlog,cmd_list) = setupProgram()
     except SystemExit: return  
-    except: print 'Unexpected error during program setup:', sys.exc_info()[0]; return
+    except: print('Unexpected error during program setup:', sys.exc_info()[0]); return
     
     ### ~ [2] ~ Rest of Functionality... ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try: BLASTRun(mainlog,['tuplekeys=T']+cmd_list).run()
@@ -3064,7 +3088,7 @@ def runMain():
 #########################################################################################################################
 if __name__ == "__main__":      ### Call runMain 
     try: runMain()
-    except: print 'Cataclysmic run error:', sys.exc_info()[0]
+    except: print('Cataclysmic run error: {0}'.format(sys.exc_info()[0]))
     sys.exit()
 #########################################################################################################################
 ### END OF SECTION IV                                                                                                   #

@@ -1369,13 +1369,13 @@ def seqConsList(seq,callobj=None):   ### Creates SLiMCalc object and calls seqAl
 #########################################################################################################################
 def runMain():
     ### Rest of Functionality... ###
-    try: print '\n\n *** No standalone functionality! *** \n\n'
+    try: print('\n\n *** No standalone functionality! *** \n\n')
     ### End ###
     except SystemExit: return  # Fork exit etc.
 #########################################################################################################################
 if __name__ == "__main__":      ### Call runMain 
     try: runMain()
-    except: print 'Cataclysmic run error:', sys.exc_info()[0]
+    except: print('Cataclysmic run error: {0}'.format(sys.exc_info()[0]))
     sys.exit()
 #########################################################################################################################
 ### END OF SECTION III                                                                                                  #

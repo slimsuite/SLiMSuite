@@ -113,7 +113,7 @@ def menu(callobj,headtext='',menulist=[],choicetext='Please select:',changecase=
                 else: mtxt += desc
                 mtxt += '\n'
             ## ~ [1b] Give Choices ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-            print mtxt
+            print(mtxt)
             while mtxt:
                 try:## ~ Input user choice ~~~ ##
                     choice = rje.choice(choicetext,default=default,confirm=confirm)
@@ -139,7 +139,7 @@ def menu(callobj,headtext='',menulist=[],choicetext='Please select:',changecase=
                         if vtype in ['info','list','opt','stat','infile','outfile','str','bool','int','num']:
                             callobj.printLog('#%s' % vtype.upper(),'User edited %s parameter' % key); break
                         elif vtype == 'return': return key
-                    print 'Choice "%s" not recognised!\n' % choice
+                    print('Choice "%s" not recognised!\n' % choice)
                 except KeyboardInterrupt:
                     if rje.yesNo('Terminate program?'): raise SystemExit
                     if rje.yesNo('Exit menu and proceed?'): return default
@@ -161,8 +161,8 @@ def menu(callobj,headtext='',menulist=[],choicetext='Please select:',changecase=
 ### SECTION III: 'MAIN' PROGRAM                                                                                         #
 #########################################################################################################################
 if __name__ == "__main__":      ### Call runMain 
-    try: print 'This module is not for standalone running.'
-    except: print 'Cataclysmic run error:', sys.exc_info()[0]
+    try: print('This module is not for standalone running.')
+    except: print('Cataclysmic run error:', sys.exc_info()[0])
     sys.exit()
 #########################################################################################################################
 ### END OF SECTION III                                                                                                  #

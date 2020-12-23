@@ -1,0 +1,323 @@
+RELEASE NOTES
+
+
+UPDATES SINCE SLiMSuite v1.8.1
+|-- SLiMSuite v1.9.0 / SeqSuite v1.24.0
+
+#dev/
+rje_archive
+    # 0.6.0 - Added toggle to skip quiet created/updated/modified.
+    # 0.7.0 - Added maxfiles cap and option to targz directories exceeding threshold.
+    # 0.7.1 - Set checkarchive=F tryparent=F by default to make standard running quicker.
+    # 0.7.2 - Added maxdirsize=INT  : Maximum directory size in bytes to generate backup [1e11 (~100Gb)]
+    # 0.7.3 - Python 2.6 compatibility.
+
+rje_genomics
+    # 0.6.1 - Fixed TDTKeys bug.
+    # 0.7.0 - Added loc2gff mode for converting local hits table to GFF3 output.
+    # 0.8.0 - Added samfilt: filter read alignments from SAM file
+    # 0.8.1 - Fixed gapgff bug that had first gap in header.
+    
+rje_pydocs
+    # 2.17.0 - Added markdown parsing of _italics_ and **bold** for REST docstring parsing.
+    # 2.17.1 - Added testRun() method to test new code.
+    
+#libraries/
+rje
+    # 4.22.0 - Added flist command type that reads file lines as a list, ignoring commas.
+    # 4.22.1 - Reformatting for Python3 compatibility.
+    # 4.22.3 - Added highest tied ranking.
+    # 4.22.4 - Added some Python 2.6 back-compatbility for the server.
+    # 4.22.5 - Added checking of glist inputs.
+    # 4.23.0 - Added rje_py2 and rje_py3 code divergence for Python3 compatibility development.
+    
+rje_apollo - moved from dev/
+    # 0.6.3 - Made protein synonym for prot as qrytype.
+    
+rje_blast_V1
+    # 1.16.0 - Initial Python3 code conversion.
+    
+rje_blast_V2
+    # 2.24.0 - Added checkblast=T/F  : Whether to check BLAST paths etc. on inititiaion [True]
+    # 2.24.1 - Fixed GFF output for atypical local tables.
+    # 2.25.0 - Added bitscore=T/F toggle to switch between BitScore (True) and regular Score (False) [True]
+    # 2.26.0 - Initial Python3 code conversion.
+    # 2.26.1 - Tweaked to handle BLAST v5 formatting.
+    
+rje_db
+    # 1.9.2 - Tweaked entrySummary - added collapse=True.
+    # 1.9.3 - Added highest tied ranking.
+    # 1.10.0 - Initial Python3 code conversion.
+    
+rje_dismatrix_V2
+    # 2.11.0 - Initial Python3 code conversion.
+
+rje_disorder
+    # 1.5.2 - Changed iupath default.
+    # 1.6.0 - Initial Python3 code conversion.
+
+rje_exonerate - moved from dev/
+
+rje_forker
+    # 0.0.0 - Initial Compilation.
+    # 0.0.1 - Tweaked the logfork=F log forking output.
+    # 0.0.2 - Fixed formatting for Python 2.6 back compatibility for servers.
+    # 0.1.0 - Added killmain=T/F    : Whether to kill main thread rather than individual forks when killforks reached. [True]
+
+rje_genbank
+    # 1.5.5 - Fixed bug to use Locus for *.full.fas and thus link to Feature table properly.
+
+rje_gff
+    # 0.1.1 - Modified for splice isoform handling
+    # 0.1.2 - Fixed parsing of GFFs with sequence-region information interspersed with features.
+    # 0.1.3 - Added option to parseGFF to switch off the attribute parsing.
+    # 0.2.0 - Added gff output with ability to fix GFF of tab delimit errors
+    # 0.2.1 - Added restricted feature parsing from GFF.
+
+rje_html
+    # 0.3.1 - Started updated formatting for Python3 compatibility.
+    # 0.3.2 - Fixed formatting for Python 2.6 back compatibility for servers.
+
+rje_iridis
+    # 1.10.3 - Fix issues with batch farming of subjobs splitting on commas.
+
+rje_obj
+    # 2.5.0 - Added flist command type that reads file lines as a list, ignoring commas.
+    # 2.5.1 - Started updated formatting for Python3 compatibility.
+    # 2.6.0 - Added threads() method to basic object.
+    # 2.7.0 - Added loggedSystemCall()
+    # 2.7.1 - Fixed formatting for Python 2.6 back compatibility for servers.
+
+rje_paf
+    # 0.6.0 - Added CS alignment manipulation methods.
+    # 0.6.1 - Added additional error-handling for CS parsing errors.
+    # 0.7.0 - Added alnseq=T/F : Whether to use alnseq-based processing (True) or CS-Gstring processing (dev only) [False]
+    # 0.7.1 - Disabled endextend due to bug.
+    # 0.7.2 - Fixed alnlen bug - minimap2 ignore Ns for alignment length calculation. Fixed endextend bug.
+    # 0.7.3 - Added minlocid and minloclen filtering to PAF parsing to speed up processing. Set default alnseq=F.
+    # 0.8.0 - Added developmental variant calling options.
+    # 0.9.0 - Added long-read mapping to BAM option.
+    # 0.10.0 - Added longreadMinimapPAF() and checkpos=TDTFILE options.
+    # 0.10.1 - Added spanid=X: Generate sets of read IDs that span checkpos regions, based on values of field X []
+    # 0.10.2 - Fixed formatting for Python 2.6 back compatibility for servers.
+    # 0.10.3 - Fixing issues of PAF files not being generated.
+    
+rje_pam
+    # 1.3.0 - Initial Python3 code conversion.
+
+rje_py2
+    # 0.0.0 - Initial Compilation with printf() function from rje.py v4.22.5.
+    
+rje_py3
+    # 0.0.0 - Initial Compilation with printf() function from rje.py v4.22.5.
+    
+rje_qsub
+    # 1.9.4 - Updated qsub to use mem flag rather than vmem. Replaced showstart with qsub -T.
+    # 1.9.5 - Added "-k oed" to enable instant job monitoring and option to drop -S /bin/bash/. Tidied walltime.
+    # 1.9.6 - Updated qsub to use both mem and vmem flags.
+    # 1.10.0 - Added jobwait to wait until the job has finished.
+    # 1.10.1 - New default dependhpc=X  ['kman.restech.unsw.edu.au']
+    # 1.10.2 - Added notification that job is running when jobwait=T.
+    # 1.11.0 - Added output of date and time at end of job script too. (Gives a record of total time running.)
+    # 1.11.1 - Added job run summary output to end of stdout.
+    
+rje_samtools
+    # 1.20.3 - Fixed RLen bug.
+    
+rje_scoring
+    # 1.10.0 - Initial Python3 code conversion.
+    
+rje_seq
+    # 3.25.3 - Added some bug fixes from Norman that were giving him errors.
+    
+rje_seqlist
+    # 1.32.2 - Added reformat=accdesc to generate output without gene and species code.
+    # 1.32.3 - Added checkNames() to check for duplicate sequence names and/or lack of gnspacc format.
+    # 1.32.3 - Added duperr=T/F : Whether identification of duplicate sequence names should raise an error [True]
+    # 1.33.0 - Added newdesc=FILE : File of new names for sequences (over-rules other naming). First word should match input [None]
+    # 1.33.1 - Fixed bug with appending sequences with gap insertion.
+    # 1.34.0 - Added genecounter=T/F : Whether new gene have a numbered suffix (will match newacc numbering) [False]
+    # 1.35.0 - Added initial extraction of sequences from BLASTDB from rje_seq.
+    # 1.36.0 - Added bpFromStr(seqlen)
+    # 1.36.1 - Changed default duplicate suffix to X2.
+    # 1.37.0 - Added masking and extraction from loaded table of positions.
+    # 1.38.0 - Added assembly gap summary and manipulation fundtions.
+    # 1.39.0 - Added descaffolding, tiling output and gnspacc=T/F to control edit renaming.
+    # 1.40.0 - Added keepname=T/F : Whether to keep the original name (first word) when mapping with newdesc=FILE [True]
+    # 1.41.0 - Added contig N50 and L50 output. Tweaked tiling output to leave off name suffix when full length sequence.
+    # 1.41.1 - Fixed contig N50 and L50 output. (Previously not sorted!)
+    # 1.42.0 - Added tabular summary output for different L/N(G) values.
+    # 1.42.1 - Switched mingap=INT to 0=None unless gapstats=T.
+    # 1.43.0 - Added raw=T/F and lenstats=LIST to adjust summary statistics for raw sequencing data
+    # 1.43.1 - Added sequence reversal (not complemented) to reformat and edit
+    # 1.44.0 - Added some additional parsing of common sequence formats from rje_sequence: need to expand.
+    # 1.45.0 - Modified the newDesc() method for updating descriptions.
+    # 1.45.1 - Added CtgNum to output stats.
+    # 1.45.2 - Slight increase of gap extraction speed.
+    
+rje_sequence
+    # 2.7.1 - Added spCode() to sequence.
+    
+rje_slimlist
+    # 1.7.5 - Added '>' and '<' to list of patterns to ignore during loading.
+    
+rje_tree
+    # 2.17.0 - keepvar=LIST: Automatically keep variants for listed species (over-rides allowvar=F). []
+    # 2.17.1 - Added forking to multithread IQ-TREE runs. Tweaked BUDAPEST R call.
+    
+rje_tree_group
+    # 1.3.0 - Added KeepVar list to tree object.
+    # 1.3.1 - Fixed checkvar question bug.
+    
+rje_uniprot
+    # 3.25.3 - Fixed some problems with new Uniprot feature format.
+    
+rje_zen
+    # 1.4.1 - Added some more words and started reformatting for Python3 compatibility.
+    # 1.4.2 - Fixed formatting for Python 2.6 back compatibility for servers.
+    
+#tools/
+aphid
+    # 2.2.1 - Minor bug fix.
+    
+buscomp
+    # 0.7.3 - Fixed bugs calculating Complete BUSCO scores in a couple of places. Added text summaries to plots.
+    # 0.7.4 - Added ggplot option. Added group plots to full reports.
+    # 0.7.5 - Reinstated BUSCOMP contribution reports when re-running.
+    # 0.7.6 - Added additional error-handling for CS parsing errors.
+    # 0.7.7 - Fixed problems with buscompseq=F. Fixed stripnum and Rmd bugs. Added sequence name checking for duplicates.
+    # 0.7.8 - Fixed a bug where BUSCOMP was not being compiled for assemblies without BUSCO data.
+    # 0.7.9 - Added listing of numbers to BUSCOMP Missing charts.
+    # 0.8.0 - Added alnseq=F as default PAF parsing mode for improved efficiency.
+    # 0.8.1 - Set endextend=0 due to bug.
+    # 0.8.2 - Fixed full RMD chart labelling bug. Fixed endextend bug and reinstated endextend=10 default.
+    # 0.8.3 - Fixed Unique rating bug with no groups.
+    # 0.8.4 - Set endextend=0 due to another bug.
+    # 0.8.5 - Fixed BUSCO table loading bug introduced by Diploidocus. Added error catching for logbinomial bug.
+    # 0.8.6 - Tweaked code to handle BUSCO v4 files, but not (yet) file organisation.
+    # 0.8.7 - Fixing issues with prefix parsing from BUSCO directories and files.
+    # 0.9.0 - Updated parsing of single_copy_busco_sequences/ to enable multiple directories with "$PREFIX" suffixes.
+    # 0.9.1 - Updated parsing to enable BUSCO v4 results recognition. (run with -o $GENOME.busco)
+    # 0.9.2 - Fixed some bugs when files missing.
+    # 0.9.3 - Minor fixes to output and clearer error messages. Fixed formatting for Python 2.6 back compatibility for servers.
+    # 0.9.4 - Added contig statistics and fixed group description loading bug.
+    # 0.9.5 - Fixed Group BUSCOMP plot output bug.
+    # 0.9.6 - Added CtgNum: Number of contigs (`SeqNum`+`GapCount`).
+    # 0.9.7 - Fixed some Rmd bugs to fix output after summary table changes.
+    
+comparimotif_V3
+    # 3.14.1 - Fixed forking memsaver mode to take (Q)SLiMFinder input format.
+    
+diploidocus
+    # 0.0.0 - Initial Compilation.
+    # 0.1.0 - Fixed bugs with parent basefile, genome size default and Sequel data parsing.
+    # 0.2.0 - Added sortnr minimap2 run mode, and diphap primary/alternative assembly splitting.
+    # 0.3.0 - Added summarising of sequences post-run. Improved documents. Moved to tools/.
+    # 0.4.0 - Added VecScreen mode.
+    # 0.5.0 - Added Telomere finding mode based on https://github.com/JanaSperschneider/FindTelomeres.
+    # 0.6.0 - Added GenomeSize option.
+    # 0.7.0 - Added PurgeHaplotigs, minimum vescreen hit length, eFDR and vecscreen coverage. [GitHub]
+    # 0.7.1 - Code tidying and documentation improvements. Added dipcycle subdirectory and minlen=INT.
+    #       - Fixed purge_haplotigs temp directory issues by running in subdirectory.
+    #       - Added diploidify=T/F : Whether to generate alternative diploid output with duplicated diploid contigs and no hpurge [False]
+    # 0.8.0 - Added deptrim=INT mode for trimming the ends of contigs based on low depth.
+    # 0.8.1 - Fixed failure to screen contaminants in nala, simple and crude purgemode. Add dev minimap2 fix.
+    # 0.8.2 - Shifted LOWQUAL to quarantine rather than junk. Fixed eFDR calculation error (inverse ranking).
+    #       - Added veccheck=T/F : Check coverage of filtered contaminant hits using reads=FILELIST data [False]
+    # 0.9.0 - Added pretrim, vecpurge, vecmask and vectrim options. Reduced screenmode to report/purge.
+    # 0.9.1 - Fixed partial vecpurge when setting parameters to zero.
+    # 0.9.2 - Added keepnames=T/F : Whether to keep names unchanged for edited sequences or append 'X' [False]
+    # 0.9.3 - Fixed termination of program when BUSCO gene mpileup goes wrong (unless debug=T).
+    # 0.9.4 - Added capacity to pick up an aborted dipcycle run. Added maxcycle=INT setting to limit run times.
+    # 0.9.5 - Added use of qsub for system calls and memperthread=INT to control max memory.
+    # 0.9.6 - Dropped default vecmask to 900bp as 1kb length matches picked up by NCBI are sometimes shorter on scaffold.
+    # 0.9.7 - Check for | characters in the input sequences. (Will break the program.)
+    # 0.9.8 - Added additional Mode of Modes genomes size prediction to log.
+    # 0.10.0 - Added regcheck=TDTFILE and regcnv=T/F functions (runmode=regcheck)
+    # 0.10.1 - Added gfftype=X optional feature type to use if performing regcheck on GFF file (e.g. gene) []
+    # 0.10.2 - Fixed GFF regcheck bug. Add some documentation. Made gfftype=LIST not X.
+    # 0.10.3 - Added BUSCO Complete Copy Number calculation and CI estimate to GenomeSize (and RegCNV). Made default gfftype=gene
+    # 0.10.4 - Added improved SCdepth calculation option using BUSCO depth density profile.
+    # 0.10.5 - Added 95% CI estimates to CNV calculations if BUSCO depth profiles are present.
+    # 0.10.6 - Fixed GenomeSize bug with zero coverage BUSCO genes (e.g. using different long reads from assembly)
+    # 0.10.7 - Updated the depmode.R script to limit analysis to one depmethod.
+    # 0.11.0 - Updated defaults to depdensity=T for genome size prediction.
+    # 0.12.0 - Added gapspan function (regcheck but first makes the gaps table, then loads this in, and outputs reads per gap.)
+    
+gablam
+    # 2.30.2 - Stopped BLAST program checks and FormatDB when mapper isn't BLAST.
+    # 2.30.3 - Minor tweak to NRSeq removal to work through GABLAM hits in reverse query size order.
+    # 2.30.4 - Removed duplication error messages when combining fasout results.
+    # 2.30.5 - Fixed missing BLAST database for sequence extraction.
+    
+gopher
+    # 3.5.3 - Removed bootstrap warning in wrong place.
+    # 3.5.4 - Added a try/except to catch some errors Norman was getting.
+    
+haqesac
+    # 1.14.0 - Added keepvar=LIST to enable auto-retention of vairants for multiple species
+    
+multihaq
+    # 1.4.2 - Fixed issue with SLiMFarmer for i<0 runs.
+    # 1.4.3 - Updated warnings if BLAST2FAS files not found.
+    
+pafscaff
+    # 0.0.0 - Initial Compilation.
+    # 0.1.0 - Initial working version with basic documentation. Added scaffold=T/F as an option.
+    # 0.2.0 - Added sorted=X : Criterion for $ASSEMBLY scaffold sorting (QryLen/Coverage/RefStart/None) [QryLen]
+    # 0.2.1 - Add documentation and fixed setting of Minimap2 N and p.
+    # 0.3.0 - Added pagsat=T/F : Whether to output sequence names in special PAGSAT-compatible format [False]
+    # 0.4.0 - Added purity criteria for more stringent assignment to chromosomes.
+    # 0.4.1 - Fixed some issues with ambiguous scaffold output.
+    
+pagsat
+    # 2.6.9 - Fixed renamed assembly bug when basefile not set.
+    # 2.7.0 - Added BAM generation for assembly if reads given.
+    # 2.7.1 - Fixed bug that caused assembly PNGs to disappear.
+    
+saaga
+    # 0.0.0 - Initial Compilation.
+    # 0.1.0 - Initial working version. Needs improved documentation.
+    # 0.2.0 - Added extra annotation/longest output for CDS and GFF.
+    # 0.2.1 - Renamed to SAAGA and tidied some documentation.
+    # 0.3.0 - Added some additional hit info to annotation and reworked to allow multiple query-hit pairs.
+    # 0.3.1 - Fixed assess bug and sped up GFF parsing.
+    # 0.4.0 - Added tophits=X [250] and minglobid=X [40.0] options, plus gobid and hitnum to output.
+    # 0.5.0 - Added definitions for gffgene=X, gffcds=X and gffmrna=X. Modified output.
+    # 0.5.1 - Tidied some of the code and added some identifier checks for GFF and Fasta input.
+    # 0.5.2 - Fixed issue with swapped transcript and exon feature identifiers following v0.5.1 tidying.
+    # 0.5.3 - Added pident compatibility with updated mmseq2. Updated documentation. Modified some stats calculations.
+    # 0.5.4 - Added restricted feature parsing from GFF. Fixed GFF type input bug.
+    
+samphaser
+    # 0.9.0 - Added generation of mpileup file.
+    # 0.9.1 - Tweaked naming for PAGSAT.
+    
+seqsuite
+    # 1.23.1 - Fixed GCPC bug in summarise().
+    # 1.23.2 - Dropped pacbio as synonym for smrtscape. (Causing REST server issues.)
+    # 1.24.0 - Added SAAGA, Diploidocus, SynBad and rje_genomics to programs.
+    
+slimfarmer
+    # 1.10.1 - Added job resource summary to job stdout.
+    # 1.10.2 - Fixed bug when SLiMFarmer batch run being called from another program, e.g. MultiHAQ
+    
+slimsuite
+    # 1.9.0 - Added SAAGA, Diploidocus, SynBad and Genomics. Slight module tidy for GitHub updates.
+
+synbad
+    # 0.0.0 - Initial Compilation.
+    # 0.1.0 - Initial working version without fragment=T implementation.
+    # 0.1.1 - Added minlocid=PERC and minloclen=INT.
+    # 0.1.2 - Added additional translocation skipping for SynTrans rating.
+    # 0.1.3 - Modified the SynBad classification text.
+    # 0.1.4 - Modified code to be able to run without long read mapping. Added dochtml output.
+    # 0.2.0 - Added fragment=T output.
+    # 0.3.0 - Added chromosome scaffold Translocation restriction.
+    # 0.4.0 - Added an Duplication rating in place of Breakpoint for overlapping flanking hits; added top sequence pairs.
+    
+
+
+
+
+   

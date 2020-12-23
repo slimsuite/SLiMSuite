@@ -19,8 +19,8 @@
 """
 Module:       rje_genomics
 Description:  Genomics data reformatting module
-Version:      0.6.0
-Last Edit:    16/01/19
+Version:      0.8.1
+Last Edit:    07/08/20
 Copyright (C) 2018  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -29,10 +29,11 @@ Function:
     reformat: convert TDT file into GFF or SAM
     ncbi: combine NCBI accession numbers and annotation with local data
     gffmap: convert GFF files from one ID set to another
+    samfilt: filter read alignments from SAM file
 
 Commandline:
     ### ~ General Options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-    runmode=X       : Run mode (reformat/ftgff/ncbi/makemap/gffmap/diphap/fqreads/fas2bed/ncbinr/gapgff) [reformat]
+    runmode=X       : Run mode (reformat/ftgff/ncbi/makemap/gffmap/diphap/fqreads/fas2bed/ncbinr/gapgff/locgff/samfilt) [reformat]
     basefile=X      : Base for output files, including log
     ### ~ Reformat Input/Output Options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     tdtfile=FILE    : Input delimited text file with data to convert [None]
@@ -60,6 +61,10 @@ Commandline:
     ### ~ GAP GFF Options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     seqin=FASFILE   : Input assembly fasta file []
     mingap=INT      : Minimum gap length to annotation [10]
+    ### ~ SAM Filter Options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+    sam=FILE        : Input SAM file to filter []
+    minmaplen=INT   : Minimum number of matching template positions to keep SAM hit [0]
+    outsam=FILE     : Output SAM file [$BASEFILE.filtered.sam]
     ### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
 """
 #########################################################################################################################
@@ -70,7 +75,8 @@ slimsuitepath = os.path.abspath(os.path.join(os.path.dirname(os.path.realpath(__
 sys.path.append(os.path.join(slimsuitepath,'libraries/'))
 sys.path.append(os.path.join(slimsuitepath,'tools/'))
 ### User modules - remember to add *.__doc__ to cmdHelp() below ###
-import rje, rje_db, rje_obj, rje_seqlist
+import rje, rje_db, rje_obj, rje_samtools, rje_seqlist
+import rje_blast_V2 as rje_blast
 #########################################################################################################################
 def history():  ### Program History - only a method for PythonWin collapsing! ###
     '''
@@ -81,6 +87,10 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 0.4.0 - Added GFFMap function for mapping IDs onto others in GFF files. And mapfas mode to make mapping table.
     # 0.5.0 - Added Fas2Bed function for making a BED file of all contigs for bedtools coverage etc.
     # 0.6.0 - Added GapGFF option to generate GFF of assembly gaps.
+    # 0.6.1 - Fixed TDTKeys bug.
+    # 0.7.0 - Added loc2gff mode for converting local hits table to GFF3 output.
+    # 0.8.0 - Added samfilt: filter read alignments from SAM file
+    # 0.8.1 - Fixed gapgff bug that had first gap in header.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -96,7 +106,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copy_right) = ('RJE_GENOMICS', '0.6.0', 'November 2018', '2016')
+    (program, version, last_edit, copy_right) = ('RJE_GENOMICS', '0.8.1', 'August 2020', '2016')
     description = 'Misc genomics module'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_obj.zen()]
@@ -161,9 +171,11 @@ class Genomics(rje_obj.RJE_Object):
     - Mapping=FILE    : File of old -> new ID mapping (e.g. from ncbi formatting) [mapping.csv]
     - NCBIFas=FASFILE : NCBI assembly fasta file []
     - NCBIGFF=GFFFILE : NCBI annotation GFF file []
+    - OutSAM=FILE     : Output SAM file [$BASEFILE.filtered.sam]
     - QueryField=X    : Field defining the Query ("Read") name [Qry]
     - Reformat=X      : Output format (GFF3/SAM) [GFF3]
     - RunMode=X       : Run mode (reformat/ncbi) [reformat]
+    - SAM=FILE        : Input SAM file to filter []
     - SeqIn=FASFILE   : Input assembly fasta file []
     - SeqStyle=X      : Sequence naming format for seqin=FASFILE sequences [dipnr]
     - TargetField=X   : Field defining the Target (Genome contig) name [Hit]
@@ -173,6 +185,7 @@ class Genomics(rje_obj.RJE_Object):
 
     Int:integer
     - MinGap=INT      : Minimum gap length to annotation [10]
+    - MinMapLen=INT   : Minimum number of matching template positions to keep SAM hit [0]
 
     Num:float
 
@@ -196,9 +209,9 @@ class Genomics(rje_obj.RJE_Object):
         '''Sets Attributes of Object.'''
         ### ~ Basics ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         self.strlist = ['BegField','EndField','MapFas','Mapping','NCBIFas','NCBIGFF','QueryField','Reformat','RunMode',
-                        'SeqIn','SeqStyle','TargetField','TDTFile']
+                        'SeqIn','SeqStyle','TargetField','TDTFile','SAM','OutSAM']
         self.boollist = []
-        self.intlist = ['MinGap']
+        self.intlist = ['MinGap','MinMapLen']
         self.numlist = []
         self.filelist = []
         self.listlist = ['FQFiles','GFFs','TDTKeys']
@@ -237,10 +250,10 @@ class Genomics(rje_obj.RJE_Object):
                 self._cmdReadList(cmd,'str',['BegField','EndField','NCBIFas','NCBIGFF','QueryField','Reformat','RunMode',
                         'SeqIn','SeqStyle','TargetField','TDTFile'])   # Normal strings
                 #self._cmdReadList(cmd,'path',['Att'])  # String representing directory path 
-                self._cmdReadList(cmd,'file',['MapFas','Mapping','TDTFile'])  # String representing file path
+                self._cmdReadList(cmd,'file',['MapFas','Mapping','TDTFile','SAM','OutSAM'])  # String representing file path
                 #self._cmdReadList(cmd,'date',['Att'])  # String representing date YYYY-MM-DD
                 #self._cmdReadList(cmd,'bool',['Att'])  # True/False Booleans
-                self._cmdReadList(cmd,'int',['MinGap'])   # Integers
+                self._cmdReadList(cmd,'int',['MinGap','MinMapLen'])   # Integers
                 #self._cmdReadList(cmd,'float',['Att']) # Floats
                 #self._cmdReadList(cmd,'min',['Att'])   # Integer value part of min,max command
                 #self._cmdReadList(cmd,'max',['Att'])   # Integer value part of min,max command
@@ -258,6 +271,7 @@ class Genomics(rje_obj.RJE_Object):
         try:### ~ [1] ~ Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             self.setup()
             ### ~ [2] ~ Add main run code here ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            if self.getStrLC('RunMode') == 'loc2gff': self.loc2GFF3()
             if self.getStrLC('RunMode') == 'reformat':
                 if self.getStrLC('Reformat') == 'gff3': self.saveGFF3()
                 elif self.getStrLC('Reformat') == 'sam': self.saveSAM()
@@ -278,6 +292,8 @@ class Genomics(rje_obj.RJE_Object):
                 self.NCBINR()
             if self.getStrLC('RunMode') == 'gapgff':
                 self.gapGFF()
+            if self.getStrLC('RunMode') == 'samfilt':
+                self.samFilt()
         except:
             self.errorLog(self.zen())
             raise   # Delete this if method error not terrible
@@ -285,8 +301,8 @@ class Genomics(rje_obj.RJE_Object):
     def setup(self):    ### Main class setup method.
         '''Main class setup method.'''
         try:### ~ [1] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            if self.getStrLC('RunMode') == 'reformat':
-                self.db().addTable(filename=self.getStr('TDTFile'),mainkeys=self.list['TDTFields'],name='input',expect=True)
+            if self.getStrLC('RunMode') in ['reformat','loc2gff']:
+                self.db().addTable(filename=self.getStr('TDTFile'),mainkeys=self.list['TDTKeys'],name='input',expect=True)
                 if not self.baseFile(return_none=None): self.baseFile(rje.baseFile(self.getStr('TDTFile')))
             #if self.getStrLC('RunMode') == 'ncbi':
             #    self.obj['SeqList'] = rje_seqlist.SeqList(self.log,self.cmd_list+['seqmode=file'])
@@ -308,6 +324,17 @@ class Genomics(rje_obj.RJE_Object):
 #########################################################################################################################
     ### <3> ### Data Saving Methods                                                                                     #
 #########################################################################################################################
+    def loc2GFF3(self,table='input'): ### Use BLAST to convert a loaded local table to GFF3
+        '''Use BLAST to convert a loaded local table to GFF3.'''
+        try:### ~ [1] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            #Qry	Hit	AlnNum	BitScore	Expect	Length	Identity	Positives	QryStart	QryEnd	SbjStart	SbjEnd
+            #YARCTy1-1	ctgIA_MBGISH__MBGISH002.01	1	10619	0.0	5858	5822	0	68	5925	166826	160969
+            blast = rje_blast.BLASTRun(log=self.log,cmd_list=['blastf=F']+self.cmd_list+['checkblast=F'])
+            blast.obj['DB'] = self.obj['DB']
+            gfffile = '%s.gff3' % rje.baseFile(self.getStr('TDTFile'))
+            blast.saveGFF(gfffile,locdb=self.db(table),cdsmode=False)
+        except: self.errorLog('%s.saveGFF3 error' % self.prog())
+#########################################################################################################################
     def saveGFF3(self,table='input'):   ### Save data in GFF3 format
         '''
         Save data in GFF3 format.
@@ -324,7 +351,7 @@ class Genomics(rje_obj.RJE_Object):
             #Qry	Hit	AlnNum	BitScore	Expect	Length	Identity	Positives	QryStart	QryEnd	SbjStart	SbjEnd
             #YARCTy1-1	ctgIA_MBGISH__MBGISH002.01	1	10619	0.0	5858	5822	0	68	5925	166826	160969
 
-            gffdb = self.db().copyTable(table,'%s.gff' % table.name())
+            gffdb = self.db().copyTable(table,'%s.gff' % self.db(table).name())
             gfields = string.split('seqid source type start end score strand phase attributes')
 
             gffdb.newKey(['seqid','start','AlnID','end','type','source','attributes'])
@@ -335,7 +362,7 @@ class Genomics(rje_obj.RJE_Object):
             gffdb.saveToFile(filename,delimit='\t',backup=True,append=append,savefields=gfields,log=True,headers=False,comments=gcomments)
 
             return ValueError('Sorry: save as GFF not yet implemented!')
-        except: self.errorLog('%s.method error' % self.prog())
+        except: self.errorLog('%s.saveGFF3 error' % self.prog())
 #########################################################################################################################
     def gapGFF(self):
         '''
@@ -354,7 +381,7 @@ class Genomics(rje_obj.RJE_Object):
             rje.backup(self,gff)
             GFF = open(gff,'w')
             gcomments = ['##gff-version 3','#Generated by %s' % self.log.runDetails()]
-            gcomments.append('#Full Command List: %s' % rje.argString(rje.tidyArgs(self.log.cmd_list)))
+            gcomments.append('#Full Command List: %s\n' % rje.argString(rje.tidyArgs(self.log.cmd_list)))
             GFF.write(string.join(gcomments,'\n'))
 
             ### ~ [1] Process ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -707,7 +734,55 @@ class Genomics(rje_obj.RJE_Object):
         except:
             self.errorLog('Error in rje_genomics.fastqcreads()',printerror=True,quitchoice=True)
 #########################################################################################################################
-### End of SECTION II: Genomics Class                                                                                   #
+    def samFilt(self):  ### Filters SAM file into another SAM file
+        '''
+        Filters SAM file into another SAM file.
+        >> filename:str = Pileup file name
+        '''
+        try:### ~ [1] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            if not self.getStrLC('SAM'): raise ValueError('Need to set sam=FILE for runmode=samfilt')
+            filename = self.getStr('SAM')
+            if not rje.exists(filename): raise IOError('sam={0} file missing'.format(filename))
+            if filename.endswith('.bam'): SAM = os.popen('samtools view %s' % filename)
+            else: SAM = open(filename,'r')
+            if self.getStrLC('OutSAM'): outfile = self.getStr('OutSAM')
+            else: outfile = '{0}.filtered.sam'.format(self.baseFile())
+            rje.backup(self,outfile,appendable=False)
+            OUT = open(outfile,'w')
+            rid = 0         # Read counter (ID counter)
+            unmappedx = 0   # Counter of unmapped reads
+            filtx = 0       # Counter of filtered reads
+            oldblasrwarn = None
+            ## ~ [1a] Filtering options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            minmaplen = self.getInt('MinMapLen')
+            ### ~ [2] Process each entry ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            for line in SAM:
+                ## ~ [2a] Parse pileup data into dictionary ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+                if line.startswith('@'): OUT.write(line); continue
+                samdata = string.split(line)
+                if len(samdata) < 11: OUT.write(line); continue
+                self.progLog('\r#SAM','Parsing %s: %s reads (+ %s unmapped); %s filtered...' % (filename,rje.iStr(rid),rje.iStr(unmappedx),rje.iStr(filtx)),rand=0.1)
+                cigstr = samdata[5]
+                if cigstr == '*': unmappedx += 1; continue
+                rid += 1
+                rname = samdata[0]
+                #!# Add additional filtering options here
+                try:
+                    cigdata = rje_samtools.parseCigar(cigstr)
+                except:
+                    self.errorLog('Problem with cigar string (%s): "%s"' % (rname,cigstr))
+                    continue
+                if rje_samtools.cigarAlnLen(cigdata) < minmaplen: filtx += 1; continue
+                OUT.write(line)
+            self.printLog('#SAM','Parsed %s: %s filtered reads output to %s; %s filtered.' % (filename,rje.iStr(rid),outfile,rje.iStr(filtx)))
+            if unmappedx: self.printLog('#SAM','Parsed and rejected %s unmapped reads.' % (rje.iStr(unmappedx)))
+            if oldblasrwarn: self.warnLog(oldblasrwarn)
+            SAM.close()
+            OUT.close()
+            return True
+        except: self.errorLog('%s.parseSAM() error' % (self.prog())); return False
+#########################################################################################################################
+ ### End of SECTION II: Genomics Class                                                                                   #
 #########################################################################################################################
 
                                                     ### ~ ### ~ ###

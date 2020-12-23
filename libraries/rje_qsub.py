@@ -19,8 +19,8 @@
 """
 Module:       rje_qsub
 Description:  QSub Generating module
-Version:      1.9.3
-Last Edit:    27/04/19
+Version:      1.11.1
+Last Edit:    28/05/20
 Copyright (C) 2006  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -41,11 +41,14 @@ Commandline:
     - email=X       : Email address to email job stats to at end ['']
     - mailstart=T/F : Whether to email user at start of run [False]
     - hpc=X         : Name of HPC system for depend ['IRIDIS4']
-    - dependhpc=X   : Name of HPC system for depend ['blue30.iridis.soton.ac.uk']
+    - dependhpc=X   : Name of HPC system for depend (will parse from hostname if blank) ['kman.restech.unsw.edu.au']
     - vmem=X        : Virtual Memory limit for run (GB) [48]
     - modules=LIST  : List of modules to add in job file []
     - modpurge=T/F  : Whether to purge loaded modules in qsub job file prior to loading [True]
     - precall=LIST  : List of additional commands to run between module loading and program call []
+    - jobwait=T/F   : Whether to wait for the job to finish before exiting [False]
+    - monitor=T/F   : Whether to add "-k oed" to enable instant job monitoring. [False]
+    - startbash=T/F : Whether to add "-S /bin/bash" to qsub command [False]
 
 Uses general modules: copy, os, string, sys, time
 Uses RJE modules: rje
@@ -79,18 +82,26 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 1.9.1 - Removed default module list: causing conflicts. Better to have in INI file.
     # 1.9.2 - Modified qsub() to return job ID.
     # 1.9.3 - Updates the order of the qsub -S /bin/bash flag.
+    # 1.9.4 - Updated qsub to use mem flag rather than vmem. Replaced showstart with qsub -T.
+    # 1.9.5 - Added "-k oed" to enable instant job monitoring and option to drop -S /bin/bash/. Tidied walltime.
+    # 1.9.6 - Updated qsub to use both mem and vmem flags.
+    # 1.10.0 - Added jobwait to wait until the job has finished.
+    # 1.10.1 - New default dependhpc=X  ['kman.restech.unsw.edu.au']
+    # 1.10.2 - Added notification that job is running when jobwait=T.
+    # 1.11.0 - Added output of date and time at end of job script too. (Gives a record of total time running.)
+    # 1.11.1 - Added job run summary output to end of stdout.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
     '''
     # [ ] : Check out PBS options within job file
-    # [ ] : Modify to work on HPC other than IRIDIS.
+    # [Y] : Modify to work on HPC other than IRIDIS.
     # [ ] : Add i=-1 to call if rjepy=T.
     '''
 #########################################################################################################################
 def makeInfo():     ### Makes Info object
     '''Makes rje.Info object for program.'''
-    (program, version, last_edit, copy_right) = ('RJE_QSUB', '1.9.3', 'April 2019', '2006')
+    (program, version, last_edit, copy_right) = ('RJE_QSUB', '1.11.1', 'May 2020', '2006')
     description = 'QSub Generating module'
     author = 'Dr Richard J. Edwards.'
     comments = [rje_zen.Zen().wisdom()]
@@ -155,17 +166,20 @@ class QSub(rje.RJE_Object):
     Info:str
     - Email = Email address to email job stats to at end ['']
     - HPC = Name of HPC system for depend ['IRIDIS4']
-    - DependHPC = Name of HPC system for depend ['blue30.iridis.soton.ac.uk']
+    - DependHPC = Name of HPC system for depend ['kman.restech.unsw.edu.au']
     - Program = Program call for Qsub (with options) [None]
     - PyPath = Path for Python scripts [python /rhome/re1u06/Serpentry/]
     - QPath = Path to change directory too [current path]
     - Job = Name of job file (.job added) [qsub]
     
     Opt:boolean
+    - JobWait : Whether to wait for the job to finish before exiting [False]
     - MailStart = Whether to email user at start of run [False]
     - ModPurge=T/F : Whether to purge loaded modules in qsub job file prior to loading [True]
+    - Monitor=T/F   : Whether to add "-k oed" to enable instant job monitoring. [False]
     - RjePy = Whether program is an RJE *.py script (adds python /home/richard/Python_Modules) [True]
     - Report = Pull out running job IDs and run showstart [False]
+    - StartBash=T/F : Whether to add "-S /bin/bash" to qsub command [False]
 
     Stat:numeric
     - Nodes = Number of nodes to run on
@@ -198,7 +212,7 @@ class QSub(rje.RJE_Object):
         '''
         ### Basics ###
         self.infolist = ['Program','QPath','Job','PyPath','Email','HPC','DependHPC']
-        self.optlist = ['ModPurge','RjePy','Report','MailStart']
+        self.optlist = ['JobWait','ModPurge','Monitor','RjePy','Report','MailStart','StartBash']
         self.statlist = ['Nodes','Walltime','PPN','Pause']
         self.listlist = ['Depend','PreCall','Modules']
         self.dictlist = []
@@ -208,9 +222,9 @@ class QSub(rje.RJE_Object):
         ### Other Attributes ###
         self.setInfo({'QPath':os.path.abspath(os.curdir),'Job':'rje_%s' % rje.randomString(4),
                       'PyPath':'/home/re1u06/Serpentry/','Email':'',
-                      'HPC':'IRIDIS4','DependHPC':'blue30.iridis.soton.ac.uk'})
+                      'HPC':'IRIDIS4','DependHPC':'kman.restech.unsw.edu.au'})
         self.setStat({'Walltime':60,'Nodes':1,'PPN':12,'Pause':5,'VMem':48})
-        self.setOpt({'Report':False,'MailStart':False,'ModPurge':True})
+        self.setOpt({'JobWait':False,'Report':False,'MailStart':False,'ModPurge':True,'Monitor':False,'StartBash':False})
         #self.list['Modules'] = string.split('blast+/2.2.30,clustalw,clustalo,fsa,mafft,muscle,pagan,R/3.1.1,fasttree,phylip',',')
 #########################################################################################################################
     def _cmdList(self):     ### Sets Attributes from commandline
@@ -227,7 +241,8 @@ class QSub(rje.RJE_Object):
                 self._cmdReadList(cmd,'path',['QPath','PyPath'])
                 self._cmdReadList(cmd,'int',['Nodes','PPN','Pause','VMem'])
                 self._cmdReadList(cmd,'stat',['Walltime'])
-                self._cmdReadList(cmd,'opt',['RjePy','Report','MailStart','ModPurge'])
+                self._cmdReadList(cmd,'opt',['JobWait','RjePy','Report','MailStart','ModPurge','Monitor','StartBash'])
+                self._cmdRead(cmd,type='opt',att='JobWait',arg='wait')
                 self._cmdReadList(cmd,'list',['Depend','Modules','PreCall'])
             except: self.errorLog('Problem with cmd:%s' % cmd)
         if self.getStr('Email').lower() in ['none','']: self.info['Email'] = ''
@@ -235,15 +250,27 @@ class QSub(rje.RJE_Object):
     ### <3> ### Additional Class Methods                                                                                #
 #########################################################################################################################
     def qsub(self):      ### Creates job and calls with qsub
-        '''Creates job and calls with qsub.'''
+        '''Creates job and calls with qsub. Returns qsub job ID or 0 if jobwait=True and job completed.'''
         try:### Basics ###
             hr = int(self.stat['Walltime'])
             min = int((0.5+(self.stat['Walltime'] - hr)*60.0))
             if self.opt['Report']: return self.report()
+            jobstr = string.replace('%s.job' % self.info['Job'],'.job','')
             jlist = ['#!/bin/bash',
-                     '#PBS -N %s' % string.replace('%s.job' % self.info['Job'],'.job',''),  #,'#PBS -q batch',
+                     '#PBS -N %s' % jobstr,  #,'#PBS -q batch',
                      '#PBS -l nodes=%d:ppn=%d' % (self.stat['Nodes'],self.stat['PPN']),
-                     '#PBS -l walltime=%d:%d:00' % (hr,min),'#PBS -l vmem=%dgb' % self.getInt('VMem'),'']     #10
+                     '#PBS -l walltime=%d:%s:00' % (hr,rje.preZero(min,60)),
+                     '#PBS -l vmem=%dgb' % self.getInt('VMem'),
+                     '#PBS -l mem=%dgb' % self.getInt('VMem'),
+                     '']     #10
+            #if not os.popen('hostname').read().startswith('katana.science.unsw.edu.au'):
+            #    jlist[-2] = '#PBS -l mem=%dgb' % self.getInt('VMem')
+            if self.getBool('Monitor'):
+                if self.getBool('JobWait'):
+                    self.warnLog('Cannot run with wait=T and monitor=T: switched monitor=F')
+                    self.setBool({'Monitor':False})
+                else:
+                    jlist += ['#PBS -k oed']
             if self.getStr('Email'):
                 jlist += ['#PBS -M %s' % self.getStr('Email'),'#PBS -m ae']
                 if self.getBool('MailStart'): jlist[-1] = '#PBS -m bae'
@@ -268,17 +295,24 @@ class QSub(rje.RJE_Object):
             pcall = self.info['Program']
             if self.opt['RjePy']: pcall = 'python ' + self.info['PyPath'] + pcall
             jlist.append(pcall)
+            ### Completion message
+            jlist += ['','echo ---','qstat -f $PBS_JOBID','echo ---']
+            jlist += ['','echo','echo Time is `date`','echo Job complete']
             ### Output and call ###
-            job = string.replace('%s.job' % self.info['Job'],'.job.job','.job')
+            job = '{0}.job'.format(jobstr) #string.replace('%s.job' % self.info['Job'],'.job.job','.job')
             open(job,'w').write(string.join(jlist,'\n'))
             self.printLog('#DIR',self.info['QPath'])
-            self.printLog('#RUN',jlist[-1])
+            self.printLog('#RUN',pcall)
             #qsub = 'qsub %s -S /bin/sh -l walltime=%d:%d:00,nodes=%d:ppn=2' % (job,hr,min,self.stat['Nodes'])
-            qsub = 'qsub -S /bin/bash'
+            qsub = 'qsub'
+            if self.getBool('StartBash'): qsub += ' -S /bin/bash'
             if self.list['Depend']:
                 qsub += ' -W depend=afterany'
                 #for id in self.list['Depend']: qsub += ':%s.bio-server' % id
-                for id in self.list['Depend']: qsub += ':%s.%s' % (id,self.getStr('DependHPC'))
+                myhost = self.getStr('DependHPC')
+                if not self.getStrLC('DependHPC'):
+                    myhost = string.split(os.popen('hostname').read())[0]
+                for id in self.list['Depend']: qsub += ':%s.%s' % (id,myhost)
             qsub += ' %s' % (job)
             self.printLog('#JOB',qsub)
             if self.test():
@@ -288,10 +322,47 @@ class QSub(rje.RJE_Object):
             qrun = os.popen(qsub).read()
             self.printLog('#QSUB',qrun)
             qid = string.split(qrun,'.')[0]
-            self.printLog('#SHOW','Attempt showstart %s in %s sec' % (qid,self.stat['Pause']),log=False)
+            showstart = 'qstat -T'
+            if os.popen('hostname').read().startswith('katana.science.unsw.edu.au'):
+                showstart = 'showstart'
+            self.printLog('#SHOW','Attempt %s %s in %s sec' % (showstart,qrun,self.stat['Pause']),log=False)
             time.sleep(self.stat['Pause'])
-            for qline in os.popen('showstart %s' % qrun):   #qid):
+            for qline in os.popen('%s %s' % (showstart,qrun)):   #qid):
                 if rje.chomp(qline): self.printLog('#INFO', qline, timeout=False)
+
+            ### Wait for job to be completed
+            if self.getBool('JobWait'):
+                if self.getBool('Monitor'): raise ValueError('Cannot run with wait=T and monitor=T')
+                self.printLog('#WAIT','Waiting for job {0} to finish'.format(qid))
+                ofile = '{0}.o{1}'.format(string.replace('%s.job' % self.info['Job'],'.job',''),qid)
+                running = False
+                while not rje.exists(ofile):
+                    qstat = string.atoi( os.popen("qstat | grep '^{0}' -c".format(qid)).read().split()[0] )
+                    if not qstat:
+                        self.printLog('#QSTAT','Job {0} disappeared from qstat'.format(qid))
+                        break
+                    elif not running:
+                        try:
+                            qstat = string.split( os.popen("qstat | grep '^{0}'".format(qid)).read().split()[4] )
+                            if qstat == 'R':
+                                running = True
+                                self.printLog('#QSTAT','Job {0} running...'.format(qid))
+                        except: pass
+                    time.sleep( max(1,self.getInt('Pause')) )
+                owait = 300
+                while owait and not rje.exists(ofile):
+                    owait -= 1
+                    time.sleep(1)
+                if rje.exists(ofile):
+                    if 'Job complete' in os.popen('tail -n 1 {0}'.format(ofile)).read():
+                        self.printLog('#DONE','{0} job ({1}) complete.'.format(jobstr, qid))
+                        return 0
+                    else:
+                        self.printLog('#FAIL','{0} job ({1}) failed to finish.'.format(jobstr, qid))
+                        return qid
+                else:
+                    self.printLog('#FAIL','{0} job ({1}) failed to generate {2}.'.format(jobstr, qid, ofile))
+
             return qid
         except: self.errorLog('Error in qsub()'); return False
 #########################################################################################################################

@@ -19,8 +19,8 @@
 """
 Program:      HAQESAC
 Description:  Homologue Alignment Quality, Establishment of Subfamilies and Ancestor Construction
-Version:      1.13.0
-Last Edit:    24/05/19
+Version:      1.14.0
+Last Edit:    25/06/19
 Citation:     Edwards et al. (2007), Nature Chem. Biol. 3(2):108-112. [PMID: 17220901]
 Copyright (C) 2007  Richard J. Edwards - See source code for GNU License Notice
 
@@ -156,6 +156,7 @@ Commandline Options:
     orphan=T/F  : Whether orphans sequences (not in subfam) allowed. [True]
     allowvar=T/F: Allow variants of same species within a group. [False]
     qryvar=T/F  : Keep variants of query species within a group (over-rides allowvar=F). [False]
+    keepvar=LIST: Automatically keep variants for listed species (over-rides allowvar=F). []
     groupspec=X : Species for duplication grouping [None]
     qspec=T/F   : Whether to highlight query species in PNG tree files [True]
     specdup=X   : Minimum number of different species in clade to be identified as a duplication [2]
@@ -229,6 +230,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 1.11.0 - Added resdir=PATH [./HAQESAC/] for d>0 outputs.
     # 1.12.0 - 9spec=T/F   : Whether to treat 9XXXX species codes as actual species (generally higher taxa) [False]
     # 1.13.0 - Modified qregion=X,Y to be 1-L numbering.
+    # 1.14.0 - Added keepvar=LIST to enable auto-retention of vairants for multiple species
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -248,7 +250,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, cyear) = ('HAQESAC', '1.13.0', 'May 2019', '2005')
+    (program, version, last_edit, cyear) = ('HAQESAC', '1.143.0', 'June 2019', '2005')
     description = 'Homologue Alignment Quality, Establishment of Subfamilies and Ancestor Construction'
     author = 'Dr Richard J. Edwards.'
     comments = ['Cite: Edwards RJ et al. (2007) Nature Chem. Biol. 3(2):108-112.']
@@ -284,6 +286,9 @@ def setupProgram(): ### Basic Setup of Program when called from commandline.
     '''
     try:### ~ [1] ~ Initial Command Setup & Info ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         info = makeInfo()                                   # Sets up Info object with program details
+        if len(sys.argv) == 2 and sys.argv[1] in ['version','-version','--version']: rje.printf(info.version); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: rje.printf('{0} v{1}'.format(info.program,info.version)); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['description','-description','--description']: rje.printf('%s: %s' % (info.program,info.description)); sys.exit(0)
         cmd_list = rje.getCmdList(sys.argv[1:],info=info)   # Reads arguments and load defaults from program.ini
         out = rje.Out(cmd_list=cmd_list)                    # Sets up Out object for controlling output to screen
         out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2 

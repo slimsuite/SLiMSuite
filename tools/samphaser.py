@@ -19,8 +19,8 @@
 """
 Module:       SAMPhaser
 Description:  Diploid chromosome phasing from SAMTools Pileup format.
-Version:      0.8.0
-Last Edit:    12/10/18
+Version:      0.9.1
+Last Edit:    16/02/20
 Documentation: https://github.com/slimsuite/SLiMSuite/wiki/SAMPhaser
 Copyright (C) 2016  Richard J. Edwards - See source code for GNU License Notice
 
@@ -73,7 +73,7 @@ Function:
 Commandline:
     ### ~ Input/Output options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     seqin=FASFILE   : Input genome to phase variants in []
-    pileup=FILE     : Pileup file of reads against input genome. []
+    pileup=FILE     : Pileup file of reads against input genome. Will make from reads=FILELIST if missing. []
     basefile=FILE   : Root of output file names (same as Pileup input file by default) []
     mincut=X        : Minimum read count for minor allele (proportion of QN if <1) for pileup parsing [0.1]
     absmincut=X     : Absolute minimum read count for minor allele (used if mincut<1) [2]
@@ -81,6 +81,8 @@ Commandline:
     snptableout=T/F : Output filtered alleles to SNP Table [False]
     skiploci=LIST   : Optional list of loci (full names or accnum) to skip phasing []
     phaseloci=LIST  : Optional list of loci (full names or accnum) to phase (will skip rest) []
+    reads=FILELIST  : List of fasta/fastq files containing reads. Wildcard allowed. Can be gzipped. []
+    readtype=LIST   : List of ont/pb file types matching reads for minimap2 mapping [ont]
     ### ~ Phasing options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     phasecut=X      : Minimum read count for minor allele for phasing (proportion of QN if <1) [0.25]
     absphasecut=X   : Absolute minimum read count for phasecut (used if phasecut<1) [5]
@@ -98,6 +100,7 @@ Commandline:
     splitzero=X     : Whether to split haplotigs at zero-coverage regions of X+ bp (-1 = no split) [100]
     rgraphics=T/F   : Whether to generate PNG graphics using R. (Needs R installed and setup) [True]
     poordepth=T/F   : Whether to include reads with poor track probability in haplotig depth plots (random track) [False]
+    pagsat=T/F      : Use PAGSAT-style naming for split sequences (Rn in place of .n) [False]
     ### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
 """
 #########################################################################################################################
@@ -108,7 +111,7 @@ slimsuitepath = os.path.abspath(os.path.join(os.path.dirname(os.path.realpath(__
 sys.path.append(os.path.join(slimsuitepath,'libraries/'))
 sys.path.append(os.path.join(slimsuitepath,'tools/'))
 ### User modules - remember to add *.__doc__ to cmdHelp() below ###
-import rje, rje_html, rje_obj, rje_db, rje_samtools, rje_seqlist
+import rje, rje_html, rje_obj, rje_db, rje_paf, rje_samtools, rje_seqlist
 #########################################################################################################################
 def history():  ### Program History - only a method for PythonWin collapsing! ###
     '''
@@ -128,14 +131,16 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 0.6.0 - Converted haplotig naming to be consistent for PAGSAT generation. Updated for rje_samtools v1.21.1.
     # 0.7.0 - Added skiploci=LIST and phaseloci=LIST  : Optional list of loci to skip phasing []
     # 0.8.0 - poordepth=T/F   : Whether to include reads with poor track probability in haplotig depth plots (random track) [False]
+    # 0.9.0 - Added generation of mpileup file.
+    # 0.9.1 - Tweaked naming for PAGSAT.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
     '''
-    # [ ] : Populate Module Docstring with basic info.
-    # [ ] : Populate makeInfo() method with basic info.
-    # [ ] : Add full description of program to module docstring.
-    # [ ] : Create initial working version of program.
+    # [Y] : Populate Module Docstring with basic info.
+    # [Y] : Populate makeInfo() method with basic info.
+    # [Y] : Add full description of program to module docstring.
+    # [Y] : Create initial working version of program.
     # [ ] : Add REST outputs to restSetup() and restOutputOrder()
     # [ ] : Add to SLiMSuite or SeqSuite.
     # [ ] : Add forking to unzip to do one locus per fork.
@@ -150,7 +155,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copy_right) = ('SAMPhaser', '0.8.0', 'October 2018', '2016')
+    (program, version, last_edit, copy_right) = ('SAMPhaser', '0.9.1', 'February 2020', '2016')
     description = 'Diploid chromosome phasing from SAMTools Pileup format'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_obj.zen()]
@@ -185,6 +190,9 @@ def setupProgram(): ### Basic Setup of Program when called from commandline.
     '''
     try:### ~ [1] ~ Initial Command Setup & Info ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         info = makeInfo()                                   # Sets up Info object with program details
+        if len(sys.argv) == 2 and sys.argv[1] in ['version','-version','--version']: rje.printf(info.version); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: rje.printf('{0} v{1}'.format(info.program,info.version)); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['description','-description','--description']: rje.printf('%s: %s' % (info.program,info.description)); sys.exit(0)
         cmd_list = rje.getCmdList(sys.argv[1:],info=info)   # Reads arguments and load defaults from program.ini
         out = rje.Out(cmd_list=cmd_list)                    # Sets up Out object for controlling output to screen
         out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2 
@@ -214,6 +222,7 @@ class SAMPhaser(rje_obj.RJE_Object):
 
     Bool:boolean
     - HalfHap=T/F     : Whether to allow "half haplotigs" where one halpotig in a pair is removed by minhapx [True]
+    - PAGSAT=T/F      : Use PAGSAT-style naming for split sequences (Rn in place of .n) [False]
     - PhaseIndels=T/F : Whether to include indels in "SNP" phasing [False]
     - PoorDepth=T/F   : Whether to include reads with poor track probability in haplotig depth plots (random track) [False]
     - RGraphics=T/F   : Whether to generate PNG graphics using R. (Needs R installed and setup) [True]
@@ -238,6 +247,8 @@ class SAMPhaser(rje_obj.RJE_Object):
     
     List:list
     - PhaseLoci=LIST  : Optional list of loci (full names or accnum) to phase (will skip rest) []
+    - Reads=FILELIST  : List of fasta/fastq files containing reads. Wildcard allowed. Can be gzipped. []
+    - ReadType=LIST   : List of ont/pb file types matching reads for minimap2 mapping [ont]
     - SkipLoci=LIST   : Optional list of loci to skip phasing []
 
     Dict:dictionary    
@@ -255,21 +266,22 @@ class SAMPhaser(rje_obj.RJE_Object):
     def _setAttributes(self):   ### Sets Attributes of Object
         '''Sets Attributes of Object.'''
         ### ~ Basics ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-        self.strlist = ['Pileup','SeqIn']
-        self.boollist = ['HalfHap','PhaseIndels','RGraphics','SNPTableOut','PoorDepth']
+        self.strlist = ['PAFPhase','Pileup','SeqIn']
+        self.boollist = ['HalfHap','PAGSAT','PhaseIndels','RGraphics','SNPTableOut','PoorDepth']
         self.intlist = ['AbsPhaseCut','AbsUnzipCut','EndMargin','MinSNP','SNPCalc']
         self.numlist = ['MinHapX','PhaseCut','SNPErr','SplitZero','TrackProb','UnzipCut']
         self.filelist = []
-        self.listlist = ['SkipLoci','PhaseLoci']
+        self.listlist = ['SkipLoci','PhaseLoci','Reads','ReadType']
         self.dictlist = []
         self.objlist = []
         ### ~ Defaults ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         self._setDefaults(str='None',bool=False,int=0,num=0.0,obj=None,setlist=True,setdict=True,setfile=True)
         self.setStr({})
-        self.setBool({'HalfHap':True,'PhaseIndels':False,'RGraphics':True,'SNPTableOut':False,'PoorDepth':False})
+        self.setBool({'HalfHap':True,'PAGSAT':False,'PhaseIndels':False,'RGraphics':True,'SNPTableOut':False,'PoorDepth':False})
         self.setInt({'AbsPhaseCut':5,'AbsUnzipCut':3,'EndMargin':10,'MinSNP':5,'SNPCalc':10})
         self.setNum({'MinHapX':5.0,'PhaseCut':0.25,'SNPErr':0.05,'SplitZero':100,'TrackProb':0.95,'UnzipCut':0.1})
         ### ~ Other Attributes ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+        self.list['ReadType'] = ['ont']
         self._setForkAttributes()   # Delete if no forking
         #SeqList loaded in self.unzipSeq
         #seqcmd = ['seqmode=file','autoload=T']
@@ -286,18 +298,18 @@ class SAMPhaser(rje_obj.RJE_Object):
                 self._forkCmd(cmd)  # Delete if no forking
                 ### Class Options (No need for arg if arg = att.lower()) ### 
                 #self._cmdRead(cmd,type='str',att='Att',arg='Cmd')  # No need for arg if arg = att.lower()
-                #self._cmdReadList(cmd,'str',['Att'])   # Normal strings
+                self._cmdReadList(cmd,'str',['PAFPhase'])   # Normal strings
                 #self._cmdReadList(cmd,'path',['Att'])  # String representing directory path 
                 self._cmdReadList(cmd,'file',['Pileup','SeqIn'])  # String representing file path
                 #self._cmdReadList(cmd,'date',['Att'])  # String representing date YYYY-MM-DD
-                self._cmdReadList(cmd,'bool',['HalfHap','PoorDepth','PhaseIndels','RGraphics','SNPTableOut'])  # True/False Booleans
+                self._cmdReadList(cmd,'bool',['HalfHap','PAGSAT','PoorDepth','PhaseIndels','RGraphics','SNPTableOut'])  # True/False Booleans
                 self._cmdReadList(cmd,'int',['EndMargin','MinSNP','SNPCalc','SplitZero'])   # Integers
                 self._cmdReadList(cmd,'float',['MinHapX','PhaseCut','SNPErr','TrackProb','UnzipCut']) # Floats
                 #self._cmdReadList(cmd,'min',['Att'])   # Integer value part of min,max command
                 #self._cmdReadList(cmd,'max',['Att'])   # Integer value part of min,max command
-                self._cmdReadList(cmd,'list',['PhaseLoci','SkipLoci'])  # List of strings (split on commas or file lines)
+                self._cmdReadList(cmd,'list',['PhaseLoci','ReadType','SkipLoci'])  # List of strings (split on commas or file lines)
                 #self._cmdReadList(cmd,'clist',['Att']) # Comma separated list as a *string* (self.str)
-                #self._cmdReadList(cmd,'glist',['Att']) # List of files using wildcards and glob
+                self._cmdReadList(cmd,'glist',['Reads']) # List of files using wildcards and glob
                 #self._cmdReadList(cmd,'cdict',['Att']) # Splits comma separated X:Y pairs into dictionary
                 #self._cmdReadList(cmd,'cdictlist',['Att']) # As cdict but also enters keys into list
             except: self.errorLog('Problem with cmd:%s' % cmd)
@@ -315,7 +327,9 @@ class SAMPhaser(rje_obj.RJE_Object):
             samcmd = ['rid=T','snponly=T']
             sam = self.obj['SAMTools'] = rje_samtools.SAMtools(self.log,['mincut=0.1']+self.cmd_list+samcmd)
             sam.obj['DB'] = self.obj['DB']
-            if not self.baseFile(return_none=None): self.baseFile(rje.baseFile(self.getStr('Pileup')))
+            if not self.baseFile(return_none=None):
+                if self.getStrLC('Pileup'):  self.baseFile(rje.baseFile(self.getStr('Pileup')))
+                else: self.baseFile(rje.baseFile(self.getStr('SeqIn')))
             self.printLog('#BASE',self.baseFile(return_none=None))
             return True     # Setup successful
         except: self.errorLog('Problem during %s setup.' % self.prog()); return False  # Setup failed
@@ -344,9 +358,28 @@ class SAMPhaser(rje_obj.RJE_Object):
                 if self.getBool('RGraphics'): self.report()
                 return True
 
+            ## ~ [2x] Dev mode using PAF output ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            if self.dev() and self.getStrLC('PAFPhase'):
+                snpfile = '%s.snp.tdt' % self.getStr('PAFPhase')
+                #snpdb = self.db('snp',add=True,mainkeys=['Locus','Pos'])
+                snpdb = self.db().addTable(snpfile,mainkeys=['Locus','Pos'],datakeys='All',name='snp',expect=True)
+                ridfile = '%s.rid.tdt' % self.getStr('PAFPhase')
+                riddb = self.db().addTable(ridfile,mainkeys=['RID'],datakeys='All',name='rid',expect=True)
+                riddb.dataFormat({'RID':'str','Start':'int','End':'int'})
+                self.phase()
+                self.unzipSeq()
+                if self.getBool('RGraphics'): self.report()
+                return True
+
             ## ~ [2b] Parse SNPs with SAMTools object ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             sam = self.obj['SAMTools']
-            sam.parsePileup(self.getStr('Pileup'))
+            if not self.getStrLC('Pileup'):
+                self.setStr({'Pileup':self.longreadMPileup()})
+            if self.dev() and sam.forks() > 1:
+                sam.list['Batch'] = [self.getStr('Pileup')]
+                sam.forkerParsePileUp()
+            else:
+                sam.parsePileup(self.getStr('Pileup'))
             #i# This will generate three files. The SNP file is returned by getSNPFile() and contains the actual SNPs for
             #i# phasing. The RID file contains the positions of the reads and is used for unzipping and depth plots.
             #i# The QC file is not used.
@@ -594,7 +627,7 @@ class SAMPhaser(rje_obj.RJE_Object):
                 self.list['SkipLoci'] = []
                 for locus in riddb.indexKeys('Locus'):
                     self.bugPrint('%s -> %s' % (locus,string.split(locus,'__')[-1]))
-                    self.deBug(locus in self.list['PhaseLoci'] or string.split(locus,'__')[-1] in self.list['PhaseLoci'])
+                    #self.deBug(locus in self.list['PhaseLoci'] or string.split(locus,'__')[-1] in self.list['PhaseLoci'])
                     if locus in self.list['PhaseLoci'] or string.split(locus,'__')[-1] in self.list['PhaseLoci']: continue
                     self.list['SkipLoci'].append(locus)
                 skipx = len(self.list['SkipLoci'])
@@ -943,7 +976,8 @@ class SAMPhaser(rje_obj.RJE_Object):
                         #i# NOTE: nSNP will be from ORIGINAL Haplotig, not the split version!
                         #i# NOTE: nRID is calculated later
                         for field in ['Block','Haplotig','HapAcc']:
-                            sentry[field] = '%s.%s' % (sentry[field],rje.preZero(spliti,len(splitfrag)))
+                            if self.getBool('PAGSAT'): sentry[field] = '%sF%s' % (sentry[field],rje.preZero(spliti,len(splitfrag)))
+                            else: sentry[field] = '%s.%s' % (sentry[field],rje.preZero(spliti,len(splitfrag)))
                         (begpos,endpos) = splitfrag.pop(0)
                         self.printLog('\r#SPLIT','%s (%s-%s) -> %s' % (hap,rje.iStr(begpos),rje.iStr(endpos),sentry['Haplotig']))
                         sentry['Start'] = begpos
@@ -1053,7 +1087,7 @@ class SAMPhaser(rje_obj.RJE_Object):
                         poordep[hap].append(rid)
 
                 self.printLog('#REJECT','%s %s reads rejected as wholly within phased haplotig but poor pTrack' % (rje.iStr(rejx),locus))
-                self.debug(len(colrid))
+                #self.deBug(len(colrid))
                 # Generate new collapsed block if needed (newxt locus)
                 if colentry['Start']:
                     blockx += 1; colhap = 'C%d' % blockx
@@ -1250,8 +1284,8 @@ class SAMPhaser(rje_obj.RJE_Object):
                 dlocus = string.split(string.split(locus,'_')[-1],'.')
                 if rje.matchExp('^(\D+)(\d+)',dlocus[1]): dlocus[1] = dlocus[1][1:] + dlocus[1][:1]
                 dlocus = string.join(dlocus,'.')
-                self.bugPrint('%s -> %s: %s' % (locus,dlocus,len(depdb.indexEntries('Locus',dlocus))))
-                self.deBug('%d == %d?' % (len(sequence),max(depdb.indexDataList('Locus',dlocus,'Pos'))))
+                #self.bugPrint('%s -> %s: %s' % (locus,dlocus,len(depdb.indexEntries('Locus',dlocus))))
+                #self.deBug('%d == %d?' % (len(sequence),max(depdb.indexDataList('Locus',dlocus,'Pos'))))
                 for entry in depdb.indexEntries('Locus',dlocus):
                     if entry['X']: continue  # Coverage
                     self.bugPrint(entry)
@@ -1271,7 +1305,7 @@ class SAMPhaser(rje_obj.RJE_Object):
                 #i# Final position
                 endpos = len(sequence)
                 splitn.append((begpos, endpos))
-                self.debug(splitn)
+                #self.deBug(splitn)
                 #i# Clean up small chunks
                 splitfrag = []
                 for frag in splitn:
@@ -1758,6 +1792,91 @@ class SAMPhaser(rje_obj.RJE_Object):
                 self.printLog('#HTML','HTML report output: %s' % hfile)
             return sectdata
         except: self.errorLog('%s.report error' % self.prog()); return False
+#########################################################################################################################
+    def longreadMPileup(self):  ### Performs long read versus assembly minimap2 and converts BAM and MPileup files
+        '''
+        Performs long read versus assembly minimap2 and converts to BAM file
+        :return: bamfile/None
+        '''
+        try:### ~ [1] ~ Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            self.obj['PAF'] = paf = rje_paf.PAF(self.log, self.cmd_list)
+            bamfile = self.baseFile() + '.bam'
+
+            ### ~ [2] ~ Generate individual BAM files ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            if self.force() or not rje.exists(bamfile):
+                mmv = os.popen('%s --version' % paf.getStr('Minimap2')).read()
+                if not mmv: raise ValueError('Could not detect minimap2 version: check minimap2=PROG setting (%s)' % paf.getStr('Minimap2'))
+                rje.backup(self,bamfile)
+                #!# Check these BAM files have headers! #!#
+                bamlist = []; rx = 0
+                if not self.list['ReadType']:
+                    self.warnLog('Read Type not given (pb/ont): check readtype=LIST. Will use "ont".')
+                elif len(self.list['ReadType']) == 1 and len(self.list['Reads']) != 1:
+                    self.printLog('#READS','Using "%s" as read type for all long reads' % self.list['ReadType'][0])
+                elif len(self.list['ReadType']) != len(self.list['Reads']):
+                    self.warnLog('reads=FILELIST vs readtype=LIST length mismatch: check readtype=LIST. Will cycle if needed.')
+                for readfile in self.list['Reads']:
+                    if not rje.exists(readfile): raise IOError('Read file "{}" not found!'.format(readfile))
+                    if self.list['ReadType']:
+                        try: rtype = self.list['ReadType'][rx]; rx +=1
+                        except: rtype = self.list['ReadType'][0]; rx = 1
+                        if rtype in ['pacbio','pac']: rtype = 'pb'
+                        if rtype not in ['ont','pb']:
+                            self.warnLog('Read Type "%s" not recognised (pb/ont): check readtype=LIST. Will use "ont".' % rtype)
+                            rtype = 'ont'
+                    else: rtype = 'ont'
+                    prefix = '{}.{}'.format(rje.baseFile(self.getStr('SeqIn'),strip_path=True),rje.baseFile(readfile,strip_path=True))
+                    maplog = '{}.log'.format(prefix)
+                    ## ~ [2a] Make SAM ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+                    maprun = '{} -t {} --secondary=no -o {}.sam -L -ax map-{} {} {}'.format(paf.getStr('Minimap2'),self.threads(),prefix,rtype,self.getStr('SeqIn'),readfile)
+                    logline = self.loggedSysCall(maprun,maplog,append=False)
+                    #!# Add check that run has finished #!#
+                    ## ~ [2b] Converting SAM to BAM ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+                    #sam2bam = 'samtools view -bo {}.tmp.bam -@ {} -S {}.sam'.format(prefix,self.threads()-1,prefix)
+                    self.printLog('#BAM','Converting SAM to BAM. Using a single thread due to past issues of missing data.')
+                    sam2bam = 'samtools view -bo {}.tmp.bam -S {}.sam'.format(prefix,prefix)
+                    logline = self.loggedSysCall(sam2bam,maplog,append=True,nologline='No stdout from sam2bam')
+                    #!# Add check that run has finished #!#
+                    ## ~ [2c] Sorting BAM ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+                    self.printLog('#BAM','Sorting BAM file.')
+                    sortbam = '{}.bam'.format(prefix)
+                    bamsort = 'samtools sort -@ {} -o {}.bam -m 6G {}.tmp.bam'.format(self.threads()-1,prefix,prefix)
+                    logline = self.loggedSysCall(bamsort,maplog,append=True)
+                    #!# Add check that run has finished #!#
+                    if not rje.exists(sortbam): raise IOError('Sorted BAM file "%s" not generated' % sortbam)
+                    os.unlink('{}.sam'.format(prefix))
+                    os.unlink('{}.tmp.bam'.format(prefix))
+                    bamlist.append(sortbam)
+
+            ### ~ [3] ~ Merge individual BAM files ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+                if len(bamlist) > 1:
+                    # samtools merge - merges multiple sorted input files into a single output.
+                    bammerge = 'samtools merge -@ {} {} {}'.format(self.threads()-1,bamfile,' '.join(bamlist))
+                    logline = self.loggedSysCall(bammerge,append=True)
+                    if not rje.exists(bamfile): raise IOError('Merged BAM file "%s" not generated' % bamfile)
+                    for sortbam in bamlist: os.unlink(sortbam)
+                else: os.rename(bamlist[0],bamfile)
+
+            ## ~ [3a] Index ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            baifile = '{}.bai'.format(bamfile)
+            rje.checkForFiles(filelist=[bamfile,baifile],basename='',log=self.log,cutshort=False,ioerror=False)
+            if self.needToRemake(baifile,bamfile):
+                makebai = 'samtools index -b {} {}.bai'.format(bamfile,bamfile)
+                logline = self.loggedSysCall(makebai,append=True)
+                #os.system('samtools index -b {} {}.bai'.format(bamfile,bamfile))
+
+            ### ~ [4] ~ MPileup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            mpileup = '{}.pileup'.format(self.baseFile())
+            if self.force() or not rje.exists(mpileup) or self.needToRemake(mpileup,bamfile):
+                rje.backup(self,mpileup)
+                seqin = self.getStr('SeqIn')
+                makemp = 'samtools mpileup -BQ0 -d10000000 -f {} {}.bam -o {}'.format(seqin,self.baseFile(),mpileup)
+                logline = self.loggedSysCall(makemp,append=True)
+
+            return mpileup
+        except:
+            self.errorLog('SAMPhaser.longreadMinimap() error')
+            return None
 #########################################################################################################################
 ### End of SECTION II: SAMPhaser Class                                                                                  #
 #########################################################################################################################

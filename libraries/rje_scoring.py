@@ -7,8 +7,8 @@
 """
 Module:       rje_scoring
 Description:  Scoring and Ranking Methods for RJE Python Modules
-Version:      0.0
-Last Edit:    22/01/07
+Version:      0.1.0
+Last Edit:    21/08/20
 Copyright (C) 2007  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -48,11 +48,16 @@ sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)),'../too
 ### User modules - remember to add *.__doc__ to cmdHelp() below
 import rje
 #########################################################################################################################
-### History
-# 0.0 - Initial Compilation.
+def history():  ### Program History - only a method for PythonWin collapsing! ###
+    '''
+    # 0.0 - Initial Compilation.
+    # 1.10.0 - Initial Python3 code conversion.
+    '''
 #########################################################################################################################
-### Major Functionality to Add
-# [ ] : Basic scoring functions from SLiMPickings and PRESTO
+def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
+    '''
+    # [ ] : Basic scoring functions from SLiMPickings and PRESTO
+    '''
 #########################################################################################################################
 ### END OF SECTION I                                                                                                    #
 #########################################################################################################################
@@ -318,11 +323,11 @@ def adjustedProb(scorelist,reverse=False):  ### Returns the adjust probability v
     (minp,mult) = (1.0/L,(L-2.0)/L)     # Scaling factors
     adj = {}                            # Adjusted probabilities
     ### ~ [2] ~ Calculate ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-    print looklist
+    print(looklist)
     for i in range(L):
         s = looklist[i]
         if adj.has_key(s):
-            print s, i, adj[s]
+            print(s, i, adj[s])
             continue
         j = i + 1
         while j < L and looklist[j] == s: j += 1    # j is now the first position after i where s(j) > s(i)
@@ -333,7 +338,7 @@ def adjustedProb(scorelist,reverse=False):  ### Returns the adjust probability v
             x = 1.0
             p = 1.0
         adj[s] = minp + mult * p
-        print s, i, (L-j), x, p, adj[s]
+        print(s, i, (L-j), x, p, adj[s])
     ### ~ [3] ~ Return List ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     rlist = []
     for s in scorelist:
@@ -350,8 +355,8 @@ def adjustedProb(scorelist,reverse=False):  ### Returns the adjust probability v
 ### SECTION III: 'MAIN' PROGRAM                                                                                         #
 #########################################################################################################################
 if __name__ == "__main__":      ### Call runMain 
-    try: print 'This module is not for standalone running.'
-    except: print 'Cataclysmic run error:', sys.exc_info()[0]
+    try: print('This module is not for standalone running.')
+    except: print('Cataclysmic run error: {0}'.format(sys.exc_info()[0]))
     sys.exit()
 #########################################################################################################################
 ### END OF SECTION III                                                                                                  #

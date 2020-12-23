@@ -35,6 +35,10 @@ Function:
 
     NOTE: Running the above generates a `*.html` file in the same place as the `*.Rmd` file (not the run directory).
 
+    NOTE: For HTML output, R must be installed and a pandoc environment variable must be set, e.g.
+
+        export RSTUDIO_PANDOC=/Applications/RStudio.app/Contents/MacOS/pandoc
+
 Commandline:
 
     ### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -258,6 +262,7 @@ class Rmd(rje_obj.RJE_Object):
             if success: self.printLog('#RCMD','%s generated from %s' % (outfile,rmdfile))
             else:
                 self.printLog('#SYS','If pandoc error, try setting global variable: export RSTUDIO_PANDOC=/Applications/RStudio.app/Contents/MacOS/pandoc')
+                self.printLog('#SYS','If no pandoc error, check that required libraries in %s are installed' % rmdfile)
                 raise IOError('%s not created' % outfile)
             return True
         except: self.errorLog('%s.rmdKnit error: check R installation' % self.prog()); return False

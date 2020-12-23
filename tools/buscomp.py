@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
 # See below for name and description
-# Copyright (C) 2016 Richard J. Edwards <redwards@cabbagesofdoom.co.uk>
+# Copyright (C) 2019 Richard J. Edwards <redwards@cabbagesofdoom.co.uk>
 #  
 # This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License
 # as published by the Free Software Foundation; either version 2 of the License, or (at your option) any later version.
@@ -19,8 +19,8 @@
 """
 Module:       BUSCOMP
 Description:  BUSCO Compiler and Comparison tool
-Version:      0.7.2
-Last Edit:    10/05/19
+Version:      0.9.7
+Last Edit:    03/12/20
 Copyright (C) 2019  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -84,20 +84,22 @@ Commandline:
     buscompseq=T/F  : Whether to run full BUSCO comparison using buscofas and minimap2 [True]
     ratefas=FILELIST: Additional fasta files of assemblies to rate with BUSCOMPSeq (No BUSCO run) (wildcards allowed) []
     rmdreport=T/F   : Generate Rmarkdown report and knit into HTML [True]
+    ggplot=T/F      : Whether to use ggplot code for plotting [True]
     fullreport=T/F  : Generate full Rmarkdown report including detailed tables of all ratings [True]
     missing=T/F     : Generate summary tables for sets of Missing genes for each assembly/group [True]
-    dochtml=T/F     : Generate HTML BUSCOMP documentation (*.info.html) instead of main run [False]
+    dochtml=T/F     : Generate HTML BUSCOMP documentation (*.docs.html) instead of main run [False]
     summarise=T/F   : Include summaries of genomes in main `*.genomes.tdt` output [True]
     loadsummary=T/F : Use existing genome summaries including NG50 from `*.genomes.tdt`, if present [True]
     ### ~ Mapping/Classification options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     minimap2=PROG   : Full path to run minimap2 [minimap2]
-    endextend=X     : Extend minimap2 hits to end of sequence if query region with X bp of end [10]
+    endextend=X     : Extend minimap2 hits to end of sequence if query region with X bp of end [0]
     minlocid=INT    : Minimum percentage identity for aligned chunk to be kept (local %identity) [0]
     minloclen=INT   : Minimum length for aligned chunk to be kept (local hit length in bp) [20]
     uniquehit=T/F   : Option to use *.hitunique.tdt table of unique coverage for GABLAM coverage stats [True]
     mmsecnum=INT    : Max. number of secondary alignments to keep (minimap2 -N) [3]
     mmpcut=NUM      : Minimap2 Minimal secondary-to-primary score ratio to output secondary mappings (minimap2 -p) [0]
     mapopt=CDICT    : Dictionary of additional minimap2 options to apply (caution: over-rides conflicting settings) []
+    alnseq=T/F      : Whether to use alnseq-based processing (True) or (False) faster CS-Gstring processing [False]
     ### ~ Processing options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     forks=X         : Number of parallel sequences to process at once [0]
     killforks=X     : Number of seconds of no activity before killing all remaining forks. [36000]
@@ -136,6 +138,29 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 0.7.0 - Updated the defaults in the light of test analyses. Tweaked Rmd report.
     # 0.7.1 - Fixed unique group count bug when some genomes are not in a group. Fixed running with non-standard options.
     # 0.7.2 - Added loadsummary=T/F option to regenerate summaries and fixed bugs running without BUSCO results.
+    # 0.7.3 - Fixed bugs calculating Complete BUSCO scores in a couple of places. Added text summaries to plots.
+    # 0.7.4 - Added ggplot option. Added group plots to full reports.
+    # 0.7.5 - Reinstated BUSCOMP contribution reports when re-running.
+    # 0.7.6 - Added additional error-handling for CS parsing errors.
+    # 0.7.7 - Fixed problems with buscompseq=F. Fixed stripnum and Rmd bugs. Added sequence name checking for duplicates.
+    # 0.7.8 - Fixed a bug where BUSCOMP was not being compiled for assemblies without BUSCO data.
+    # 0.7.9 - Added listing of numbers to BUSCOMP Missing charts.
+    # 0.8.0 - Added alnseq=F as default PAF parsing mode for improved efficiency.
+    # 0.8.1 - Set endextend=0 due to bug.
+    # 0.8.2 - Fixed full RMD chart labelling bug. Fixed endextend bug and reinstated endextend=10 default.
+    # 0.8.3 - Fixed Unique rating bug with no groups.
+    # 0.8.4 - Set endextend=0 due to another bug.
+    # 0.8.5 - Fixed BUSCO table loading bug introduced by Diploidocus. Added error catching for logbinomial bug.
+    # 0.8.6 - Tweaked code to handle BUSCO v4 files, but not (yet) file organisation.
+    # 0.8.7 - Fixing issues with prefix parsing from BUSCO directories and files.
+    # 0.9.0 - Updated parsing of single_copy_busco_sequences/ to enable multiple directories with "$PREFIX" suffixes.
+    # 0.9.1 - Updated parsing to enable BUSCO v4 results recognition. (run with -o $GENOME.busco)
+    # 0.9.2 - Fixed some bugs when files missing.
+    # 0.9.3 - Minor fixes to output and clearer error messages. Fixed formatting for Python 2.6 back compatibility for servers.
+    # 0.9.4 - Added contig statistics and fixed group description loading bug.
+    # 0.9.5 - Fixed Group BUSCOMP plot output bug.
+    # 0.9.6 - Added CtgNum: Number of contigs (`SeqNum`+`GapCount`).
+    # 0.9.7 - Fixed some Rmd bugs to fix output after summary table changes.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -161,19 +186,29 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
     # [ ] : Modify use of Identical to be a special subcategory of Single Complete, which can then be compiled.
     # [ ] : Test summarise=F.
     # [Y] : Add restrict=T/F option to restrict output to genomes with loaded prefixes (for re-running on reduced data).
-    # [ ] : Finish documentation in run() docstring.
+    # [Y] : Finish documentation in run() docstring.
     # [ ] : Make the left margin for BUSCO plots more responsive to Genome labels.
     # [ ] : Consider dropping the localnid setting in favour of a global minID threshold?
     # [Y] : minlocid threshold update inc. docs
     # [Y] : uniquehit threshold update inc. docs
     # [Y] : mmsecnum threshold update inc. docs
     # [Y] : Fix *.buscomp.tdt output bug if BUSCO sequences not given and buscofas used: runs=../example/fulltables/ buscofas=test1.buscomp.fasta
-    # [ ] : Add option to include text ratings summaries in the bar plots.
+    # [Y] : Add option to include text ratings summaries in the bar plots.
+    # [ ] : Add group plot output.
+    # [ ] : Make the plot unit scaling more responsive to limits, e.g. Mb and straight counts.
+    # [ ] : Add option for BLAST+ replacement of Minimap2
+    # [Y] : Add checking of input sequence files: fasta format and unique names.
+    # [Y] : Check/fix bug with buscompseq=F.
+    # [Y] : Update GABLAM statistics to work directly from CS strings.
+    # [ ] : Don't plot BUSCO/BUSCOMP stats if relevant analysis not performed.
+    # [Y] : Fix issue of group descriptions not loading.
+    # [ ] : Add contig stats to output.
+    # [ ] : Add warning of recalculation if complete genome.tdt file found but alias file given. (Or fix re-use issue.)
     '''
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copy_right) = ('BUSCOMP', '0.7.2', 'May 2019', '2019')
+    (program, version, last_edit, copy_right) = ('BUSCOMP', '0.9.7', 'December 2020', '2019')
     description = 'BUSCO Compiler and Comparison tool'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_obj.zen()]
@@ -209,8 +244,9 @@ def setupProgram(): ### Basic Setup of Program when called from commandline.
     '''
     try:### ~ [1] ~ Initial Command Setup & Info ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         info = makeInfo()                                   # Sets up Info object with program details
-        if len(sys.argv) == 2 and sys.argv[1] in ['version','-version','--version']: print(info.version); sys.exit(0)
-        if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: print('%s v%s' % (info.program,info.version)); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['version','-version','--version']: rje.printf(info.version); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: rje.printf('{0} v{1}'.format(info.program,info.version)); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['description','-description','--description']: rje.printf('%s: %s' % (info.program,info.description)); sys.exit(0)
         cmd_list = rje.getCmdList(sys.argv[1:],info=info)   # Reads arguments and load defaults from program.ini
         out = rje.Out(cmd_list=cmd_list)                    # Sets up Out object for controlling output to screen
         out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2 
@@ -252,6 +288,7 @@ class BUSCOMP(rje_obj.RJE_Object):
     - DocHTML=T/F     : Generate HTML BUSCOMP documentation (*.info.html) instead of main run [False]
     - DupBest=T/F     : Whether to rate "Duplicated" above "Complete" when compiling "best" BUSCOs across Groups [False]
     - FullReport=T/F  : Generate full Rmarkdown report including detailed tables of all ratings [True]
+    - GGPlot=T/F      : Whether to use ggplot code for plotting [True]
     - LoadSummary=T/F : Use existing genome summaries including NG50 from `*.genomes.tdt`, if present [True]
     - Missing=T/F     : Generate summary tables for sets of Missing genes for each assembly/group [True]
     - Restrict=T/F    : Restrict analysis to genomes with a loaded alias [False]
@@ -295,7 +332,7 @@ class BUSCOMP(rje_obj.RJE_Object):
         '''Sets Attributes of Object.'''
         ### ~ Basics ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         self.strlist = ['BUSCOFas','Genomes','Groups']
-        self.boollist = ['BUSCOMP','BUSCOMPSeq','DocHTML','DupBest','FullReport','LoadSummary','Missing','Restrict','RmdReport','Summarise','UniqueHit']
+        self.boollist = ['BUSCOMP','BUSCOMPSeq','DocHTML','DupBest','GGPlot','FullReport','LoadSummary','Missing','Restrict','RmdReport','Summarise','UniqueHit']
         self.intlist = ['MinLocLen','MinLocID','MMSecNum']
         self.numlist = ['MMPCut']
         self.filelist = []
@@ -305,7 +342,7 @@ class BUSCOMP(rje_obj.RJE_Object):
         ### ~ Defaults ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         self._setDefaults(str='None',bool=False,int=0,num=0.0,obj=None,setlist=True,setdict=True,setfile=True)
         self.setStr({})
-        self.setBool({'BUSCOMP':True,'BUSCOMPSeq':True,'DocHTML':False,'FullReport':True,'LoadSummary':True,
+        self.setBool({'BUSCOMP':True,'BUSCOMPSeq':True,'DocHTML':False,'FullReport':True,'GGPlot':True,'LoadSummary':True,
                     'Missing':True,'Restrict':False,'RmdReport':True,'StripNum':True,'Summarise':True,'UniqueHit':True})
         self.setInt({'MinLocLen':20,'MinLocID':0,'MMSecNum':3})
         self.setNum({'MMPCut':0.0})
@@ -334,7 +371,7 @@ class BUSCOMP(rje_obj.RJE_Object):
                 #self._cmdReadList(cmd,'path',['Att'])  # String representing directory path 
                 self._cmdReadList(cmd,'file',['BUSCOFas','Genomes','Groups'])  # String representing file path
                 #self._cmdReadList(cmd,'date',['Att'])  # String representing date YYYY-MM-DD
-                self._cmdReadList(cmd,'bool',['BUSCOMP','BUSCOMPSeq','DocHTML','DupBest','FullReport','LoadSummary','Missing','Restrict','RmdReport','Summarise','UniqueHit'])  # True/False Booleans
+                self._cmdReadList(cmd,'bool',['BUSCOMP','BUSCOMPSeq','DocHTML','DupBest','FullReport','GGPlot','LoadSummary','Missing','Restrict','RmdReport','Summarise','UniqueHit'])  # True/False Booleans
                 self._cmdReadList(cmd,'int',['MinLocLen','MinLocID','MMSecNum'])   # Integers
                 self._cmdReadList(cmd,'float',['MMPCut']) # Floats
                 #self._cmdReadList(cmd,'min',['Att'])   # Integer value part of min,max command
@@ -436,11 +473,11 @@ class BUSCOMP(rje_obj.RJE_Object):
         rmdreport=T/F   : Generate Rmarkdown report and knit into HTML [True]
         fullreport=T/F  : Generate full Rmarkdown report including detailed tables of all ratings [True]
         missing=T/F     : Generate summary tables for sets of Missing genes for each assembly/group [True]
-        dochtml=T/F     : Generate HTML BUSCOMP documentation (*.info.html) instead of main run [False]
+        dochtml=T/F     : Generate HTML BUSCOMP documentation (*.docs.html) instead of main run [False]
         summarise=T/F   : Include summaries of genomes in main `*.genomes.tdt` output [True]
         ### ~ Mapping/Classification options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         minimap2=PROG   : Full path to run minimap2 [minimap2]
-        endextend=X     : Extend minimap2 hits to end of sequence if query region with X bp of end [10]
+        endextend=X     : Extend minimap2 hits to end of sequence if query region with X bp of end [0]
         minlocid=INT    : Minimum percentage identity for aligned chunk to be kept (local %identity) [0]
         minloclen=INT   : Minimum length for aligned chunk to be kept (local hit length in bp) [1]
         uniquehit=T/F   : Option to use *.hitunique.tdt table of unique coverage for GABLAM coverage stats [True]
@@ -476,6 +513,15 @@ class BUSCOMP(rje_obj.RJE_Object):
         directories will be loaded for compilation, but no sequence searching will be performed. The presence of
         sequences available for compilation will be stored in the `Sequences` field of `*.genomes.tdt`.
 
+        **BUSCO v4.x:** From `v0.9.1`, BUSCOMP should recognise BUSCO v4 output. Due to the reorganisation and altered
+        naming strategy of version 4, the naming of results files is more strict. The main results directory (set by
+        `-o` when you run BUSCO) should match the genome assembly prefix with an optional `.busco` suffix. (A leading
+        `run_` is also permitted and will be ignored. For example, if `assembly.fasta` was analysed with BUSCO v4,
+        BUSCOMP should be able to parse results generated using `-o assembly`, `-o assembly.busco`, `-o run_assembly`, or
+        `-o run_assembly.busco`. If none of these settings were used, the results directory can be manually renamed. For
+        additional sorting, a XX_ numerical prefix _can_ be used (see below), e.g. `run_01_assembly` will still look
+        for `assembly.*` in the `fastadir` path.
+
         ### BUSCOMPSeq Analysis Only
 
         Additional assemblies can rated using the BUSCOMPSeq analysis (see below) without having BUSCO data analysed.
@@ -488,9 +534,10 @@ class BUSCOMP(rje_obj.RJE_Object):
         ### Genome Prefixes
 
         Each genome analysed has a "Prefix" that can be used to help sorting (if `runsort=prefix`) and identify relevant
-        BUSCO files where the genome (Fasta) name and BUSCO run name do not match. This Prefix is set once as the data
-        is loaded and is never changed. (Sorting and visualisations can be made more informative altered using the Genome
-        (a.k.a. Alias) and Description fields.)
+        BUSCO files where the genome (Fasta) name and BUSCO run name do not match. It is generally assumed that this
+        Prefix will match the prefix of the original assembly file on which BUSCO was run. This Prefix is set once as the
+        data is loaded and is never changed. (Sorting and visualisations can be made more informative altered using the
+        Genome (a.k.a. Alias) and Description fields.)
 
         The assembly Prefix will be set as:
 
@@ -520,8 +567,14 @@ class BUSCOMP(rje_obj.RJE_Object):
         allowed) and can give alternative names for each genome to be used in other outputs. If running interactively,
         there will also be an option to check/update these aliases manually. Genome aliases are output as part of the
         main `*.genomes.tdt` output, which can also be used as subsequent `genomes=FILE` input (the default, if found).
+
         This table can also have a `Description` field, which will be used to update descriptions for output if found.
-        (Empty descriptions will not be mapped.)
+        (Empty descriptions will not be mapped.) Otherwise, descriptions can be parsed from a `description_$PREFIX.txt`
+        file (exactly matching the `$PREFIX` parsed from a `full_table_*.tsv` file) if found. Alternatively, if the run
+        directory has a `run_` prefix AND there is only one `full_table`, or it is a BUSCO v4 output directory, a
+        description will be parsed from `description.txt`. In each case, only the first line will be used. If neither
+        condition is met, the name of the genome fasta file will be used. Failing that, `Genome` will be used. (Note that
+        for BUSCO v4, `description.txt` must be in the same directory as `full_table.tsv`.
 
         **NOTE:** The optional Alias table *can* be used to change a `Genome` name to something other than its Fasta file
         - this mapping is performed _after_ fasta files have been identified.
@@ -653,11 +706,15 @@ class BUSCOMP(rje_obj.RJE_Object):
         * **MedLength**: The median length of scaffolds/contigs in the assembly.
         * **N50Length**: At least half of the assembly is contained on scaffolds/contigs of this length or greater.
         * **L50Count**: The smallest number scaffolds/contigs needed to cover half the the assembly.
+        * **CtgNum**: Number of contigs (`SeqNum`+`GapCount`).
+        * **N50Ctg**: At least half of the assembly is contained on contigs of this length or greater.
+        * **L50Ctg**: The smallest number contigs needed to cover half the the assembly.
         * **NG50Length**: At least half of the genome is contained on scaffolds/contigs of this length or greater.
         This is based on `genomesize=X`. If no genome size is given, it will be relative to the biggest assembly.
         * **LG50Count**: The smallest number scaffolds/contigs needed to cover half the the genome.
         This is based on `genomesize=X`. If no genome size is given, it will be relative to the biggest assembly.
         * **GapLength**: The total number of undefined "gap" (`N`) nucleotides in the assembly.
+        * **GapCount**: The total number of undefined "gap" (`N`) regions above mingap=X (default 10bp).
         * **GC**: The %GC content of the assembly.
 
         **NOTE:** `NG50Length` and `LG50Count` statistics use `genomesize=X` or the biggest assembly loaded.
@@ -1203,7 +1260,7 @@ class BUSCOMP(rje_obj.RJE_Object):
             if self.db('full'):
                 self.rawSummary()  # Summarise stats from self.db('genomes')
             ## ~ [2a] Main table and outputs from raw BUSCO results ~~~~~~~~~~~~~~~~~~~~~~ ##
-            self.db('genomes').saveToFile()
+            self.db('genomes').saveToFile(sfdict={'GC':4})
             if self.db('full'):
                 self.db('full').newKey(['BuscoID','Genome','#'])
                 self.db('full').saveToFile()
@@ -1216,28 +1273,29 @@ class BUSCOMP(rje_obj.RJE_Object):
 
             ### ~ [3] ~ BUSCOMPSeq searches ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             ## ~ [3a] Perform PAF Minimap2 searches ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-            # Perform PAF Minimap2 searches
-            # - Create $BASEFILE.minimap/ and run rje_paf within
-            self.minimapSearches()
+            if self.getBool('BUSCOMPSeq'):
+                # Perform PAF Minimap2 searches
+                # - Create $BASEFILE.minimap/ and run rje_paf within
+                self.minimapSearches()
             ## ~ [3b] Compile PAF Minimap2 searches ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-            # Compile PAF searches
-            # - Load all GABLAM and HitSum tables
-            # - Reclassify
-            # - Output to *.buscomp.tdt
-            self.compileMinimap()
+                # Compile PAF searches
+                # - Load all GABLAM and HitSum tables
+                # - Reclassify
+                # - Output to *.buscomp.tdt
+                self.compileMinimap()
             ## ~ [3c] Output compiled tables ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-            if self.db('buscoseq'): self.db('buscoseq').saveToFile()
-            self.baseFile('%s.%s' % (self.baseFile(),self.pafBase()))
-            if self.db('buscomp'): self.db('buscomp').saveToFile()
-            self.db('ratings').newKey(['#'])
-            self.db('ratings').saveToFile()
-            self.db('ratings').newKey(['Genome'])
-            #if faswarn:
-            #    self.warnLog('Reported "BUSCOMP Seqs" will refer to compiled best sequences, not necessarily those in given buscofas=FASFILE.')
-            self.compSummary(full=True)  # Summarise stats from self.db('genomes')
-            self.compSummary(full=False)  # Summarise stats from self.db('genomes')
+                if self.db('buscoseq'): self.db('buscoseq').saveToFile()
+                self.baseFile('%s.%s' % (self.baseFile(),self.pafBase()))
+                if self.db('buscomp'): self.db('buscomp').saveToFile()
+                self.db('ratings').newKey(['#'])
+                self.db('ratings').saveToFile()
+                self.db('ratings').newKey(['Genome'])
+                #if faswarn:
+                #    self.warnLog('Reported "BUSCOMP Seqs" will refer to compiled best sequences, not necessarily those in given buscofas=FASFILE.')
+                self.compSummary(full=True)  # Summarise stats from self.db('genomes')
+                self.compSummary(full=False)  # Summarise stats from self.db('genomes')
             ## ~ [3d] Changes in BUSCO[MP] ratings ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-            self.buscompChanges()
+                self.buscompChanges()
             ## ~ [3e] Identification of Unique BUSCO[MP]s ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             self.uniqueBUSCOs()
             # Add unique field = Missing
@@ -1375,61 +1433,137 @@ class BUSCOMP(rje_obj.RJE_Object):
             dirx = 0; nonx = 0;
             for runpath in self.list['Runs']:
                 # Identify and check directory
-                if not os.path.isdir(runpath): continue
+                runtype = self.runType(runpath)
+                self.printLog('#RUNDIR','%s run type: %s' % (runpath,runtype))
+                if not runtype:
+                    self.warnLog('No BUSCO runs found for run path "%s"' % runpath)
+                    continue
+                #if not os.path.isdir(runpath): continue
                 runsplit = os.path.split(runpath)
                 if not runsplit[-1]: runsplit = os.path.split(runsplit[0])
                 rundir = runsplit[-1]
-                #i# v0.5.1 no longer skip directories without run data to extract for BUSCOMPSeq
-                #if self.getBool('BUSCOMPSeq') and not rundir.startswith('run_'):
-                #    self.warnLog('Non-BUSCO directory skipped (buscompseq=T): %s' % runpath)
-                #    nonx += 1
-                #    continue
                 dirx += 1
+
+                # V0.9.0 updated and simplified input data parsing strategy: BUSCO v3
+                # Input BUSCO runs are provided by the directories given by `runs=DIRLIST`. These must have a `full_table_*.tsv` files
+                # for each BUSCO genome. The `*` component of the name is used as the genome `Prefix` - a unique identifier
+                # used for each genome. By default, this is also used to set the unique `Genome` identifier. If the run directory
+                # has a `run_` prefix AND there is only one `full_table`, the `Genome` identifier will instead be parsed from
+                # the run directory name. This will have any `.busco` suffix removed. Fasta files must match either the `Prefix` or `Genome` identifier loaded.
+                # Either or both of the `Prefix` and `Genome` identifiers can have leading numbers (`NN_*`) for sorting purposes.
+                # These will be ignored when finding genome fasta files and/or printing to output.
+
+                # If there is a matching `single_copy_busco_sequences_$PREFIX` directory (exactly matching the `$PREFIX` parsed
+                # from a `full_table_*.tsv` file), single copy BUSCO sequences will be used for the BUSCOMP compilation.
+                # Alternatively, if the run directory has a `run_` prefix AND there is only one `full_table`, sequences will
+                # be extracted from the `single_copy_busco_sequences` directory if present.
+
+                # Similarly, a description for the genome will be parsed from a `description_$PREFIX.txt` file (exactly matching the `$PREFIX` parsed
+                # from a `full_table_*.tsv` file) if found. Alternatively, if the run directory has a `run_` prefix AND there is only one `full_table`,
+                # a description will be parsed from `description.txt`. In each case, only the first line will be used.
+                # If neither condition is met, the name of the genome fasta file will be used. Failing that, `Genome` will be used.
+
+                # The final `Genome` and `Description` values can be updated by mapping the `Prefix` or fasta file onto data loaded from the `genomes=FILE` table.
+                # = updateGenomesFromAlias()
+
                 # Extract run file(s)
                 self.progLog('#RUNDIR','Processing %s...' % rundir)
                 prefix = ''
                 runlist = glob.glob('%s/full_table_*.tsv' % runpath)
-                if self.getBool('BUSCOMPSeq') and len(runlist) == 1:
-                    prefix = rundir[4:]
-                    #i# If runsort=prefix, will recognise and trim numbers off start (can be used for sorting)
-                    runfile2 = runfile = '%s/full_table_%s.tsv' % (runpath,prefix)
-                    if rje.matchExp('(\d+)_(\S+)',prefix):
-                        prefix2 = rje.matchExp('(\d+)_(\S+)',prefix)[1]
-                        runfile2 = '%s/full_table_%s.tsv' % (runpath,prefix2)
-                    if runfile not in runlist and runfile2 not in runlist:
-                        self.warnLog('BUSCO run "%s" missing full table' % prefix) # Missing
-                        nonx += 1
-                        continue
-                    runlist = [runfile2]
-                # Process run file
+
+                #i# NOTE: This might be very confusing because prefix refers to the prefix of the assembly files, whereas
+                #i# genome refers to the alias being used for the genome, NOT the prefix of the genome assembly. (Unless
+                #i# the two are the same!
+
+                # V4 conversion
+                if runtype == 'V4':
+                    runpath = glob.glob('%s/run_*' % runpath)[0]
+                    runlist = ['%s/full_table.tsv' % runpath]
+
+                # Process run file(s)
                 for runfile in runlist:
+                    #i# Single BUSCO sequence directory
                     seqdir = rje.makePath(runpath) + 'single_copy_busco_sequences'
-                    #?# Replace Sequences with number of *.fna files
-                    rentry = {'#':gdb.entryNum()+1,'Table':runfile,'Sequences':rundir.startswith('run_') and len(runlist) == 1 and rje.exists(seqdir)}
+                    if runtype == 'V4': seqdir = rje.makePath(runpath) + 'busco_sequences/single_copy_busco_sequences'
+                    #?# Replace Sequences T/F with number of *.fna files
+                    rentry = {'#':gdb.entryNum()+1,'Table':runfile,'Sequences':runtype in ['Single','V4'] and rje.exists(seqdir)}
+                    if rentry['Sequences']: self.printLog('#SEQDIR','Found SC BUSCO sequence directory: %s' % seqdir)
                     (rentry['Directory'],tsv) = os.path.split(runfile)
-                    prefix = tsv[len('full_table_'):-4]
+                    if runtype == 'V4':
+                        prefix = rundir
+                        if rundir.startswith('run_'): prefix = rundir[4:]
+                    else:
+                        prefix = tsv[len('full_table_'):-4]
+                        prefseqdir = rje.makePath(runpath) + 'single_copy_busco_sequences_' + prefix
+                        if rje.exists(prefseqdir):
+                            rentry['Sequences'] = True
+                            self.printLog('#SEQDIR','Found SC BUSCO sequence directory: %s' % prefseqdir)
                     #self.debug(rentry)
                     rentry['Prefix'] = prefix
                     # Set genome value: chop off .busco at end!
                     genome = prefix
                     # If runpath starts with run and has one tsv then use as alias.
                     #!# Add stripaliasnum option for output.
-                    if rundir.startswith('run_') and len(runlist) == 1:   #X# and not prefix in adb.index('Prefix',force=True,log=False):
+                    if runtype == 'Single' and rundir.startswith('run_'):   #X# and not prefix in adb.index('Prefix',force=True,log=False):
                         genome = rundir[4:]
                     if genome.endswith('.busco'): genome = genome[:-6]
                     rentry['Genome'] = string.join(string.split(genome),'')
                     rentry['Fasta'] = self._findFasta(prefix,genome)
-                    if rentry['Fasta']: rentry['Description'] = rentry['Fasta']
+                    descfile = rje.makePath(runpath) + 'description.txt'
+                    prefdescfile = rje.makePath(runpath) + 'description_' + prefix + '.txt'
+                    if rje.exists(prefdescfile):
+                        rentry['Description'] = rje.chomp(open(prefdescfile,'r').readline())
+                    elif runtype in ['Single','V4'] and rje.exists(descfile):
+                        rentry['Description'] = rje.chomp(open(descfile,'r').readline())
+                    elif rentry['Fasta']: rentry['Description'] = rentry['Fasta']
                     else:
                         self.warnLog('No Fasta file found for %s' % self.genomeString(rentry))
-                        rentry['Description'] = rentry['Directory'] + ' (no Fasta)'
-                    #x#self.debug('%s' % rentry)
+                        rentry['Description'] = rentry['Genome'] + ' (no Fasta)'
+                    if not rentry['Sequences'] and runtype in ['Single','V4']:
+                        self.warnLog('No SC BUSCO sequence directory identified for %s' % genome)
+                    self.debug('%s' % rentry)
                     gdb.addEntry(rentry)
                 # Summarise entry
                 self.printLog('#RUNDIR','Processed %s: %d runs (%d total)' % (rundir,len(runlist),gdb.entryNum()))
 
+            if not self.list['Runs']:
+                self.printLog('#RUNDIR','No run directories provided: no BUSCO results loaded.')
+            elif not gdb.entryNum():
+                self.warnLog('Processed %d run directories but no BUSCO runs loaded. Check input setting.' % (len(self.list['Runs'])))
+
             return True     # Setup successful
         except: self.errorLog('Problem during %s setup.' % self.prog()); return False  # Setup failed
+#########################################################################################################################
+    def runType(self,runpath):  ### Returns the type of BUSCO run directory given by runpath
+        '''
+        Returns the type of BUSCO run directory given by runpath.
+        - Single = Single V3 BUSCO run (default expectation)
+        - Collated = Multiple BUSCO full_table*tsv files in a single directory. (Can be V3 or V4)
+        - V4 = Single V4 BUSCO run directory.
+        - None = No BUSCO results detected.
+        :param runpath:
+        :return: runtype [str]
+        '''
+        try:### ~ [1] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            if not os.path.isdir(runpath): return None
+            runlist = glob.glob('%s/full_table*tsv' % runpath)
+            if not runlist:
+                self.debug('%s/run_*/full_table.tsv' % runpath)
+                self.debug(glob.glob('%s/run_*/full_table.tsv' % runpath))
+            if len(runlist) == 1 and runlist[0] == '%s/full_table.tsv' % runpath:
+                self.warnLog('Possible internal v4 results directory: %s' % runpath)
+                return None
+            elif len(runlist) == 1: return 'Single'
+            elif not runlist and len(glob.glob('%s/run_*/full_table.tsv' % runpath)) == 1:
+                return 'V4'
+            elif not runlist and len(glob.glob('%s/run_*/full_table.tsv' % runpath)) > 1:
+                self.warnLog('Possible v4 results directory but multiple run_*/full_table.tsv files: %s' % runpath)
+                return None
+            elif not runlist:
+                self.warnLog('No BUSCO results tables found in directory: %s' % runpath)
+                return None
+            else: return 'Collated'
+        except: self.errorLog('Problem during %s runType(%s).' % (self.prog(),runpath)); return None  # Setup failed
 #########################################################################################################################
     def addRateFas(self):    ### Adds additional fasta files for BUSCOMP rating.                                # v0.5.1
         '''
@@ -1456,12 +1590,15 @@ class BUSCOMP(rje_obj.RJE_Object):
                 gaddx += 1
             if gaddx:
                 self.printLog('#RATE','Added %s additional genomes for BUSCOMPSeq rating' % rje.iStr(gaddx))
+            if not gdb.entryNum():
+                self.errorLog('No genomes loaded for BUSCO complitation or rating. Check input, including ini=INFILE settings.',printerror=False)
+                return False
             return True     # Setup successful
         except: self.errorLog('Problem during %s addRateFas.' % self.prog()); return False  # Setup failed
 #########################################################################################################################
     def genomeTableFormat(self,table):
         iformats = {}
-        for ifield in string.split('SeqNum	TotLength	MinLength	MaxLength	N50Length	L50Count	NG50Length	LG50Count GapLength') + ['UniqBUSCO','UniqBUSCOMP']:
+        for ifield in string.split('SeqNum	TotLength	MinLength	MaxLength	N50Length	L50Count CtgNum N50Ctg	L50Ctg	NG50Length	LG50Count GapLength GapCount') + ['UniqBUSCO','UniqBUSCOMP']:
             iformats[ifield] = 'int'
         for nfield in string.split('MeanLength MedLength GC'):
             iformats[nfield] = 'num'
@@ -1489,10 +1626,11 @@ class BUSCOMP(rje_obj.RJE_Object):
             ### ~ [2] Map and Set aliases ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             for gentry in gdb.entries(sorted=True):
                 # Generate full list of aliases to check
-                prefcheck = [gentry['Prefix'],gentry['Genome'],rje.stripPath(gentry['Fasta'])]
+                prefcheck = [gentry['Prefix'],gentry['Genome']]
+                if gentry['Fasta']: prefcheck.append(rje.stripPath(gentry['Fasta']))
                 for fcore in [gentry['Prefix'],gentry['Genome']]:
-                    if self.getBool('StripNum') and rje.matchExp('(\d+)_(\S+)',fcore):
-                        prefcheck.append(rje.matchExp('(\d+)_(\S+)',fcore)[1])
+                    if self.getBool('StripNum') and rje.matchExp('^(\d+)_(\S+)',fcore):
+                        prefcheck.append(rje.matchExp('^(\d+)_(\S+)',fcore)[1])
                 for prefix in prefcheck[0:]: prefcheck.append('%s.busco' % prefix)
                 # Identify alias if present
                 alias = None
@@ -1809,7 +1947,7 @@ class BUSCOMP(rje_obj.RJE_Object):
 
         '''
         try:### ~ [1] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            statfields = string.split('SeqNum TotLength MinLength MaxLength MeanLength MedLength N50Length L50Count NG50Length LG50Count GapLength GC')
+            statfields = string.split('SeqNum TotLength MinLength MaxLength MeanLength MedLength N50Length L50Count CtgNum N50Ctg L50Ctg NG50Length LG50Count GapLength GapCount GC')
             gdb = self.db('genomes')
             seqobj = rje_seqlist.SeqList(self.log,self.cmd_list+['autoload=F','seqin=None'])
             if not 'SeqNum' in gdb.list['Fields']:
@@ -1828,7 +1966,10 @@ class BUSCOMP(rje_obj.RJE_Object):
                 if gentry['Fasta']:
                     if gentry['Fasta'] in adata and not self.force():    # Data should already exist
                         aentry = adb.indexEntries('Fasta',gentry['Fasta'])[0]
-                        for field in statfields: gentry[field] = aentry[field]
+                        for field in statfields:
+                            if field in aentry:
+                                gentry[field] = aentry[field]
+                            else: gentry[field] = ''
                         adata.remove(gentry['Fasta'])
                     else: fasgenomes.append(gentry['Fasta'])
 
@@ -1873,8 +2014,11 @@ class BUSCOMP(rje_obj.RJE_Object):
                 try:
                     #seqobj = seqlist[gentry['Genome']] = rje_seqlist.SeqList(self.log,self.cmd_list+seqcmd)
                     seqobj = rje_seqlist.SeqList(self.log,self.cmd_list+seqcmd)
+                    seqobj.checkNames()
                     if self.getBool('Summarise'):
-                        gentry.update(seqobj.summarise(save=False))
+                        sumdata = seqobj.summarise(save=False)
+                        sumdata['GC'] = sumdata.pop('GCPC')
+                        gentry.update(sumdata)
                 except:
                     self.errorLog('Something went wrong processing %s' % gentry['Fasta'])
 
@@ -1895,8 +2039,8 @@ class BUSCOMP(rje_obj.RJE_Object):
         try:### ~ [1] Look for file ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             fcores = [prefix, alias]
             for fcore in [prefix, alias]:
-                if self.getBool('StripNum') and rje.matchExp('(\d+)_(\S+)',fcore):
-                    fcores.append(rje.matchExp('(\d+)_(\S+)',fcore)[1])
+                if self.getBool('StripNum') and rje.matchExp('^(\d+)_(\S+)',fcore):
+                    fcores.append(rje.matchExp('^(\d+)_(\S+)',fcore)[1])
             for fcore in fcores[0:]:
                 if fcore.endswith('.busco'): fcores.append(fcore[:-6])
             for fcore in fcores:
@@ -1926,13 +2070,13 @@ class BUSCOMP(rje_obj.RJE_Object):
             buscadd = '%s.busco' % alias
             if buscadd in self.dict['Alias']: return self.dict['Alias'][buscadd]
             for fcore in [alias,buscadd]:
-                if self.getBool('StripNum') and rje.matchExp('(\d+)_(\S+)',fcore):
-                    astrip = rje.matchExp('(\d+)_(\S+)',fcore)[1]
+                if self.getBool('StripNum') and rje.matchExp('^(\d+)_(\S+)',fcore):
+                    astrip = rje.matchExp('^(\d+)_(\S+)',fcore)[1]
                     if astrip in self.dict['Alias']: return self.dict['Alias'][astrip]
             ## Try prefix-stripping alias keys too
             if self.getBool('StripNum'):
                 for akey in rje.sortKeys(self.dict['Alias']):
-                    if rje.matchExp('(\d+)_(\S+)',akey) and alias == rje.matchExp('(\d+)_(\S+)',akey)[1]:
+                    if rje.matchExp('^(\d+)_(\S+)',akey) and alias == rje.matchExp('^(\d+)_(\S+)',akey)[1]:
                         return self.dict['Alias'][akey]
             if expect:
                 self.debug('%s vs %s' % (alias,rje.sortKeys(self.dict['Alias'])))
@@ -1952,8 +2096,8 @@ class BUSCOMP(rje_obj.RJE_Object):
         '''
         if raw: genome = gentry
         else: genome = gentry['Genome']
-        if self.getBool('StripNum') and rje.matchExp('(\d+)_(\S+)',genome):
-            genome = rje.matchExp('(\d+)_(\S+)',genome)[1]
+        if self.getBool('StripNum') and rje.matchExp('^(\d+)_(\S+)',genome):
+            genome = rje.matchExp('^(\d+)_(\S+)',genome)[1]
         return genome
 #########################################################################################################################
     def genomeData(self,genome,field=None): ### Returns the genomes table entry (or value) for genome           # v0.6.2
@@ -2015,6 +2159,9 @@ class BUSCOMP(rje_obj.RJE_Object):
         try:### ~ [1] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             db = self.db()
             gdb = self.db('genomes')
+            adb = self.db('alias')
+            if adb and 'Genome' not in adb.fields(): adb = None
+            if adb and 'Description' not in adb.fields(): adb = None
             grpdb = self.db('groups')
             genomes = gdb.index('Genome',force=True)
             grpsave = False
@@ -2029,7 +2176,6 @@ class BUSCOMP(rje_obj.RJE_Object):
                 self.dict['Groups'] = {}
             ## ~ [2b] Check/update/expand groups ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             if grpdb:
-                adb = self.db('alias')
                 checking = True
                 grpx = grpdb.entryNum()
                 while checking:
@@ -2067,6 +2213,9 @@ class BUSCOMP(rje_obj.RJE_Object):
                 for group in rje.sortKeys(groups):
                     self.printLog('#GRP','%s: %s' % (group,string.join(grpdb.indexDataList('Group',group,'Genome'),'|')))
                     grprefix[group] = string.join(grpdb.indexDataList('Group',group,'Genome'),'|')
+                    if adb and group in adb.index('Genome'):
+                        desc = adb.indexDataList('Genome',group,'Description')[0]
+                        self.dict['Alias'][group] = gdb.addEntry({'Prefix': grprefix[group],'Genome':group,'Description': desc})
                 groups = grpdb.index('Group',force=True,log=False)
             ## ~ [2d] Create empty group table ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             else:
@@ -2078,7 +2227,10 @@ class BUSCOMP(rje_obj.RJE_Object):
                 for genome in genomes:
                     grpdb.addEntry({'Genome':genome,'Group':'BUSCOMP'})
                 grprefix['BUSCOMP'] = 'AllGenomes'
+                desc = 'All assemblies'
+                group = 'BUSCOMP'
                 self.printLog('#GROUP','Group BUSCOMP added: %d -> %d Genome-Group pairs' % (gx,grpdb.entryNum()))
+                self.dict['Alias'][group] = gdb.addEntry({'Prefix': grprefix[group],'Genome':group,'Description': desc})
                 #grpsave = True
                 #x#gdb.addEntry({'Prefix':'AllGenomes','Genome':'BUSCOMP'})
             ## ~ [2f] Generate Groups dictionary ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
@@ -2309,7 +2461,7 @@ class BUSCOMP(rje_obj.RJE_Object):
 
                 # - Add to Table:full (+Genome field)
                 self.bugShush()
-                fdb = db.addTable(gentry['Table'],mainkeys='#',headers=fullhead,expect=True,name=gentry['Genome'])
+                fdb = db.addTable(gentry['Table'],mainkeys='auto',headers=fullhead,expect=True,name=gentry['Genome'])
                 logtext += ' (%s entries)' % fdb.entryNum()
                 self.talk(); self.progLog('\r#BUSCO','Processing %s...' % logtext); self.bugShush()
                 fdb.fillBlanks(blank=0,fields=['Score','Length'],fillempty=True,prog=True,log=True)
@@ -2383,7 +2535,13 @@ class BUSCOMP(rje_obj.RJE_Object):
                 buscodb.addField(group,evalue=self.list['Ratings'][-1])
                 for eog in buscodb.dataKeys():
                     for genentry in gentries:
-                        gfield = self.genomeField( genentry )
+                        gfield = self.genomeField(genentry)
+                        if not gfield: raise ValueError('No GenomeField entry for: %s' % genentry)
+                        try:
+                            ranklist.index(buscodb.data(eog)[gfield])
+                            ranklist.index(buscodb.data(eog)[group])
+                        except:
+                            self.errorLog('Problem with %s data - "%s" or "%s" classification not recognised: %s' % (eog, gfield, group, buscodb.data(eog)))
                         if ranklist.index(buscodb.data(eog)[gfield]) < ranklist.index(buscodb.data(eog)[group]):
                             buscodb.data(eog)[group] = buscodb.data(eog)[gfield]
                     grpentry['N'] += 1
@@ -2570,11 +2728,20 @@ class BUSCOMP(rje_obj.RJE_Object):
                 eog = entry['BuscoID']
                 genome = entry['Genome']
                 gentry = self.aliasEntry(genome)
-                fna = rje.makePath(gentry['Directory']) + 'single_copy_busco_sequences/%s.fna' % eog
+                prefix = gentry['Prefix']
+                seqdir = rje.makePath(gentry['Directory']) + 'single_copy_busco_sequences'
+                prefseqdir = rje.makePath(gentry['Directory']) + 'single_copy_busco_sequences_' + prefix
+                v4seqdir = rje.makePath(gentry['Directory']) + 'busco_sequences/single_copy_busco_sequences'
+                if rje.exists(prefseqdir): seqdir = prefseqdir
+                elif rje.exists(v4seqdir): seqdir = v4seqdir
+                fna = seqdir + '/%s.fna' % eog
                 if rje.exists(fna):
                     #!# Fix this! 'Qry': 'EOG0907007V:tiger.wtdbg2v1.racon.fasta:ctg_NOTSC__NSCUV1ONT0006:601178-628876'
                     fnalines = open(fna,'r').readlines()
-                    fnalines[0] = string.join(string.split(fnalines[0],':',maxsplit=1))
+                    if string.split(fnalines[0],':',maxsplit=1)[0][1:] == eog:  # BUSCO v3
+                        fnalines[0] = string.join(string.split(fnalines[0],':',maxsplit=1))
+                    else:
+                        fnalines[0] = '>{0} {1}'.format(eog,fnalines[0]) # BUSCO v4
                     for i in range(1,len(fnalines)):
                         if fnalines[i].startswith('>'):
                             self.warnLog('"Single copy" BUSCO %s has 2+ sequences in %s! (Keeping first.)' % (eog,fna))
@@ -2585,10 +2752,13 @@ class BUSCOMP(rje_obj.RJE_Object):
                 else:
                     if entry['Status'] == 'Single':
                         self.warnLog('%s not found (rating=Single)' % fna)
-                faa = rje.makePath(gentry['Directory']) + 'single_copy_busco_sequences/%s.faa' % eog
+                faa = seqdir + '/%s.faa' % eog
                 if rje.exists(faa):
                     faalines = open(faa,'r').readlines()
-                    faalines[0] = string.join(string.split(faalines[0],':',maxsplit=1))
+                    if string.split(faalines[0],':',maxsplit=1)[0][1:] == eog:  # BUSCO v3
+                        faalines[0] = string.join(string.split(faalines[0],':',maxsplit=1))
+                    else:
+                        faalines[0] = '>{0} {1}'.format(eog,faalines[0]) # BUSCO v4
                     for i in range(1,len(faalines)):
                         if faalines[i].startswith('>'):
                             self.warnLog('"Single copy" BUSCO %s has 2+ sequences in %s! (Keeping first.)' % (eog,faa))
@@ -2658,7 +2828,7 @@ class BUSCOMP(rje_obj.RJE_Object):
             outdir = rje.makePath('%s.minimap/' % self.baseFile())
             rje.mkDir(self,outdir)
             gdb = self.db('genomes')
-            pafdefault = ['uniqueout=T','localaln=F','mockblast=F','uniquehit=T',
+            pafdefault = ['uniqueout=T','localaln=F','mockblast=F','uniquehit=T','alnseq=F','endextend=0',
                           'minlocid=%d' % self.getInt('MinLocID'),'minloclen=%d' % self.getInt('MinLocLen')]
             pafopt = {'p':self.getNum('MMPCut'),'N':self.getInt('MMSecNum')}
             buscofas = '%s.buscomp.fasta' % self.baseFile()
@@ -2814,7 +2984,7 @@ class BUSCOMP(rje_obj.RJE_Object):
             ### ~ [2] Load all GABLAM and HitSum tables ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             # - Load all GABLAM and HitSum tables
             for entry in gendb.entries(sorted=True):
-                if not rje.exists(entry['Fasta']): continue
+                if not entry['Fasta']: continue
                 #self.printLog('#RATING','# ~~~~~~~~ %s Minimap2 ratings ~~~~~~~~ #' % self.genomeField(entry))
                 self.headLog('%s Minimap2 ratings' % self.genomeField(entry))
                 if not rje.exists(entry['Fasta']):
@@ -2908,8 +3078,8 @@ class BUSCOMP(rje_obj.RJE_Object):
                 # Identify genomes in group
                 gentries = []
                 for genentry in self.dict['Groups'][group]:
-                    if not genentry['Directory']:
-                        self.printLog('#SKIP','Skipping Genome %s: no BUSCO data' % self.genomeString(genentry))
+                    if not rje.exists(genentry['Fasta']):
+                        self.printLog('#SKIP','Skipping Genome %s: no FASTA file' % self.genomeString(genentry))
                     else: gentries.append(genentry)
                 # Identify Group in Genome table
                 grpentry = {'Genome':group,'Identical':0,'Single':0,'N':0,'#':self.aliasEntry(group)['#']}
@@ -2992,7 +3162,7 @@ class BUSCOMP(rje_obj.RJE_Object):
                 genome = self.genomeField(gentry)
                 if full: self.headLog('%s BUSCOMP' % genome)
                 if rawdb and genome in rawdb.fields():
-                    rnum = len(rawdb.indexEntries(genome,'Complete'))
+                    rnum = len(rawdb.indexEntries(genome,'Complete')) + len(rawdb.indexEntries(genome,'Duplicated'))
                     N = rawdb.entryNum()
                     rperc = 0.0
                     if N: rperc = 100.0 * rnum / N
@@ -3001,7 +3171,7 @@ class BUSCOMP(rje_obj.RJE_Object):
                     bperc = 0.0
                     if bnum: bperc = 100.0 * bnum / gentry['N']
                     seqtxt = '[No BUSCO or BUSCOMP compilation]'
-                    if N and gentry['N'] and not rje.exists(self.getStr('BUSCOFas')):
+                    if N and gentry['N'] and seqdb: #not rje.exists(self.getStr('BUSCOFas')):
                         seqtxt = '[%d (%.2f%%) Complete BUSCOs; %d (%.2f%%) BUSCOMP Seqs]' % (rnum,rperc,bnum,bperc)
                     elif N:
                         seqtxt = '[%d (%.2f%%) Complete BUSCOs; No BUSCOMP compilation]' % (rnum,rperc)
@@ -3089,6 +3259,8 @@ class BUSCOMP(rje_obj.RJE_Object):
                     if not rje.yesNo('Include group "%s" in unique BUSCO assessment?' % group,default=default[group in redundant]):
                         ugroups.remove(group)
             else: ugroups = self.groupDifference(ugroups,redundant)
+            #i# ugroups is a list of groups not contained in other groups
+            #i# ugenomes is a list of entries corresponding to groups and genomes not in groups
             ugenomes = gdb.entries()
             self.debug('%s' % ugenomes)
             for ugroup in ugroups:
@@ -3103,29 +3275,28 @@ class BUSCOMP(rje_obj.RJE_Object):
             else: self.printLog('#UNIQ','No BUSCO or BUSCOMP data for Unique Complete assessment'); return
             for eog in eoglist:
                 buscomp = busco = 'Incomplete'
+                ubusco = []
+                ubuscomp = []
+
                 # Genomes
                 for gentry in gdb.entries(sorted=True):
                     genome = self.genomeField(gentry)
-                    if genome in self.dict['Groups']: continue
                     if rawdb and genome in rawdb.fields() and rawdb.data(eog)[genome] in ['Complete','Duplicated']:
-                        if busco == 'Incomplete': busco = genome
+                        if gentry in ugroups: ubusco.append(gentry)
+                        if genome in self.dict['Groups']: pass
+                        elif busco == 'Incomplete': busco = genome
                         else: busco = 'Multiple'
                     if busdb and genome in busdb.fields() and busdb.data(eog) and busdb.data(eog)[genome] in ['Complete','Duplicated']:
-                        if buscomp == 'Incomplete': buscomp = genome
+                        if gentry in ugroups: ubuscomp.append(gentry)
+                        if genome in self.dict['Groups']: pass
+                        elif buscomp == 'Incomplete': buscomp = genome
                         else: buscomp = 'Multiple'
+                    self.deBug('%s:%s -> %s' % (eog,genome,buscomp))
+
                 # Groups
-                for gentry in gdb.entries(sorted=True):
-                    group = self.genomeField(gentry)
-                    if group not in self.dict['Groups'] and gentry not in ugenomes: continue
-                    if group not in ugroups and group in self.dict['Groups']: continue
-                    if rawdb and group in rawdb.fields() and rawdb.data(eog)[group] in ['Complete','Duplicated']:
-                        if busco == 'Multiple': busco = group
-                        elif busco and busco not in ugroups: pass
-                        else: busco = ''
-                    if busdb and group in busdb.fields() and busdb.data(eog) and busdb.data(eog)[group] in ['Complete','Duplicated']:
-                        if buscomp == 'Multiple': buscomp = group
-                        elif buscomp and buscomp not in ugroups: pass
-                        else: buscomp = ''
+                if busco == 'Multiple' and len(ubusco) == 1: busco = self.genomeField(ubusco[0])
+                if buscomp == 'Multiple' and len(ubuscomp) == 1: buscomp = self.genomeField(ubusco[0])
+
                 uniqdb.addEntry({'BuscoID':eog,'BUSCO':busco,'BUSCOMP':buscomp})
             uniqdb.saveToFile()
 
@@ -3260,7 +3431,12 @@ class BUSCOMP(rje_obj.RJE_Object):
                 xG = float(gentry['GN']+gentry['GG'])
                 if xG:
                     gentry['p'] = xG / (xG+gentry['NN']+gentry['NG'])
-                    gentry['pB'] = rje.logBinomial(gentry['k'],gentry['n'],gentry['p'],exact=False,callobj=self)
+                    try:
+                        gentry['pB'] = rje.logBinomial(gentry['k'],gentry['n'],gentry['p'],exact=False,callobj=self)
+                    except:
+                        self.errorLog('Problem calculating probability of {0}+ GG from {1} x p(*G)={2}'.format(gentry['k'],gentry['n'],gentry['p']))
+                        gentry['p'] = 0.0
+                        gentry['pB'] = 1.0
                 else:
                     gentry['p'] = 0.0
                     gentry['pB'] = 1.0
@@ -3375,11 +3551,18 @@ class BUSCOMP(rje_obj.RJE_Object):
         '''
         try:### ~ [1] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             self.headLog('SETUP RMARKDOWN DATA',line='=')
-            statfields = string.split('SeqNum	TotLength	MinLength	MaxLength	MeanLength	MedLength	N50Length	L50Count	NG50Length	LG50Count GapLength	GC')
+            statfields = string.split('SeqNum TotLength MinLength MaxLength MeanLength MedLength N50Length L50Count CtgNum N50Ctg L50Ctg NG50Length LG50Count GapLength GapCount GC')
             statfields = rje.listIntersect(statfields,self.db('genomes').fields())
-            rdb = self.db().copyTable('ratings','rdata')
+            if self.db('ratings'):
+                rdb = self.db().copyTable('ratings','rdata')
+            else:
+                rdb = self.db().copyTable('genomes','rdata')
+                rdb.keepFields(['#','Genome'])
+                rdb.newKey(['Genome'])
+                for field in string.split('N Identical	Complete	Single	Duplicated	Fragmented	Partial	Ghost	Missing'):
+                    rdb.addField(field,evalue=0)
             iformats = {}
-            for ifield in string.split('SeqNum	TotLength	MinLength	MaxLength	N50Length	L50Count	NG50Length	LG50Count GapLength') + ['UniqBUSCO','UniqBUSCOMP']:
+            for ifield in string.split('SeqNum	TotLength	MinLength	MaxLength	N50Length L50Count CtgNum N50Ctg L50Ctg NG50Length LG50Count GapLength GapCount') + ['UniqBUSCO','UniqBUSCOMP']:
                 iformats[ifield] = 'int'
             for nfield in string.split('MeanLength MedLength GC'):
                 iformats[nfield] = 'num'
@@ -3390,13 +3573,16 @@ class BUSCOMP(rje_obj.RJE_Object):
             ## ~ [1a] Update data ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             for gentry in self.db('genomes').entries():
                 genome = gentry['Genome']
-                if genome not in rdb.dataKeys(): continue
+                if genome not in rdb.dataKeys():
+                    rentry = rje.combineDict({},gentry)
+                    for field in string.split('N Identical	Complete	Single	Duplicated	Fragmented	Partial	Ghost	Missing'): rentry[field] = 0
+                    rdb.addEntry(rentry)
                 rentry = rdb.data(genome)
                 for field in statfields: rentry[field] = gentry[field]
                 if gentry['N']:
-                    rentry['BUSCO'] = 100.0 * gentry['Complete'] / gentry['N']
+                    rentry['BUSCO'] = 100.0 * (gentry['Complete'] + gentry['Duplicated'])  / gentry['N']
                     rentry['NoBUSCO'] = 100.0 * gentry['Missing'] / gentry['N']
-                else: rentry['BUSCO'] = rentry['NoBUSCO'] = 0.0
+                else: rentry['BUSCO'] = rentry['NoBUSCO'] = ''
                 if rentry['N']:
                     for field in string.split('Identical	Complete	Single	Duplicated	Fragmented	Partial	Ghost	Missing'):
                         rentry[field] = 100.0 * rentry[field] / rentry['N']
@@ -3497,7 +3683,7 @@ class BUSCOMP(rje_obj.RJE_Object):
             if self.yesNo('Edit plotting attributes?',default='N',log=False):
                 i = 0; sum = True
                 while rdb.entryNum():
-                    default = 'E'
+                    default = 'X'
                     gentry = rdb.entries(sorted=True)[i]
                     gtext = ''
                     if sum: gtext += '\n' + rdb.entrySummary(gentry)
@@ -3569,6 +3755,14 @@ class BUSCOMP(rje_obj.RJE_Object):
             else:
                 rtxt = rmd.rmdHead(title='BUSCOMP Summary Report',author='%s BUSCOMP Analysis' % self.baseFile(),setup=True)
             kable = {True:None, False:True}[fullreport]
+            if self.getBool('GGPlot'):
+                rtxt += '''
+```{r libraries, echo=FALSE}
+library(ggplot2)
+library(ggrepel)
+```
+
+'''
 
             ## ~ [1a] Table of Contents ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             #toc = '## Contents\n\n'
@@ -3657,8 +3851,13 @@ class BUSCOMP(rje_obj.RJE_Object):
             rcode += 'rownames(gentable) = gentable[,1]\n'
             rcode += 'gensum = gentable[! is.na(gentable$N),2:6]\n'
             rcode += 'gensum = gensum[! (gensum$Directory == "" & gensum$Fasta == ""),]\n'
-            rcode += 'genstat = gentable[! is.na(gentable$SeqNum),c(4,9:18)]\n'
-            rcode += 'busco = gentable[,c(4,21:25)]\n'
+            #i# v0.9.4 changes
+            # old statfields = string.split('SeqNum TotLength MinLength MaxLength MeanLength MedLength N50Length L50Count NG50Length LG50Count GapLength GC')
+            # -> statfields = string.split('SeqNum TotLength MinLength MaxLength MeanLength MedLength N50Length L50Count CtgNum N50Ctg L50Ctg NG50Length LG50Count GapLength GapCount GC')
+            #i# Scan number of fields in gentable and pick appropriate field - update to use tidyverse at some point
+            rcode += 'nfield = which(colnames(gentable)=="N")\n'
+            rcode += 'genstat = gentable[! is.na(gentable$SeqNum),c(4,9:nfield-1)]\n'
+            rcode += 'busco = gentable[,c(4,nfield:ncol(gentable))]\n'
             rcode += 'busco$Single = busco$Complete\n'
             rcode += 'busco$Complete = busco$Single + busco$Duplicated\n'
             rcode += 'busco = busco[,c(1,2,4,7,3,5:6)]\n'
@@ -3699,6 +3898,8 @@ class BUSCOMP(rje_obj.RJE_Object):
                 #!# Make this responsive to max SeqNum: rcode += 'pdata$SeqNum = pdata$SeqNum / 1e3\n'
                 if 'NG50Length' in self.db('genomes').fields():
                     rcode += 'pdata$NG50Length = pdata$NG50Length / 1e6\n'
+                if 'NG50Ctg' in self.db('genomes').fields():
+                    rcode += 'pdata$NG50Ctg = pdata$NG50Ctg / 1e6\n'
                 # Output setup code - want to make individual plots
                 codename = 'plotsetup'
                 rtxt += '```{r %s, echo=FALSE, fig.width=12, fig.height=8}\n%s\n```\n\n' % (codename,rcode)
@@ -3720,10 +3921,13 @@ class BUSCOMP(rje_obj.RJE_Object):
                 xfield = 'TotLength'; xlab = 'Assembly Size (Gb)'
                 title = 'Contig/scaffold count versus total assembly size'
                 plims = 'xlim=c(0,max(pdata$%s,%s)),ylim=c(0,max(pdata$%s))' % (xfield,genGB,yfield)
-                rcode = 'plot(pdata$%s,pdata$%s,xlab="%s",ylab="%s",col=pdata$col,pch=pdata$pch,main="%s",xlog=TRUE,ylog=TRUE,%s)\n' % (xfield,yfield,xlab,ylab,title,plims)
-                #!# Make this dashed!
-                rcode += 'abline(v=%s, col="grey")\n' % genGB
-                rcode += 'text(pdata$%s,pdata$%s,pdata$label,pos=3,col=pdata$col)\n\n' % (xfield,yfield)
+                if self.getBool('GGPlot'):
+                    rcode = ggPlotCode(xfield,yfield,title,xlab,ylab,xmax=genGB,vline=genGB,xlog=False,ylog=False)
+                else:
+                    rcode = 'plot(pdata$%s,pdata$%s,xlab="%s",ylab="%s",col=pdata$col,pch=pdata$pch,main="%s",%s)\n' % (xfield,yfield,xlab,ylab,title,plims)   # Removed ,log="xy"
+                    #!# Make this dashed!
+                    rcode += 'abline(v=%s, col="grey")\n' % genGB
+                    rcode += 'text(pdata$%s,pdata$%s,pdata$label,pos=3,col=pdata$col)\n\n' % (xfield,yfield)
                 rtxt += '```{r numVsize, echo=FALSE, fig.width=12, fig.height=8}\n%s\n```\n\n' % (rcode)
 
                 # PLOT 2a. Completeness = NoBUSCO vs Assembly Size
@@ -3734,20 +3938,28 @@ class BUSCOMP(rje_obj.RJE_Object):
                 yfield = 'NoBUSCO'; ylab = 'BUSCO Missing (%)'
                 title = 'Missing BUSCO versus total assembly size'
                 plims = 'xlim=c(0,max(pdata$%s,%s)),ylim=c(0,max(pdata$%s))' % (xfield,genGB,yfield)
-                rcode = 'plot(pdata$%s,pdata$%s,xlab="%s",ylab="%s",col=pdata$col,pch=pdata$pch,main="%s",xlog=TRUE,ylog=TRUE,%s)\n' % (xfield,yfield,xlab,ylab,title,plims)
-                #!# Make this dashed!
-                rcode += 'abline(v=%s, col="grey")\n' % genGB
-                rcode += 'text(pdata$%s,pdata$%s,pdata$label,pos=3,col=pdata$col)\n\n' % (xfield,yfield)
-                rtxt += '```{r nobuscoVsize, echo=FALSE, fig.width=12, fig.height=8}\n%s\n```\n\n' % (rcode)
+                if self.getBool('GGPlot'):
+                    rcode = ggPlotCode(xfield,yfield,title,xlab,ylab,xmax=genGB,vline=genGB)
+                else:
+                    rcode = 'plot(pdata$%s,pdata$%s,xlab="%s",ylab="%s",col=pdata$col,pch=pdata$pch,main="%s",xlog=TRUE,ylog=TRUE,%s)\n' % (xfield,yfield,xlab,ylab,title,plims)
+                    #!# Make this dashed!
+                    rcode += 'abline(v=%s, col="grey")\n' % genGB
+                    rcode += 'text(pdata$%s,pdata$%s,pdata$label,pos=3,col=pdata$col)\n\n' % (xfield,yfield)
+                if self.db('busco'):
+                    rtxt += '```{r nobuscoVsize, echo=FALSE, fig.width=12, fig.height=8}\n%s\n```\n\n' % (rcode)
+                else: rtxt += '\n**NOTE:** No BUSCO results loaded.\n\n'
 
                 # PLOT 2b. Completeness = Missing vs Assembly Size
                 yfield = 'Missing'; ylab = 'BUSCOMP Missing (%)'
                 title = 'Missing BUSCOMP versus total assembly size'
                 plims = 'xlim=c(0,max(pdata$%s,%s)),ylim=c(0,max(pdata$%s))' % (xfield,genGB,yfield)
-                rcode = 'plot(pdata$%s,pdata$%s,xlab="%s",ylab="%s",col=pdata$col,pch=pdata$pch,main="%s",xlog=TRUE,ylog=TRUE,%s)\n' % (xfield,yfield,xlab,ylab,title,plims)
-                #!# Make this dashed!
-                rcode += 'abline(v=%s, col="grey")\n' % genGB
-                rcode += 'text(pdata$%s,pdata$%s,pdata$label,pos=3,col=pdata$col)\n\n' % (xfield,yfield)
+                if self.getBool('GGPlot'):
+                    rcode = ggPlotCode(xfield,yfield,title,xlab,ylab,xmax=genGB,vline=genGB)
+                else:
+                    rcode = 'plot(pdata$%s,pdata$%s,xlab="%s",ylab="%s",col=pdata$col,pch=pdata$pch,main="%s",xlog=TRUE,ylog=TRUE,%s)\n' % (xfield,yfield,xlab,ylab,title,plims)
+                    #!# Make this dashed!
+                    rcode += 'abline(v=%s, col="grey")\n' % genGB
+                    rcode += 'text(pdata$%s,pdata$%s,pdata$label,pos=3,col=pdata$col)\n\n' % (xfield,yfield)
                 rtxt += '```{r missingVsize, echo=FALSE, fig.width=12, fig.height=8}\n%s\n```\n\n' % (rcode)
 
                 # PLOT 3. BUSCO versus BUSCOMP 1 = Missing vs NoBUSCO
@@ -3759,9 +3971,15 @@ class BUSCOMP(rje_obj.RJE_Object):
                 xfield = 'NoBUSCO'; xlab = 'BUSCO Missing (%)'
                 title = 'Missing BUSCOMP versus Missing BUSCO'
                 plims = 'xlim=c(0,max(pdata$%s)),ylim=c(0,max(pdata$%s))' % (xfield,yfield)
-                rcode = 'plot(pdata$%s,pdata$%s,xlab="%s",ylab="%s",col=pdata$col,pch=pdata$pch,main="%s",xlog=TRUE,ylog=TRUE,%s)\n' % (xfield,yfield,xlab,ylab,title,plims)
-                rcode += 'text(pdata$%s,pdata$%s,pdata$label,pos=3,col=pdata$col)\n\n' % (xfield,yfield)
-                rtxt += '```{r nobuscompVnobusco, echo=FALSE, fig.width=12, fig.height=8}\n%s\n```\n\n' % (rcode)
+                #!# Add calculation of size to make square boxes.
+                if self.getBool('GGPlot'):
+                    rcode = ggPlotCode(xfield,yfield,title,xlab,ylab)
+                else:
+                    rcode = 'plot(pdata$%s,pdata$%s,xlab="%s",ylab="%s",col=pdata$col,pch=pdata$pch,main="%s",xlog=TRUE,ylog=TRUE,%s)\n' % (xfield,yfield,xlab,ylab,title,plims)
+                    rcode += 'text(pdata$%s,pdata$%s,pdata$label,pos=3,col=pdata$col)\n\n' % (xfield,yfield)
+                if self.db('busco'):
+                    rtxt += '```{r nobuscompVnobusco, echo=FALSE, fig.width=12, fig.height=8}\n%s\n```\n\n' % (rcode)
+                else: rtxt += '\n**NOTE:** No BUSCO results loaded.\n\n'
 
                 rtxt += '\n## Genome contiguity assessment plots\n\n'
 
@@ -3773,37 +3991,55 @@ class BUSCOMP(rje_obj.RJE_Object):
                 xfield = 'NG50Length'; xlab = 'NG50 (Mb)'
                 title = 'LG50 count versus NG50 length'
                 plims = 'xlim=c(0,max(pdata$%s)),ylim=c(0,max(pdata$%s))' % (xfield,yfield)
-                rcode = 'plot(pdata$%s,pdata$%s,xlab="%s",ylab="%s",col=pdata$col,pch=pdata$pch,main="%s",xlog=TRUE,ylog=TRUE,%s)\n' % (xfield,yfield,xlab,ylab,title,plims)
-                rcode += 'text(pdata$%s,pdata$%s,pdata$label,pos=3,col=pdata$col)\n\n' % (xfield,yfield)
+                if self.getBool('GGPlot'):
+                    rcode = ggPlotCode(xfield,yfield,title,xlab,ylab)
+                else:
+                    rcode = 'plot(pdata$%s,pdata$%s,xlab="%s",ylab="%s",col=pdata$col,pch=pdata$pch,main="%s",xlog=TRUE,ylog=TRUE,%s)\n' % (xfield,yfield,xlab,ylab,title,plims)
+                    rcode += 'text(pdata$%s,pdata$%s,pdata$label,pos=3,col=pdata$col)\n\n' % (xfield,yfield)
                 rtxt += '```{r lg50Vng50, echo=FALSE, fig.width=12, fig.height=8}\n%s\n```\n\n' % (rcode)
 
                 # PLOT 5b. Contiguity = Complete vs NG50
                 yfield = 'Complete'; ylab = 'BUSCOMP Complete (%)'
                 title = 'Complete BUSCOMP versus NG50'
                 plims = 'xlim=c(0,max(pdata$%s)),ylim=c(0,max(pdata$%s))' % (xfield,yfield)
-                rcode = 'plot(pdata$%s,pdata$%s,xlab="%s",ylab="%s",col=pdata$col,pch=pdata$pch,main="%s",xlog=TRUE,ylog=TRUE,%s)\n' % (xfield,yfield,xlab,ylab,title,plims)
-                rcode += 'text(pdata$%s,pdata$%s,pdata$label,pos=3,col=pdata$col)\n\n' % (xfield,yfield)
+                if self.getBool('GGPlot'):
+                    rcode = ggPlotCode(xfield,yfield,title,xlab,ylab)
+                else:
+                    rcode = 'plot(pdata$%s,pdata$%s,xlab="%s",ylab="%s",col=pdata$col,pch=pdata$pch,main="%s",xlog=TRUE,ylog=TRUE,%s)\n' % (xfield,yfield,xlab,ylab,title,plims)
+                    rcode += 'text(pdata$%s,pdata$%s,pdata$label,pos=3,col=pdata$col)\n\n' % (xfield,yfield)
                 rtxt += '```{r completeVng50, echo=FALSE, fig.width=12, fig.height=8}\n%s\n```\n\n' % (rcode)
 
                 # PLOT 5c. Contiguity = BUSCO vs NG50
                 yfield = 'BUSCO'; ylab = 'BUSCO Complete (%)'
                 title = 'Complete BUSCO versus NG50'
                 plims = 'xlim=c(0,max(pdata$%s)),ylim=c(0,max(pdata$%s))' % (xfield,yfield)
-                rcode = 'plot(pdata$%s,pdata$%s,xlab="%s",ylab="%s",col=pdata$col,pch=pdata$pch,main="%s",xlog=TRUE,ylog=TRUE,%s)\n' % (xfield,yfield,xlab,ylab,title,plims)
-                rcode += 'text(pdata$%s,pdata$%s,pdata$label,pos=3,col=pdata$col)\n\n' % (xfield,yfield)
-                rtxt += '```{r buscoVng50, echo=FALSE, fig.width=12, fig.height=8}\n%s\n```\n\n' % (rcode)
+                if self.getBool('GGPlot'):
+                    rcode = ggPlotCode(xfield,yfield,title,xlab,ylab)
+                else:
+                    rcode = 'plot(pdata$%s,pdata$%s,xlab="%s",ylab="%s",col=pdata$col,pch=pdata$pch,main="%s",xlog=TRUE,ylog=TRUE,%s)\n' % (xfield,yfield,xlab,ylab,title,plims)
+                    rcode += 'text(pdata$%s,pdata$%s,pdata$label,pos=3,col=pdata$col)\n\n' % (xfield,yfield)
+                if self.db('busco'):
+                    rtxt += '```{r buscoVng50, echo=FALSE, fig.width=12, fig.height=8}\n%s\n```\n\n' % (rcode)
+                else: rtxt += '\n**NOTE:** No BUSCO results loaded.\n\n'
 
                 # PLOT 3. BUSCO versus BUSCOMP 2 = Complete vs BUSCO
                 yfield = 'Complete'; ylab = 'BUSCOMP Complete (%)'
                 xfield = 'BUSCO'; xlab = 'BUSCO Complete (%)'
                 title = 'Complete BUSCOMP versus Complete BUSCO'
                 plims = 'xlim=c(0,max(pdata$%s)),ylim=c(0,max(pdata$%s))' % (xfield,yfield)
-                rcode = 'plot(pdata$%s,pdata$%s,xlab="%s",ylab="%s",col=pdata$col,pch=pdata$pch,main="%s",xlog=TRUE,ylog=TRUE,%s)\n' % (xfield,yfield,xlab,ylab,title,plims)
-                rcode += 'text(pdata$%s,pdata$%s,pdata$label,pos=3,col=pdata$col)\n\n' % (xfield,yfield)
-                rtxt += '```{r buscompVbusco, echo=FALSE, fig.width=12, fig.height=8}\n%s\n```\n\n' % (rcode)
+                if self.getBool('GGPlot'):
+                    rcode = ggPlotCode(xfield,yfield,title,xlab,ylab)
+                else:
+                    rcode = 'plot(pdata$%s,pdata$%s,xlab="%s",ylab="%s",col=pdata$col,pch=pdata$pch,main="%s",xlog=TRUE,ylog=TRUE,%s)\n' % (xfield,yfield,xlab,ylab,title,plims)
+                    rcode += 'text(pdata$%s,pdata$%s,pdata$label,pos=3,col=pdata$col)\n\n' % (xfield,yfield)
+                if self.db('busco'):
+                    rtxt += '```{r buscompVbusco, echo=FALSE, fig.width=12, fig.height=8}\n%s\n```\n\n' % (rcode)
+                else: rtxt += '\n**NOTE:** No BUSCO results loaded.\n\n'
 
 
             rtxt += '**NOTE:** To modify these plots and tables, edit the `*.genomes.tdt` and `*.NxLxxIDxx.rdata.tdt` files and re-knit the `*.NxLxxIDxx.Rmd` file.\n\n'
+
+
 
 
             ### ~ [4] BUSCO Summary and compilation ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -3812,6 +4048,18 @@ class BUSCOMP(rje_obj.RJE_Object):
             groups = []
             for gentry in gdb.entries(sorted=True):
                 if gentry['Genome'] in self.dict['Groups']: groups.append(gentry['Genome'])
+            ### Group rows data ###
+            grouprows = {}
+            if groups:
+                for group in groups:
+                    grouprows[group] = []
+                    genomes = grpdb.indexDataList('Group',group,'Genome')
+                    for genome in genomes:
+                        gentry = self.aliasEntry(genome)
+                        grouprows[group].append('%s' % gentry['#'])
+                    grouprows[group].append('%s' % self.aliasEntry(group)['#'])
+                    grouprows[group] = 'c(%s)' % string.join(grouprows[group],',')
+
             rtxt += '<a name="BUSCO" />\n\n# BUSCO Ratings\n\n'
             if self.db('busco'):
                 rtxt += 'Compiled BUSCO results for %d assemblies and %d groups have been saved in `%s`. %s\n\n' % (gdb.entryNum()-len(groups),len(groups),genfile,buscoText)
@@ -3824,7 +4072,7 @@ class BUSCOMP(rje_obj.RJE_Object):
                 rcode = 'sumdata = busco[! is.na(busco$N) & busco$N > 0,c(1,4:7)]\n'
                 rcode += 'colnames(sumdata) = c("Dataset", "Complete", "Duplicated", "Fragmented", "Missing")\n'
                 rcode += buscoPercPlot
-                rcode += 'buscoPercPlot(sumdata,"BUSCO Rating Summary")\n'
+                rcode += 'buscoPercPlot(sumdata,"BUSCO Rating Summary",maketext=%s)\n' % str(fullreport).upper()
                 rtxt += '```{r %s, echo=FALSE, fig.width=12, fig.height=%d}\n%s\n```\n\n' % (codename,2+int(self.db('genomes').entryNum()/2),rcode)
                 ## ~ [2c] Summarise group construction  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
                 rtxt += '<a name="Groups" />\n\n## Genome Groups\n\n'
@@ -3859,65 +4107,113 @@ class BUSCOMP(rje_obj.RJE_Object):
                     rtxt += rcode
                 else: rtxt += '.\n\n'
 
-                # BUSCOSeq details and ratings for each genome
-                rtxt += '<a name="BUSCOSeq" />\n\n# BUSCOMP Ratings\n\n'
-                dbfile = '%s.buscoseq.tdt' % self.baseFile()
+
+                ## ~ [2c+] Group charts  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+                if groups and fullreport:
+                    rtxt += '<a name="GroupBUSCO" />\n\n## Genome Group BUSCO charts\n\n'
+                    for group in groups:
+                        gnum = len(grpdb.indexDataList('Group',group,'Genome')) + 1
+                        codename = '%sbuscochart' % string.replace(group,' ','')
+                        rmd.list['CodeChunks'].append(codename)
+                        rcode = ''
+                        rcode += '# %s %s\n' % (group,grouprows[group])
+                        rcode += 'sumdata = busco[%s,]\n' % grouprows[group]
+                        rcode += 'sumdata = sumdata[! is.na(sumdata$N) & sumdata$N > 0,c(1,4:7)]\n'
+                        rcode += 'colnames(sumdata) = c("Dataset", "Complete", "Duplicated", "Fragmented", "Missing")\n'
+                        rcode += 'buscoPercPlot(sumdata,"%s BUSCO Rating Summary",maketext=%s)\n' % (group,str(fullreport).upper())
+                        rtxt += '```{r %s, echo=FALSE, fig.width=12, fig.height=%d}\n%s\n```\n\n' % (codename,2+int(gnum/2),rcode)
+
+            else:
+                rtxt += 'No BUSCO results loaded.\n\n'
+
+            # BUSCOSeq details and ratings for each genome
+            rtxt += '<a name="BUSCOSeq" />\n\n# BUSCOMP Ratings\n\n'
+            dbfile = '%s.buscoseq.tdt' % self.baseFile()
+            if os.path.exists(dbfile):
                 rtxt += 'The best complete BUSCO hit results (based on `Score` and `Length`) have been compiled in `%s`.\n' % dbfile
                 rtxt += 'The `Genome` field indicates the assembly with the best hit, which is followed by details of that hit '
                 rtxt += '(`Contig`, `Start`, `End`, `Score`, `Length`).\n'
                 rtxt += '''BUSCOMP ratings for each assembly are then given in subsequent fields:
     
-* `Identical`: 100% coverage and 100% identity in at least one contig/scaffold.
-* `Complete`: 95%+ Coverage in a single contig/scaffold. (Note: accuracy/identity is not considered.)
-* `Duplicated`: 95%+ Coverage in 2+ contigs/scaffolds.
-* `Fragmented`: 95%+ combined coverage but not in any single contig/scaffold.
-* `Partial`: 40-95% combined coverage.
-* `Ghost`: Hits meeting local cutoff but <40% combined coverage.
-* `Missing`: No hits meeting local cutoff.
-
-'''
+    * `Identical`: 100% coverage and 100% identity in at least one contig/scaffold.
+    * `Complete`: 95%+ Coverage in a single contig/scaffold. (Note: accuracy/identity is not considered.)
+    * `Duplicated`: 95%+ Coverage in 2+ contigs/scaffolds.
+    * `Fragmented`: 95%+ combined coverage but not in any single contig/scaffold.
+    * `Partial`: 40-95% combined coverage.
+    * `Ghost`: Hits meeting local cutoff but <40% combined coverage.
+    * `Missing`: No hits meeting local cutoff.
+    
+    '''
                 if fullreport:
+                    rtxt += '\n'
                     rcode = rmd.rmdTable(dbfile,name='buscoseq',codesection=True,loadtable=True,showtable=True,delim='tab',kable=None,rows=10,cols=10)
                     rtxt += rcode
-            else:
-                rtxt += 'No BUSCO results loaded.\n\n'
+            elif buscompseq:
+                rtxt += 'BUSCOMP ratings for sequences in `%s` are calculated for each assembly:\n' % self.getStr('BUSCOFas')
+                rtxt += '''
+    * `Identical`: 100% coverage and 100% identity in at least one contig/scaffold.
+    * `Complete`: 95%+ Coverage in a single contig/scaffold. (Note: accuracy/identity is not considered.)
+    * `Duplicated`: 95%+ Coverage in 2+ contigs/scaffolds.
+    * `Fragmented`: 95%+ combined coverage but not in any single contig/scaffold.
+    * `Partial`: 40-95% combined coverage.
+    * `Ghost`: Hits meeting local cutoff but <40% combined coverage.
+    * `Missing`: No hits meeting local cutoff.
+    
+    '''
+
 
             # BUSCOSeq re-rating summaries and charts
-            rtxt += '<a name="BUSCOMP" />\n\n## BUSCOSeq Rating Summary\n\n'
-            dbfile = '%s.ratings.tdt' % idbase
-            rtxt += 'BUSCOMP ratings (see above) are compiled to summary statistics in `%s`. ' % dbfile
-            rtxt += 'Note that `Identical` ratings in this table will also be rated as `Complete`, which in turn are `Single` or `Duplicated`.\n'
-            rtxt += 'Percentage summaries are plotted below, along with a BUSCO-style one-line summary per assembly/group.\n\n'
-            rtxt += '**NOTE:** Group summaries do not include `Identical` ratings.\n\n'
-            rcode = rmd.rmdTable(dbfile,name='ratings',codesection=True,loadtable=True,showtable=True,delim='tab',kable=True,rows=10,cols=10)
-            rtxt += rcode
-            #!# Add chart
-            codename = 'buscoseqchart'
-            rmd.list['CodeChunks'].append(codename)
-            rcode = 'sumdata = ratings[,c(1,5:10)+1]\n'
-            rcode += buscompSeqPercPlot
-            rcode += 'buscompSeqPercPlot(sumdata,"BUSCOSeq Rating Summary")\n'
-            rtxt += '```{r %s, echo=FALSE, fig.width=12, fig.height=%d}\n%s\n```\n\n' % (codename,2+int(self.db('ratings').entryNum()/2),rcode)
-            # BUSCOSeq Summary
-            rtxt += '```\n'
-            rtxt += self.compSummary(log=False)
-            rtxt += '```\n'
-
-            # BUSCOSeq complete table
-            rtxt += '<a name="BUSCOSeqFull" />\n\n## BUSCOSeq Full Results Table\n\n'
-            dbfile = '%s.buscomp.tdt' % idbase
-            rtxt += 'Full BUSCOMP results with ratings for each gene in every assembly and group have been compiled in `%s`' % dbfile
-            if fullreport:
-                rtxt += ':\n\n'
-                rcode = rmd.rmdTable(dbfile,name='buscomp',codesection=True,loadtable=True,showtable=True,delim='tab',kable=None,rows=10,cols=10)
+            rtxt += '\n<a name="BUSCOMP" />\n\n## BUSCOSeq Rating Summary\n\n'
+            if buscompseq:
+                dbfile = '%s.ratings.tdt' % idbase
+                rtxt += 'BUSCOMP ratings (see above) are compiled to summary statistics in `%s`. ' % dbfile
+                rtxt += 'Note that `Identical` ratings in this table will also be rated as `Complete`, which in turn are `Single` or `Duplicated`.\n'
+                rtxt += 'Percentage summaries are plotted below, along with a BUSCO-style one-line summary per assembly/group.\n\n'
+                rtxt += '**NOTE:** Group summaries do not include `Identical` ratings.\n\n'
+                rcode = rmd.rmdTable(dbfile,name='ratings',codesection=True,loadtable=True,showtable=True,delim='tab',kable=True,rows=10,cols=10)
                 rtxt += rcode
-            else:
-                rtxt += '.\n\n'
+                #!# Add chart
+                codename = 'buscoseqchart'
+                rmd.list['CodeChunks'].append(codename)
+                rcode = 'sumdata = ratings[,c(1,5:10)+1]\n'
+                rcode += buscompSeqPercPlot
+                rcode += 'buscompSeqPercPlot(sumdata,"BUSCOSeq Rating Summary",maketext=%s)\n' % str(fullreport).upper()
+                rtxt += '```{r %s, echo=FALSE, fig.width=12, fig.height=%d}\n%s\n```\n\n' % (codename,2+int(self.db('ratings').entryNum()/2),rcode)
+                # BUSCOSeq Summary
+                rtxt += '```\n'
+                rtxt += self.compSummary(log=False)
+                rtxt += '```\n'
 
+                # BUSCOSeq complete table
+                rtxt += '<a name="BUSCOSeqFull" />\n\n## BUSCOSeq Full Results Table\n\n'
+                dbfile = '%s.buscomp.tdt' % idbase
+                rtxt += 'Full BUSCOMP results with ratings for each gene in every assembly and group have been compiled in `%s`' % dbfile
+                if fullreport:
+                    rtxt += ':\n\n'
+                    rcode = rmd.rmdTable(dbfile,name='buscomp',codesection=True,loadtable=True,showtable=True,delim='tab',kable=None,rows=10,cols=10)
+                    rtxt += rcode
+                else:
+                    rtxt += '.\n\n'
+
+
+                ## ~ [2c+] Group charts  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+                if groups and fullreport and self.db('buscomp'):
+                    rtxt += '<a name="GroupBUSCOMP" />\n\n## Genome Group BUSCOMP charts\n\n'
+                    for group in groups:
+                        gnum = len(grpdb.indexDataList('Group',group,'Genome')) + 1
+                        codename = '%sbuscompchart' % string.replace(group,' ','')
+                        rmd.list['CodeChunks'].append(codename)
+                        rcode = ''
+                        rcode += '# %s %s\n' % (group,grouprows[group])
+                        rcode += 'sumdata = ratings[%s,c(1,5:10)+1]\n' % grouprows[group]
+                        rcode += 'buscompSeqPercPlot(sumdata,"%s BUSCOSeq Rating Summary",maketext=%s)\n' % (group,str(fullreport).upper())
+                        rtxt += '```{r %s, echo=FALSE, fig.width=12, fig.height=%d}\n%s\n```\n\n' % (codename,2+int(gnum/2),rcode)
+
+            else: rtxt += 'No BUSCOSeq Rating analysis (`buscompseq=F`).'
 
             rtxt += '<a name="BUSCOMParisons" />\n\n# BUSCO and BUSCOMP Comparisons\n\n'
 
-            if self.db('raw') and self.db('buscomp'):
+            if self.db('busco') and self.db('buscomp') and buscompseq:
 
                 # Changes of Ratings
                 rtxt += '<a name="BUSCOMPChanges" />\n\n## BUSCO to BUSCOMP Rating Changes\n\n'
@@ -4080,6 +4376,36 @@ coverage.
 #########################################################################################################################
 ### SECTION III: BUSCOMP R CODE                                                                                         #
 #########################################################################################################################
+def ggPlotCode(x,y,title,xlab,ylab,xmax=0,ymax=0,vline=None,xlog=False,ylog=False):
+
+    plotcode = 'ggdata = pdata\n'
+    #plotcode += 'numVsizeGG <- ggplot(ggdata, aes(x=%s, y=%s, colour=col, label=label, size=1)) +' % (x,y)
+    plotcode += 'ggplot(ggdata, aes(x=%s, y=%s, colour=col, label=label, size=1)) +' % (x,y)
+    plotcode += '    geom_point(size = 3,shape=ggdata$pch, colour=ggdata$col, na.rm=TRUE) +'
+    plotcode += '    theme_bw() +'
+    plotcode += '    theme(text = element_text(size=15)) +'
+    plotcode += '    theme(plot.title = element_text(hjust = 0.5)) +'
+    plotcode += '    theme(panel.border = element_rect(colour="black", size=0.5)) +'
+    plotcode += '    ggtitle("%s") +' % title
+    plotcode += '    guides(color = "none") +'
+    plotcode += '    scale_shape(solid = FALSE) +'
+    plotcode += '    xlab("%s") +' % xlab
+    plotcode += '    ylab("%s") +' % ylab
+    plotcode += '    xlim(0,max(ggdata$%s,%s)) +' % (x,xmax)
+    if xlog: plotcode += '    coord_trans(x="log10") + '
+    if ylog: plotcode += '    coord_trans(y="log10") + '
+    plotcode += '    ylim(0,max(ggdata$%s,%s)) +' % (y,ymax)
+    plotcode += '    geom_label_repel(aes(label=label), size = 5, colour=ggdata$col, na.rm=TRUE) +'
+    if vline:
+        plotcode += '    geom_vline(xintercept = %s, color = "grey", linetype="dashed", size=0.5) +' % vline
+
+    plotcode = plotcode[:-2]
+    plotcode = plotcode.replace(' +',' +\n')
+
+    return plotcode
+
+
+#########################################################################################################################
 buscoPlot = '''# BUSCO Plot of summary data table (Dataset, Complete, Duplicated, Fragmented, Missing)
 buscoPlot = function(sumdata,title=""){
   sumdata = sumdata[nrow(sumdata):1,]
@@ -4093,8 +4419,14 @@ buscoPlot = function(sumdata,title=""){
 '''
 
 buscoPercPlot = '''# BUSCO Plot of summary data table as % (Dataset, Complete, Duplicated, Fragmented, Missing)
-buscoPercPlot = function(sumdata,title=""){
+buscoPercPlot = function(sumdata,title="",maketext=TRUE){
   sumdata = sumdata[nrow(sumdata):1,]
+  if(maketext){
+    sumdata$text = ""
+    for(i in 1:nrow(sumdata)){
+      sumdata$text[i] = paste0("C:",sumdata$Complete[i]+sumdata$Duplicated[i]," [S:",sumdata$Complete[i],", D:",sumdata$Duplicated[i],"], F:",sumdata$Fragmented[i],", M:",sumdata$Missing[i],", n:",sum(sumdata[i,2:5]))
+    }
+  }
   rownames(sumdata) = sumdata$Dataset
   N = sum(sumdata[1,2:5])
   my_colors <- c("#56B4E9", "#3492C7", "#F0E442", "#F04442")
@@ -4107,9 +4439,16 @@ buscoPercPlot = function(sumdata,title=""){
 
 #!# Need to pick better colours for Partial and Ghost
 buscompSeqPercPlot = '''# BUSCO Plot of summary data table as % (Genome, Single, Duplicated, Fragmented, Partial, Ghost, Missing)
-buscompSeqPercPlot = function(sumdata,title=""){
+buscompSeqPercPlot = function(sumdata,title="",maketext=TRUE){
   sumdata = sumdata[nrow(sumdata):1,]
+  sumdata = sumdata[! is.na(sumdata$Genome),]
   rownames(sumdata) = sumdata$Genome
+  if(maketext){
+    sumdata$text = ""
+    for(i in 1:nrow(sumdata)){
+      sumdata$text[i] = paste0("C:",sumdata$Single[i]+sumdata$Duplicated[i]," [S:",sumdata$Single[i],", D:",sumdata$Duplicated[i],"], F+P:",sumdata$Fragmented[i]+sumdata$Partial[i],", G+M:",sumdata$Ghost[i]+sumdata$Missing[i],", n:",sum(sumdata[i,2:7]))
+    }
+  }
   N = sum(sumdata[1,2:7])
   my_colors <- c("#56B4E9", "#3492C7", "#F0E442", "#F0E442", "#F04442", "#F04442")
   par(mar=c(5,12,4,1)+0.1)
@@ -4118,9 +4457,15 @@ buscompSeqPercPlot = function(sumdata,title=""){
   par(mar=c(5,4,4,2)+0.1)
 }
 
-buscompSeqPercPlotNA = function(sumdata,title=""){
+buscompSeqPercPlotNA = function(sumdata,title="",maketext=TRUE){
   sumdata = sumdata[nrow(sumdata):1,]
   rownames(sumdata) = sumdata$Genome
+  if(maketext){
+    sumdata$text = ""
+    for(i in 1:nrow(sumdata)){
+      sumdata$text[i] = paste0("C:",sumdata$Complete[i]+sumdata$Duplicated[i]," [S:",sumdata$Complete[i],", D:",sumdata$Duplicated[i],"], F+P:",sumdata$Fragmented[i]+sumdata$Partial[i],", G+M:",sumdata$Ghost[i]+sumdata$Missing[i],", n:",sum(sumdata[i,2:7]))
+    }
+  }
   N = sum(sumdata[1,2:8])
   my_colors <- c("#56B4E9", "#3492C7", "#F0E442", "#F0E442", "#F04442", "#F04442", "white")
   par(mar=c(5,12,4,1)+0.1)
@@ -4149,7 +4494,8 @@ missingPlot = function(plotdf,genome){
 
 missingSeqPlot = '''# Function to plot status of missing BUSCOs
 missingSeqPlot = function(plotdf,ratedf,genome){
-    missdf = plotdf[ratedf[[genome]]=="Missing" | ratedf[[genome]]=="NULL" | is.na(ratedf[[genome]]),]
+    misseog = ratedf[ratedf[[genome]]=="Missing" | ratedf[[genome]]=="NULL" | is.na(ratedf[[genome]]),]$BuscoID
+    missdf = plotdf[plotdf$BuscoID %in% misseog,]
     df = data.frame(Genome=colnames(missdf)[-c(1:2)], Complete = 0, Duplicated = 0, Fragmented = 0, Partial = 0, Ghost = 0, Missing = 0, NULL = 0)
     rownames(df) = colnames(missdf)[-c(1:2)] 
     for(gen in colnames(missdf)[-c(1:2)]){
@@ -4160,7 +4506,12 @@ missingSeqPlot = function(plotdf,ratedf,genome){
             df[gen,field] = gtab[[field]]
         }
     }
-    buscompSeqPercPlotNA(df,title=paste("Missing",genome,"BUSCOMPs"))
+    if(identical(plotdf,ratedf)){ 
+        ptitle=paste("Missing",genome,"BUSCOMPs") 
+    }else{ 
+        ptitle=paste("Missing",genome,"BUSCOs: BUSCOMP ratings")
+    } 
+    buscompSeqPercPlotNA(df,title=ptitle)
 }
 '''
 
@@ -4177,11 +4528,15 @@ The following genome statistics were also calculated by `RJE_SeqList` for each g
 * **MedLength**: The median length of scaffolds/contigs in the assembly.
 * **N50Length**: At least half of the assembly is contained on scaffolds/contigs of this length or greater.
 * **L50Count**: The smallest number scaffolds/contigs needed to cover half the the assembly.
+* **CtgNum**: Number of contigs (`SeqNum`+`GapCount`).
+* **N50Ctg**: At least half of the assembly is contained on contigs of this length or greater.
+* **L50Ctg**: The smallest number contigs needed to cover half the the assembly.
 * **NG50Length**: At least half of the genome is contained on scaffolds/contigs of this length or greater.
 This is based on `genomesize=X`. If no genome size is given, it will be relative to the biggest assembly.
 * **LG50Count**: The smallest number scaffolds/contigs needed to cover half the the genome.
 This is based on `genomesize=X`. If no genome size is given, it will be relative to the biggest assembly.
 * **GapLength**: The total number of undefined "gap" (`N`) nucleotides in the assembly.
+* **GapCount**: The total number of undefined "gap" (`N`) regions in the assembly.
 * **GC**: The %GC content of the assembly.
 
 '''
