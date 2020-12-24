@@ -1,0 +1,230 @@
+## Previous SLiMSuite release (SLiMSuite v1.8.1)
+
+
+APHID
+|-- Description: Automated Processing of High-resolution Intensity Data
+|-- Current Version: 2.2
+|-- Last Edit: 10/07/14
+|-- Latest update: v2.2 - Updated for revised SLiMCore.
+
+BADASP
+|-- Description: Burst After Duplication with Ancestral Sequence Prediction
+|-- Current Version: 1.3.1
+|-- Last Edit: 28/03/15
+|-- Latest update:
+
+BUDAPEST
+|-- Description: Bioinformatics Utility for Data Analysis of Proteomics on ESTs
+|-- Current Version: 2.3
+|-- Last Edit: 31/07/13
+|-- Latest update: v2.3 - Updated to use rje_blast_V2. Needs further updates for BLAST+. Deleted obsolete OLDreadMascot() method.
+BUSCOMP
+
+|-- Description: BUSCO Compiler and Comparison tool
+|-- Current Version: 0.7.2
+|-- Last Edit: 10/05/19
+|-- Latest update: v0.7.2 - Added loadsummary=T/F option to regenerate summaries and fixed bugs running without BUSCO results.
+
+CompariMotif
+|-- Description: Motif vs Motif Comparison Software
+|-- Current Version: 3.14.0
+|-- Last Edit: 17/05/19
+|-- Latest update: v3.14.0 - Modified memsaver mode to take different input formats.
+
+FIESTA
+|-- Description: Fasta Input EST Analysis
+|-- Current Version: 1.9.0
+|-- Last Edit: 26/11/14
+|-- Latest update: v1.9.0 - Altered HAQDB to be a list of files rather than just one.
+
+GABLAM
+|-- Description: Global Analysis of BLAST Local AlignMents
+|-- Current Version: 2.30.1
+|-- Last Edit: 01/04/19
+|-- Latest update: v2.30.1 - Fixed BLAST LocalIDCut error for GABLAM and QAssemble stat filtering.
+
+GASP
+|-- Description: Gapped Ancestral Sequence Prediction
+|-- Current Version: 2.0.0
+|-- Last Edit: 08/03/18
+|-- Latest update: v2.0.0 - Upgraded to rje_obj framework for REST server.
+
+GASP
+|-- Description: Gapped Ancestral Sequence Prediction
+|-- Current Version: 1.4
+|-- Last Edit: 16/07/13
+|-- Latest update: v1.4 - Minor tweaks to imports.
+
+GFESSA
+|-- Description: Genome-Free EST SuperSAGE Analysis
+|-- Current Version: 1.4
+|-- Last Edit: 20/08/13
+|-- Latest update: v1.4 - Switched to rje_blast_V2. More work needed for BLAST+.
+
+GOPHER
+|-- Description: Generation of Orthologous Proteins from Homology-based Estimation of Relationships
+|-- Current Version: 3.5.2
+|-- Last Edit: 30/04/19
+|-- Latest update: v3.5.2 - Added acc=LIST as alias for uniprotid=LIST and updated docstring for REST to make it clear that rest=X needed.
+
+HAPPI
+|-- Description: Hyperlinked Analysis of Protein-Protein Interactions
+|-- Current Version: 1.2
+|-- Last Edit: 06/03/13
+|-- Latest update: v1.2 - Added addclass and refined output for Host-Pathogen PPI analysis.
+
+HAQESAC
+|-- Description: Homologue Alignment Quality, Establishment of Subfamilies and Ancestor Construction
+|-- Current Version: 1.13.0
+|-- Last Edit: 24/05/19
+|-- Latest update: v1.13.0 - Modified qregion=X,Y to be 1-L numbering.
+
+MultiHAQ
+|-- Description: Multi-Query HAQESAC controller
+|-- Current Version: 1.4.1
+|-- Last Edit: 26/03/18
+|-- Latest update: v1.4.1 - Added haqblastdir=PATH: Directory in which MultiHAQ BLAST2FAS BLAST runs will be performed [./HAQBLAST/]
+PAGSAT
+
+|-- Description: Pairwise Assembled Genome Sequence Analysis Tool
+|-- Current Version: 2.6.8
+|-- Last Edit: 08/04/19
+|-- Latest update: v2.6.8 - Added ChromXcov fields to PAGSAT Compare.
+PAGSAT
+
+|-- Description: Pairwise Assembled Genome Sequence Analysis Tool
+|-- Current Version: 1.12.0
+|-- Last Edit: 26/09/16
+|-- Latest update: v1.12.0 - Tidying up and documenting outputs. Changed default minloclen=250 and minlocid=95. (LTR identification.)
+PeptCluster
+
+|-- Description: Peptide Clustering Module
+|-- Current Version: 1.5.4
+|-- Last Edit: 01/11/17
+|-- Latest update: v1.5.4 - Fixed error message error.
+
+PICSI
+|-- Description: Proteomics Identification from Cross-Species Inference
+|-- Current Version: 1.2
+|-- Last Edit: 26/03/14
+|-- Latest update: v1.2 - Updated to BUDAPEST 2.3 and rje_mascot.
+
+PINGU
+|-- Description: Protein Interaction Network & GO Utility
+|-- Current Version: 3.9
+|-- Last Edit: 16/07/13
+|-- Latest update: v3.9 - Tidied imports.
+PINGU
+
+|-- Description: Protein Interaction Network & GO Utility
+|-- Current Version: 4.10.0
+|-- Last Edit: 21/05/19
+|-- Latest update: v4.10.0 - Added hubfield and spokefield options for parsing hublist.
+
+PRESTO
+|-- Description: Protein Regular Expression Search Tool
+|-- Current Version: 5.0
+|-- Last Edit: 22/01/07
+|-- Latest update:
+
+QSLiMFinder
+|-- Description: Query Short Linear Motif Finder
+|-- Current Version: 2.3.0
+|-- Last Edit: 24/05/19
+|-- Latest update: v2.3.0 - Modified qregion=X,Y to be 1-L numbering.
+SAMPhaser
+
+|-- Description: Diploid chromosome phasing from SAMTools Pileup format.
+|-- Current Version: 0.8.0
+|-- Last Edit: 12/10/18
+|-- Latest update: v0.8.0 - poordepth=T/F : Whether to include reads with poor track probability in haplotig depth plots (random track) [False]
+SeqMapper
+
+|-- Description: Sequence Mapping Program
+|-- Current Version: 2.3.0
+|-- Last Edit: 17/10/18
+|-- Latest update: v2.3.0 - Added GABLAM-free method.
+SeqSuite
+
+|-- Description: Miscellaneous biological sequence analysis toolkit
+|-- Current Version: 1.23.0
+|-- Last Edit: 14/05/19
+|-- Latest update: v1.23.0 - Added rje_ppi.PPI to programs.
+SLiMBench
+
+|-- Description: Short Linear Motif prediction Benchmarking
+|-- Current Version: 2.19.0
+|-- Last Edit: 31/01/19
+|-- Latest update: v2.19.0 - Implemented dataset=LIST: List of headers to split dataset into. If blank, will use datatype defaults. []
+SLiMFarmer
+
+|-- Description: SLiMSuite HPC job farming control program
+|-- Current Version: 1.10.0
+|-- Last Edit: 30/10/18
+|-- Latest update: v1.10.0 - Added appending contents of jobini file to slimsuite=F farm commands.
+
+SLiMFinder
+|-- Description: Short Linear Motif Finder
+|-- Current Version: 5.4.0
+|-- Last Edit: 24/05/19
+|-- Latest update: v5.4.0 - Modified qregion=X,Y to be 1-L numbering.
+SLiMMaker
+
+|-- Description: SLiM generator from aligned peptide sequences
+|-- Current Version: 1.7.0
+|-- Last Edit: 01/02/17
+|-- Latest update: v1.7.0 - Added maxlen parameter.
+SLiMMutant
+
+|-- Description: Short Linear Motif Mutation Analysis Tool
+|-- Current Version: 1.3
+|-- Last Edit: 16/09/14
+|-- Latest update: v1.3 - Added SLiMPPI analysis (will set analyse=T). Started basing on SLiMCore
+SLiMParser
+
+|-- Description: SLiMSuite REST output parsing tool.
+|-- Current Version: 0.6.0
+|-- Last Edit: 22/05/19
+|-- Latest update: v0.6.0 - Improved functionality as replacement pureapi with rest=jobid and rest=check functions.
+
+SLiMProb
+|-- Description: Short Linear Motif Probability tool
+|-- Current Version: 2.5.1
+|-- Last Edit: 06/09/17
+|-- Latest update: v2.5.1 - Updated resfile to be set by basefile if no resfile=X setting given.
+
+SLiMSearch
+|-- Description: Short Linear Motif Search tool
+|-- Current Version: 1.7.1
+|-- Last Edit: 03/12/15
+|-- Latest update: v1.7.1 - Minor modification to docstring. Preparation for update to SLiMSearch 2.0 optimised for proteome searches.
+SLiMSuite
+
+|-- Description: Short Linear Motif analysis Suite
+|-- Current Version: 1.8.1
+|-- Last Edit: 09/05/19
+|-- Latest update: v1.8.1 - Updated documentation and added IUPred2. General tidy up and new example data for protocols paper.
+SMRTSCAPE
+
+|-- Description: SMRT Subread Coverage & Assembly Parameter Estimator
+|-- Current Version: 2.2.3
+|-- Last Edit: 11/07/18
+|-- Latest update: v2.2.3 - Fixed bug where SMRT subreads are not returned by seqlist in correct order. Fixed RQ=0 bug.
+SMRTSCAPE_V1
+
+|-- Description: SMRT Subread Coverage & Assembly Parameter Estimator
+|-- Current Version: 1.10.1
+|-- Last Edit: 26/05/16
+|-- Latest update: v1.10.1 - Fixed bug in batch processing.
+Snapper
+
+|-- Description: Genome-wide SNP Mapper
+|-- Current Version: 1.7.0
+|-- Last Edit: 30/01/19
+|-- Latest update: v1.7.0 - Added mapper=minimap setting, compatible with GABLAM v2.30.0 and rje_paf v0.1.0.
+
+UniFake
+|-- Description: Fake UniProt DAT File Generator
+|-- Current Version: 1.3
+|-- Last Edit: 17/04/12
+|-- Latest update: v1.3 - Removed searching in UniProt if not UniReal features given.
