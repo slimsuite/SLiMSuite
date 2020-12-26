@@ -21,6 +21,7 @@ Module:       SAMPhaser
 Description:  Diploid chromosome phasing from SAMTools Pileup format.
 Version:      0.9.1
 Last Edit:    16/02/20
+Citation:     Song, Thomas & Edwards (2019), Marine Genomics 48:100687.
 Documentation: https://github.com/slimsuite/SLiMSuite/wiki/SAMPhaser
 Copyright (C) 2016  Richard J. Edwards - See source code for GNU License Notice
 

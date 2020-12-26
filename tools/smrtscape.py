@@ -36,9 +36,6 @@ Summary:
     for their up-to-date figures. By default, output for this mode is incremented by `XCoverage` but this can be switched
     to numbers of SMRT cells with `bysmrt=T`.
 
-    SMRTSCAPE `coverage=T` mode can be run from the EdwardsLab server at:
-    http://www.slimsuite.unsw.edu.au/servers/pacbio.php
-
     2. **Summarise subreads (`summarise=T`).** This function summarises subread data from a given `seqin=FILE` fasta
     file, or a set of subread fasta files given with `batch=FILELIST` (or listed in `*.fofn`). This produces sequence
     summary data (read lengths, N50 etc.) for each sequence file, SMRT cell and the combined dataset (`*.summary.tdt`).

@@ -22,7 +22,7 @@ Description:  Motif vs Motif Comparison Software
 Version:      3.14.1
 Last Edit:    12/11/19
 Citation:     Edwards, Davey & Shields (2008), Bioinformatics 24(10):1307-9. [PMID: 18375965]
-Webserver:    New webserver coming soon!
+Webserver:    http://www.slimsuite.unsw.edu.au/servers/comparimotif.php
 Manual:       http://bit.ly/CompariMotifManual
 Copyright (C) 2007  Richard J. Edwards - See source code for GNU License Notice
 

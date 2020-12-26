@@ -56,8 +56,6 @@ Function:
     to the FTBest hierarchy, removing SNPs mapping to one feature type from feature types lower in the list:
     - CDS,mRNA,tRNA,rRNA,ncRNA,misc_RNA,gene,mobile_element,LTR,rep_origin,telomere,centromere,misc_feature,intergenic
 
-    More details are given in the Snapper manual.
-
     Version 1.1.0 introduced additional fasta output of the genome regions with zero coverage in the other genome, i.e.
     the regions in the *.cnv.tdt file with CNV=0. Regions smaller than `nocopylen=X` [default=100] are deleted and then
     those within `nocopymerge=X` [default=20] of each other will be merged for output. This can be switched off with

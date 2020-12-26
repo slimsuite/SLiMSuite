@@ -21,6 +21,8 @@ Module:       PAFScaff
 Description:  Pairwise mApping Format reference-based scaffold anchoring and super-scaffolding.
 Version:      0.4.1
 Last Edit:    25/08/20
+Citation:     Field et al. (2020), GigaScience 9(4):giaa027. [PMID: 32236524]
+GitHub:       https://github.com/slimsuite/pafscaff
 Copyright (C) 2019  Richard J. Edwards - See source code for GNU License Notice
 
 Function:

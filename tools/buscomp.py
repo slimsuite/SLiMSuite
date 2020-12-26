@@ -21,6 +21,7 @@ Module:       BUSCOMP
 Description:  BUSCO Compiler and Comparison tool
 Version:      0.9.7
 Last Edit:    03/12/20
+Citation:     Edwards RJ (2019). F1000Research 8:995 (slides) (doi: 10.7490/f1000research.1116972.1)
 Copyright (C) 2019  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -66,7 +67,8 @@ Function:
     tested and might give some unexpected behaviours, as some of the quoted figures will still be based on the
     calculated BUSCOMPSeq data. Please report any unexpected behaviour.
 
-    For full documentation of the BUSCOMP workflow, run with `dochtml=T` and read the `*.docs.html` file generated.
+    For full documentation of the BUSCOMP workflow, run with `dochtml=T` and read the `*.docs.html` file generated, or
+    visit https://slimsuite.github.io/buscomp/.
 
 Commandline:
     ### ~ Input/Output options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###

@@ -1,4 +1,4 @@
-## SLiMSuite release notes (1.9.0) [Wed 23 Dec 2020 22:55:23 AEDT]
+## SLiMSuite release notes (1.9.1) [Sat 26 Dec 2020 22:10:49 AEDT]
 
 Please see individual modules for summary of update history.
 
@@ -105,9 +105,9 @@ SeqMapper: Sequence Mapping Program
 |-- Last Edit: 17/10/18
 |-- Latest update: v2.3.0 - Added GABLAM-free method.
 SeqSuite: Miscellaneous biological sequence analysis tools suite
-|-- Current version: SeqSuite v1.24.0
-|-- Last Edit: 22/12/20
-|-- Latest update: v1.24.0 - Added SAAGA, Diploidocus, SynBad and rje_genomics to programs.
+|-- Current version: SeqSuite v1.25.0
+|-- Last Edit: 26/12/20
+|-- Latest update: v1.25.0 - Added SeqMapper and SAMPhaser.
 SLiMBench: Short Linear Motif prediction Benchmarking
 |-- Current version: SLiMBench v2.19.0
 |-- Last Edit: 31/01/19
@@ -141,9 +141,9 @@ SLiMSearch: Short Linear Motif Regular Expression Search Tool
 |-- Last Edit: 03/12/15
 |-- Latest update: v1.7.1 - Minor modification to docstring. Preparation for update to SLiMSearch 2.0 optimised for proteome searches.
 SLiMSuite: Short Linear Motif analysis Suite
-|-- Current version: SLiMSuite v1.9.0
-|-- Last Edit: 09/05/19
-|-- Latest update: v1.9.0 - Added SAAGA, Diploidocus, SynBad and Genomics. Slight module tidy for GitHub updates.
+|-- Current version: SLiMSuite v1.9.1
+|-- Last Edit: 26/12/20
+|-- Latest update: v1.9.1 - Added SLiMParser and SLiMMutant to wrapped tools to match documentation.
 SMRTSCAPE: SMRT Subread Coverage & Assembly Parameter Estimator
 |-- Current version: SMRTSCAPE v2.2.3
 |-- Last Edit: 11/07/18

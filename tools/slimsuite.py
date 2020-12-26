@@ -20,9 +20,10 @@
 """
 Module:       SLiMSuite
 Description:  Short Linear Motif analysis Suite
-Version:      1.8.1
-Last Edit:    09/05/19
-Citation:     Edwards RJ & Palopoli N (2015): Methods Mol Biol. 1268:89-141. [PMID: 25555723]
+Version:      1.9.1
+Last Edit:    26/12/20
+Citation:     Edwards et al. (2020), Methods Mol Biol. 2141:37-72. [PMID: 32696352]
+Old citation: Edwards RJ & Palopoli N (2015): Methods Mol Biol. 1268:89-141. [PMID: 25555723]
 Copyright (C) 2014  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -49,6 +50,8 @@ SLiMSuite tools:
     - SLiMProb = slimprob.SLiMProb. Short Linear Motif Probability - known SLiM prediction.
     - SLiMBench = slimbench.SLiMBench. SLiM discovery benchmarking module.
     - SLiMMaker = slimmaker.SLiMMaker. Simple SLiM generation from aligned peptide sequences.
+    - SLiMMutant = slimmutant.SLiMMutant. Short Linear Motif Mutation Analysis Tool
+    - SLiMParser - slimparser.SLiMParser. SLiMSuite REST output parsing tool.
     - PeptCluster = peptcluster.PeptCluster. Peptide alignment, pairwise distance and clustering tool.
 
 Example use to run SLiMFinder:
@@ -85,7 +88,7 @@ sys.path.append(os.path.join(slimsuitepath,'slimsuite/tools/'))
 import rje, rje_obj, rje_slimcore, rje_slimlist
 import comparimotif_V3 as comparimotif
 import seqsuite
-import qslimfinder, slimbench, slimfarmer, slimfinder, slimmaker, slimprob, slimmutant
+import qslimfinder, slimbench, slimfarmer, slimfinder, slimmaker, slimprob, slimmutant, slimparser
 import gablam, gopher, haqesac, multihaq, peptcluster
 import pingu_V4 as pingu
 import presto_V5 as presto
@@ -108,6 +111,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 1.8.0 - Added BUSCOMP and basic test function.
     # 1.8.1 - Updated documentation and added IUPred2. General tidy up and new example data for protocols paper.
     # 1.9.0 - Added SAAGA, Diploidocus, SynBad and Genomics. Slight module tidy for GitHub updates.
+    # 1.9.1 - Added SLiMParser and SLiMMutant to wrapped tools to match documentation.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -122,7 +126,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copy_right) = ('SLiMSuite', '1.9.0', 'December 2020', '2014')
+    (program, version, last_edit, copy_right) = ('SLiMSuite', '1.9.1', 'December 2020', '2014')
     description = 'Short Linear Motif analysis Suite'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',
@@ -176,6 +180,7 @@ def setupProgram(argcmd,fullcmd=True): ### Basic Setup of Program when called fr
 mod = {'slimcore':rje_slimcore,'core':rje_slimcore,'rje_slimcore':rje_slimcore,'slimlist':rje_slimlist,'rje_slimlist':rje_slimlist,
        'slimfinder':slimfinder,'qslimfinder':qslimfinder,'slimprob':slimprob,'slimmaker':slimmaker,
        'slimfarmer':slimfarmer,'farm':slimfarmer,'slimbench':slimbench,'rlc':rje_slimcore,'iuscore':rje_slimcore,
+       'slimmutant':slimmutant, 'slimparser':slimparser,
        'comparimotif':comparimotif,'peptcluster':peptcluster,'peptalign':peptcluster}
 #########################################################################################################################
 ### END OF SECTION I                                                                                                    #
@@ -343,6 +348,8 @@ class SLiMSuite(rje_obj.RJE_Object):
                 elif prog in ['slimmaker']: self.obj['Prog'] = slimmaker.SLiMMaker(self.log,progcmd)
                 elif prog in ['slimfarmer','farm']: self.obj['Prog'] = slimfarmer.SLiMFarmer(self.log,progcmd)
                 elif prog in ['slimbench']: self.obj['Prog'] = slimbench.SLiMBench(self.log,progcmd)
+                elif prog in ['slimmutant']: self.obj['Prog'] = slimmutant.SLiMMutant(self.log,progcmd)
+                elif prog in ['slimparser']: self.obj['Prog'] = slimparser.SLiMParser(self.log,progcmd)
                 elif prog in ['comparimotif']: self.obj['Prog'] = comparimotif.CompariMotif(self.log,progcmd)
                 elif prog in ['peptcluster']: self.obj['Prog'] = peptcluster.PeptCluster(self.log,progcmd)
                 elif prog in ['peptalign']: self.obj['Prog'] = peptcluster.PeptCluster(self.log,['peptalign=T']+progcmd+['peptdis=None'])

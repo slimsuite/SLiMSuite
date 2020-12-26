@@ -21,6 +21,7 @@ Module:       synbad
 Description:  Synteny-based scaffolding adjustment
 Version:      0.4.0
 Last Edit:    15/12/20
+GitHub:       https://github.com/slimsuite/synbad
 Copyright (C) 2020  Richard J. Edwards - See source code for GNU License Notice
 
 Function:

@@ -25,7 +25,7 @@ Citation:     Raab et al. (2010), Proteomics 10: 2790-2800. [PMID: 20486118]
 Copyright (C) 2007  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
-    This modules takes for input the partially processed results of MS analysis, with intensity data, filters based on
+    APHID takes for input the partially processed results of MS analysis, with intensity data, filters based on
     scores thresholds, removes redundancy (using PINGU) and calculates relative intensity scores. PINGU is then used to
     generate outputs for use with Cytoscape and other visualisation tools.
 

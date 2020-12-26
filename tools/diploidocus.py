@@ -22,27 +22,32 @@ Description:  Diploid genome assembly analysis toolkit
 Version:      0.12.0
 Last Edit:    07/12/20
 Citation:     Edwards RJ et al. (2020), bioRxiv https://doi.org/10.1101/2020.11.11.379073
-GitHub:       https://github.com/slimsuite/diploidocusg
+GitHub:       https://github.com/slimsuite/diploidocus
 Copyright (C) 2020  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
     Diploidocus is a sequence analysis toolkit for a number of different analyses related to diploid genome assembly.
     The main suite of analyses combines long read depth profiles, short read kmer analysis, assembly kmer analysis,
-    BUSCO gene prediction and contaminant screening for a number of assembly tasks including genome size prediction,
-    contamination identification, haplotig identification/removal and low quality contig/scaffold filtering. In addition,
-    Diploidocus has functions for removing redundancy, generating a non-redundant pseudo-diploid assembly with primary
-    and secondary scaffolds from 10x pseudohap output, and creating an in silico diploid set of long reads from two
-    haploid parents (for testing phasing etc.).
+    BUSCO gene prediction and contaminant screening for a number of assembly tasks including contamination identification,
+    haplotig identification/removal and low quality contig/scaffold trimming/filtering.
+
+    In addition, Diploidocus will use mapped long reads and BUSCO single copy read depths for genome size prediction
+    (`gensize`), and coverage (`regcheck`) or copy number estimation (`regcnv`) for user-defined regions. Diploidocus
+    also has functions for removing redundancy (`sortnr`), generating a non-redundant pseudo-diploid assembly with primary
+    and secondary scaffolds from 10x pseudohap output (`diphap`), and creating an in silico diploid set of long reads from two
+    haploid parents (for testing phasing etc.) (`insilico`).
 
     Please note that Diploidocus is still in development and documentation is currently a bit sparse.
 
     The different run modes are set using `runmode=X`:
 
-    * `diploidocus` default run mode will run `gensize`, `telomeres`, `vecscreen` and `purgehap` analysis
+    * `diploidocus` default run mode will run `gensize`, `telomeres`, `vecscreen`, `deptrim` and `purgehap` analysis
+    * `dipcycle` runs iterative cycles of `diploidocus` mode until convergence (no more filtering) is reached
     * `gensize` uses BUSCO results, a BAM file and read file(s) to predict the genome size of the organism
     * `purgehap` filters scaffolds based on post-processing of purge_haplotigs
     * `telomeres` performs a regex telomere search based on method of https://github.com/JanaSperschneider/FindTelomeres
     * `vecscreen` searches for contaminants and flags/masks/removes identified scaffolds
+    * `deptrim` trims sequence termini of at least `mintrim=INT` bp with less than `deptrim=INT` read depth
     * `regcheck` checks reads spanning given regions and also calculates mean depth and estimated copy number (if regcnv=T)
     * `regcnv` calculates mean depth and estimated copy number for regcheck regions from BAM file (no read spanning analysis)
     * `sortnr` performs an all-by-all mapping with minimap2 and then removes redundancy
@@ -132,9 +137,10 @@ Run Modes:
     ---
     ### ~ Depth trimming [runmode=deptrim] ~ ###
 
-        deptrim=INT     : Trim termini with <X depth [1]
-        mintrim=INT     : Min length of terminal depth trimming [1000]
-
+    Depth trimming (`deptrim`) mode trims sequence termini of at least `mintrim=INT` bp with less than `deptrim=INT`
+    read depth. First, samtools `mpileup` or `depth` (`depmethod=X`) is used to find the first and last positions that
+    exceed `deptrim=INT`. If no positions meet this criterio, the entire sequence will removed. Otherwise, either
+    terminus that exceeds `mintrim=INT` base pairs of insufficent read depth are trimmed.
 
     ---
     ### ~ Region checking [runmode=regcheck] ~ ###
@@ -342,7 +348,7 @@ Run Modes:
 Commandline:
     ### ~ Main Diploidocus run options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     seqin=FILE      : Input sequence assembly [None]
-    runmode=X       : Diploidocus run mode (diploidocus/dipcycle/sortnr/diphap/diphapnr/purgehap/telomere/vecscreen/regcheck/regcnv/insilico/gensize/deptrim) [diploidocus]
+    runmode=X       : Diploidocus run mode (diploidocus/dipcycle/gensize/purgehap/telomeres/vecscreen/regcheck/regcnv/deptrim/sortnr/diphap/diphapnr/insilico) [diploidocus]
     basefile=FILE   : Root of output file names [diploidocus or $SEQIN basefile]
     summarise=T/F   : Whether to generate and output summary statistics sequence data before and after processing [True]
     genomesize=INT  : Haploid genome size (bp) [0]
@@ -735,22 +741,26 @@ class Diploidocus(rje_obj.RJE_Object):
 
         Diploidocus is a sequence analysis toolkit for a number of different analyses related to diploid genome assembly.
         The main suite of analyses combines long read depth profiles, short read kmer analysis, assembly kmer analysis,
-        BUSCO gene prediction and contaminant screening for a number of assembly tasks including genome size prediction,
-        contamination identification, haplotig identification/removal and low quality contig/scaffold filtering. In addition,
-        Diploidocus has functions for removing redundancy, generating a non-redundant pseudo-diploid assembly with primary
-        and secondary scaffolds from 10x pseudohap output, and creating an in silico diploid set of long reads from two
-        haploid parents (for testing phasing etc.).
+        BUSCO gene prediction and contaminant screening for a number of assembly tasks including contamination identification,
+        haplotig identification/removal and low quality contig/scaffold trimming/filtering.
 
-        Please note that Diploidocus is still in development and documentation is currently a bit sparse in places.
-        Please contact the author or post issues on GitHub if you have usage questions.
+        In addition, Diploidocus will use mapped long reads and BUSCO single copy read depths for genome size prediction
+        (`gensize`), and coverage (`regcheck`) or copy number estimation (`regcnv`) for user-defined regions. Diploidocus
+        also has functions for removing redundancy (`sortnr`), generating a non-redundant pseudo-diploid assembly with primary
+        and secondary scaffolds from 10x pseudohap output (`diphap`), and creating an in silico diploid set of long reads from two
+        haploid parents (for testing phasing etc.) (`insilico`).
+
+        Please note that Diploidocus is still in development and documentation is currently a bit sparse.
 
         The different run modes are set using `runmode=X`:
 
-        * `diploidocus` default run mode will run `gensize`, `telomeres`, `vecscreen` and `purgehap` analysis
+        * `diploidocus` default run mode will run `gensize`, `telomeres`, `vecscreen`, `deptrim` and `purgehap` analysis
+        * `dipcycle` runs iterative cycles of `diploidocus` mode until convergence (no more filtering) is reached
         * `gensize` uses BUSCO results, a BAM file and read file(s) to predict the genome size of the organism
         * `purgehap` filters scaffolds based on post-processing of purge_haplotigs
         * `telomeres` performs a regex telomere search based on method of https://github.com/JanaSperschneider/FindTelomeres
         * `vecscreen` searches for contaminants and flags/masks/removes identified scaffolds
+        * `deptrim` trims sequence termini of at least `mintrim=INT` bp with less than `deptrim=INT` read depth
         * `regcheck` checks reads spanning given regions and also calculates mean depth and estimated copy number (if regcnv=T)
         * `regcnv` calculates mean depth and estimated copy number for regcheck regions from BAM file (no read spanning analysis)
         * `sortnr` performs an all-by-all mapping with minimap2 and then removes redundancy
@@ -789,7 +799,7 @@ class Diploidocus(rje_obj.RJE_Object):
         ```
         ### ~ Main Diploidocus run options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         seqin=FILE      : Input sequence assembly [None]
-        runmode=X       : Diploidocus run mode (diploidocus/dipcycle/sortnr/diphap/diphapnr/purgehap/telomere/vecscreen/regcheck/regcnv/insilico/gensize/deptrim) [diploidocus]
+        runmode=X       : Diploidocus run mode (diploidocus/dipcycle/gensize/purgehap/telomeres/vecscreen/regcheck/regcnv/deptrim/sortnr/diphap/diphapnr/insilico) [diploidocus]
         basefile=FILE   : Root of output file names [diploidocus or $SEQIN basefile]
         summarise=T/F   : Whether to generate and output summary statistics sequence data before and after processing [True]
         genomesize=INT  : Haploid genome size (bp) [0]
@@ -1431,11 +1441,10 @@ class Diploidocus(rje_obj.RJE_Object):
 
         ## Depth trimming [runmode=deptrim]
 
-            deptrim=INT     : Trim termini with <X depth [1]
-            mintrim=INT     : Min length of terminal depth trimming [1000]
-
-        _Details coming soon. Please ask._
-
+        Depth trimming (`deptrim`) mode trims sequence termini of at least `mintrim=INT` bp with less than `deptrim=INT`
+        read depth. First, samtools `mpileup` or `depth` (`depmethod=X`) is used to find the first and last positions that
+        exceed `deptrim=INT`. If no positions meet this criterio, the entire sequence will removed. Otherwise, either
+        terminus that exceeds `mintrim=INT` base pairs of insufficent read depth are trimmed.
 
         ---
 

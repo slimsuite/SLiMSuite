@@ -19,8 +19,8 @@
 """
 Module:       SeqSuite
 Description:  Miscellaneous biological sequence analysis toolkit
-Version:      1.24.0
-Last Edit:    22/12/20
+Version:      1.25.0
+Last Edit:    26/12/20
 Copyright (C) 2014  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -39,7 +39,9 @@ SeqSuite tools:
     The list of tools recognised by `prog=X` will be added here as the relevant code is added:
     - Apollo = rje_apollo.Apollo GABLAM wrapper for searching against apollo genomes.
     - BLAST = rje_blast_V2.BLASTRun. BLAST+ Control Module.
+    - BUSCOMP = buscomp.BUSCOMP. BUSCO Compiler and Comparison tool.
     - DBase = rje_dbase.DatabaseController. Database downloading and processing.
+    - Diploidocus = diploidocus.Diploidocus. Diploid genome assembly analysis toolkit.
     - Ensembl = rje_ensembl.EnsEMBL. EnsEMBL Processing/Manipulation.
     - ExTATIC = extatic.ExTATIC. !!! Development only. Not available in main download. !!!
     - FIESTA = fiesta.FIESTA. Fasta Input EST Analysis. Transcriptome annotation/querying.
@@ -52,13 +54,17 @@ SeqSuite tools:
     - MITAB = rje_mitab.MITAB. MITAB PPI parser.
     - MultiHAQ = multihaq.MultiHAQ. Multi-Query HAQESAC controller.
     - PAF = rje_paf.PAF. Minimap2 PAF to GABLAM format converter.
+    - PAFScaff = pafsaff.PAFScaff. Pairwise mApping Format reference-based scaffold anchoring and super-scaffolding.
     - PAGSAT = pagsat.PAGSAT. Pairwise Assembled Genome Sequence Analysis Tool. (Development only)
     - PINGU = pingu_V4.PINGU. Protein Interaction Network & GO Utility.
     - PPI = rje_ppi.PPI. Protein-Protein Interaction Module.
     - PyDocs = rje_pydocs.PyDoc. Python Module Documentation & Distribution.
     - RJE_Seq = rje_seq.SeqList. Fasta file sequence manipulation/reformatting.
+    - SAAGA = saaga.SAAGA. Summarise, Annotate & Assess Genome Annotations
+    - SAMPhaser = samphaser.SAMPhaser. Diploid chromosome phasing from SAMTools Pileup format.
     - SAMTools = rje_samtools.SAMTools. SAMTools mpileup analysis tool. (Development only)
     - SeqList = rje_seqlist.SeqList. Fasta file sequence manipulation/reformatting.
+    - SeqMapper = seqmapper.SeqMapper. Sequence Mapping Program.
     - SMRTSCAPE (/PacBio) = smrtscape.SMRTSCAPE. SMRT Subread Coverage & Assembly Parameter Estimator. (Development only)
     - Snapper = snp_mapper.SNPMap. SNV to feature annotations mapping and rating tool. (Development only)
     - Taxonomy = rje_taxonomy.Taxonomy. Taxonomy download/conversion tool.
@@ -100,11 +106,11 @@ sys.path.append(os.path.join(slimsuitepath,'extras/'))
 import rje, rje_db, rje_obj, rje_zen
 import rje_dbase, rje_ensembl, rje_genbank, rje_gff, rje_mitab, rje_paf, rje_ppi, rje_pydocs, rje_seq, rje_seqlist, rje_taxonomy, rje_tree, rje_uniprot, rje_xref
 import rje_blast_V2 as rje_blast
-import buscomp, fiesta, gablam, gasp, gopher, haqesac, multihaq
+import buscomp, fiesta, gablam, gasp, gopher, haqesac, multihaq, seqmapper
 import pingu_V4 as pingu
 import pagsat, smrtscape, snapper, snp_mapper, rje_samtools, rje_apollo
 import revert
-import saaga, diploidocus, synbad
+import saaga, diploidocus, synbad, samphaser
 #########################################################################################################################
 # Dev modules (not in main download):
 try:
@@ -151,6 +157,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 1.23.1 - Fixed GCPC bug in summarise().
     # 1.23.2 - Dropped pacbio as synonym for smrtscape. (Causing REST server issues.)
     # 1.24.0 - Added SAAGA, Diploidocus, SynBad and rje_genomics to programs.
+    # 1.25.0 - Added SeqMapper and SAMPhaser.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -167,7 +174,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copy_right) = ('SeqSuite', '1.24.0', 'December 2020', '2014')
+    (program, version, last_edit, copy_right) = ('SeqSuite', '1.25.0', 'December 2020', '2014')
     description = 'Miscellaneous biological sequence analysis tools suite'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_obj.zen()]
@@ -224,7 +231,7 @@ mod = {'seqlist':rje_seqlist,'rje_seqlist':rje_seqlist,'rje_seq':rje_seq,'seq':r
        'paf':rje_paf,'rje_paf':rje_paf,'ppi':rje_ppi,'rje_ppi':rje_ppi,
        'pydocs':rje_pydocs,'genbank':rje_genbank,'gopher':gopher,'gablam':gablam,'pagsat':pagsat,'smrtscape':smrtscape,
        'gasp':gasp,'gff':rje_gff,'summarise':None,'apollo':rje_apollo,'rje_apollo':rje_apollo,'webapollo':rje_apollo,
-       'samtools':rje_samtools,'snapper':snapper,'snp_mapper':snp_mapper,
+       'samtools':rje_samtools,'snapper':snapper,'snp_mapper':snp_mapper,'seqmapper':seqmapper,'samphaser':samphaser,
        'saaga':saaga, 'diploidocus':diploidocus, 'synbad':synbad,'rje_genomics':rje_genomics,'genomics':rje_genomics,
        'ensembl':rje_ensembl,'rje_ensembl':rje_ensembl,'extatic':extatic,
        'fiesta':fiesta,'haqesac':haqesac,'multihaq':multihaq,'revert':revert}
@@ -389,6 +396,8 @@ class SeqSuite(rje_obj.RJE_Object):
                 elif prog in ['pagsat']: self.obj['Prog'] = pagsat.PAGSAT(self.log,progcmd)
                 elif prog in ['smrtscape','pacbio']: self.obj['Prog'] = smrtscape.SMRTSCAPE(self.log,progcmd)
                 elif prog in ['samtools']: self.obj['Prog'] = rje_samtools.SAMtools(self.log,progcmd)
+                elif prog in ['samphaser']: self.obj['Prog'] = samphaser.SAMPhaser(self.log,progcmd)
+                elif prog in ['seqmapper']: self.obj['Prog'] = seqmapper.SeqMapper(self.log,progcmd)
                 elif prog in ['snapper']: self.obj['Prog'] = snapper.Snapper(self.log,progcmd)
                 elif prog in ['snp_mapper']: self.obj['Prog'] = snp_mapper.SNPMap(self.log,progcmd)
                 elif prog in ['rje_zen','zen','zentest']: self.obj['Prog'] = rje_zen.Zen(self.log,progcmd)

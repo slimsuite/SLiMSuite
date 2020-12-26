@@ -21,6 +21,7 @@ Module:       SLiMFarmer
 Description:  SLiMSuite HPC job farming control program
 Version:      1.10.2
 Last Edit:    30/07/20
+Citation:     Edwards et al. (2020), Methods Mol Biol. 2141:37-72. [PMID: 32696352]
 Copyright (C) 2014  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
