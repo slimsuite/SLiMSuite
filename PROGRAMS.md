@@ -100,8 +100,7 @@ output in plain text format for easy import into other applications.
 
 See the [BADSASP Manual][13] for further details.
 
-
-## BUSCOMP: BUSCO Compiler and Comparison tool
+## BUSCOMP: BUSCO Compiler and Comparison tool
 
 * Citation: Edwards RJ (2019). F1000Research 8:995 (slides) (doi: [10.7490/f1000research.1116972.1](https://doi.org/10.7490/f1000research.1116972.1))
 * GitHub: <https://github.com/slimsuite/buscomp>
