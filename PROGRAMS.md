@@ -88,6 +88,7 @@ SeqSuite is a wrapper for the SeqList tool (`libraries/rje_seqlist.py`), which i
 
 The following tools are under active use or development. Please report any bugs or requests for improved documentation and/or functionality. Testers for some of the newer tools and functions are most welcome! Get in touch through the [SLiMSuite GitHub community][1]. More information on these tools can also be found through the main [SLiMSuite blog][3] and in the module docstrings, available through the `--help` command or [Edwards Lab Software page][6].
 
+
 ## BADASP: Burst After Duplication with Ancestral Sequence Prediction
 
 * Citation: Edwards & Shields (2005), Bioinformatics 21(22):4190-1. [PMID: [16159912][5]]
@@ -98,6 +99,7 @@ Type II divergence. In addition, several other measures of functional specificit
 output in plain text format for easy import into other applications. 
 
 See the [BADSASP Manual][13] for further details.
+
 
 ## BUSCOMP: BUSCO Compiler and Comparison tool
 
