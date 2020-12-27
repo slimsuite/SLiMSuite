@@ -2,7 +2,7 @@ RELEASE NOTES
 
 
 UPDATES SINCE SLiMSuite v1.8.1
-|-- SLiMSuite v1.9.0 / SeqSuite v1.24.0
+|-- SLiMSuite v1.9.1 / SeqSuite v1.25.0
 
 #dev/
 rje_archive
@@ -297,6 +297,7 @@ seqsuite
     # 1.23.1 - Fixed GCPC bug in summarise().
     # 1.23.2 - Dropped pacbio as synonym for smrtscape. (Causing REST server issues.)
     # 1.24.0 - Added SAAGA, Diploidocus, SynBad and rje_genomics to programs.
+    # 1.25.0 - Added SeqMapper and SAMPhaser.
     
 slimfarmer
     # 1.10.1 - Added job resource summary to job stdout.
@@ -304,6 +305,7 @@ slimfarmer
     
 slimsuite
     # 1.9.0 - Added SAAGA, Diploidocus, SynBad and Genomics. Slight module tidy for GitHub updates.
+    # 1.9.1 - Added SLiMParser and SLiMMutant to wrapped tools to match documentation.
 
 synbad
     # 0.0.0 - Initial Compilation.
