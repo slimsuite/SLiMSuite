@@ -28,17 +28,20 @@ Running SLiMSuite should also try importing all the main SLiMSuite modules, test
 
 SLiMSuite tools recognised by `prog=X`:
 
-- SLiMCore = rje_slimcore.SLiMCore. SLiMSuite core module with MegaSLiM and UPC functions.
-- SLiMFarmer = slimfarmer.SLiMFarmer. SLiMSuite job forking/HPC controller.
-- QSLiMFinder = qslimfinder.QSLiMFinder. Query-based Short Linear Motif Finder - de novo SLiM prediction.
-- SLiMFinder = slimfinder.SLiMFinder. Short Linear Motif Finder - de novo SLiM prediction.
-- SLiMList = rje_slimlist.SLiMList. Short Linear Motif manipulation/filtering module.
-- SLiMProb = slimprob.SLiMProb. Short Linear Motif Probability - known SLiM prediction.
-- SLiMBench = slimbench.SLiMBench. SLiM discovery benchmarking module.
-- SLiMMaker = slimmaker.SLiMMaker. Simple SLiM generation from aligned peptide sequences.
-- SLiMMutant = slimmutant.SLiMMutant. Short Linear Motif Mutation Analysis Tool
-- SLiMParser - slimparser.SLiMParser. SLiMSuite REST output parsing tool.
-- PeptCluster = peptcluster.PeptCluster. Peptide alignment, pairwise distance and clustering tool.
+* **CompariMotif.** A unique motif-motif comparison tool for identifying similar SLiMs. Used for clustering results of predictions and identifying known motifs.
+* **GABLAM.** BLAST-based protein similarity scoring and clustering. Used for (Q)SLiMFinder and SLiMProb adjustments for evolutionary relationships.
+* **GOPHER.** Automated orthologue prediction and alignment algorithm. Used for conservation-based masking ((Q)SLiMFinder/SLiMProb) and prediction (SLiMPrints).
+* **PeptCluster** = Peptide alignment, pairwise distance and clustering tool.
+* **QSLiMFinder.** Query-based variant of SLiMFinder with increased sensitivity and specificity, ideal for SLiM discovery from host-pathogen interactions or where at least one interaction is established experimentally.
+* **SLiMBench** = SLiM discovery benchmarking tool.
+* **SLiMCore** = SLiMSuite core module with MegaSLiM and UPC functions for pregenerating (Q)SLiMFinder and SLiMProb data.
+* **SLiMFarmer.** SLiMSuite wrapper for multi-threaded batch processing.
+* **SLiMFinder.** The first de novo SLiM prediction based on a statistical model of over-represented motifs in unrelated proteins. Repeatedly achieves the greatest specificity in benchmarking.
+* **SLiMList** = Short Linear Motif manipulation, filtering and reformatting module.
+* **SLiMMaker.** A simple tool for converting aligned peptides or SLiM occurrences into a regular expression motif.
+* **SLiMMutant** = Short Linear Motif Mutation Analysis Tool. (Development only and currently unsupported.)
+* **SLiMParser.** SLiMSuite wrapper for generating and retrieving SLiMSuite REST server jobs.
+* **SLiMProb.** Unique tool providing biological context (disorder & conservation) for searches of pre-defined SLiMs along with under- and over-representation statistics, correcting for evolutionary relationships. Formerly called SLiMSearch 1.x but renamed to avoid confusion with SLiMSearch2.
 
 Please also see the SeqSuite documentation for additional utilities, which can be run from SLiMSuite or SeqSuite.
 
@@ -47,41 +50,42 @@ Please also see the SeqSuite documentation for additional utilities, which can b
 
 SeqSuite is a wrapper for the SeqList tool (`libraries/rje_seqlist.py`), which includes a number of sequence parsing and formatting functions. The other tools and functions wrapped by SeqSuite are:
 
-- Apollo = rje_apollo.Apollo GABLAM wrapper for searching against apollo genomes.
-- BLAST = rje_blast_V2.BLASTRun. BLAST+ Control Module.
-- BUSCOMP = buscomp.BUSCOMP. BUSCO Compiler and Comparison tool.
-- DBase = rje_dbase.DatabaseController. Database downloading and processing.
-- Diploidocus = diploidocus.Diploidocus. Diploid genome assembly analysis toolkit.
-- Ensembl = rje_ensembl.EnsEMBL. EnsEMBL Processing/Manipulation.
-- ExTATIC = extatic.ExTATIC. !!! Development only. Not available in main download. !!!
-- FIESTA = fiesta.FIESTA. Fasta Input EST Analysis. Transcriptome annotation/querying.
-- GABLAM = gablam.GABLAM. Global Analysis of BLAST Local AlignMents
-- GASP = gasp.GASP. Gapped Ancestral Sequence Prediction.
-- Genbank = rje_genbank.GenBank. Genbank fetching/parsing module.
-- GFF = rje_gff.GFF. GFF File Parser and Manipulator.
-- GOPHER = gopher.GOPHER. Generation of Orthologous Proteins from Homology-based Estimation of Relationships.
-- HAQESAC = haqesac.HAQESAC. Homologue Alignment Quality, Establishment of Subfamilies and Ancestor Construction.
-- MITAB = rje_mitab.MITAB. MITAB PPI parser.
-- MultiHAQ = multihaq.MultiHAQ. Multi-Query HAQESAC controller.
-- PAF = rje_paf.PAF. Minimap2 PAF to GABLAM format converter.
-- PAFScaff = pafsaff.PAFScaff. Pairwise mApping Format reference-based scaffold anchoring and super-scaffolding.
-- PAGSAT = pagsat.PAGSAT. Pairwise Assembled Genome Sequence Analysis Tool. (Development only)
-- PINGU = pingu_V4.PINGU. Protein Interaction Network & GO Utility.
-- PPI = rje_ppi.PPI. Protein-Protein Interaction Module.
-- PyDocs = rje_pydocs.PyDoc. Python Module Documentation & Distribution.
-- RJE_Seq = rje_seq.SeqList. Fasta file sequence manipulation/reformatting.
-- SAAGA = saaga.SAAGA. Summarise, Annotate & Assess Genome Annotations
-- SAMPhaser = samphaser.SAMPhaser. Diploid chromosome phasing from SAMTools Pileup format.
-- SAMTools = rje_samtools.SAMTools. SAMTools mpileup analysis tool. (Development only)
-- SeqList = rje_seqlist.SeqList. Fasta file sequence manipulation/reformatting.
-- SeqMapper = seqmapper.SeqMapper. Sequence Mapping Program.
-- SMRTSCAPE (/PacBio) = smrtscape.SMRTSCAPE. SMRT Subread Coverage & Assembly Parameter Estimator. (Development only)
-- Snapper = snp_mapper.SNPMap. SNV to feature annotations mapping and rating tool. (Development only)
-- Taxonomy = rje_taxonomy.Taxonomy. Taxonomy download/conversion tool.
-- Tree = rje_tree.Tree. Phylogenetic Tree Module.
-- Uniprot = rje_uniprot.Uniprot. Uniprot download and parsing module.
-- XRef = rje_xref.XRef. Identifier cross-referencing module.
-- Zen - rje_zen.Zen. Random Zen wisdom generator and test code.
+- **Apollo** = GABLAM wrapper for searching against apollo genomes.
+- **BUSCOMP** = BUSCO Compiler and Comparison tool. Used for genome assembly completeness estimates that are robust to sequence quality, and for compiling BUSCO results.
+- **Diploidocus** = Diploid genome assembly analysis toolkit. Includes assembly cleanup (haplotig/artefact removal), genome size prediction and read depth copy number analysis.
+- **ExTATIC** = Developmental only. Extensions and Truncations from Alternative Translation Initiation Codons.
+- **FIESTA** = Fasta Input EST Analysis. Transcriptome annotation/querying. (Not currently supported.)
+- **GASP** = Gapped Ancestral Sequence Prediction. Predicts protein ancestral sequences from a multiple sequence alignment and phylogenetic tree.
+- **HAQESAC** = Homologue Alignment Quality, Establishment of Subfamilies and Ancestor Construction. High throughput generation of high quality mutliple sequence alignments.
+- **MultiHAQ** = Multi-Query HAQESAC controller.
+- **PAFScaff** = Pairwise mApping Format reference-based scaffold anchoring and super-scaffolding. Uses minimap2 to map a genome assembly onto reference chromosomes.
+- **PAGSAT** = Pairwise Assembled Genome Sequence Analysis Tool. Reference-based genome assembly analysis tool. (Development only.)
+- **PINGU** = Protein Interaction Network & GO Utility. (Not currently supported.) 
+- **SAAGA** = Summarise, Annotate & Assess Genome Annotations. Uses a reference proteome to summarise and assess genome annotations.
+- **SAMPhaser** = Diploid chromosome phasing from SAMTools Pileup format of mapped long reads.
+- **Seq** = Fasta file sequence manipulation/reformatting tools. Optimised for small sequence datasets.
+- **SeqList** = Updated fasta file sequence manipulation/reformatting tool. Summarise, reformat, and edit large sequence datasets.  
+- **SeqMapper** = Sequence Mapping Program.
+- **SMRTSCAPE** = SMRT Subread Coverage & Assembly Parameter Estimator. (Development only)
+- **Snapper** = BLAST-based SNV to feature annotations mapping and rating tool. (Development only)
+
+In addition, the following SLiMSuite modules can also be accessed via the SeqSuite wrapper (run with `help=T` for options):
+
+- **BLAST** = BLAST+ Control Module.
+- **DBase** = Database downloading and processing.
+- **Ensembl** = EnsEMBL Processing/Manipulation.
+- **Genbank** = Genbank fetching/parsing module.
+- **GFF** = GFF File Parser and Manipulator.
+- **MITAB** = MITAB PPI parser.
+- **PAF** = Minimap2 PAF to GABLAM format converter.
+- **PPI** = Protein-Protein Interaction Module.
+- **PyDocs** = Python Module Documentation & Distribution.
+- **SAMTools** = SAMTools mpileup analysis tool. (Development only)
+- **Taxonomy** = Taxonomy download/conversion tool.
+- **Tree** = Phylogenetic Tree Module.
+- **Uniprot** = Uniprot download and parsing module.
+- **XRef** = Identifier cross-referencing module.
+- **Zen** - Random Zen wisdom generator and test code.
 
 
 # Main SLiMSuite and SeqSuite programs
@@ -286,7 +290,7 @@ to the reference.
 
 For more details, see the [PAGSAT documentation][24] and [Yeast SMRT sequencing poster][23].
 
-## PeptCluster: Peptide Clustering Module
+## PeptCluster: Peptide Clustering Module
 
 * Webserver: <http://bioware.soton.ac.uk/peptcluster.html>
 
