@@ -68,6 +68,8 @@ SeqSuite is a wrapper for the SeqList tool (`libraries/rje_seqlist.py`), which i
 - **SeqMapper** = Sequence Mapping Program.
 - **SMRTSCAPE** = SMRT Subread Coverage & Assembly Parameter Estimator. (Development only)
 - **Snapper** = BLAST-based SNV to feature annotations mapping and rating tool. (Development only)
+- **SynBad** = Synteny-based scaffolding adjustment tool for comparing two related genome assemblies and identify putative translocations and inversions
+    between the two that correspond to gap positions. (Development only.)
 
 In addition, the following SLiMSuite modules can also be accessed via the SeqSuite wrapper (run with `help=T` for options):
 
