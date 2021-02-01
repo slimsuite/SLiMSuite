@@ -145,8 +145,11 @@ import rje
 import rje_blast_V1
 import rje_blast_V2 as rje_blast
 import rje_dismatrix_V2 as rje_dismatrix    #!# Check that this is OK! #!# #import rje_dismatrix_V1 as rje_dismatrix
-import rje_pam
-import rje_sequence, rje_uniprot, rje_slimcalc
+try: import rje_pam
+except: pass
+import rje_sequence, rje_uniprot
+try: rje_slimcalc
+except: pass
 #########################################################################################################################
 def history():  ### Program History - only a method for PythonWin collapsing! ###
     '''

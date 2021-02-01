@@ -19,8 +19,8 @@
 """
 Module:       synbad
 Description:  Synteny-based scaffolding adjustment
-Version:      0.4.0
-Last Edit:    15/12/20
+Version:      0.5.0
+Last Edit:    20/01/21
 GitHub:       https://github.com/slimsuite/synbad
 Copyright (C) 2020  Richard J. Edwards - See source code for GNU License Notice
 
@@ -65,11 +65,11 @@ Function:
     If `fragment=T`, the assemblies will then be fragmented on gaps that are not Syntenic, unless more than
     `minreadspan=INT` reads span the gap.
 
-    A future release of Synbad will optionally re-arrange the two assemblies, incorporating gapfill assemblies
+    A future release of Synbad will optionally re-arrange the two assemblies, incorporating gapass assemblies
     where possible.
 
 Dependencies:
-    SynBad needs Minimap2 installed. For `gapass` and `gapfill` gap modes, Flye also needs to be installed. To generate
+    SynBad needs Minimap2 installed. For `gapass` gap mode, Flye also needs to be installed. To generate
     documentation with `dochtml`, R will need to be installed and a pandoc environment variable must be set, e.g.
 
         export RSTUDIO_PANDOC=/Applications/RStudio.app/Contents/MacOS/pandoc
@@ -82,7 +82,7 @@ Commandline:
     genome2=FILE    : Genome assembly used as the searchdb in the GABLAM searches []
     basefile=X      : Prefix for output files [synbad]
     gablam=X        : Optional prefix for GABLAM search [defaults to basefile=X]
-    gapmode=X       : Diploidocus gap run mode (gapspan/gapass/gapfill) [gapfill]
+    gapmode=X       : Diploidocus gap run mode (gapspan/gapass) [gapspan]
     minloclen=INT   : Minimum length for aligned chunk to be kept (local hit length in bp) [1000]
     minlocid=PERC   : Minimum percentage identity for aligned chunk to be kept (local %identity) [50]
     maxsynskip=INT  : Maximum number of local alignments to skip for SynTrans classification [1]
@@ -97,11 +97,11 @@ Commandline:
     bam1=FILE       : Optional BAM file of long reads mapped onto assembly 1 [$BASEFILE1.bam]
     paf1=FILE       : Optional PAF file of long reads mapped onto assembly 1 [$BASEFILE1.paf]
     reads1=FILELIST : List of fasta/fastq files containing reads. Wildcard allowed. Can be gzipped. []
-    readtype1=LIST  : List of ont/pb file types matching reads for minimap2 mapping [ont]
+    readtype1=LIST  : List of ont/pb/hifi file types matching reads for minimap2 mapping [ont]
     bam2=FILE       : Optional BAM file of long reads mapped onto assembly 2 [$BASEFILE2.bam]
     paf2=FILE       : Optional PAF file of long reads mapped onto assembly 2 [$BASEFILE2.paf]
     reads2=FILELIST : List of fasta/fastq files containing reads. Wildcard allowed. Can be gzipped. []
-    readtype2=LIST  : List of ont/pb file types matching reads for minimap2 mapping [ont]
+    readtype2=LIST  : List of ont/pb/hifi file types matching reads for minimap2 mapping [ont]
     ### ~ Additional output options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     dochtml=T/F     : Generate HTML Diploidocus documentation (*.docs.html) instead of main run [False]
     ### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -128,6 +128,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 0.2.0 - Added fragment=T output.
     # 0.3.0 - Added chromosome scaffold Translocation restriction.
     # 0.4.0 - Added an Duplication rating in place of Breakpoint for overlapping flanking hits; added top sequence pairs.
+    # 0.5.0 - Added HiFi read type. Changed default to gapmode=gapass.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -140,11 +141,12 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
     # [ ] : Add to SLiMSuite or SeqSuite.
     # [Y] : Add chr1 and chr2 chromosome prefix identifers (PAFScaff prefixes) to restrict Translocations to chromosomes.
     # [ ] : Add GapGFF function from rje_genomics.
+    # [ ] : Add fullcollapse=T/F option to collapse entire (pairwise) matching regions between gaps.
     '''
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copy_right) = ('SynBad', '0.4.0', 'December 2020', '2020')
+    (program, version, last_edit, copy_right) = ('SynBad', '0.5.0', 'January 2021', '2020')
     description = 'Synteny-based scaffolding adjustment'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_obj.zen()]
@@ -160,7 +162,7 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         if cmd_help > 0:
             rje.printf('\n\nHelp for {0} {1}: {2}\n'.format(info.program, info.version, time.asctime(time.localtime(info.start_time))))
             out.verbose(-1,4,text=__doc__)
-            if rje.yesNo('Show general commandline options?'): out.verbose(-1,4,text=rje.__doc__)
+            if rje.yesNo('Show general commandline options?',default='N'): out.verbose(-1,4,text=rje.__doc__)
             if rje.yesNo('Quit?'): sys.exit()           # Option to quit after help
             cmd_list += rje.inputCmds(out,cmd_list)     # Add extra commands interactively.
         elif out.stat['Interactive'] > 1: cmd_list += rje.inputCmds(out,cmd_list)    # Ask for more commands
@@ -211,7 +213,7 @@ class SynBad(rje_obj.RJE_Object):
     - Chr1=X          : PAFScaff-style chromosome prefix for Genome 1 to distinguish Translocation from Fragmentation []
     - Chr2=X          : PAFScaff-style chromosome prefix for Genome 2 to distinguish Translocation from Fragmentation []
     - GABLAM=X        : Optional prefix for GABLAM search [defaults to basefile=X]
-    - GapMode=X       : Diploidocus gap run mode (gapspan/gapass/gapfill) [gapfill]
+    - GapMode=X       : Diploidocus gap run mode (gapspan/gapass) [gapspan]
     - Genome1=FILE    : Genome assembly used as the query in the GABLAM searches []
     - Genome2=FILE    : Genome assembly used as the searchdb in the GABLAM searches []
     - PAF1=FILE       : Optional PAF file of long reads mapped onto assembly 1 [$BASEFILE1.paf]
@@ -235,8 +237,8 @@ class SynBad(rje_obj.RJE_Object):
     List:list
     - Reads1=FILELIST : List of fasta/fastq files containing reads. Wildcard allowed. Can be gzipped. []
     - Reads2=FILELIST : List of fasta/fastq files containing reads. Wildcard allowed. Can be gzipped. []
-    - ReadType1=LIST  : List of ont/pb file types matching reads for minimap2 mapping [ont]
-    - ReadType2=LIST  : List of ont/pb file types matching reads for minimap2 mapping [ont]
+    - ReadType1=LIST  : List of ont/pb/hifi file types matching reads for minimap2 mapping [ont]
+    - ReadType2=LIST  : List of ont/pb/hifi file types matching reads for minimap2 mapping [ont]
 
     Dict:dictionary    
 
@@ -261,7 +263,7 @@ class SynBad(rje_obj.RJE_Object):
         self.objlist = []
         ### ~ Defaults ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         self._setDefaults(str='None',bool=False,int=0,num=0.0,obj=None,setlist=True,setdict=True,setfile=True)
-        self.setStr({'GapMode':'gapfill'})
+        self.setStr({'GapMode':'gapspan'})
         self.setBool({'Fragment':False})
         self.setInt({'MaxSynSkip':1,'MaxSynSpan':10000,'MinLocLen':1000,'MinReadSpan':1})
         self.setNum({'MinLocID':50.0})
@@ -346,12 +348,12 @@ class SynBad(rje_obj.RJE_Object):
         If `fragment=T`, the assemblies will then be fragmented on gaps that are not Syntenic, unless more than
         `minreadspan=INT` reads span the gap.
 
-        A future release of Synbad will optionally re-arrange the two assemblies, incorporating gapfill assemblies
+        A future release of Synbad will optionally re-arrange the two assemblies, incorporating gapass assemblies
         where possible.
 
         ## Dependencies
 
-        SynBad needs Minimap2 installed. For `gapass` and `gapfill` gap modes, Flye also needs to be installed. To generate
+        SynBad needs Minimap2 installed. For `gapass` gap mode, Flye also needs to be installed. To generate
         documentation with `dochtml`, R will need to be installed and a pandoc environment variable must be set, e.g.
 
             export RSTUDIO_PANDOC=/Applications/RStudio.app/Contents/MacOS/pandoc
@@ -367,7 +369,7 @@ class SynBad(rje_obj.RJE_Object):
         genome2=FILE    : Genome assembly used as the searchdb in the GABLAM searches []
         basefile=X      : Prefix for output files [synbad]
         gablam=X        : Optional prefix for GABLAM search [defaults to basefile=X]
-        gapmode=X       : Diploidocus gap run mode (gapspan/gapass/gapfill) [gapfill]
+        gapmode=X       : Diploidocus gap run mode (gapspan/gapass) [gapspan]
         minloclen=INT   : Minimum length for aligned chunk to be kept (local hit length in bp) [1000]
         minlocid=PERC   : Minimum percentage identity for aligned chunk to be kept (local %identity) [50]
         maxsynskip=INT  : Maximum number of local alignments to skip for SynTrans classification [1]
@@ -382,11 +384,11 @@ class SynBad(rje_obj.RJE_Object):
         bam1=FILE       : Optional BAM file of long reads mapped onto assembly 1 [$BASEFILE1.bam]
         paf1=FILE       : Optional PAF file of long reads mapped onto assembly 1 [$BASEFILE1.paf]
         reads1=FILELIST : List of fasta/fastq files containing reads. Wildcard allowed. Can be gzipped. []
-        readtype1=LIST  : List of ont/pb file types matching reads for minimap2 mapping [ont]
+        readtype1=LIST  : List of ont/pb/hifi file types matching reads for minimap2 mapping [ont]
         bam2=FILE       : Optional BAM file of long reads mapped onto assembly 2 [$BASEFILE2.bam]
         paf2=FILE       : Optional PAF file of long reads mapped onto assembly 2 [$BASEFILE2.paf]
         reads2=FILELIST : List of fasta/fastq files containing reads. Wildcard allowed. Can be gzipped. []
-        readtype2=LIST  : List of ont/pb file types matching reads for minimap2 mapping [ont]
+        readtype2=LIST  : List of ont/pb/hifi file types matching reads for minimap2 mapping [ont]
         ### ~ Additional output options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         dochtml=T/F     : Generate HTML Diploidocus documentation (*.docs.html) instead of main run [False]
         ```
@@ -408,8 +410,14 @@ class SynBad(rje_obj.RJE_Object):
         try:### ~ [1] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             self.obj['DB'] = rje_db.Database(self.log,self.cmd_list+['tuplekeys=T'])
             if self.getStrLC('GapMode') not in ['gapspan','gapass','gapfill']:
-                self.printLog('#MODE','GapMode "{0}" not recognised. Setting gapmode=gapfill.'.format(self.getStrLC('GapMode')))
-                self.setStr({'GapMode':'gapfill'})
+                self.printLog('#MODE','GapMode "{0}" not recognised. Setting gapmode=gapspan.'.format(self.getStrLC('GapMode')))
+                self.setStr({'GapMode':'gapspan'})
+            if self.getStrLC('GapMode') not in ['gapspan','gapass']:
+                self.printLog('#MODE','GapMode "{0}" no longer supported. Please run Diploidocus separately or use gapmode=gapspan.'.format(self.getStrLC('GapMode')))
+                if rje.yesNo('Set gapmode=gapspan?'):
+                    self.setStr({'GapMode':'gapspan'})
+                    self.printLog('#MODE','Setting gapmode=gapspan.')
+                else: return False
             ### ~ [2] Check for files ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if not rje.exists(self.getStr('Genome1')): raise IOError('Genome1 file "{0}" not found!'.format(self.getStr('Genome1')))
             if not rje.exists(self.getStr('Genome2')): raise IOError('Genome2 file "{0}" not found!'.format(self.getStr('Genome2')))
@@ -852,7 +860,7 @@ class SynBad(rje_obj.RJE_Object):
             else:
                 self.printLog('#FRAG','No fragmentation (fragment=F).')
 
-            # A future release of Synbad will optionally re-arrange the two assemblies, incorporating gapfill assemblies
+            # A future release of Synbad will optionally re-arrange the two assemblies, incorporating gapass assemblies
             # where possible.
 
             return

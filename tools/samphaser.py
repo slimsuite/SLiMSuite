@@ -19,8 +19,8 @@
 """
 Module:       SAMPhaser
 Description:  Diploid chromosome phasing from SAMTools Pileup format.
-Version:      0.9.1
-Last Edit:    16/02/20
+Version:      0.10.1
+Last Edit:    20/01/21
 Citation:     Song, Thomas & Edwards (2019), Marine Genomics 48:100687.
 Documentation: https://github.com/slimsuite/SLiMSuite/wiki/SAMPhaser
 Copyright (C) 2016  Richard J. Edwards - See source code for GNU License Notice
@@ -83,7 +83,7 @@ Commandline:
     skiploci=LIST   : Optional list of loci (full names or accnum) to skip phasing []
     phaseloci=LIST  : Optional list of loci (full names or accnum) to phase (will skip rest) []
     reads=FILELIST  : List of fasta/fastq files containing reads. Wildcard allowed. Can be gzipped. []
-    readtype=LIST   : List of ont/pb file types matching reads for minimap2 mapping [ont]
+    readtype=LIST   : List of ont/pb/hifi file types matching reads for minimap2 mapping [ont]
     ### ~ Phasing options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     phasecut=X      : Minimum read count for minor allele for phasing (proportion of QN if <1) [0.25]
     absphasecut=X   : Absolute minimum read count for phasecut (used if phasecut<1) [5]
@@ -134,6 +134,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 0.8.0 - poordepth=T/F   : Whether to include reads with poor track probability in haplotig depth plots (random track) [False]
     # 0.9.0 - Added generation of mpileup file.
     # 0.9.1 - Tweaked naming for PAGSAT.
+    # 0.10.0 - Added HiFi read type.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -156,7 +157,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copy_right) = ('SAMPhaser', '0.9.1', 'February 2020', '2016')
+    (program, version, last_edit, copy_right) = ('SAMPhaser', '0.10.0', 'January 2021', '2016')
     description = 'Diploid chromosome phasing from SAMTools Pileup format'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_obj.zen()]
@@ -249,7 +250,7 @@ class SAMPhaser(rje_obj.RJE_Object):
     List:list
     - PhaseLoci=LIST  : Optional list of loci (full names or accnum) to phase (will skip rest) []
     - Reads=FILELIST  : List of fasta/fastq files containing reads. Wildcard allowed. Can be gzipped. []
-    - ReadType=LIST   : List of ont/pb file types matching reads for minimap2 mapping [ont]
+    - ReadType=LIST   : List of ont/pb/hifi file types matching reads for minimap2 mapping [ont]
     - SkipLoci=LIST   : Optional list of loci to skip phasing []
 
     Dict:dictionary    
@@ -1822,7 +1823,8 @@ class SAMPhaser(rje_obj.RJE_Object):
                         try: rtype = self.list['ReadType'][rx]; rx +=1
                         except: rtype = self.list['ReadType'][0]; rx = 1
                         if rtype in ['pacbio','pac']: rtype = 'pb'
-                        if rtype not in ['ont','pb']:
+                        if rtype in ['hifi','ccs']: rtype = 'hifi'
+                        if rtype not in ['ont','pb','hifi']:
                             self.warnLog('Read Type "%s" not recognised (pb/ont): check readtype=LIST. Will use "ont".' % rtype)
                             rtype = 'ont'
                     else: rtype = 'ont'
@@ -1830,6 +1832,8 @@ class SAMPhaser(rje_obj.RJE_Object):
                     maplog = '{}.log'.format(prefix)
                     ## ~ [2a] Make SAM ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
                     maprun = '{} -t {} --secondary=no -o {}.sam -L -ax map-{} {} {}'.format(paf.getStr('Minimap2'),self.threads(),prefix,rtype,self.getStr('SeqIn'),readfile)
+                    if rtype in ['hifi']:
+                        maprun = '{} -t {} --secondary=no -o {}.sam -L -ax asm20 {} {}'.format(paf.getStr('Minimap2'),self.threads(),prefix,self.getStr('SeqIn'),readfile)
                     logline = self.loggedSysCall(maprun,maplog,append=False)
                     #!# Add check that run has finished #!#
                     ## ~ [2b] Converting SAM to BAM ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##

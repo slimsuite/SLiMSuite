@@ -18,9 +18,9 @@
 
 """
 Module:       BUSCOMP
-Description:  BUSCO Compiler and Comparison tool
-Version:      0.9.7
-Last Edit:    03/12/20
+Description:  BUSCO Compilation and Comparison tool
+Version:      0.10.1
+Last Edit:    20/01/21
 Citation:     Edwards RJ (2019). F1000Research 8:995 (slides) (doi: 10.7490/f1000research.1116972.1)
 Copyright (C) 2019  Richard J. Edwards - See source code for GNU License Notice
 
@@ -163,6 +163,8 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 0.9.5 - Fixed Group BUSCOMP plot output bug.
     # 0.9.6 - Added CtgNum: Number of contigs (`SeqNum`+`GapCount`).
     # 0.9.7 - Fixed some Rmd bugs to fix output after summary table changes.
+    # 0.10.0- Added Complete BUSCOMP gene table output for Diploidocus BUSCO table alternative.
+    # 0.10.1- Changed BUSCOMP to be BUSCO Compilation and Comparison Tool.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -210,8 +212,8 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copy_right) = ('BUSCOMP', '0.9.7', 'December 2020', '2019')
-    description = 'BUSCO Compiler and Comparison tool'
+    (program, version, last_edit, copy_right) = ('BUSCOMP', '0.10.1', 'January 2021', '2019')
+    description = 'BUSCO Compilation and Comparison tool'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_obj.zen()]
     return rje.Info(program,version,last_edit,description,author,time.time(),copy_right,comments)
@@ -261,7 +263,7 @@ def setupProgram(): ### Basic Setup of Program when called from commandline.
     except: print 'Problem during initial setup.'; raise
 #########################################################################################################################
 dformats = {'Complete':'int','Duplicated':'int','Fragmented':'int','Missing':'int','N':'int',
-            'Sequences':'bool',
+            'Sequences':'bool','Rank':'int',
             'AlnNum':'int','BitScore':'num','Expect':'num','Identity':'int',
             'QryStart':'int','QryEnd':'int','SbjStart':'int','SbjEnd':'int',
             'Length':'int','QryLen':'int','HitLen':'int','Qry_AlnLen':'num','Qry_AlnID':'num',
@@ -391,7 +393,7 @@ class BUSCOMP(rje_obj.RJE_Object):
 #########################################################################################################################
     def run(self):  ### Main run method                                                                         # v0.5.2
         '''
-        # BUSCOMP: BUSCO Compiler and Comparison tool
+        # BUSCOMP: BUSCO Compilation and Comparison tool
 
         BUSCOMP is designed to overcome some of the non-deterministic limitations of BUSCO to:
 
@@ -420,6 +422,10 @@ class BUSCOMP(rje_obj.RJE_Object):
         * **Partial**: 40-95% combined coverage.
         * **Ghost**: Hits meeting local cutoff but <40% combined coverage.
         * **Missing**: No hits meeting local cutoff.
+
+        **NOTE:** `Duplicated` genes are explicitly those with hits on two *different* contigs/scaffolds. BUSCOMP is focused
+        on identifying the coding potential of an assembly rather than a detailed completeness assessment. Duplicated
+        genes on the *same* contig/scaffold will be marked as `Complete`.
 
         In addition to individual assembly stats, BUSCO and BUSCOMP ratings are compiled across user-defined groups of
         assemblies with various outputs to give insight into how different assemblies complement each other. Ratings are
@@ -854,7 +860,8 @@ class BUSCOMP(rje_obj.RJE_Object):
 
         * **Complete**: 95%+ Coverage in a single contig/scaffold. (Note: unlike BUSCO, accuracy/identity is not considered.
         This will make it more prone to misidentification of closely related paralogues.)
-        * **Duplicated**: 95%+ Coverage in 2+ contigs/scaffolds.
+        * **Duplicated**: 95%+ Coverage in 2+ contigs/scaffolds. (Note: unlike BUSCO, multiple hits must be on different
+        sequences to be counted as Duplicated. This will make it prone to missing false tandem repeats etc.)
         * **Fragmented**: 95%+ combined coverage but not in any single contig/scaffold. (Note: as with BUSCOMP `Complete`
         ratings, these might include part of closely related paralogues.)
         * **Partial**: 40-95% combined coverage. (Note: these might be marked as "Fragmented" by BUSCO, which does not
@@ -2943,7 +2950,9 @@ class BUSCOMP(rje_obj.RJE_Object):
             #self.printLog('#==#','# ================ COMPILE MINIMAP2 SEARCHES ================ #')
             self.headLog('COMPILE MINIMAP2 SEARCHES',line='=')
             dataformats = {'AlnNum':'int','BitScore':'num','Expect':'num','Identity':'int',
-                           'QryStart':'int','QryEnd':'int','SbjStart':'int','SbjEnd':'int',
+                           'QryStart':'int','QryEnd':'int','Qry_Start':'int','Qry_End':'int',
+                           'Hit_Start':'int','Hit_End':'int',
+                           'SbjStart':'int','SbjEnd':'int','Rank':'int',
                            'Length':'int','QryLen':'int','HitLen':'int','Qry_AlnLen':'num','Qry_AlnID':'num'}
             ## ~ [1a] Database tables ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             db = self.db()
@@ -3057,6 +3066,50 @@ class BUSCOMP(rje_obj.RJE_Object):
                     except:
                         self.debug(compdb.data(hentry['Qry']))
                 self.printLog('\r#RATING','Rating %s %s BUSCOs complete.' % (rje.iStr(htot),entry['Genome']))
+
+                #!# Add additional output to provide BUSCO shortcut for Diploidocus etc.
+                # Qry     Hit     Rank    Score   EVal    QryLen  HitLen  Qry_AlnLen      Qry_AlnID       Qry_AlnSim      Qry_Dirn        Qry_Start       Qry_End Hit_AlnLen      Hit_AlnID       Hit_AlnSim      Hit_Dirn        Hit_Start       Hit_End
+                # EOG0907000W     HiC_scaffold_1  1       136756          13458   327133273       100.00  100.00  100.00  Fwd     1       13458   0.00    0.00    0.00    Fwd     175172829       175173319
+                # EOG0907000W     HiC_scaffold_2  2       96599           13458   250576926       32.30   9.14    9.14    Fwd     8838    13184   0.00    0.00    0.00    Fwd     146115486       146116059
+
+                # ->
+
+                # # BUSCO version is: 3.0.2
+                # # The lineage dataset is: tetrapoda_odb9 (Creation date: 2016-02-13, number of species: 55, number of BUSCOs: 3950)
+                # # To reproduce this run: python /apps/busco/3.0.2b/scripts/run_BUSCO.py -i ../fasta/ebrownsnake.v2.0.fasta -o ebrownsnake.v2.0 -l /data/bio/busco/3/tetrapoda_odb9/ -m genome -c 40 -t /scratch/pbs.928214.kman.restech.unsw.edu.au/ -sp human
+                # #
+                # # Busco id      Status  Contig  Start   End     Score   Length
+                # EOG0907000W     Missing
+                # EOG0907001A     Missing
+                # EOG0907001Q     Missing
+                # EOG0907001W     Fragmented      ctg_PSETE__PTEXT1ONT0001        10576805        10602212        339.5   409
+                # EOG09070025     Missing
+
+                # Full BUSCO-style table output for the genome
+                gdb.dropEntriesDirect('Rank',[1],inverse=True)
+                fulleog = hdb.indexDataList('Rating','Complete','Qry')
+                gdb.dropEntriesDirect('Qry',fulleog,inverse=True)
+                gdb.addField('Status',evalue='Complete')
+                gdb.addField('Length',evalue=0)
+                for gentry in gdb.entries():
+                    gentry['Length'] = gentry['Qry_End'] - gentry['Qry_Start']
+                    if gentry['Hit_Start'] > gentry['Hit_End']:
+                        [gentry['Hit_Start'],gentry['Hit_End']] = [gentry['Hit_End'],gentry['Hit_Start']]
+                gdb.setFields(['Qry','Status','Hit','Hit_Start','Hit_End','Score','Length'])
+                gdb.renameField('Qry','# Busco id')
+                gdb.renameField('Hit','Contig')
+                gdb.renameField('Hit_Start','Start')
+                gdb.renameField('Hit_End','End')
+                info = self.log.obj['Info']
+                argcmd = rje.longCmd(sys.argv[1:])
+                comments = ['# BUSCOMP Complete gene output'.format(info.version),
+                            '# {0}'.format(self.log.runDetails()),
+                            '# Run dir: {0}'.format(os.path.abspath(os.curdir)),
+                            '# Log file: {0}'.format(self.log.info['LogFile']),
+                            '# Commandline arguments: {0}'.format(string.join(argcmd,' ')),
+                            '# Full Command List: {0}'.format(string.join(string.split(rje.argString(rje.tidyArgs(self.cmd_list))),' '))]
+                filename = '%s.complete.tsv' % pafbase
+                gdb.saveToFile(filename,comments=comments)
 
                 # Ratings summary
                 self.printLog('#SEQID','%s of %s identical to BUSCOSeq' % (rje.iStr(rentry['Identical']),rje.iStr(htot)))

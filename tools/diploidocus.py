@@ -19,8 +19,8 @@
 """
 Module:       Diploidocus
 Description:  Diploid genome assembly analysis toolkit
-Version:      0.12.0
-Last Edit:    07/12/20
+Version:      0.14.0
+Last Edit:    20/01/21
 Citation:     Edwards RJ et al. (2020), bioRxiv https://doi.org/10.1101/2020.11.11.379073
 GitHub:       https://github.com/slimsuite/diploidocus
 Copyright (C) 2020  Richard J. Edwards - See source code for GNU License Notice
@@ -50,6 +50,9 @@ Function:
     * `deptrim` trims sequence termini of at least `mintrim=INT` bp with less than `deptrim=INT` read depth
     * `regcheck` checks reads spanning given regions and also calculates mean depth and estimated copy number (if regcnv=T)
     * `regcnv` calculates mean depth and estimated copy number for regcheck regions from BAM file (no read spanning analysis)
+    * `gapspan` is a specialised `regcheck` analysis that checks for reads spanning genome assembly gaps
+    * `gapass` extends the `gapspan` mode to extract the reads spanning a gap and re-assemble them using `flye`
+    * `gapfill` extends the `gapass` mode to map re-assembled gaps back onto the assembly and replace gaps spanned by the new contigs
     * `sortnr` performs an all-by-all mapping with minimap2 and then removes redundancy
     * `diphap` splits a pseudodiploid assembly into primary and alternative scaffolds
     * `diphapnr` runs `sortnr` followed by `diphap`
@@ -212,6 +215,8 @@ Run Modes:
     Spanning `spanid` output is also generated for each gap and saved in `$BASEFILE_spanid`. Each gap will be named:
     `seqname.start-end`.
 
+    This mode is now primarily documented and updated through GapSpanner.
+
     ---
 
     ### ~ Assembly gap re-assembly [runmode=gapass] ~ ###
@@ -219,15 +224,23 @@ Run Modes:
     In addition to the `gapspan` analysis, reads identified as spanning each gap are extracted and assembled using `flye`
     in a `$BASEFILE__gapassemble/` output directory.
 
+    This mode is now primarily documented and updated through GapSpanner.
+
     ---
 
     ### ~ Re-assembled gap-filling [runmode=gapfill] ~ ###
 
     In addition to the `gapspan` and `gapass` outputs, re-assembled gap regions are compiled into a single file and then
-    mapped back on the original assembly using Minimap2, with tabulated hit output into `$BASEFILE__gapfill/`.
+    mapped back on the original assembly using Minimap2, with tabulated hit output into `$BASEFILE__gapfill/`. Local hits
+    are reduced to unique coverage of the assembly sequences. Gaps are filled if one of the two conditions are met:
 
-    Future releases will cross-reference these hits with the original gap positions table to identify candidates for
-    gap-filling. The long term goal is a PAGSAT-style re-assembly.
+    1. A single local alignment spans an entire gap.
+    2. A pair of concordant local alignments from the same re-assembly contig (same orientation) flank an entire gap.
+
+    In the case of a single spanning local alignment, the entire assembly region is replaced by the corresponding
+    re-assembly contig region. For a pair of hits, the region between the two hits is replaced.
+
+    This mode is now primarily documented and updated through GapSpanner.
 
     ---
 
@@ -356,7 +369,7 @@ Commandline:
     bam=FILE        : BAM file of long reads mapped onto assembly [$BASEFILE.bam]
     paf=FILE        : PAF file of long reads mapped onto assembly [$BASEFILE.paf]
     reads=FILELIST  : List of fasta/fastq files containing reads. Wildcard allowed. Can be gzipped. []
-    readtype=LIST   : List of ont/pb file types matching reads for minimap2 mapping [ont]
+    readtype=LIST   : List of ont/pb/hifi file types matching reads for minimap2 mapping [ont]
     dochtml=T/F     : Generate HTML Diploidocus documentation (*.docs.html) instead of main run [False]
     tmpdir=PATH     : Path for temporary output files during forking (not all modes) [./tmpdir/]
     ### ~ Genome size prediction options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -368,7 +381,7 @@ Commandline:
     kmerreads=FILELIST : File of high quality reads for KAT kmer analysis []
     10xtrim=T/F     : Whether to trim 16bp 10x barcodes from Read 1 of Kmer Reads data for KAT analysis [False]
     minmedian=INT   : Minimum median depth coverage to avoid low coverage filter [3]
-    minlen=INT      : Minimum scaffold lenght to avoid low quality filter [500]
+    minlen=INT      : Minimum scaffold length to avoid low quality filter [500]
     phlow=INT       : Low depth cutoff for purge_haplotigs (-l X). Will use SCDepth/4 if zero. [0]
     phmid=INT       : Middle depth for purge_haplotigs (-m X). Will derive from SCDepth if zero. [0]
     phhigh=INT      : High depth cutoff for purge_haplotigs (-h X). Will use SCDepth x 2 if zero. [0]
@@ -405,6 +418,9 @@ Commandline:
     regcnv=T/F      : Whether to calculate mean depth and predicted CNV of regcheck regions based on SCdepth [True]
     gfftype=LIST    : Optional feature types to use if performing regcheck on GFF file (e.g. gene) ['gene']
     subforks=INT    : Number of forks for assembly subproccesses during gapfill and gapass modes [1]
+    mingapspan=INT  : Minimum number of reads spanning a gap in order to re-assemble [2]
+    minlocid=PERC   : Minimum percentage identity for aligned chunk to be kept (local %identity) [0]
+    minloclen=INT   : Minimum length for aligned chunk to be kept (local hit length in bp) [500]
     ### ~ SortNR filtering/output options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     checkcov=PERC   : Percentage coverage for double-checking partial exact matches [95]
     seqout=FILE     : Output sequence assembly [$BASEFILE.nr.fasta]
@@ -472,6 +488,8 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 0.10.7 - Updated the depmode.R script to limit analysis to one depmethod.
     # 0.11.0 - Updated defaults to depdensity=T for genome size prediction.
     # 0.12.0 - Added gapspan function (regcheck but first makes the gaps table, then loads this in, and outputs reads per gap.)
+    # 0.13.0 - Added full gap-filling to gapfill function.
+    # 0.14.0 - Added HiFi read type.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -513,12 +531,15 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
     # [Y] : Add gapfill mode = runs GABLAM of assembly versus original gap chunk and then tries to fill gaps?
     # [ ] : Add assembler=X = option to set for using different assemblers for gapass and gapfill modes.
     # [Y] : Add paf=FILE option to be used a bit like the bam=FILE input.
-    # [ ] : Add minimum number of reads to assemble with gapass mode.
+    # [Y] : Add minimum number of reads to assemble with gapass mode.
+    # [Y] : Add option to switch off additional gapfill read span check.
+    # [Y] : Add updated gapfill regcheck output to include gap edges. (For long replacements.)
+    # [ ] : Add BUSCOMP generation of new BUSCO ratings using buscofas.
     '''
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copy_right) = ('Diploidocus', '0.12.0', 'December 2020', '2017')
+    (program, version, last_edit, copy_right) = ('Diploidocus', '0.14.0', 'January 2021', '2017')
     description = 'Diploid genome assembly analysis toolkit.'
     author = 'Dr Richard J. Edwards.'
     comments = ['NOTE: telomere finding rules are based on https://github.com/JanaSperschneider/FindTelomeres',
@@ -624,7 +645,9 @@ class Diploidocus(rje_obj.RJE_Object):
     - MaxCycle=INT    : Restrict run to maximum of INT cycles (0=No limit) [0]
     - MemPerThread=INT: Number of Gb per thread to allocate to samtools etc. [6]
     - MinGap=INT      : Minimum length of a stretch of N bases to count as a gap for exclusion [10]
+    - MinGapSpan=INT  : Minimum number of reads spanning a gap in order to re-assemble [2]
     - MinLength=INT   : Minimum scaffold lenght to avoid low quality filter [500]
+    - MinLocLen=INT   : Minimum length for aligned chunk to be kept (local hit length in bp) [0]
     - MinMedian=INT   : Minimum median depth coverage to avoid low coverage filter [3]
     - MinTrim=INT     : Min length of terminal depth trimming [1000]
     - MinVecHit=INT   : Minimum length for a screendb match [50]
@@ -644,6 +667,7 @@ class Diploidocus(rje_obj.RJE_Object):
     Num:float
     - CheckCov=PERC   : Percentage coverage for double-checking partial exact matches [95]
     - eFDR=NUM        : Expected FDR threshold for VecScreen queries (0 is no filter) [1.0]
+    - MinLocID=PERC   : Minimum percentage identity for aligned chunk to be kept (local %identity) [0]
     - RQFilter=X      : Minimum RQ for output subreads [0]
     - SCDepth=NUM     : Single copy ("diploid") read depth. If zero, will use SC BUSCO mode [0]
     - TeloPerc=PERC   : Percentage of telomeric region matching telomeric repeat to call as telomere [50]
@@ -657,7 +681,7 @@ class Diploidocus(rje_obj.RJE_Object):
     - GFFType=LIST    : Optional feature types to use if performing regcheck on GFF file (e.g. gene) ['gene']
     - KmerReads=FILELIST   : File of reads for KAT kmer analysis []
     - Reads=FILELIST  : List of fasta/fastq files containing reads. Wildcard allowed. Can be gzipped. []
-    - ReadType=LIST   : List of ont/pb file types matching reads for minimap2 mapping [ont]
+    - ReadType=LIST   : List of ont/pb/hifi file types matching reads for minimap2 mapping [ont]
 
     Dict:dictionary    
 
@@ -674,10 +698,10 @@ class Diploidocus(rje_obj.RJE_Object):
         ### ~ Basics ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         self.strlist = ['BAM','BUSCO','GenomeSize','PAF','Parent1','Parent2','PurgeMode','RegCheck','RunMode','ScreenDB','ScreenMode','SeqIn','SeqOut','DebugStr','SpanID','TeloFwd','TeloRev','TmpDir']
         self.boollist = ['DepDensity','Diploidify','DocHTML','IncludeGaps','KeepNames','PreTrim','QuickDepth','RegCNV','Summarise','UseQSub','VecCheck','ZeroAdjust','10xTrim']
-        self.intlist = ['DepTrim','GenomeSize','LenFilter','MaxCycle','MinGap','MinLen','MinMedian','MinTrim','MinVecHit',
-                        'QSubPPN','QSubVMem','QSubWall','MemPerThread',
+        self.intlist = ['DepTrim','GenomeSize','LenFilter','MaxCycle','MinGap','MinGapSpan','MinLen','MinMedian','MinTrim','MinVecHit',
+                        'QSubPPN','QSubVMem','QSubWall','MemPerThread','MinLocLen',
                         'PHLow','PHMid','PHHigh','ReadBP','SubForks','TeloSize','VecMask','VecTrim']
-        self.numlist = ['CheckCov','eFDR','RQFilter','SCDepth','TeloPerc','VecPurge']
+        self.numlist = ['CheckCov','eFDR','MinLocID','RQFilter','SCDepth','TeloPerc','VecPurge']
         self.filelist = []
         self.listlist = ['CheckFields','CheckFlanks','GFFType','KmerReads','Reads','ReadType']
         self.dictlist = []
@@ -687,9 +711,9 @@ class Diploidocus(rje_obj.RJE_Object):
         self.setStr({'PurgeMode':'complex','RunMode':'diploidocus','ScreenMode':'report','TeloFwd':'C{2,4}T{1,2}A{1,3}','TeloRev':'','TmpDir':'./tmpdir/'})
         self.setBool({'DepDensity':True,'Diploidify':False,'DocHTML':False,'IncludeGaps':False,'KeepNames':False,'PreTrim':False,'QuickDepth':False,'RegCNV':True,'Summarise':True,'UseQSub':False,'ZeroAdjust':True,'10xTrim':False})
         self.setInt({'DepTrim':0,'LenFilter':500,'MaxCycle':0,'MinMedian':3,'MinLen':500,'MinTrim':1000,'MinVecHit':50,
-                     'QSubPPN':16,'QSubVMem':126,'QSubWall':12,'MemPerThread':6,
+                     'QSubPPN':16,'QSubVMem':126,'QSubWall':12,'MemPerThread':6,'MinGapSpan':2,'MinLocLen':500,
                      'GenomeSize':0,'ReadBP':0,'SubForks':1,'TeloSize':50,'MinGap':10,'VecMask':900,'VecTrim':1000})
-        self.setNum({'CheckCov':95.0,'eFDR':1.0,'RQFilter':0,'SCDepth':0,'TeloPerc':50.0,'VecPurge':50.0})
+        self.setNum({'CheckCov':95.0,'eFDR':1.0,'RQFilter':0,'SCDepth':0,'TeloPerc':50.0,'VecPurge':50.0,'MinLocID':0.0})
         ### ~ Other Attributes ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         self.list['CheckFields'] = ['Hit','SbjStart','SbjEnd']
         self.list['CheckFlanks'] = [0,100,1000,5000]
@@ -715,9 +739,9 @@ class Diploidocus(rje_obj.RJE_Object):
                 self._cmdReadList(cmd,'file',['BAM','PAF','Parent1','Parent2','RegCheck','ScreenDB','SeqIn','SeqOut','BUSCO'])  # String representing file path
                 #self._cmdReadList(cmd,'date',['Att'])  # String representing date YYYY-MM-DD
                 self._cmdReadList(cmd,'bool',['DepDensity','Diploidify','DocHTML','IncludeGaps','KeepNames','PreTrim','QuickDepth','RegCNV','Summarise','UseQSub','VecCheck','ZeroAdjust','10xTrim'])  # True/False Booleans
-                self._cmdReadList(cmd,'int',['DepTrim','LenFilter','MaxCycle','MemPerThread','MinGap','MinLen','MinMedian','MinTrim','MinVecHit','QSubPPN','QSubVMem','QSubWall','PHLow','PHMid','PHHigh','ReadBP','SubForks','TeloSize','VecMask','VecTrim'])   # Integers
+                self._cmdReadList(cmd,'int',['DepTrim','LenFilter','MaxCycle','MemPerThread','MinGap','MinGapSpan','MinLocLen','MinLen','MinMedian','MinTrim','MinVecHit','QSubPPN','QSubVMem','QSubWall','PHLow','PHMid','PHHigh','ReadBP','SubForks','TeloSize','VecMask','VecTrim'])   # Integers
                 self._cmdReadList(cmd,'float',['eFDR','RQFilter','SCDepth']) # Floats
-                self._cmdReadList(cmd,'perc',['CheckCov','TeloPerc','VecPurge']) # Percentage
+                self._cmdReadList(cmd,'perc',['CheckCov','MinLocID','TeloPerc','VecPurge']) # Percentage
                 #self._cmdReadList(cmd,'min',['Att'])   # Integer value part of min,max command
                 #self._cmdReadList(cmd,'max',['Att'])   # Integer value part of min,max command
                 self._cmdReadList(cmd,'list',['CheckFields','GFFType','ReadType'])  # List of strings (split on commas or file lines)
@@ -763,7 +787,9 @@ class Diploidocus(rje_obj.RJE_Object):
         * `deptrim` trims sequence termini of at least `mintrim=INT` bp with less than `deptrim=INT` read depth
         * `regcheck` checks reads spanning given regions and also calculates mean depth and estimated copy number (if regcnv=T)
         * `regcnv` calculates mean depth and estimated copy number for regcheck regions from BAM file (no read spanning analysis)
-        * `sortnr` performs an all-by-all mapping with minimap2 and then removes redundancy
+        * `gapspan` is a specialised `regcheck` analysis that checks for reads spanning genome assembly gaps
+        * `gapass` extends the `gapspan` mode to extract the reads spanning a gap and re-assemble them using `flye`
+        * `gapfill` extends the `gapass` mode to map re-assembled gaps back onto the assembly and replace gaps spanned by the new contigs        * `sortnr` performs an all-by-all mapping with minimap2 and then removes redundancy
         * `diphap` splits a pseudodiploid assembly into primary and alternative scaffolds
         * `diphapnr` runs `sortnr` followed by `diphap`
         * `insilico` generates balanced diploid combined reads from two sequenced haploid parents
@@ -806,7 +832,7 @@ class Diploidocus(rje_obj.RJE_Object):
         scdepth=NUM     : Single copy ("diploid") read depth. If zero, will use SC BUSCO mode [0]
         bam=FILE        : BAM file of long reads mapped onto assembly [$BASEFILE.bam]
         reads=FILELIST  : List of fasta/fastq files containing reads. Wildcard allowed. Can be gzipped. []
-        readtype=LIST   : List of ont/pb file types matching reads for minimap2 mapping [ont]
+        readtype=LIST   : List of ont/pb/hifi file types matching reads for minimap2 mapping [ont]
         dochtml=T/F     : Generate HTML Diploidocus documentation (*.docs.html) instead of main run [False]
         tmpdir=PATH     : Path for temporary output files during forking (not all modes) [./tmpdir/]
         ### ~ Genome size prediction options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -817,7 +843,7 @@ class Diploidocus(rje_obj.RJE_Object):
         kmerreads=FILELIST : File of high quality reads for KAT kmer analysis []
         10xtrim=T/F     : Whether to trim 16bp 10x barcodes from Read 1 of Kmer Reads data for KAT analysis [False]
         minmedian=INT   : Minimum median depth coverage to avoid low coverage filter [3]
-        minlen=INT      : Minimum scaffold lenght to avoid low quality filter [500]
+        minlen=INT      : Minimum scaffold length to avoid low quality filter [500]
         phlow=INT       : Low depth cutoff for purge_haplotigs (-l X). Will use SCDepth/4 if zero. [0]
         phmid=INT       : Middle depth for purge_haplotigs (-m X). Will derive from SCDepth if zero. [0]
         phhigh=INT      : High depth cutoff for purge_haplotigs (-h X). Will use SCDepth x 2 if zero. [0]
@@ -853,6 +879,9 @@ class Diploidocus(rje_obj.RJE_Object):
         spanid=X        : Generate sets of read IDs that span veccheck/regcheck regions, grouped by values of field X []
         regcnv=T/F      : Whether to calculate mean depth and predicted CNV of regcheck regions based on SCdepth [True]
         gfftype=LIST    : Optional feature types to use if performing regcheck on GFF file (e.g. gene) ['gene']
+        mingapspan=INT  : Minimum number of reads spanning a gap in order to re-assemble [2]
+        minlocid=PERC   : Minimum percentage identity for aligned chunk to be kept (local %identity) [0]
+        minloclen=INT   : Minimum length for aligned chunk to be kept (local hit length in bp) [500]
         ### ~ SortNR filtering/output options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         checkcov=PERC   : Percentage coverage for double-checking partial exact matches [95]
         seqout=FILE     : Output sequence assembly [$BASEFILE.nr.fasta]
@@ -1287,7 +1316,7 @@ class Diploidocus(rje_obj.RJE_Object):
         The main inputs for Diploidocus genome size prediction are:
 
         * `seqin=FILE` : Input sequence assembly to tidy [Required].
-        * `reads=FILELIST`: List of fasta/fastq files containing long reads. Wildcard allowed. Can be gzipped. For a single run (not cycling), a BAM file can be supplied instead with `bam=FILE`. (This will be preferentially used if found, and defaults to `$BASEFILE.bam`.) Read types (pb/ont) for each file are set with `readtype=LIST`, which will be cycled if shorter (default=`ont`). Optionally, the pre-calculated total read length can be provided with `readbp=INT` and/or the pre-calculated (haploid) genome size can be provided with `genomesize=INT`.
+        * `reads=FILELIST`: List of fasta/fastq files containing long reads. Wildcard allowed. Can be gzipped. For a single run (not cycling), a BAM file can be supplied instead with `bam=FILE`. (This will be preferentially used if found, and defaults to `$BASEFILE.bam`.) Read types (pb/ont/hifi) for each file are set with `readtype=LIST`, which will be cycled if shorter (default=`ont`). Optionally, the pre-calculated total read length can be provided with `readbp=INT` and/or the pre-calculated (haploid) genome size can be provided with `genomesize=INT`.
         * `busco=TSVFILE` : BUSCO full table [`full_table_$BASEFILE.busco.tsv`] used for calculating single copy ("diploid") read depth. This can be over-ridden by setting `scdepth=NUM`.
         * `quickdepth=T/F`  : Whether to use samtools depth in place of mpileup (quicker but underestimates?) [Default: `False`]
 
@@ -1566,22 +1595,33 @@ class Diploidocus(rje_obj.RJE_Object):
         Spanning `spanid` output is also generated for each gap and saved in `$BASEFILE_spanid`. Each gap will be named:
         `seqname.start-end`.
 
+        This mode is now primarily documented and updated through GapSpanner.
+
         ---
 
         ### ~ Assembly gap re-assembly [runmode=gapass] ~ ###
 
         In addition to the `gapspan` analysis, reads identified as spanning each gap are extracted and assembled using `flye`
-        in a `$BASEFILE__gapassemble/` output directory.
+        in a `$BASEFILE__gapassemble/` output directory. Only gaps with at least `mingapspan=INT` (default 2) reads are
+        re-assembled.
+
+        This mode is now primarily documented and updated through GapSpanner.
 
         ---
 
         ### ~ Re-assembled gap-filling [runmode=gapfill] ~ ###
 
         In addition to the `gapspan` and `gapass` outputs, re-assembled gap regions are compiled into a single file and then
-        mapped back on the original assembly using Minimap2, with tabulated hit output into `$BASEFILE__gapfill/`.
+        mapped back on the original assembly using Minimap2, with tabulated hit output into `$BASEFILE__gapfill/`. Local hits
+        are reduced to unique coverage of the assembly sequences. Gaps are filled if one of the two conditions are met:
 
-        Future releases will cross-reference these hits with the original gap positions table to identify candidates for
-        gap-filling. The long term goal is a PAGSAT-style re-assembly.
+        1. A single local alignment spans an entire gap.
+        2. A pair of concordant local alignments from the same re-assembly contig (same orientation) flank an entire gap.
+
+        In the case of a single spanning local alignment, the entire assembly region is replaced by the corresponding
+        re-assembly contig region. For a pair of hits, the region between the two hits is replaced.
+
+        This mode is now primarily documented and updated through GapSpanner.
 
         ---
 
@@ -3106,6 +3146,7 @@ class Diploidocus(rje_obj.RJE_Object):
         '''
         try:### ~ [1] ~ Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             db = self.db()
+            mainbase = self.baseFile()
             basefile = self.baseFile(strip_path=True)
             seqbase =  rje.baseFile(self.getStr('SeqIn'),strip_path=True)
             ## ~ [1a] ~ Check or create gapstats ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
@@ -3155,22 +3196,36 @@ class Diploidocus(rje_obj.RJE_Object):
                 cdb = paf.checkPos(save=False)
                 cdb.dataFormat({'MaxFlank3':'int','seqlen':'int','end':'int'})
                 for centry in cdb.entries(): centry['MaxFlank3'] = centry['seqlen'] - centry['end']
-                cdb.setStr({'Name':'checkpos'})
+                cdb.rename('checkpos')
                 cdb.saveToFile(backup=False)
                 #!# Clean up gap_pos file #!#
 
             ### ~ [3] ~ Reassemble gaps (runmode=gapass) ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             asslist = []    # List of assembly commands to fork out and outputs (acmd, output, assembly)
-            if self.getStrLC('RunMode') in ['gapass','gapfill']:
-                assembler = 'flye' # self.getStr('Assembler')
+            reassemble = self.getStrLC('RunMode') in ['gapass','gapfill']
+            assembler = 'flye' # self.getStr('Assembler')
+            filldir = '%s_gapfill/' % basefile
+            assfile = '{0}{1}.assembledgaps.fasta'.format(filldir,basefile)
+            if self.getStrLC('RunMode') in ['gapfill'] and rje.exists(assfile) and not self.force():
+                self.printLog('#GAPASS','{0} found (force=F): skipping assembly'.format(assfile))
+                reassemble = False
+            if reassemble:
+                try:
+                    vcheck = string.split(os.popen('{0} --version'.format(assembler)).read())[0]
+                    self.printLog('#PROG','{0} version: {1}'.format(assembler,vcheck))
+                except:
+                    raise ValueError('Assembler check error - failed to run: {0} --version'.format(assembler))
+            if reassemble:
                 rtype = self.list['ReadType'][0]
                 if rtype in ['pacbio','pac']: rtype = 'pb'
-                if rtype not in ['ont','pb']:
-                    self.warnLog('Read Type "%s" not recognised (pb/ont): check readtype=LIST. Will use "ont".' % rtype)
+                if rtype in ['hifi','ccs']: rtype = 'hifi'
+                if rtype not in ['ont','pb','hifi']:
+                    self.warnLog('Read Type "%s" not recognised (pb/ont/hifi): check readtype=LIST. Will use "ont".' % rtype)
                     rtype = 'ont'
                 if assembler == 'flye':
-                    if rtype == 'ont': rtype = 'nano'
-                    else: rtype = 'pacbio'
+                    if rtype == 'ont': rtype = 'nano-raw'
+                    elif rtype == 'hifi': rtype = 'pacbio-hifi'
+                    else: rtype = 'pacbio-raw'
                 bamfile = self.getBamFile()
                 iddir = '%s_spanid/' % basefile
                 assdir = '%s_gapassemble/' % basefile
@@ -3220,7 +3275,7 @@ class Diploidocus(rje_obj.RJE_Object):
                     #i# Adding forking
                     #i# asslist = []    # List of assembly commands to fork out and outputs (acmd, output, assembly)
                     if assembler == 'flye':
-                        acmd = 'flye --{0}-raw {1} --out-dir {2}{3}.{4}_flye --genome-size {5} --threads {6}'.format(rtype,fasout,assdir,basefile,spanner,gensize,self.getInt('SubForks'))
+                        acmd = 'flye --{0} {1} --out-dir {2}{3}.{4}_flye --genome-size {5} --threads {6}'.format(rtype,fasout,assdir,basefile,spanner,gensize,self.getInt('SubForks'))
                         assembly = '{0}{1}.{2}_flye/assembly.fasta'.format(assdir,basefile,spanner)
                     if self.v() > 0:
                         acmd = '{0} 2>&1 | tee -a {1}'.format(acmd,alog)
@@ -3232,7 +3287,7 @@ class Diploidocus(rje_obj.RJE_Object):
                     assembly = 'Assembly'
                     self.printLog('#GAPASS','Assembling gap-spanning reads for {0}.'.format(spanner))
                     if assembler == 'flye':
-                        acmd = 'flye --{0}-raw {1} --out-dir {2}{3}.{4}_flye --genome-size {5} --threads {6}'.format(rtype,fasout,assdir,basefile,spanner,gensize,self.getInt('SubForks'))
+                        acmd = 'flye --{0} {1} --out-dir {2}{3}.{4}_flye --genome-size {5} --threads {6}'.format(rtype,fasout,assdir,basefile,spanner,gensize,self.getInt('SubForks'))
                         logline = self.loggedSysCall(acmd,alog,append=True,nologline='No stdout from flye',threaded=False)
                         assembly = '{0}{1}.{2}_flye/assembly.fasta'.format(assdir,basefile,spanner)
                     if rje.exists(assembly):
@@ -3296,25 +3351,29 @@ class Diploidocus(rje_obj.RJE_Object):
                 filldir = '%s_gapfill/' % basefile
                 rje.mkDir(self,filldir)
                 assfile = '{0}{1}.assembledgaps.fasta'.format(filldir,basefile)
-                rje.backup(self,assfile)
-                ASSFILE = open(assfile,'w')
-                nonx = 0; assx = 0; nullx = 0; ctgx = 0
-                for centry in cdb.entries():
-                    spanner = centry['gap']
-                    assembly = '{0}{1}.{2}.assembly.fasta'.format(assdir,basefile,spanner)
-                    if not rje.exists(assembly): nonx += 1; continue
-                    aseq = rje_seqlist.SeqList(self.log,self.cmd_list+['seqmode=list','autoload=F','seqin={0}'.format(assembly)])
-                    aseq.loadSeq()
-                    if aseq.list['Seq']:
-                        sx = 1; assx += 1
-                        for (name, sequence) in aseq.list['Seq']:
-                            ASSFILE.write('>{0}.ctg{1} {2}\n{3}\n'.format(spanner,sx,name,sequence))
-                            sx += 1; ctgx += 1
-                    else: nullx += 1
-                ASSFILE.close()
-                self.printLog('#GAPCTG','Collated {0} assembled contigs for {1} gaps; {2} assemblies w/o contigs; {3} w/o assemblies'.format(rje.iStr(ctgx),rje.iStr(assx),rje.iStr(nullx),rje.iStr(nonx)))
+                if self.force() or not rje.exists(assfile):
+                    rje.backup(self,assfile)
+                    ASSFILE = open(assfile,'w')
+                    nonx = 0; assx = 0; nullx = 0; ctgx = 0
+                    for centry in cdb.entries():
+                        spanner = centry['gap']
+                        assembly = '{0}{1}.{2}.assembly.fasta'.format(assdir,basefile,spanner)
+                        if not rje.exists(assembly): nonx += 1; continue
+                        aseq = rje_seqlist.SeqList(self.log,self.cmd_list+['seqmode=list','autoload=F','seqin={0}'.format(assembly)])
+                        aseq.loadSeq()
+                        if aseq.list['Seq']:
+                            sx = 1; assx += 1
+                            for (name, sequence) in aseq.list['Seq']:
+                                ASSFILE.write('>{0}.ctg{1} {2}\n{3}\n'.format(spanner,sx,name,sequence))
+                                sx += 1; ctgx += 1
+                        else: nullx += 1
+                    ASSFILE.close()
+                    self.printLog('#GAPCTG','Collated {0} assembled contigs for {1} gaps; {2} assemblies w/o contigs; {3} w/o assemblies'.format(rje.iStr(ctgx),rje.iStr(assx),rje.iStr(nullx),rje.iStr(nonx)))
+                else:
+                    self.printLog('#GAPCTG','Collated assembled contigs found (force=F): {0}'.format(assfile))
                 ## ~ [4b] ~ Map gap assemblies to genome ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-                pafin = '%s%s.gapctg.paf' % (filldir,self.baseFile())
+                fillbase = '%s%s.gapctg' % (filldir,self.baseFile())
+                pafin = '%s.paf' % (fillbase)
                 paf = rje_paf.PAF(self.log, self.cmd_list+['pafin=%s' % pafin,'%s%s.gapctg' % (filldir,self.baseFile()),'seqin=%s' % assfile,'reference=%s' % self.getStr('SeqIn')])
                 defaults = paf_defaults
                 paf.dict['MapOpt'] = rje.combineDict(defaults,paf.dict['MapOpt'],overwrite=True)
@@ -3323,14 +3382,212 @@ class Diploidocus(rje_obj.RJE_Object):
                     rje.backup(self,pafin)
                     paf.minimap2()
                     #!# Add localaln=T to PAF #!#
-                paf.run()
-                paf.db('hitunique').rename('unique')
-                #!# Change code to handle Qry and AlnNum #!#
-                paf.db('unique').renameField('Qry','Query')
-                paf.db('unique').renameField('AlnNum','AlnID')
-                paf.db('unique').saveToFile()
+                #?# Should paf.db() basename be changed to pafin basefile for the initial output?
+                ## ~ [4c] ~ GapFiller local hits table ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+                gapfiller = '%s.gapfiller.tdt' % (fillbase)
+                paf.basefile(fillbase)
+                if rje.exists(gapfiller) and not self.force():
+                    udb = paf.db().addTable(gapfiller,mainkeys=['Hit','SbjStart','SbjEnd'],name='gapfiller',ignore=[],expect=True)
+                    udb.dataFormat({'QryStart':'int','QryEnd':'int','SbjStart':'int','SbjEnd':'int','QryLen':'int','SbjLen':'int'})
+                else:
+                    paf.run()
+                    paf.db('hitunique').rename('gapfiller')     # ['Qry','QryStart','QryEnd']
+                    paf.db('gapfiller').dropFields(['nn','cs'])
+                    for entry in paf.db('gapfiller').entries():
+                        if entry['SbjStart'] > entry['SbjEnd']:
+                            (entry['SbjStart'],entry['SbjEnd']) = (entry['SbjEnd'],entry['SbjStart'])
+                    paf.db('gapfiller').newKey(['Hit','SbjStart','SbjEnd'])
+                    paf.db('gapfiller').saveToFile()
+                    #  Qry     Hit     AlnNum  BitScore        Expect  Length  Identity        Positives       QryStart        QryEnd  SbjStart        SbjEnd  QryLen  SbjLen  Strand
                 self.printLog('#GAPMAP','%s%s.gapctg.* output generated.' % (filldir,self.baseFile()))
+                ## ~ [4d] ~ Identify gap fills using local hits ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+                #i# Work through by qry position, looking for a single hit or pair of hits that spans the gap
+                #i# -> For a single hit, replace the whole local hit region
+                #i# -> For a pair of hits, replace the gap between the Sbj regions
+                #i# => Build a list of (seqname, start, end, gapctg, start, end, strand)
+                #i# .. Reverse sort of replace sequences in turn
+                #i# => Output to *.gapfill.fasta
+                #i# -> Report number of gaps filled and new stats
+                paf.basefile(mainbase)
+                udb = paf.db('gapfiller')
+                preventry = None
+                gapfills = []   # Tuples of (seqname, start, end, gapctg, start, end, strand)
+                filled = []
+                #i# Filter on local alignment length (and identity?)
+                minloclen = self.getInt('MinLocLen')
+                minlocid = self.getPerc('MinLocID')
+                if minloclen > 1: udb.dropEntries('Length<%d' % minloclen)
+                if minlocid > 0:
+                    udb.makeField('100.0*Identity/Length','LocID')
+                    udb.dropEntries('LocID<%s' % minlocid)
+                    udb.dropField('LocID')
+                #i# Identify gaps to fill
+                ex = 0.0; etot = udb.entryNum()
+                for entry in udb.entries(sorted=True):
+                    self.progLog('\r#FILL','Identifying gap-filling re-assemblies: %.2f%%' % (ex/etot)); ex += 100.0
+                    gapid = '.'.join(entry['Qry'].split('.')[:-1])  # PTEXCHR1.01.10697073-10697172.ctg1
+                    if gapid in filled: continue
+                    #i# Check for matching sequences
+                    if not entry['Qry'].startswith('{0}.'.format(entry['Hit'])): continue
+                    #i# Check preventry
+                    if preventry and preventry['Qry'] != entry['Qry']: preventry = None
+                    #i# Check for single hit spanning gap
+                    #if entry['Strand'] == '-': (entry['SbjStart'],entry['SbjEnd']) = (entry['SbjEnd'],entry['SbjStart'])
+                    [gapx,gapy] = entry['Qry'].split('.')[-2].split('-')
+                    gapx = int(gapx)
+                    gapy = int(gapy)
+                    if entry['SbjStart'] < gapx and entry['SbjEnd'] > gapy:
+                        filled.append(gapid)
+                        gapfills.append((entry['Hit'],entry['SbjStart'],entry['SbjEnd'],entry['Qry'],entry['QryStart'],entry['QryEnd'],entry['Strand'],'span'))
+                        preventry = entry
+                        continue
+                    if not preventry:
+                        preventry = entry
+                        continue
+                    #i# Check for dual hit spanning gap
+                    if preventry['SbjEnd'] <= gapx and entry['SbjStart'] >= gapy and preventry['Strand'] == entry['Strand']:
+                        if (entry['Strand'] == '+' and entry['SbjStart'] > preventry['SbjEnd']):
+                            filled.append(gapid)
+                            gapfills.append((entry['Hit'],preventry['SbjEnd'],entry['SbjStart'],entry['Qry'],preventry['QryEnd'],entry['QryStart'],entry['Strand'],'flank'))
+                        elif (entry['Strand'] == '-' and preventry['SbjStart'] > entry['SbjEnd']):
+                            filled.append(gapid)
+                            gapfills.append((entry['Hit'],preventry['SbjEnd'],entry['SbjStart'],entry['Qry'],entry['QryEnd'],preventry['QryStart'],entry['Strand'],'flank'))
+                    preventry = entry
+                self.progLog('\r#FILL','Identified %s gap-filling re-assemblies from %s.' % (rje.iLen(gapfills),gapfiller))
+                ## ~ [4e] ~ GapFill using local hits ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+                #!# Add a check for overlapping replacements? #!#
+                gapfills.sort()
+                gapshift = {}
+                gdb = db.addEmptyTable('gapfill',['seqname','start','end','gapctg','ctgstart','ctgend','strand','gaplen','type','newname','newstart','newend','newchunklen'],['seqname','start','end'],log=False)
+                for filldat in gapfills:
+                    fentry = {'seqname':filldat[0],'start':filldat[1],'end':filldat[2],'gapctg':filldat[3],'ctgstart':filldat[4],'ctgend':filldat[5],'strand':filldat[6],'type':filldat[7]}
+                    if fentry['seqname'] not in gapshift: gapshift[fentry['seqname']] = 0
+                    fentry['newname'] = fentry['seqname']
+                    fentry['newstart'] = fentry['start'] + gapshift[fentry['seqname']]
+                    gapshift[fentry['seqname']] += (fentry['ctgend'] - fentry['ctgstart']) - (fentry['end'] - fentry['start'])
+                    fentry['newend'] = fentry['end'] + gapshift[fentry['seqname']]
+                    fentry['newchunklen'] = fentry['newend'] - fentry['newstart'] + 1
+                    [gapx,gapy] = fentry['gapctg'].split('.')[-2].split('-')
+                    fentry['gaplen'] = int(gapy) - int(gapx) + 1
+                    gdb.dict['Data'][(filldat[0],filldat[1],filldat[2])] = fentry
+                gdb.index('seqname')
+                seqin = self.seqinObj(summarise=False)
+                ctgin = rje_seqlist.SeqList(self.log,self.cmd_list+['seqmode=file','autoload=T','dna=T','seqin={0}'.format(assfile),'gapstats=F'])
+                ctgdict = ctgin.seqNameDic()
+                fillfas = '{0}.fillcheck.fasta'.format(basefile)
+                FILLFAS = open(fillfas,'w')
+                fx = 0  # Gap fills
+                nx = 0  # Unchanged sequences
+                ex = 0  # Edited sequences
+                for seq in seqin.seqs():
+                    self.progLog('\r#FILL','Gap-filling sequences -> {2}: {0} unchanged; {1} edited.'.format(nx,ex,fillfas))
+                    (seqname, sequence) = seqin.getSeq(seq)
+                    sname = seqin.shortName(seq)
+                    if sname not in gdb.index('seqname'):
+                        nx += 1
+                        FILLFAS.write('>{0}\n{1}\n'.format(seqname,sequence))
+                        continue
+                    seqlen = len(sequence)
+                    changes = gdb.indexEntries('seqname',sname)
+                    changes.reverse()
+                    for centry in changes:
+                        ctgseq = ctgin.seqSequence(ctgdict[centry['gapctg']])
+                        fillseq = ctgseq[centry['ctgstart']-1:centry['ctgend']]
+                        if centry['strand'] == '-': fillseq = rje_sequence.reverseComplement(fillseq)
+                        sequence = sequence[:centry['start']] + fillseq + sequence[centry['end']:]
+                        fx += 1
+                    ex += 1
+                    newname = '{0}-{1}fill'.format(sname,len(changes))
+                    for centry in changes: centry['newname'] = newname
+                    self.printLog('\r#FILL','Gap-filled {0} -> {1}: {2} -> {3}.  '.format(sname,newname,rje_seqlist.dnaLen(seqlen),rje_seqlist.dnaLen(len(sequence))))
+                    FILLFAS.write('>{0} {1} (Diploidocus gap-filled)\n{2}\n'.format(newname,seqin.seqDesc(seq),sequence))
+                FILLFAS.close()
+                self.printLog('\r#FILL','Gap-filled sequences output to {2}: {0} unchanged; {1} edited; {3} of {4} gaps filled.'.format(nx,ex,fillfas,fx,cdb.entryNum()))
+                gdb.saveToFile()
+                if fx:
+                    rje_seqlist.SeqList(self.log,self.cmd_list+['seqmode=file','autoload=T','seqin={0}'.format(fillfas),'summarise=T','dna=T'])
 
+                ## ~ [4f] Check the newly-filled gaps ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+                # regcheck=FILE   : File of SeqName, Start, End positions for read coverage checking [None]
+                # checkfields=LIST: Fields in checkpos file to give Locus, Start and End for checking [Hit,SbjStart,SbjEnd]
+                # checkflanks=LIST: List of lengths flanking check regions that must also be spanned by reads [0,100,1000,5000]
+                # spanid=X        : Generate sets of read IDs that span veccheck/regcheck regions, grouped by values of field X []
+                # regcnv=T/F      : Whether to calculate mean depth and predicted CNV of regcheck regions based on SCdepth [True]
+                # gfftype=LIST    : Optional feature types to use if performing regcheck on GFF file (e.g. gene) ['gene']
+                # subforks=INT    : Number of forks for assembly subproccesses during gapfill and gapass modes [1]
+                #!# Replace this with a new *.fillcheck.tdt file that has full-length filled gaps and just the edges.
+                cdb = db.copyTable(gdb,'fillcheck',replace=True,add=True)
+                cdb.newKey(['newname','newstart','newend'])
+                for centry in cdb.entries():
+                    newentry = {'newstart':centry['newstart']-1,'newend':centry['newstart'],'type':'start'}
+                    newentry = rje.combineDict(newentry,centry,overwrite=False)
+                    cdb.addEntry(newentry)
+                    newentry = {'newstart':centry['newend'],'newend':centry['newend']+1,'type':'end'}
+                    newentry = rje.combineDict(newentry,centry,overwrite=False)
+                    cdb.addEntry(newentry)
+                cdb.saveToFile()
+                checkfile = '{0}.fillcheck.tdt'.format(basefile)
+                checkcmd = self.cmd_list+['seqin={0}'.format(fillfas),'regcheck={0}'.format(checkfile),'checkfields=newname,newstart,newend','runmode=regcheck','paf=None','basefile={0}.fillcheck'.format(basefile)]
+                if not self.getNum('SCDepth'):
+                    checkcmd.append('regcnv=F')
+                    self.printLog('#CHECK','Single-copy read depth (scdepth=NUM) not given: setting regcnv=F')
+                if self.getInt('SubForks') > self.getInt('Forks'): checkcmd.append('forks={0}'.format(self.getInt('SubForks')))
+                spanchecker = Diploidocus(self.log,checkcmd)
+                spanchecker.run()
+
+                ## ~ [4g] Fix any gaps without start and end support ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+                #!# Add reading in of *.fillcheck.checkpos.tdt and reversing gap-filling of gaps without edge support
+                checkfile = '{0}.fillcheck.checkpos.tdt'.format(basefile)
+                fdb = db.addTable(checkfile,mainkeys=['newname','newstart','newend','type'],name='fillchecked',ignore=[],expect=True)
+                fformats = {}
+                for field in fdb.fields():
+                    if field not in ['seqname','gapctg','strand','type','newname']: fformats[field] = 'int'
+                fdb.dataFormat(fformats)
+                fdb.dropEntriesDirect('type',['start','end'],inverse=True)
+                fdb.dropEntriesDirect('Span0',[0],inverse=True)
+                fdb.compress(['newname','newstart','newend'],default='max',rules={'type':'list'},joinchar='&')
+                self.printLog('#REVGAP','{0} filled gaps identified for reversion based on inserted chunk ends without spanning reads'.format(fdb.entryNum()))
+                if fdb.entryNum():     #?# Add toggle to switch this off?
+                    #i# Load sequences for reversion
+                    origin = seqin
+                    origdict = origin.seqNameDic()
+                    seqin = rje_seqlist.SeqList(self.log,self.cmd_list+['seqmode=file','autoload=T','dna=T','seqin={0}'.format(fillfas),'gapstats=F'])
+                    #i# Revert
+                    fillfas = '{0}.gapfill.fasta'.format(basefile)
+                    FILLFAS = open(fillfas,'w')
+                    rx = 0  # Reverted gap fills
+                    nx = 0  # Unchanged sequences
+                    ex = 0  # Edited sequences
+                    for seq in seqin.seqs():
+                        self.progLog('\r#FILL','Reversing unsupported gap-filling -> {2}: {0} unchanged; {1} edited.'.format(nx,ex,fillfas))
+                        (seqname, sequence) = seqin.getSeq(seq)
+                        sname = seqin.shortName(seq)
+                        if sname not in fdb.index('newname'):
+                            nx += 1
+                            FILLFAS.write('>{0}\n{1}\n'.format(seqname,sequence))
+                            continue
+                        seqlen = len(sequence)
+                        changes = fdb.indexEntries('newname',sname)
+                        changes.reverse()
+                        for centry in changes:
+                            ctgseq = origin.seqSequence(origdict[centry['seqname']])
+                            fillseq = ctgseq[centry['start']-1:centry['end']]
+                            sequence = sequence[:centry['newstart']] + fillseq + sequence[centry['newend']:]
+                            rx += 1
+                        ex += 1
+                        newname = '{0}-{1}rev'.format(sname,len(changes))
+                        #for centry in changes: centry['newname'] = newname
+                        if rx: self.printLog('\r#FILL','Corrected gap-filled {0} -> {1}: {2} -> {3}.  '.format(sname,newname,rje_seqlist.dnaLen(seqlen),rje_seqlist.dnaLen(len(sequence))))
+                        FILLFAS.write('>{0} {1} (Diploidocus gap-filled)\n{2}\n'.format(newname,seqin.seqDesc(seq),sequence))
+                    FILLFAS.close()
+                    self.printLog('\r#FASOUT','Corrected Gap-filled sequences output to {2}: {0} unchanged; {1} edited; {3} of {4} filled gaps reinstated.'.format(nx,ex,fillfas,rx,fx))
+                    if rx:
+                        rje_seqlist.SeqList(self.log,self.cmd_list+['seqmode=file','autoload=T','seqin={0}'.format(fillfas),'summarise=T','dna=T'])
+                else:
+                    checkfas = fillfas
+                    fillfas = '{0}.gapfill.fasta'.format(basefile)
+                    os.rename(checkfas,fillfas)
+                    self.printLog('#FASOUT','{0} renamed {1}'.format(checkfas,fillfas))
 
             return True
         except:
@@ -3745,8 +4002,9 @@ class Diploidocus(rje_obj.RJE_Object):
                     try: rtype = self.list['ReadType'][rx]; rx +=1
                     except: rtype = self.list['ReadType'][0]; rx = 1
                     if rtype in ['pacbio','pac']: rtype = 'pb'
-                    if rtype not in ['ont','pb']:
-                        self.warnLog('Read Type "%s" not recognised (pb/ont): check readtype=LIST. Will use "ont".' % rtype)
+                    if rtype in ['hifi','ccs']: rtype = 'hifi'
+                    if rtype not in ['ont','pb','hifi']:
+                        self.warnLog('Read Type "%s" not recognised (pb/ont/hifi): check readtype=LIST. Will use "ont".' % rtype)
                         rtype = 'ont'
                 else: rtype = 'ont'
                 prefix = '{}.{}'.format(rje.baseFile(self.getStr('SeqIn'),strip_path=True),rje.baseFile(readfile,strip_path=True))
@@ -3756,6 +4014,8 @@ class Diploidocus(rje_obj.RJE_Object):
                 seqinsize = os.path.getsize(self.getStr('SeqIn')) / 1e9
                 while seqinsize > imax: imax += 1
                 maprun = '{} -t {} -I {}G --secondary=no -o {}.sam -L -ax map-{} {} {}'.format(paf.getStr('Minimap2'),self.threads(),imax,prefix,rtype,self.getStr('SeqIn'),readfile)
+                if rtype in ['hifi']:
+                    maprun = '{} -t {} -I {}G --secondary=no -o {}.sam -L -ax asm20 {} {}'.format(paf.getStr('Minimap2'),self.threads(),imax,prefix,self.getStr('SeqIn'),readfile)
                 # self.printLog('#SYS',maprun)
                 # if self.v() < 1:
                 #     mapsys = subprocess.Popen(maprun, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)

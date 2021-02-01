@@ -20,8 +20,8 @@
 Module:       rje_program
 Description:  Generic RJE Program Template
 Version:      0.0.0
-Last Edit:    28/12/19
-Copyright (C) 2019  Richard J. Edwards - See source code for GNU License Notice
+Last Edit:    07/01/21
+Copyright (C) 2021  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
     The function of this module will be added here.
@@ -57,7 +57,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copy_right) = ('GENERIC', '0.0.0', 'January 2019', '2019')
+    (program, version, last_edit, copy_right) = ('GENERIC', '0.0.0', 'January 2021', '2021')
     description = 'Generic RJE Module'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_obj.zen()]
@@ -73,7 +73,7 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         if cmd_help > 0:
             rje.printf('\n\nHelp for {0} {1}: {2}\n'.format(info.program, info.version, time.asctime(time.localtime(info.start_time))))
             out.verbose(-1,4,text=__doc__)
-            if rje.yesNo('Show general commandline options?'): out.verbose(-1,4,text=rje.__doc__)
+            if rje.yesNo('Show general commandline options?',default='N'): out.verbose(-1,4,text=rje.__doc__)
             if rje.yesNo('Quit?'): sys.exit()           # Option to quit after help
             cmd_list += rje.inputCmds(out,cmd_list)     # Add extra commands interactively.
         elif out.stat['Interactive'] > 1: cmd_list += rje.inputCmds(out,cmd_list)    # Ask for more commands
@@ -93,7 +93,8 @@ def setupProgram(): ### Basic Setup of Program when called from commandline.
     try:### ~ [1] ~ Initial Command Setup & Info ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         info = makeInfo()                                   # Sets up Info object with program details
         if len(sys.argv) == 2 and sys.argv[1] in ['version','-version','--version']: rje.printf(info.version); sys.exit(0)
-        if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: rje.printf('{0} v{1}'.format(info.program,info.version)); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: rje.printf('%s v%s' % (info.program,info.version)); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['description','-description','--description']: rje.printf('%s: %s' % (info.program,info.description)); sys.exit(0)
         cmd_list = rje.getCmdList(sys.argv[1:],info=info)   # Reads arguments and load defaults from program.ini
         out = rje.Out(cmd_list=cmd_list)                    # Sets up Out object for controlling output to screen
         out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2 
@@ -115,7 +116,7 @@ def setupProgram(): ### Basic Setup of Program when called from commandline.
 #########################################################################################################################
 class NewClass(rje_obj.RJE_Object):     
     '''
-    Class. Author: Rich Edwards (2015).
+    Class. Author: Rich Edwards (2021).
 
     Str:str
     

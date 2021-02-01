@@ -1,8 +1,44 @@
 RELEASE NOTES
 
+UPDATES SINCE SLiMSuite v1.9.1
+|-- SLiMSuite v1.10.0 / SeqSuite v1.25.0
+
+#tools/
+buscomp
+    # 0.10.0- Added Complete BUSCOMP gene table output for Diploidocus BUSCO table alternative.
+    # 0.10.1- Changed BUSCOMP to be BUSCO Compilation and Comparison Tool.
+
+diploidocus
+    # 0.13.0 - Added full gap-filling to gapfill function.
+    # 0.14.0 - Added HiFi read type.
+    
+samphaser
+    # 0.10.0 - Added HiFi read type.
+
+snapper
+    # 1.8.0 - Added dochtml=T and modified docstring for standalone git repo.
+
+synbad
+    # 0.5.0 - Added HiFi read type. Changed default to gapmode=gapass.
+    
+#dev/
+depthcharge
+    # 0.0.0 - Initial Compilation.
+    # 0.1.0 - Removed endbuffer and gapbuffer in favour of straight overlap assignment.
+    # 0.2.0 - Added HiFi read type.
+    
+gapspanner
+   # 0.0.0 - Initial Compilation. Wrapper for Diploidocus v0.14.0 gapspan modes.
+  
+#libraries/
+rje_paf
+    # 0.11.0 - Added HiFi read type.
+    
+rje_rmd
+    # 0.1.0 - Added docHTML.
 
 UPDATES SINCE SLiMSuite v1.8.1
-|-- SLiMSuite v1.9.0 / SeqSuite v1.24.0
+|-- SLiMSuite v1.9.1 / SeqSuite v1.24.0
 
 #dev/
 rje_archive
@@ -304,6 +340,7 @@ slimfarmer
     
 slimsuite
     # 1.9.0 - Added SAAGA, Diploidocus, SynBad and Genomics. Slight module tidy for GitHub updates.
+    # 1.9.1 - Added SLiMParser and SLiMMutant to wrapped tools to match documentation.
 
 synbad
     # 0.0.0 - Initial Compilation.

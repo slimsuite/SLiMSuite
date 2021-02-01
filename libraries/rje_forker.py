@@ -180,6 +180,18 @@ class Forker(rje_obj.RJE_Object):
         ### ~ Other Attributes ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         self._setForkAttributes()   # Delete if no forking
 #########################################################################################################################
+    def _setForkerAttributes(self):   ### Sets additional Forkter Attributes of Object
+        '''Sets Attributes of Object.'''
+        ### ~ Basics ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+        self.boollist += ['PIDCheck','RjePy','LogFork','KillMain']
+        self.intlist += ['IOLimit']
+        self.numlist += ['MemFree','ForkSleep','KillForks','KillTime']
+        self.listlist += ['ToFork','Forked','ResFile']
+        ### ~ Defaults ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+        self.setBool({'RjePy':False,'LogFork':True,'KillMain':True})
+        self.setInt({'IOLimit':50})
+        self.setNum({'MemFree':0.0,'ForkSleep':0.0,'KillForks':36000,'KillTime':time.time()})
+#########################################################################################################################
     def _cmdList(self):     ### Sets Attributes from commandline
         '''
         Sets attributes according to commandline parameters:
@@ -204,6 +216,24 @@ class Forker(rje_obj.RJE_Object):
                 #self._cmdReadList(cmd,'glist',['Att']) # List of files using wildcards and glob
                 #self._cmdReadList(cmd,'cdict',['Att']) # Splits comma separated X:Y pairs into dictionary
                 #self._cmdReadList(cmd,'cdictlist',['Att']) # As cdict but also enters keys into list
+            except: self.errorLog('Problem with cmd:%s' % cmd)
+        if self.parent(): self.baseFile(self.parent().baseFile()) # Set basefile to be the same as parent object
+        if self.getNum('MemFree') > 0.0 and self.getBool('Win32'): self.warnLog('Cannot use memfree=X in win32 mode')
+        if self.getNum('MemFree') > 0.0 and self.getBool('OSX'): self.warnLog('Cannot use memfree=X in win32 mode')
+        self.int['IOError'] = self.int['IOLimit']
+#########################################################################################################################
+    def _forkerCmd(self):     ### Sets additional Forker Attributes from commandline
+        '''
+        Sets attributes according to commandline parameters:
+        - see .__doc__ or run with 'help' option
+        '''
+        for cmd in self.cmd_list:
+            try:
+                self._cmdReadList(cmd,'path',['ForkDir'])  # String representing directory path
+                self._cmdReadList(cmd,'bool',['KillMain','LogFork','PIDCheck','RjePy'])  # True/False Booleans
+                self._cmdReadList(cmd,'int',['IOLimit'])   # Integers
+                self._cmdReadList(cmd,'float',['MemFree','ForkSleep','KillForks']) # Floats
+                self._cmdReadList(cmd,'list',['ToFork'])  # List of strings (split on commas or file lines)
             except: self.errorLog('Problem with cmd:%s' % cmd)
         if self.parent(): self.baseFile(self.parent().baseFile()) # Set basefile to be the same as parent object
         if self.getNum('MemFree') > 0.0 and self.getBool('Win32'): self.warnLog('Cannot use memfree=X in win32 mode')
@@ -264,7 +294,7 @@ class Forker(rje_obj.RJE_Object):
                 self.verbose(0,1,'\n%d seconds of main thread inactivity. %d forks still active!' % (self.getNum('KillForks'),len(self.list['Forked'])),1)
                 for fdict in self.list['Forked']:
                     self.verbose(0,2,' => Fork %s, PID %d still Active!' % (fdict['ID'],fdict['PID']),1)
-                if (self.i() < 0 and self.getBool('KillMain')) or rje.yesNo('Kill Main Thread?'):
+                if (self.i() < 0 and self.getBool('KillMain')) or rje.yesNo('Kill Main Thread?',default={True:'N',False:'Y'}[self.getBool('KillMain')]):
                     raise ValueError('%d seconds of main thread inactivity. %d forks still active!' % (self.getNum('KillForks'),len(self.list['Forked'])))
                 elif self.i() < 0 or rje.yesNo('Kill hanging forks?'):
                     self.printLog('#KILL','KillForks=%d seconds walltime reached.' % (self.getNum('KillForks')))
@@ -323,7 +353,9 @@ class Forker(rje_obj.RJE_Object):
                     fromfile = '%s.%s' % (fdict['FID'],resfile)
                     if not rje.exists(fromfile): continue #self.warnLog('Results file %s missing!' % fromfile); continue
                     tofile = '%s.%s' % (self.baseFile(),resfile)
-                    if rje.exists(tofile): open(tofile,'a').writelines(open(fromfile,'r').readlines()[1:])
+                    if rje.exists(tofile):
+                        open(tofile,'a').writelines(open(fromfile,'r').readlines()[1:])
+                        os.unlink(fromfile)
                     else: rje.fileTransfer(fromfile,tofile)
             if 'Log' in fdict:
                 if 'cmd' in fdict:

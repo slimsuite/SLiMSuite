@@ -17,27 +17,49 @@
 # To incorporate this module into your own programs, please see GNU Lesser General Public License disclaimer in rje.py
 
 """
-Module:       rje_rmd
-Description:  R Markdown generation and execution module
-Version:      0.1.0
-Last Edit:    01/02/21
-Copyright (C) 2019  Richard J. Edwards - See source code for GNU License Notice
+Module:       PURR
+Description:  Pairwise unique region retrieval
+Version:      1.0.0
+Last Edit:    26/01/21
+Copyright (C) 2021  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
-    The function of this module will be added here.
+    PURR is a wrapper for the Snapper nocopyfas function to compare two sets of sequences (e.g. two genome assemblies)
+    and output the regions unique to one set of sequences or the other.
 
-    The R markdown itself is run using:
+    A basic overview of the Snapper workflow is as follows:
 
-    Rscript -e 'library(rmarkdown); rmarkdown::render("/path/to/test.Rmd", "html_document")'
+    1. Read/parse input sequences and reference features.
 
-    NOTE: The "html_document" over-rules the content of the file itself, e.g. "pdf_document" can turn it into a PDF
-    rather than HTML.
+    2. All-by-all BLAST of query "Alt" genome against reference using GABLAM.
 
-    NOTE: Running the above generates a `*.html` file in the same place as the `*.Rmd` file (not the run directory).
+    3. Reduction of BLAST hits to Unique BLAST hits in which each region of a genome is mapped onto only a single region
+    of the other genome. This is not bidirectional at this stage, so multiple unique regions of one genome may map onto
+    the same region of the other.
 
-    NOTE: For HTML output, R must be installed and a pandoc environment variable must be set, e.g.
+    4. Determine Copy Number Variation (CNV) for each region of the genome based on the unique BLAST hits. This is
+    determined at the nucleotide level as the number of times that nucleotide maps to unique regions in the other genome,
+    thus establishing the copy number of that nucleotide in the other genome.
 
-        export RSTUDIO_PANDOC=/Applications/RStudio.app/Contents/MacOS/pandoc
+    5. Generate SNP Tables based on the unique local BLAST hits. Each mismatch or indel in a local BLAST alignment is
+    recorded as a SNP.
+
+    6. Mapping of SNPs onto reference features based on SNP reference locus and position.
+
+    7. SNP Type Classification based on the type of SNP (insertion/deletion/substitution) and the feature in which it
+    falls. CDS SNPs are further classified according to codon changes.
+
+    8. SNP Effect Classification for CDS features predicting their effects (in isolation) on the protein product.
+
+    9. SNP Summary Tables for the whole genome vs genome comparison. This includes a table of CDS Ratings based on the
+    numbers and types of SNPs. For the `*.summary.tdt` output is, each SNP is only mapped to a single feature according
+    to the FTBest hierarchy, removing SNPs mapping to one feature type from feature types lower in the list:
+    - CDS,mRNA,tRNA,rRNA,ncRNA,misc_RNA,gene,mobile_element,LTR,rep_origin,telomere,centromere,misc_feature,intergenic
+
+    Version 1.1.0 introduced additional fasta output of the genome regions with zero coverage in the other genome, i.e.
+    the regions in the *.cnv.tdt file with CNV=0. Regions smaller than `nocopylen=X` [default=100] are deleted and then
+    those within `nocopymerge=X` [default=20] of each other will be merged for output. This can be switched off with
+    `nocopyfas=F`.
 
 Commandline:
 
@@ -46,7 +68,7 @@ Commandline:
 #########################################################################################################################
 ### SECTION I: GENERAL SETUP & PROGRAM DETAILS                                                                          #
 #########################################################################################################################
-import glob, os, string, sys, time
+import os, string, sys, time
 slimsuitepath = os.path.abspath(os.path.join(os.path.dirname(os.path.realpath(__file__)),'../')) + os.path.sep
 sys.path.append(os.path.join(slimsuitepath,'libraries/'))
 sys.path.append(os.path.join(slimsuitepath,'tools/'))
@@ -56,7 +78,6 @@ import rje, rje_obj
 def history():  ### Program History - only a method for PythonWin collapsing! ###
     '''
     # 0.0.0 - Initial Compilation.
-    # 0.1.0 - Added docHTML.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -67,14 +88,12 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
     # [ ] : Create initial working version of program.
     # [ ] : Add REST outputs to restSetup() and restOutputOrder()
     # [ ] : Add to SLiMSuite or SeqSuite.
-    # [Y] : Rscript -e 'library(rmarkdown); rmarkdown::render("/path/to/test.Rmd", "html_document")'
-    # [ ] : Add logging of Rmd outputs
     '''
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copy_right) = ('RJE_Rmd', '0.1.0', 'January 2021', '2019')
-    description = 'R Markdown generation and execution module'
+    (program, version, last_edit, copy_right) = ('GENERIC', '0.0.0', 'January 2021', '2021')
+    description = 'Generic RJE Module'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_obj.zen()]
     return rje.Info(program,version,last_edit,description,author,time.time(),copy_right,comments)
@@ -87,9 +106,9 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         ### ~ [2] ~ Look for help commands and print options if found ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         cmd_help = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
         if cmd_help > 0:
-            print '\n\nHelp for %s %s: %s\n' % (info.program, info.version, time.asctime(time.localtime(info.start_time)))
+            rje.printf('\n\nHelp for {0} {1}: {2}\n'.format(info.program, info.version, time.asctime(time.localtime(info.start_time))))
             out.verbose(-1,4,text=__doc__)
-            if rje.yesNo('Show general commandline options?'): out.verbose(-1,4,text=rje.__doc__)
+            if rje.yesNo('Show general commandline options?',default='N'): out.verbose(-1,4,text=rje.__doc__)
             if rje.yesNo('Quit?'): sys.exit()           # Option to quit after help
             cmd_list += rje.inputCmds(out,cmd_list)     # Add extra commands interactively.
         elif out.stat['Interactive'] > 1: cmd_list += rje.inputCmds(out,cmd_list)    # Ask for more commands
@@ -97,7 +116,7 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         return cmd_list
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Major Problem with cmdHelp()'
+    except: rje.printf('Major Problem with cmdHelp()')
 #########################################################################################################################
 def setupProgram(): ### Basic Setup of Program when called from commandline.
     '''
@@ -108,6 +127,9 @@ def setupProgram(): ### Basic Setup of Program when called from commandline.
     '''
     try:### ~ [1] ~ Initial Command Setup & Info ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         info = makeInfo()                                   # Sets up Info object with program details
+        if len(sys.argv) == 2 and sys.argv[1] in ['version','-version','--version']: rje.printf(info.version); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: rje.printf('%s v%s' % (info.program,info.version)); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['description','-description','--description']: rje.printf('%s: %s' % (info.program,info.description)); sys.exit(0)
         cmd_list = rje.getCmdList(sys.argv[1:],info=info)   # Reads arguments and load defaults from program.ini
         out = rje.Out(cmd_list=cmd_list)                    # Sets up Out object for controlling output to screen
         out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2 
@@ -117,7 +139,7 @@ def setupProgram(): ### Basic Setup of Program when called from commandline.
         return (info,out,log,cmd_list)                      # Returns objects for use in program
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Problem during initial setup.'; raise
+    except: rje.printf('Problem during initial setup.'); raise
 #########################################################################################################################
 ### END OF SECTION I                                                                                                    #
 #########################################################################################################################
@@ -125,11 +147,11 @@ def setupProgram(): ### Basic Setup of Program when called from commandline.
                                                     ### ~ ### ~ ###
 
 #########################################################################################################################
-### SECTION II: Rmd Class                                                                                               #
+### SECTION II: New Class                                                                                               #
 #########################################################################################################################
-class Rmd(rje_obj.RJE_Object):
+class NewClass(rje_obj.RJE_Object):     
     '''
-    Rmd Class. Author: Rich Edwards (2019).
+    Class. Author: Rich Edwards (2021).
 
     Str:str
     
@@ -142,7 +164,6 @@ class Rmd(rje_obj.RJE_Object):
     File:file handles with matching str filenames
     
     List:list
-    - CodeChunks = List of code chunk names to avoid duplication
 
     Dict:dictionary    
 
@@ -159,7 +180,7 @@ class Rmd(rje_obj.RJE_Object):
         self.intlist = []
         self.numlist = []
         self.filelist = []
-        self.listlist = ['CodeChunks']
+        self.listlist = []
         self.dictlist = []
         self.objlist = []
         ### ~ Defaults ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -168,7 +189,6 @@ class Rmd(rje_obj.RJE_Object):
         self.setBool({})
         self.setInt({})
         self.setNum({})
-        self.list['CodeChunks'] = []
         ### ~ Other Attributes ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         self._setForkAttributes()   # Delete if no forking
 #########################################################################################################################
@@ -206,7 +226,6 @@ class Rmd(rje_obj.RJE_Object):
         try:### ~ [1] ~ Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             self.setup()
             ### ~ [2] ~ Add main run code here ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            self.rmdTest()
             return
         except:
             self.errorLog(self.zen())
@@ -241,145 +260,17 @@ class Rmd(rje_obj.RJE_Object):
 #########################################################################################################################
     def restOutputOrder(self): return rje.sortKeys(self.dict['Output'])
 #########################################################################################################################
-    ### <3> ### Rmd Output Methods                                                                                      #
+    ### <3> ### Additional Class Methods                                                                                #
 #########################################################################################################################
-    def rmdKnit(self,rmdfile,document='html',stdout=False):  ### Knit Rmd to HTML/PDF file
+    def _method(self):      ### Generic method
         '''
-        Knit Rmd to HTML/PDF file.
-        >> rmdfile:str = R markdown file to knit
-        >> document:str ['html'] = type of document to knit into
-        << success:bool = whether output is generated
-        '''
-        try:### ~ [1] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            outfile = '%s.%s' % (rje.baseFile(rmdfile),document)
-            rcmd = 'Rscript -e \'library(rmarkdown); rmarkdown::render("%s", "%s_document")\'' % (rmdfile,document)
-            self.printLog('#RCMD',rcmd)
-            rcmd += ' 2>&1'
-            if self.v() < 2 and not stdout: os.popen(rcmd).read()
-            else:
-                self.progLog('#RCMD','Knitting %s...' % (rmdfile))
-                os.system(rcmd)
-            success = rje.exists(outfile)
-            if success: self.printLog('#RCMD','%s generated from %s' % (outfile,rmdfile))
-            else:
-                self.printLog('#SYS','If pandoc error, try setting global variable: export RSTUDIO_PANDOC=/Applications/RStudio.app/Contents/MacOS/pandoc')
-                self.printLog('#SYS','If no pandoc error, check that required libraries in %s are installed' % rmdfile)
-                raise IOError('%s not created' % outfile)
-            return True
-        except: self.errorLog('%s.rmdKnit error: check R installation' % self.prog()); return False
-#########################################################################################################################
-    def rmdOutput(self,rmdfile=None,header={},elements=[]):    ### Generate Rmd output file
-        '''
-        Generate Rmd output file. Call self.rmdKnit(rmdfile) to convert to another format.
-        >> rmdfile:str [self.str['RmdFile']] = Full/relative path to Rmd output file.
-        >> header:dict {} = Dictionary of Rmd header elements. Will default to self.log.obj['Info'] and HTML.
-        >> elements:list [] = List of tuples (type,content) to output into file. For R code, content will be a dictionary
-
-        This method puts together the basic elements of an R markdown file into a text document that can be knitted into
-        HTML or PDF using self.rmdKnit().
+        Generic method. Add description here (and arguments.)
         '''
         try:### ~ [1] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             return
-
-        except: self.errorLog('%s.rmdOutput error' % self.prog())
+        except: self.errorLog('%s.method error' % self.prog())
 #########################################################################################################################
-    def rmdHead(self,title=None,author=None,date=None,extra=[],setup=True,toc=True):    ### Generate Rmd output file
-        '''
-        Generate Rmd output file. Call self.rmdKnit(rmdfile) to convert to another format.
-        >> rmdfile:str [self.str['RmdFile']] = Full/relative path to Rmd output file.
-        >> header:dict {} = Dictionary of Rmd header elements. Will default to self.log.obj['Info'] and HTML.
-        >> elements:list [] = List of tuples (type,content) to output into file. For R code, content will be a dictionary
-
-        This method puts together the basic elements of an R markdown file into a text document that can be knitted into
-        HTML or PDF using self.rmdKnit().
-        '''
-        try:### ~ [1] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            rcode = '---\n'
-            if not title: title = '%s - %s' % (self.prog(),self.basefile())
-            rcode += 'title: "%s"\n' % title
-            if not author: author = self.log.obj['Info'].author
-            rcode += 'author: "%s"\n' % author
-            if not date: date = rje.dateTime(dateonly=True)
-            rcode += 'date: "%s"\n' % date   #07/02/2019
-            for (key,value) in extra:
-                rcode += '%s: "%s"\n' % (key,value)
-            rcode += 'output:\n  html_document:\n    css: http://www.slimsuite.unsw.edu.au/stylesheets/slimhtml.css\n'
-            if toc: rcode += string.join(['    toc: true','    toc_float: true','    toc_collapsed: false','    toc_depth: 3','    number_sections: true',''],'\n')
-            rcode += '---\n\n'
-
-            if setup:
-                rcode += '%s\n\n<a name="Top" />\n\n' % setupTest
-
-            self.debug(rcode)
-            return rcode
-        except: self.errorLog('%s.rmdOutput error' % self.prog())
-#########################################################################################################################
-    def rmdTable(self,delimfile=None,name='dbtable',codesection=True,loadtable=True,showtable=True,delim='tab',kable=None,rows=10,cols=10):  ### Output table
-        '''
-        Output table. If the table is larger than rows tall, or cols wide, paged_table will be used. Otherwise, kable
-        will be used. This can be over-ridden by setting kable=True, or kable=False (for paged_table).
-        :param delimfile: delimited text file
-        :param name: name for data.frame (and code section if needed)
-        :param codesection: give R code wrapping text
-        :param loadtable: load table into R object
-        :param showtable: display the table
-        :param delimit: tab/csv
-        :return: text of Rmd code chunk
-        '''
-        try:### ~ [1] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            rcode = '# Load and display %s\n' % name
-            # Read table
-            if loadtable:
-                rcode = '# Load and display %s\n' % delimfile
-                if delim == 'csv':
-                    rcode += '%s <- read.csv("%s", header = TRUE, stringsAsFactors = FALSE, comment.char = "")\n' % (name,delimfile)
-                else:
-                    rcode += '%s <- read.delim("%s", header = TRUE, stringsAsFactors = FALSE, comment.char = "", fill = TRUE)\n' % (name,delimfile)
-            # Show table
-            if showtable:
-                if kable == None:
-                    rcode += 'if(nrow(%s) > %d | ncol(%s) > %d){\n' % (name,rows,name,cols)
-                    rcode += '    rmarkdown::paged_table(%s)\n' % (name)
-                    rcode += '}else{\n'
-                    rcode += '    knitr::kable(%s, row.names = FALSE)\n' % name
-                    rcode += '}\n'
-                elif kable:
-                    rcode += 'knitr::kable(%s, row.names = FALSE)\n' % name
-                else:
-                    #rcode += 'rmarkdown::paged_table(%s, options = list(rows.print = %d, max.print = %d, cols.print = %d, rownames.print = FALSE))\n' % (name,rows,max,cols)
-                    #rcode += 'rmarkdown::paged_table(%s, options = list(rows.print = %d))\n' % (name,rows)
-                    rcode += 'paged_table(%s)\n' % (name)
-            # Code section
-            if codesection:
-                codename = name
-                if codename in self.list['CodeChunks']:
-                    i = 1
-                    while '%s%d' % (name,i) in self.list['CodeChunks']: i += 1
-                    codename = '%s%d' % (name,i)
-                self.list['CodeChunks'].append(codename)
-                rcode = '```{r %s, echo=FALSE}\n%s\n```\n\n' % (codename,rcode)
-            # Return text
-            return rcode
-        except: self.errorLog('%s.rmdOutput error' % self.prog())
-#########################################################################################################################
-    def rmdTest(self):  ### Generates a test Rmd File
-        '''Generates a test Rmd File.'''
-        try:### ~ [1] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            rmdfile = self.basefile() + '.Rmd'
-            RMD = open(rmdfile,'w')
-            RMD.write(self.rmdHead())
-            #RMD.write(setupTest)
-            RMD.write(mdTest)
-            RMD.write(rcodeTest)
-            RMD.write('## Tables\n\n')
-            for tdtfile in glob.glob('*.tdt'):
-                RMD.write('```\n%s\n```\n\n%s\n\n' % (tdtfile,self.rmdTable(tdtfile)))
-            RMD.write(htmlTest)
-            RMD.close()
-            self.rmdKnit(rmdfile)
-        except: self.errorLog('%s.rmdOutput error' % self.prog())
-#########################################################################################################################
-### End of SECTION II: Rmd Class                                                                                        #
+### End of SECTION II: New Class                                                                                        #
 #########################################################################################################################
 
                                                     ### ~ ### ~ ###
@@ -387,64 +278,7 @@ class Rmd(rje_obj.RJE_Object):
 #########################################################################################################################
 ### SECTION III: MODULE METHODS                                                                                         #
 #########################################################################################################################
-def docHTML(self):  ### Generate Rmd and HTML documents from main run() method docstring.
-    '''Generate Rmd and HTML documents from main run() method docstring.'''
-    try:### ~ [1] ~ Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-        info = self.log.obj['Info']
-        if not self.getStrLC('Basefile'): self.baseFile(info.program.lower())
-        prog = '%s V%s' % (info.program,info.version)
-        rmd = Rmd(self.log,self.cmd_list)
-        rtxt = rmd.rmdHead(title='%s Documentation' % prog,author='Richard J. Edwards',setup=True)
-        #!# Replace this with documentation text?
-        rtxt += string.replace(self.run.__doc__,'\n        ','\n')
-        rtxt += '\n\n<br>\n<small>&copy; 2021 Richard Edwards | richard.edwards@unsw.edu.au</small>\n'
-        rmdfile = '%s.docs.Rmd' % self.baseFile()
-        open(rmdfile,'w').write(rtxt)
-        self.printLog('#RMD','RMarkdown %s documentation output to %s' % (prog,rmdfile))
-        rmd.rmdKnit(rmdfile)
-    except:
-        self.errorLog(self.zen())
-        raise   # Delete this if method error not terrible
-#########################################################################################################################
-headTest = '''---
-title: "RJE_RMD"
-author: "Rich Edwards"
-date: "07/02/2019"
-output: html_document
----
-'''
-#########################################################################################################################
-setupTest = '''
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-```
-'''
-#########################################################################################################################
-mdTest = '''
-## R Markdown
 
-<a name="aname">?</a>
-
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-Trying some internal links:
-
-* [cars](#cars)
-* [head2](#rmarkdown)
-* [aname](#aname)
-'''
-#########################################################################################################################
-rcodeTest = '''
-```{r cars}
-summary(cars)
-```
-'''
-#########################################################################################################################
-htmlTest = '''
-<hr>
-<small>&copy; Richard Edwards 2019</small>
-
-'''
 #########################################################################################################################
 ### END OF SECTION III                                                                                                  #
 #########################################################################################################################
@@ -458,10 +292,11 @@ def runMain():
     ### ~ [1] ~ Basic Setup of Program  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try: (info,out,mainlog,cmd_list) = setupProgram()
     except SystemExit: return  
-    except: print 'Unexpected error during program setup:', sys.exc_info()[0]; return
+    except: rje.printf('Unexpected error during program setup:', sys.exc_info()[0]); return
     
     ### ~ [2] ~ Rest of Functionality... ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-    try: Rmd(mainlog,['basefile=test']+cmd_list).run()
+    try:#NewClass(mainlog,cmd_list).run()
+        rje.printf('\n\n{0}\n\n *** No standalone functionality! *** \n\n'.format(rje_obj.zen()))
 
     ### ~ [3] ~ End ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     except SystemExit: return  # Fork exit etc.
@@ -471,7 +306,7 @@ def runMain():
 #########################################################################################################################
 if __name__ == "__main__":      ### Call runMain 
     try: runMain()
-    except: print 'Cataclysmic run error:', sys.exc_info()[0]
+    except: rje.printf('Cataclysmic run error: {0}'.format(sys.exc_info()[0]))
     sys.exit()
 #########################################################################################################################
 ### END OF SECTION IV                                                                                                   #
