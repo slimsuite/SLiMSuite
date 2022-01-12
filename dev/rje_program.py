@@ -175,6 +175,7 @@ class NewClass(rje_obj.RJE_Object):
                 #self._cmdReadList(cmd,'bool',['Att'])  # True/False Booleans
                 #self._cmdReadList(cmd,'int',['Att'])   # Integers
                 #self._cmdReadList(cmd,'float',['Att']) # Floats
+                #self._cmdReadList(cmd,'perc',['Att'])  # Percentage, converts to 1-100 scale.
                 #self._cmdReadList(cmd,'min',['Att'])   # Integer value part of min,max command
                 #self._cmdReadList(cmd,'max',['Att'])   # Integer value part of min,max command
                 #self._cmdReadList(cmd,'list',['Att'])  # List of strings (split on commas or file lines)

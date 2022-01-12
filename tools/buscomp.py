@@ -19,9 +19,10 @@
 """
 Module:       BUSCOMP
 Description:  BUSCO Compilation and Comparison tool
-Version:      0.10.1
-Last Edit:    20/01/21
-Citation:     Edwards RJ (2019). F1000Research 8:995 (slides) (doi: 10.7490/f1000research.1116972.1)
+Version:      1.0.1
+Last Edit:    10/01/22
+Citation:     Stuart KC, Edwards RJ et al. (preprint). bioRxiv 2021.04.07.438753 (doi: 10.1101/2021.04.07.438753)
+See Also:     Edwards RJ (2019). F1000Research 8:995 (slides) (doi: 10.7490/f1000research.1116972.1)
 Copyright (C) 2019  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -35,9 +36,13 @@ Function:
     `full_table_*.tsv` results table and `single_copy_busco_sequences/` directory of hit sequences. BUSCOMP ranks all
     the hits across all assemblies by Score and keeps the top-ranking hits. Ties are then resolved by Length, keeping
     the longest sequence. Ties for Score and Length will keep an arbitrary entry as the winner. Single complete hits
-    are given preference over Duplicate hits, even if they have a lower score, because only Single hit have their
+    are given preference over Duplicate hits, even if they have a lower score, because only Single hits have their
     sequences saved by BUSCO in the `single_copy_busco_sequences/` directory. This set of predicted gene sequences
     forms the "BUSCOMPSeq" gene set.
+
+    NOTE: If BUSCO v5 has been run in MetaEuk mode, the nucleotide sequences will not have been generated. BUSCOMP will
+    use the full table and `metaeuk_output/*_results/*.codon.fas` files to extract the nucleotide sequences where
+    possible.
 
     BUSCOMP uses minimap2 to map BUSCOSeq predicted CDS sequences onto genome/transcriptome assemblies, including
     those not included in the original BUSCO compilation. This way, the compiled set of species-specific BUSCO
@@ -81,6 +86,7 @@ Commandline:
     stripnum=T/F    : Whether to strip numbers ("XX_*") at start of Genome alias in output [True]
     groups=FILE     : File of Genome and Group fields to define Groups for compilation [*.groups.tdt]
     buscofas=FASFILE: Fasta file of BUSCO DNA sequences. Will combine and make (NR) if not given [None]
+    metaeukfna=T/F  : Perform v5 metaeuk nucleotide busco sequences extraction if missing [True]
     buscomp=T/F     : Whether to run BUSCO compilation across full results tables [True]
     dupbest=T/F     : Whether to rate "Duplicated" above "Complete" when compiling "best" BUSCOs across Groups [False]
     buscompseq=T/F  : Whether to run full BUSCO comparison using buscofas and minimap2 [True]
@@ -118,7 +124,7 @@ sys.path.append(os.path.join(slimsuitepath,'tools/'))
 gitcodepath = os.path.abspath(os.path.join(os.path.dirname(os.path.realpath(__file__)))) + os.path.sep
 sys.path.append(os.path.join(slimsuitepath,'../code/'))
 ### User modules - remember to add *.__doc__ to cmdHelp() below ###
-import rje, rje_obj, rje_db, rje_menu, rje_paf, rje_rmd, rje_seqlist
+import rje, rje_obj, rje_db, rje_menu, rje_paf, rje_rmd, rje_seqlist, rje_busco
 #########################################################################################################################
 def history():  ### Program History - only a method for PythonWin collapsing! ###
     '''
@@ -165,6 +171,12 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 0.9.7 - Fixed some Rmd bugs to fix output after summary table changes.
     # 0.10.0- Added Complete BUSCOMP gene table output for Diploidocus BUSCO table alternative.
     # 0.10.1- Changed BUSCOMP to be BUSCO Compilation and Comparison Tool.
+    # 0.11.0- Updated for BUSCO v5.
+    # 0.12.0- Added parsing for v5 proteome and transcriptome modes.
+    # 0.12.1- Fixed group deletion bug.
+    # 0.13.0- Added generation of missing MetaEuk *.fna files using rje_busco module.
+    # 1.0.0 - Added citation to main documentation and switched to version 1.x for release with publication.
+    # 1.0.1 - Fixed parsing of MetaEuk sequences that have extra letters to BuscoID in full table.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -208,14 +220,17 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
     # [Y] : Fix issue of group descriptions not loading.
     # [ ] : Add contig stats to output.
     # [ ] : Add warning of recalculation if complete genome.tdt file found but alias file given. (Or fix re-use issue.)
+    # [ ] : Check for conflicting BUSCO datasets.
+    # [Y] : Fix group rename/delete index error bug. Catch aliasEntry no mapping errors and don't kill group menu.
+    # [ ] : Add Duplicated Sequence incorporation for MetaEuk output?
     '''
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copy_right) = ('BUSCOMP', '0.10.1', 'January 2021', '2019')
+    (program, version, last_edit, copy_right) = ('BUSCOMP', '1.0.1', 'January 2022', '2019')
     description = 'BUSCO Compilation and Comparison tool'
     author = 'Dr Richard J. Edwards.'
-    comments = ['This program is still in development and has not been published.',rje_obj.zen()]
+    comments = ['Please raise bugs or questions at https://github.com/slimsuite/buscomp.',rje_obj.zen()]
     return rje.Info(program,version,last_edit,description,author,time.time(),copy_right,comments)
 #########################################################################################################################
 def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for more sys.argv commands
@@ -226,7 +241,7 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         ### ~ [2] ~ Look for help commands and print options if found ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         cmd_help = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
         if cmd_help > 0:
-            print '\n\nHelp for %s %s: %s\n' % (info.program, info.version, time.asctime(time.localtime(info.start_time)))
+            rje.printf('\n\nHelp for {0} {1}: {2}\n'.format(info.program, info.version, time.asctime(time.localtime(info.start_time))))
             out.verbose(-1,4,text=__doc__)
             if rje.yesNo('Show RJE_PAF (Minimap2) commandline options?',default='N'): out.verbose(-1,4,text=rje_paf.__doc__)
             if rje.yesNo('Show general commandline options?',default='N'): out.verbose(-1,4,text=rje.__doc__)
@@ -237,7 +252,7 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         return cmd_list
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Major Problem with cmdHelp()'
+    except: rje.printf('Major Problem with cmdHelp()')
 #########################################################################################################################
 def setupProgram(): ### Basic Setup of Program when called from commandline.
     '''
@@ -260,7 +275,7 @@ def setupProgram(): ### Basic Setup of Program when called from commandline.
         return (info,out,log,cmd_list)                      # Returns objects for use in program
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Problem during initial setup.'; raise
+    except: rje.printf('Problem during initial setup.'); raise
 #########################################################################################################################
 dformats = {'Complete':'int','Duplicated':'int','Fragmented':'int','Missing':'int','N':'int',
             'Sequences':'bool','Rank':'int',
@@ -441,7 +456,17 @@ class BUSCOMP(rje_obj.RJE_Object):
         tested and might give some unexpected behaviours, as some of the quoted figures will still be based on the
         calculated BUSCOMPSeq data. Please report any unexpected behaviour.
 
+        ## Citation
+
+        BUSCOMP is still under review as part of the Starling genome paper. For now, please cite the preprint:
+
+        > Stuart KC*, Edwards RJ*, Cheng Y, Warren WC, Burt DW, Sherwin WB, Hofmeister NR, Werner SJ, Ball GF, Bateson M,
+        Brandley MC, Buchanan KL, Cassey P, Clayton DF, De Meyer T, Meddle SL & Rollins LA (preprint):
+        Transcript- and annotation-guided genome assembly of the European starling.
+        [bioRxiv 2021.04.07.438753](https://www.biorxiv.org/content/10.1101/2021.04.07.438753v1.full); doi: 10.1101/2021.04.07.438753. [*Joint first authors]
+
         ---
+
 
         # Running BUSCOMP
 
@@ -457,11 +482,35 @@ class BUSCOMP(rje_obj.RJE_Object):
         For BUSCOMPSeq analysis, [minimap2](https://github.com/lh3/minimap2) must be installed and either added to the
         environment `$PATH` or given to BUSCOMP with the `minimap2=PROG` setting.
 
+        ## Quickstart
+
+        A full list of options and the workflow is provided below. The easiest/standard way to run BUSCOMP is to:
+
+        1. Stick one or more assemblies in a directory, e.g. `fasta/`
+        2. Run BUSCO on all of them in another directory, e.g. `busco/`, with `run_` prefixes (`-o setting`)
+        3. Run BUSCOMP with a `basefile=$PREFIX` setting to get `$PREFIX.*` outputs, e.g.
+
+        ```
+        # Generate a name-matched BUSCO run per genome
+        cd busco/
+        for GENOME in ../fasta/*.fasta; do
+          GENBASE=$( basename ${GENOME/.fasta/} )
+          busco -o run_$GENBASE -i $GENOME -l $LINEAGE --cpu $PPN -m genome
+        done
+        cd ../
+        # Run BUSCOMP
+        python $CODEPATH/buscomp.py runs="./busco/run_*" fastadir=./fasta/ basefile=$PREFIX
+        ```
+
+        If you want to run the full BUSCOMP comparison, make sure minimap2 is installed and give the number of threads to
+        use with `forks=$THREADNUM`. If you only want the BUSCO compilation, add `buscompseq=F`.
+
         ## Commandline options
 
         A list of commandline options can be generated at run-time using the `-h` or `help` flags. Please see the general
         [SLiMSuite documentation](http://slimsuite.blogspot.com/2013/08/command-line-options.html) for details of how to
-        use commandline options, including setting default values with **INI files**.
+        use commandline options, including setting default values with **INI files**. If anything is not clear, or for
+        questions how to perform a particular analysis, please post a question in the GitHub Issues.
 
         ```
         ### ~ Input/Output options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -474,6 +523,7 @@ class BUSCOMP(rje_obj.RJE_Object):
         stripnum=T/F    : Whether to strip numbers ("XX_*") at start of Genome alias in output [True]
         groups=FILE     : File of Genome and Group fields to define Groups for compilation [*.groups.tdt]
         buscofas=FASFILE: Fasta file of BUSCO DNA sequences. Will combine and make (NR) if not given [None]
+        metaeukfna=T/F  : Perform v5 metaeuk nucleotide busco sequences extraction if missing [True]
         buscomp=T/F     : Whether to run BUSCO compilation across full results tables [True]
         dupbest=T/F     : Whether to rate "Duplicated" above "Complete" when compiling "best" BUSCOs across Groups [False]
         buscompseq=T/F  : Whether to run full BUSCO comparison using buscofas and minimap2 [True]
@@ -529,6 +579,8 @@ class BUSCOMP(rje_obj.RJE_Object):
         `-o run_assembly.busco`. If none of these settings were used, the results directory can be manually renamed. For
         additional sorting, a XX_ numerical prefix _can_ be used (see below), e.g. `run_01_assembly` will still look
         for `assembly.*` in the `fastadir` path.
+
+        **BUSCO v5.x** From `v0.11.0`, BUSCOMP should recognised BUSCO v5 output. This will be treated like v4 output.
 
         ### BUSCOMPSeq Analysis Only
 
@@ -881,7 +933,7 @@ class BUSCOMP(rje_obj.RJE_Object):
 
         ### BUSCOMP Summary
 
-        The final step of the BUSCOMP compilation is to summarise the findings in the log afile, akin to the BUSCO
+        The final step of the BUSCOMP compilation is to summarise the findings in the log file, akin to the BUSCO
         summary file. This will first generate a one line summary of the percentages, along with the original number of
         complete BUSCOs and the number of BUSCOMP sequences contributed by that assembly (i.e. the number with the best
         score of all the BUSCO searches.) This is followed by a more detailed breakdown of each category. For example:
@@ -1485,7 +1537,7 @@ class BUSCOMP(rje_obj.RJE_Object):
                 #i# the two are the same!
 
                 # V4 conversion
-                if runtype == 'V4':
+                if runtype in ['V4','V5']:
                     runpath = glob.glob('%s/run_*' % runpath)[0]
                     runlist = ['%s/full_table.tsv' % runpath]
 
@@ -1493,12 +1545,12 @@ class BUSCOMP(rje_obj.RJE_Object):
                 for runfile in runlist:
                     #i# Single BUSCO sequence directory
                     seqdir = rje.makePath(runpath) + 'single_copy_busco_sequences'
-                    if runtype == 'V4': seqdir = rje.makePath(runpath) + 'busco_sequences/single_copy_busco_sequences'
+                    if runtype in ['V4','V5']: seqdir = rje.makePath(runpath) + 'busco_sequences/single_copy_busco_sequences'
                     #?# Replace Sequences T/F with number of *.fna files
-                    rentry = {'#':gdb.entryNum()+1,'Table':runfile,'Sequences':runtype in ['Single','V4'] and rje.exists(seqdir)}
+                    rentry = {'#':gdb.entryNum()+1,'Table':runfile,'Sequences':runtype in ['Single','V4','V5'] and rje.exists(seqdir)}
                     if rentry['Sequences']: self.printLog('#SEQDIR','Found SC BUSCO sequence directory: %s' % seqdir)
                     (rentry['Directory'],tsv) = os.path.split(runfile)
-                    if runtype == 'V4':
+                    if runtype in ['V4','V5']:
                         prefix = rundir
                         if rundir.startswith('run_'): prefix = rundir[4:]
                     else:
@@ -1507,6 +1559,19 @@ class BUSCOMP(rje_obj.RJE_Object):
                         if rje.exists(prefseqdir):
                             rentry['Sequences'] = True
                             self.printLog('#SEQDIR','Found SC BUSCO sequence directory: %s' % prefseqdir)
+                            seqdir = prefseqdir
+                    #i# Check for *.fna files and make for MetaEuk if missing
+                    fnacount = rje.getFileList(callobj=self,folder=seqdir,filelist=['*.fna'],subfolders=False,summary=True)
+                    if not fnacount:
+                        self.printLog('#FNA','No *.fna files found in {0}/'.format(seqdir))
+                        rentry['Sequences'] = False
+                        bcmd = ['metaeukfna=T'] + self.cmd_list + ['outdir=']
+                        buscobj = rje_busco.BUSCO(self.log,bcmd)
+                        buscobj.setStr({'Busco5Run':rje.makePath(runpath+'/')})
+                        buscobj.setStr({'OutDir':buscobj.getStr('Busco5Run')})
+                        if buscobj.getBool('MetaEukFNA'):
+                            rentry['Sequences'] = buscobj.fnaFromBUSCOv5()
+                            if not rentry['Sequences']: self.warnLog('Failed to generate *.fna files for {0}'.format(runpath))
                     #self.debug(rentry)
                     rentry['Prefix'] = prefix
                     # Set genome value: chop off .busco at end!
@@ -1522,15 +1587,16 @@ class BUSCOMP(rje_obj.RJE_Object):
                     prefdescfile = rje.makePath(runpath) + 'description_' + prefix + '.txt'
                     if rje.exists(prefdescfile):
                         rentry['Description'] = rje.chomp(open(prefdescfile,'r').readline())
-                    elif runtype in ['Single','V4'] and rje.exists(descfile):
+                    elif runtype in ['Single','V4','V5'] and rje.exists(descfile):
                         rentry['Description'] = rje.chomp(open(descfile,'r').readline())
-                    elif rentry['Fasta']: rentry['Description'] = rentry['Fasta']
+                    elif rentry['Fasta']:
+                        rentry['Description'] = rentry['Fasta']
                     else:
                         self.warnLog('No Fasta file found for %s' % self.genomeString(rentry))
                         rentry['Description'] = rentry['Genome'] + ' (no Fasta)'
-                    if not rentry['Sequences'] and runtype in ['Single','V4']:
+                    if not rentry['Sequences'] and runtype in ['Single','V4','V5']:
                         self.warnLog('No SC BUSCO sequence directory identified for %s' % genome)
-                    self.debug('%s' % rentry)
+                    self.bugPrint('%s' % rentry)
                     gdb.addEntry(rentry)
                 # Summarise entry
                 self.printLog('#RUNDIR','Processed %s: %d runs (%d total)' % (rundir,len(runlist),gdb.entryNum()))
@@ -1547,8 +1613,9 @@ class BUSCOMP(rje_obj.RJE_Object):
         '''
         Returns the type of BUSCO run directory given by runpath.
         - Single = Single V3 BUSCO run (default expectation)
-        - Collated = Multiple BUSCO full_table*tsv files in a single directory. (Can be V3 or V4)
+        - Collated = Multiple BUSCO full_table*tsv files in a single directory. (Can be V3, V4 or V5)
         - V4 = Single V4 BUSCO run directory.
+        - V5 = Single V5 BUSCO run directory.
         - None = No BUSCO results detected.
         :param runpath:
         :return: runtype [str]
@@ -1556,17 +1623,21 @@ class BUSCOMP(rje_obj.RJE_Object):
         try:### ~ [1] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if not os.path.isdir(runpath): return None
             runlist = glob.glob('%s/full_table*tsv' % runpath)
-            if not runlist:
-                self.debug('%s/run_*/full_table.tsv' % runpath)
-                self.debug(glob.glob('%s/run_*/full_table.tsv' % runpath))
+            #if not runlist:
+            #    self.debug('%s/run_*/full_table.tsv' % runpath)
+            #    self.debug(glob.glob('%s/run_*/full_table.tsv' % runpath))
             if len(runlist) == 1 and runlist[0] == '%s/full_table.tsv' % runpath:
-                self.warnLog('Possible internal v4 results directory: %s' % runpath)
+                self.warnLog('Possible internal v4/v5 results directory: %s' % runpath)
                 return None
             elif len(runlist) == 1: return 'Single'
             elif not runlist and len(glob.glob('%s/run_*/full_table.tsv' % runpath)) == 1:
+                fulltable = glob.glob('%s/run_*/full_table.tsv' % runpath)[0]
+                #self.debug(fulltable)
+                if 'BUSCO version is: 5' in open(fulltable, 'r').readline():
+                    return 'V5'
                 return 'V4'
             elif not runlist and len(glob.glob('%s/run_*/full_table.tsv' % runpath)) > 1:
-                self.warnLog('Possible v4 results directory but multiple run_*/full_table.tsv files: %s' % runpath)
+                self.warnLog('Possible v4/v5 results directory but multiple run_*/full_table.tsv files: %s' % runpath)
                 return None
             elif not runlist:
                 self.warnLog('No BUSCO results tables found in directory: %s' % runpath)
@@ -1884,8 +1955,10 @@ class BUSCOMP(rje_obj.RJE_Object):
                 # Generate sorted list of genomes
                 #!# Add checks for mutliple matching genome names at some point! (Could introduce with edits) #!#
                 genomes = gdb.dataList(gdb.entries(),'Genome',sortunique=True)
+                self.debug(genomes)
                 grpdb = self.db('groups')
                 groups = rje.sortKeys(grpdb.index('Group'))
+                self.debug(groups)
                 for group in groups:
                     if group in genomes: genomes.remove(group)
                     groupi = 0
@@ -1898,6 +1971,9 @@ class BUSCOMP(rje_obj.RJE_Object):
                 # Regenerate sorted list
                 newdata = {}
                 for gentry in gdb.entries():
+                    if gentry['Genome'] not in genomes:
+                        self.warnLog('Genome "{0}" had to be added back to genome list!'.format(gentry['Genome']))
+                        genomes.append(gentry['Genome'])
                     gentry['#'] = genomes.index(gentry['Genome']) + 1
                     newdata[gentry['#']] = gentry
                 gdb.dict['Data'] = newdata
@@ -2254,9 +2330,9 @@ class BUSCOMP(rje_obj.RJE_Object):
             #grpdb.addEntry({'Prefix': string.join(grpdb.indexDataList('Group',group,'Genome'),'|'),'Genome':group})
             if review and self.i() >= 0: # and rje.yesNo('Review/Edit BUSCOMP groups?'):
                 while self.i() >= 0:
-                    gtext = '\n%d BUSCOMP Groups:' % grpdb.entryNum()
+                    gtext = '\n%d BUSCOMP Genome-Group assignments:' % grpdb.entryNum()
                     grpnum = grpdb.entryNum()
-                    groups = rje.sortKeys(grpdb.index('Group'))
+                    groups = rje.sortKeys(grpdb.index('Group',force=True,log=False))
                     default = 'X'
                     i = 1
                     for group in groups:
@@ -2458,6 +2534,10 @@ class BUSCOMP(rje_obj.RJE_Object):
             gdb = self.db('genomes')
             for field in ['N']+self.list['Ratings']: gdb.addField(field,evalue=0)
             fullhead = ['BuscoID','Status','Contig','Start','End','Score','Length']
+            #i#v5 has different headers:
+            v5head = ['BuscoID','Status','Contig','Start','End','Strand','Score','Length','OrthoDBurl','Description']
+            v5trans = ["BuscoID", "Status", "Contig", "Score", "Length", "OrthoDBURL", "Description"]
+
             #?# Add option to upload and append/update existing table? Can just re-run for now - it's fast!
             fulldb = None
             buscodb = None
@@ -2470,7 +2550,12 @@ class BUSCOMP(rje_obj.RJE_Object):
 
                 # - Add to Table:full (+Genome field)
                 self.bugShush()
-                fdb = db.addTable(gentry['Table'],mainkeys='auto',headers=fullhead,expect=True,name=gentry['Genome'])
+                tabhead = fullhead
+                if 'BUSCO version is: 5' in open(gentry['Table'],'r').readline():
+                    tabhead = v5head
+                    if 'Gene Start' not in open(gentry['Table'],'r').readlines()[2]:
+                        tabhead = v5trans
+                fdb = db.addTable(gentry['Table'],mainkeys='auto',headers=tabhead,expect=True,name=gentry['Genome'])
                 logtext += ' (%s entries)' % fdb.entryNum()
                 self.talk(); self.progLog('\r#BUSCO','Processing %s...' % logtext); self.bugShush()
                 fdb.fillBlanks(blank=0,fields=['Score','Length'],fillempty=True,prog=True,log=True)
@@ -2744,6 +2829,8 @@ class BUSCOMP(rje_obj.RJE_Object):
                 if rje.exists(prefseqdir): seqdir = prefseqdir
                 elif rje.exists(v4seqdir): seqdir = v4seqdir
                 fna = seqdir + '/%s.fna' % eog
+                if not rje.exists(fna) and rje.matchExp('^(\S+\d+)\D+$', eog):
+                    fna = seqdir + '/%s.fna' % rje.matchExp('^(\S+\d+)\D+$', eog)[0]
                 if rje.exists(fna):
                     #!# Fix this! 'Qry': 'EOG0907007V:tiger.wtdbg2v1.racon.fasta:ctg_NOTSC__NSCUV1ONT0006:601178-628876'
                     fnalines = open(fna,'r').readlines()
@@ -2762,6 +2849,8 @@ class BUSCOMP(rje_obj.RJE_Object):
                     if entry['Status'] == 'Single':
                         self.warnLog('%s not found (rating=Single)' % fna)
                 faa = seqdir + '/%s.faa' % eog
+                if not rje.exists(faa) and rje.matchExp('^(\S+\d+)\D+$', eog):
+                    faa = seqdir + '/%s.faa' % rje.matchExp('^(\S+\d+)\D+$', eog)[0]
                 if rje.exists(faa):
                     faalines = open(faa,'r').readlines()
                     if string.split(faalines[0],':',maxsplit=1)[0][1:] == eog:  # BUSCO v3
@@ -2780,6 +2869,9 @@ class BUSCOMP(rje_obj.RJE_Object):
             self.printLog('#SEQ','DNA sequences for %s best (of %s total) BUSCO hits output to %s' % (rje.iStr(ex),rje.iStr(fdb.entryNum()),self.getStr('BUSCOFas')))
             self.printLog('#SEQ','Protein sequences for %s best (of %s total) BUSCO hits output to %s' % (rje.iStr(faax),rje.iStr(fdb.entryNum()),buscofaa))
 
+            if not ex:
+                self.warnLog('No *.fna BUSCO sequences compiled. Check BUSCO v5 was not run without --augustus flag.')
+                raise ValueError('No DNA sequences output to {0}'.format(self.getStr('BUSCOFas')))
             return True     # Setup successful
         except: self.errorLog('Problem during %s compileBUSCOSeqs.' % self.prog()); return False  # Setup failed
 #########################################################################################################################

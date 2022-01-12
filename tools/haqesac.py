@@ -250,7 +250,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, cyear) = ('HAQESAC', '1.143.0', 'June 2019', '2005')
+    (program, version, last_edit, cyear) = ('HAQESAC', '1.14.0', 'June 2019', '2005')
     description = 'Homologue Alignment Quality, Establishment of Subfamilies and Ancestor Construction'
     author = 'Dr Richard J. Edwards.'
     comments = ['Cite: Edwards RJ et al. (2007) Nature Chem. Biol. 3(2):108-112.']

@@ -1437,8 +1437,10 @@ class SeqList(rje.RJE_Object):
             if not dbase: dbase = self.info['Name']
             blastpath = rje.makePath(self.info['BLAST+ Path']) + 'blastdbcmd'
             if self.opt['Win32']: BLASTDBCMD = os.popen("%s -entry \"%s\" -db %s -long_seqids" % (blastpath,id,dbase))
-            else: BLASTDBCMD = os.popen('%s -entry "%s" -db %s -long_seqids' % (blastpath,id,dbase))
-            ### ~ [2] Extract details and add sequences ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###            
+            else:
+                self.bugPrint('%s -entry "%s" -db %s -long_seqids' % (blastpath,id,dbase))
+                BLASTDBCMD = os.popen('%s -entry "%s" -db %s -long_seqids' % (blastpath,id,dbase))
+            ### ~ [2] Extract details and add sequences ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             lastline = 'BLASTDBCMD'; sx = 0
             (blastseq,lastline) = self.nextFasSeq(BLASTDBCMD,lastline,raw=True)
             while blastseq:
@@ -1447,6 +1449,7 @@ class SeqList(rje.RJE_Object):
                 cmdseq.append(self._addSeq(name=name, sequence=sequence))
                 (blastseq,lastline) = self.nextFasSeq(BLASTDBCMD,lastline,raw=True)
             BLASTDBCMD.close()
+            self.bugPrint('rje_seq.seqFromBlastDBCmd -> {0} seq'.format(self.seqNum()))
             ### ~ [3] Return sequences ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if cmdseq and singleseq: return cmdseq[0]
             elif cmdseq: return cmdseq
@@ -4061,8 +4064,14 @@ def pwIDGapExtra(seq1,seq2,nomatch=['X']):    ### Returns a dictionary of stats:
                 extra[0] += 1
     return {'ID':id,'Gaps':gaps,'Extra':extra,'Len':seqlen}
 #########################################################################################################################
-def Blast2Fas(seqlist,outdir='./'): ### Will blast sequences against list of databases and compile a fasta file of results per query
-    '''Will blast sequences against list of databases and compile a fasta file of results per query.'''
+def Blast2Fas(seqlist,outdir='./',newseqlist=None): ### Will blast sequences against list of databases and compile a fasta file of results per query
+    '''
+    Will blast sequences against list of databases and compile a fasta file of results per query. blastDBcmd is being
+    very slow, so implementing a version using newseqlist dictionaries.
+    >> seqlist:rje_seq.SeqList object controlling things
+    >> outdir:str ['./'] = path for output of compiled fasta files
+    >> newseqlist:dict [None] = Dictionary of {blastdb:SeqList object}
+    '''
     try:### ~ [0] ~ General Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         blastdbs = seqlist.list['Blast2Fas'][0:]
         blast2fas = len(seqlist.list['Blast2Fas'])
@@ -4094,7 +4103,8 @@ def Blast2Fas(seqlist,outdir='./'): ### Will blast sequences against list of dat
             seqlist.printLog('#BLAST','BLASTing %s vs %s (%s; e=%s)' % (seqlist.info['Name'],dbase,blast.getStr('Type'),blast.getNum('E-Value')),log=True)
             blast.blast(use_existing=not blast.force())
             if not blast.readBLAST(clear=True,unlink=not seqlist.getBool('KeepBlast')): raise ValueError
-            tmpseq = SeqList(log=seqlist.log,cmd_list=['append=T']+seqlist.cmd_list+['seqin=None'])
+            if newseqlist: tmpseq = newseqlist[dbase]
+            else: tmpseq = SeqList(log=seqlist.log,cmd_list=['append=T']+seqlist.cmd_list+['seqin=None'])
             ## ~ [1a] Old BLAST method ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             if blast.getBool('OldBLAST'):
                 for search in blast.search:
@@ -4104,7 +4114,7 @@ def Blast2Fas(seqlist,outdir='./'): ### Will blast sequences against list of dat
                         blast.hitToSeq(seqlist=tmpseq,searchlist=[search],filename='%s%s.blast.fas' % (outdir,seq.info['AccNum']),appendfile=True)
                     else:
                         seqlist.errorLog('Search %s does not match sequence %s.' % (search.info['Name'],seq.shortName()))
-                    if not tmpseq.seq:
+                    if not tmpseq.seqs():
                         if seqlist.info['Name'] == dbase: seqlist.printLog('#ERR','%s does not find itself! Check sequence.' % (seq.info['AccNum']))
                         else: seqlist.printLog('#NULL','No hits for %s vs %s' % (seq.info['AccNum'],dbase))
             ## ~ [1b] New BLAST method ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
@@ -4112,10 +4122,12 @@ def Blast2Fas(seqlist,outdir='./'): ### Will blast sequences against list of dat
                 for seq in seqlist.seqs():
                     tmpseq.seq = []
                     filename = '%s%s.blast.fas' % (outdir,seq.info['AccNum'])
+                    seqlist.bugPrint(filename)
                     hitlist = blast.queryHits(seq.shortName())
+                    seqlist.bugPrint(hitlist)
                     if hitlist: blast.hitToSeq(tmpseq,hitlist,filename=filename,appendfile=True)
-                    if tmpseq.seqNum() != len(hitlist): tmpseq.warnLog('Only %d sequences extracted for %d %s hits!' % (tmpseq.seqNum(),len(hitlist),seq.info['AccNum']),'hit_num_mismatch',quitchoice=True,suppress=True)
-                    if not tmpseq.seq:
+                    if not newseqlist and tmpseq.seqNum() < len(hitlist): tmpseq.warnLog('Only %d sequences extracted for %d %s hits!' % (tmpseq.seqNum(),len(hitlist),seq.info['AccNum']),'hit_num_mismatch',quitchoice=True,suppress=True)
+                    if not tmpseq.seqs():
                         if seqlist.info['Name'] == dbase: seqlist.printLog('#ERR','%s does not find itself! Check sequence.' % (seq.info['AccNum']))
                         else: seqlist.printLog('#NULL','No hits for %s vs %s' % (seq.info['AccNum'],dbase))
         ### ~ [2] ~ Generate HAQESAC Batch files ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###

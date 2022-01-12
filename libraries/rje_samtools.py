@@ -19,8 +19,8 @@
 """
 Module:       rje_samtools
 Description:  RJE SAMtools parser and processor
-Version:      1.20.3
-Last Edit:    06/06/19
+Version:      1.21.0
+Last Edit:    24/03/21
 Copyright (C) 2013  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -116,6 +116,7 @@ Commandline:
     indels=T/F      : Whether to include indels in "SNP" parsing [True]
     skiploci=LIST   : List of loci to exclude from pileup parsing (e.g. mitochondria) []
     snptableout=T/F : Output filtered alleles to SNP Table [False]
+    readnames=T/F   : Output the read names to the RID file (SAM parsing only) [False]
     ### ~ SNP Frequency Options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     control=FILE    : MPileup or processed TDT file to be used for control SNP frequencies []
     treatment=FILE  : MPileup or processed TDT file to be used for treatment SNP frequencies []
@@ -211,6 +212,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 1.20.1 - Fixed mlen bug. Added catching of unmapped reads in SAM file. Fixed RLen bug. Changed softclip defaults.
     # 1.20.2 - Fixed readlen coverage bug and acut bug.
     # 1.20.3 - Fixed RLen bug.
+    # 1.21.0 - Added readnames=T/F : Output the read names to the RID file (SAM parsing only) [False]
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -259,7 +261,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copyyear) = ('rje_samtools', '1.20.3', 'June 2019', '2013')
+    (program, version, last_edit, copyyear) = ('rje_samtools', '1.21.0', 'March 2021', '2013')
     description = 'RJE SAMtools parser and processor'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_zen.Zen().wisdom()]
@@ -339,6 +341,7 @@ class SAMtools(rje_obj.RJE_Object):
     - MajMut = Whether to restrict output and stats to positions with non-reference Major Allele [True]
     - MajRef = Whether to restrict output and stats to positions with non-reference Major Allele [False]
     - ReadLen=T/F         : Include read length data for the readcheck file (if depthplot=T) [True]
+    - ReadNames=T/F   : Output the read names to the RID file (SAM parsing only) [False]
     - RGraphics=T/F       : Whether to generate PNG graphics using R. (Needs R installed and setup) [True]
     - RID=T/F         : Whether to include Read ID (number) lists for each allele [False]
     - SNPFreq=T/F       : Whether this is a snpfreq run: set snponly=F
@@ -632,7 +635,10 @@ class SAMtools(rje_obj.RJE_Object):
             self.printLog('#~~#','## ~~~~~ Parsing SAM File: %s ~~~~~ ##' % filename)
             #!# Possible parsing of lengths from read files #!#
             RIDOUT = open(ridfile,'w')
-            rje.writeDelimit(RIDOUT,outlist=['RID','Locus','Start','End','RLen','MLen','Clip5','Clip3'],delimit='\t')
+            if self.getBool('ReadNames'):
+                rje.writeDelimit(RIDOUT, outlist=['RID', 'Locus', 'Start', 'End', 'RLen', 'MLen', 'Clip5', 'Clip3', 'Name'], delimit='\t')
+            else:
+                rje.writeDelimit(RIDOUT,outlist=['RID','Locus','Start','End','RLen','MLen','Clip5','Clip3'],delimit='\t')
             #if filename.endswith('.bam'): SAM = os.popen('samtools view -h %s -o sam -@ 16' % filename)
             if filename.endswith('.bam'): SAM = os.popen('samtools view %s' % filename)
             else: SAM = open(filename,'r')
@@ -689,8 +695,9 @@ class SAMtools(rje_obj.RJE_Object):
                 except:
                     self.errorLog('Problem with cigar string (RID:%d): "%s"' % (rid,cigstr))
 
-
-                rje.writeDelimit(RIDOUT,outlist=[rid,locus,rpos,rpos+cigarAlnLen(cigdata)-1,rlen,mlen,clip5,clip3],delimit='\t')
+                outdata = [rid,locus,rpos,rpos+cigarAlnLen(cigdata)-1,rlen,mlen,clip5,clip3]
+                if self.getBool('ReadNames'): outdata.append(rname)
+                rje.writeDelimit(RIDOUT,outlist=outdata,delimit='\t')
             self.printLog('#RID','Parsed %s: %s read start/end positions output to %s' % (filename,rje.iStr(rid),ridfile))
             if unmappedx: self.printLog('#SAM','Parsed and rejected %s unmapped reads.' % (rje.iStr(unmappedx)))
             if oldblasrwarn: self.warnLog(oldblasrwarn)
@@ -765,6 +772,7 @@ class SAMtools(rje_obj.RJE_Object):
             if self.getBool('RID'):
                 outfields.append('RID')
             if ridout:
+                if self.getBool('ReadNames'): self.warnLog('NOTE: readnames=T output is not possible with pileup parsing')
                 RIDOUT = open(ridfile,'w')
                 rje.writeDelimit(RIDOUT,outlist=['RID','Locus','Start','End'],delimit='\t')
             PILEUP = open(filename,'r'); px = 0; ex = 0

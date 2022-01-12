@@ -19,8 +19,8 @@
 """
 Program:      MultiHAQ
 Description:  Multi-Query HAQESAC controller
-Version:      1.4.3
-Last Edit:    31/07/20
+Version:      1.5.0
+Last Edit:    23/09/20
 Citation:     Jones, Edwards et al. (2011), Marine Biotechnology 13(3): 496-504. [PMID: 20924652]
 Copyright (C) 2009  Richard J. Edwards - See source code for GNU License Notice
 
@@ -75,7 +75,7 @@ import os, string, sys, time
 ### User modules - remember to add *.__doc__ to cmdHelp() below ###
 sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)),'../libraries/'))
 sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)),'../tools/'))
-import haqesac, rje, rje_seq, rje_zen
+import haqesac, rje, rje_seq, rje_seqlist, rje_zen
 import slimfarmer
 #########################################################################################################################
 def history():  ### Program History - only a method for PythonWin collapsing! ###
@@ -92,6 +92,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 1.4.1 - Added haqblastdir=PATH: Directory in which MultiHAQ BLAST2FAS BLAST runs will be performed [./HAQBLAST/]
     # 1.4.2 - Fixed issue with SLiMFarmer for i<0 runs.
     # 1.4.3 - Updated warnings if BLAST2FAS files not found.
+    # 1.5.0 - Updated BLAST2FAS code to use rje_seqlist for speed up.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -106,7 +107,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, cyear) = ('MULTIHAQ', '1.4.2', 'July 2020', '2009')
+    (program, version, last_edit, cyear) = ('MULTIHAQ', '1.5.0', 'September 2021', '2009')
     description = 'Multi-Query HAQESAC controller'
     author = 'Dr Richard J. Edwards.'
     comments = ['Please cite: Jones, Edwards et al. (2011), Marine Biotechnology 13(3): 496-504.',
@@ -121,7 +122,7 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         ### ~ [2] ~ Look for help commands and print options if found ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         helpx = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
         if helpx > 0:
-            print '\n\nHelp for %s %s: %s\n' % (info.program, info.version, time.asctime(time.localtime(info.start_time)))
+            rje.printf('\n\nHelp for {0} {1}: {2}\n'.format(info.program, info.version, time.asctime(time.localtime(info.start_time))))
             out.verbose(-1,4,text=__doc__)
             if rje.yesNo('Show HAQESAC commandline options?'): out.verbose(-1,4,text=haqesac.__doc__)
             if rje.yesNo('Show general commandline options?',default='N'): out.verbose(-1,4,text=rje.__doc__)
@@ -132,7 +133,7 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         return cmd_list
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Major Problem with cmdHelp()'
+    except: rje.printf('Major Problem with cmdHelp()')
 #########################################################################################################################
 def setupProgram(): ### Basic Setup of Program when called from commandline.
     '''
@@ -155,7 +156,7 @@ def setupProgram(): ### Basic Setup of Program when called from commandline.
         return (info,out,log,cmd_list)                      # Returns objects for use in program
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Problem during initial setup.'; raise
+    except: rje.printf('Problem during initial setup.'); raise
 #########################################################################################################################
 ### END OF SECTION I                                                                                                    #
 #########################################################################################################################
@@ -275,13 +276,13 @@ class MultiHAQ(rje.RJE_Object):
             need2blast = self.opt['Force']
             null_file = '%s.blast2fas_null.txt' % self.baseFile(); nx = 0; null_list = []
             if os.path.exists(null_file): null_list = string.split(open(null_file,'r').read(),'\n')
-            self.debug(null_file)
+            #self.debug(null_file)
             for seq in self.seqs():
                 if seq.info['AccNum'] in null_list: nx += 1; continue
                 hfile = rje.makePath('%s%s.fas' % (self.info['HaqDir'],seq.info['AccNum']),wholepath=True)
                 for db in self.obj['SeqList'].list['Blast2Fas']:
-                    self.debug(rje.isYounger(hfile,db))
-                    self.debug(rje.isYounger(hfile,db) == hfile)
+                    #self.debug(rje.isYounger(hfile,db))
+                    #self.debug(rje.isYounger(hfile,db) == hfile)
                     need2blast = need2blast or not rje.isYounger(hfile,db) == hfile
             if not need2blast:
                 self.printLog('#BLAST','All HAQESAC input files found (%s w/o BLAST hits) - no BLAST2Fas (force=F)' % nx)
@@ -291,7 +292,14 @@ class MultiHAQ(rje.RJE_Object):
             if self.getInt('MultiCut'): self.obj['SeqList'].cmd_list += ['blastb=%d' % self.getInt('MultiCut'),'blastv=%d' % self.getInt('MultiCut')]
             elif self.getInt('BlastCut'): self.obj['SeqList'].cmd_list += ['blastb=%d' % self.getInt('BlastCut'),'blastv=%d' % self.getInt('BlastCut')]
             if self.getInt('Forks'): self.obj['SeqList'].cmd_list += ['blasta=%d' % self.getInt('Forks')]
-            rje_seq.Blast2Fas(self.obj['SeqList'],self.getStr('HAQBLASTDir'))
+
+            newseqlist = {}
+            for blastdb in self.obj['SeqList'].list['Blast2Fas'][0:]:
+                newseqlist[blastdb] = rje_seqlist.SeqList(self.log,self.obj['SeqList'].cmd_list+['seqin={0}'.format(blastdb),'seqmode=file'])
+                newseqlist[blastdb].seqNameDic()
+            rje_seq.Blast2Fas(self.obj['SeqList'],self.getStr('HAQBLASTDir'),newseqlist)
+            #rje_seq.Blast2Fas(self.obj['SeqList'],self.getStr('HAQBLASTDir'))
+
             for seq in self.seqs():
                 sbfile = '%s%s.blast.fas' % (self.getStr('HAQBLASTDir'),seq.info['AccNum'])
                 if os.path.exists(sbfile):
@@ -315,6 +323,7 @@ class MultiHAQ(rje.RJE_Object):
             ### ~ [1] Make INI File ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             haqcmd = []
             for cmd in self.cmd_list:
+                if cmd.startswith('blast2fas'): continue
                 if cmd[:4].lower() != 'ini=': haqcmd.append(cmd)
             if self.opt['MultiHAQ']: haqcmd += ['multihaq=T','force=F']
             open(inifile,'w').write(string.join(haqcmd,'\n'))
@@ -489,7 +498,7 @@ def runMain():
     ### ~ [1] ~ Basic Setup of Program  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try: (info,out,mainlog,cmd_list) = setupProgram()
     except SystemExit: return  
-    except: print 'Unexpected error during program setup:', sys.exc_info()[0]; return
+    except: rje.printf('Unexpected error during program setup:', sys.exc_info()[0]); return
     
     ### ~ [2] ~ Rest of Functionality... ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try: MultiHAQ(mainlog,cmd_list).run()
@@ -502,7 +511,7 @@ def runMain():
 #########################################################################################################################
 if __name__ == "__main__":      ### Call runMain 
     try: runMain()
-    except: print 'Cataclysmic run error:', sys.exc_info()[0]
+    except: rje.printf('Cataclysmic run error: {0}'.format(sys.exc_info()[0]))
     sys.exit()
 #########################################################################################################################
 ### END OF SECTION IV                                                                                                   #

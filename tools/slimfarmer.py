@@ -87,6 +87,7 @@ Commandline:
     pypath=PATH     : Path to python modules [slimsuite home directoy]
     qpath=PATH      : Path to change directory too [current path]
     pause=X         : Wait X seconds before attempting showstart [5]
+    jobwait=T/F     : Whether to wait for the job to finish before exiting [False]
     email=X         : Email address to email job stats to at end ['']
     mailstart=T/F   : Whether to email user at start of run [False]
     depend=LIST     : List of job ids to wait for before starting job (dependhpc=X added) []

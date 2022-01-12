@@ -1,0 +1,158 @@
+## Previous SLiMSuite release (1.10.0)
+
+APHID: Automated Processing of High-resolution Intensity Data
+|-- Current version: APHID v2.2.1
+|-- Last Edit: 10/07/14
+|-- Latest update: v2.2.1 - Minor bug fix.
+BADASP: Burst After Duplication with Ancestral Sequence Prediction
+|-- Current version: BADASP v1.3.1
+|-- Last Edit: 28/03/15
+|-- Latest update:
+BUDAPEST: Bioinformatics Utility for Data Analysis of Proteomics on ESTs
+|-- Current version: BUDAPEST v2.3
+|-- Last Edit: 31/07/13
+|-- Latest update: v2.3 - Updated to use rje_blast_V2. Needs further updates for BLAST+. Deleted obsolete OLDreadMascot() method.
+BUSCOMP: BUSCO Compilation and Comparison tool
+|-- Current version: BUSCOMP v0.10.1
+|-- Last Edit: 20/01/21
+|-- Latest update: v0.10.1- Changed BUSCOMP to be BUSCO Compilation and Comparison Tool.
+CompariMotif: Motif vs Motif Comparison
+|-- Current version: CompariMotif v3.14.1
+|-- Last Edit: 12/11/19
+|-- Latest update: v3.14.1 - Fixed forking memsaver mode to take (Q)SLiMFinder input format.
+Diploidocus: Diploid genome assembly analysis toolkit.
+|-- Current version: Diploidocus v0.14.0
+|-- Last Edit: 20/01/21
+|-- Latest update: v0.14.0 - Added HiFi read type.
+FIESTA: Fasta Input EST Analysis
+|-- Current version: FIESTA v1.9.0
+|-- Last Edit: 26/11/14
+|-- Latest update: v1.9.0 - Altered HAQDB to be a list of files rather than just one.
+GABLAM: Global Analysis of BLAST Local AlignMents
+|-- Current version: GABLAM v2.30.5
+|-- Last Edit: 13/11/19
+|-- Latest update: v2.30.5 - Fixed missing BLAST database for sequence extraction.
+GASP: Gapped Ancestral Sequence Prediction
+|-- Current version: GASP v2.0.0
+|-- Last Edit: 08/03/18
+|-- Latest update: v2.0.0 - Upgraded to rje_obj framework for REST server.
+GFESSA: Genome-Free EST SuperSAGE Analysis
+|-- Current version: GFESSA v1.4
+|-- Last Edit: 20/08/13
+|-- Latest update: v1.4 - Switched to rje_blast_V2. More work needed for BLAST+.
+GOPHER: Generation of Orthologous Proteins from Homology-based Estimation of Relationships
+|-- Current version: GOPHER v3.5.4
+|-- Last Edit: 21/12/20
+|-- Latest update: v3.5.4 - Added a try/except to catch some errors Norman was getting.
+HAPPI: Hyperlinked Analysis of Protein-Protein Interactions
+|-- Current version: HAPPI v1.1
+|-- Last Edit: 06/03/13
+|-- Latest update: v1.2 - Added addclass and refined output for Host-Pathogen PPI analysis.
+HAQESAC: Homologue Alignment Quality, Establishment of Subfamilies and Ancestor Construction
+|-- Current version: HAQESAC v1.143.0
+|-- Last Edit: 25/06/19
+|-- Latest update: v1.14.0 - Added keepvar=LIST to enable auto-retention of vairants for multiple species
+MULTIHAQ: Multi-Query HAQESAC controller
+|-- Current version: MULTIHAQ v1.4.2
+|-- Last Edit: 31/07/20
+|-- Latest update: v1.4.3 - Updated warnings if BLAST2FAS files not found.
+PAFScaff: Pairwise mApping Format reference-based scaffold anchoring and super-scaffolding
+|-- Current version: PAFScaff v0.4.1
+|-- Last Edit: 25/08/20
+|-- Latest update: v0.4.1 - Fixed some issues with ambiguous scaffold output.
+PAGSAT: Pairwise Assembled Genome Sequence Analysis Tool
+|-- Current version: PAGSAT v2.7.0
+|-- Last Edit: 03/09/20
+|-- Latest update: v2.7.1 - Fixed bug that caused assembly PNGs to disappear.
+PeptCluster: Peptide Clustering Module
+|-- Current version: PeptCluster v1.5.4
+|-- Last Edit: 01/11/17
+|-- Latest update: v1.5.4 - Fixed error message error.
+PICSI: Proteomics Identification from Cross-Species Inference
+|-- Current version: PICSI v1.2
+|-- Last Edit: 26/03/14
+|-- Latest update: v1.2 - Updated to BUDAPEST 2.3 and rje_mascot.
+PINGU: Protein Interaction Network & GO Utility (v3.x)
+|-- Current version: PINGU v3.9
+|-- Last Edit: 16/07/13
+|-- Latest update: v3.9 - Tidied imports.
+PINGU: Protein Interaction Network & GO Utility
+|-- Current version: PINGU v4.10.0
+|-- Last Edit: 21/05/19
+|-- Latest update: v4.10.0 - Added hubfield and spokefield options for parsing hublist.
+PRESTO: Peptide Regular Expression Search Tool
+|-- Current version: PRESTO v5.0
+|-- Last Edit: 22/01/07
+|-- Latest update:
+QSLiMFinder: Query Short Linear Motif Finder
+|-- Current version: QSLiMFinder v2.3.0
+|-- Last Edit: 24/05/19
+|-- Latest update: v2.3.0 - Modified qregion=X,Y to be 1-L numbering.
+SAAGA: GeMoMa output processing module
+|-- Current version: SAAGA v0.5.4
+|-- Last Edit: 20/11/20
+|-- Latest update: v0.5.4 - Added restricted feature parsing from GFF. Fixed GFF type input bug.
+SAMPhaser: Diploid chromosome phasing from SAMTools Pileup format
+|-- Current version: SAMPhaser v0.10.0
+|-- Last Edit: 20/01/21
+|-- Latest update: v0.10.0 - Added HiFi read type.
+SeqMapper: Sequence Mapping Program
+|-- Current version: SeqMapper v2.3.0
+|-- Last Edit: 17/10/18
+|-- Latest update: v2.3.0 - Added GABLAM-free method.
+SeqSuite: Miscellaneous biological sequence analysis tools suite
+|-- Current version: SeqSuite v1.25.0
+|-- Last Edit: 01/02/21
+|-- Latest update: v1.25.0 - Added SeqMapper and SAMPhaser.
+SLiMBench: Short Linear Motif prediction Benchmarking
+|-- Current version: SLiMBench v2.19.0
+|-- Last Edit: 31/01/19
+|-- Latest update: v2.19.0 - Implemented dataset=LIST: List of headers to split dataset into. If blank, will use datatype defaults. []
+SLiMFarmer: SLiMSuite HPC job farming control program
+|-- Current version: SLiMFarmer v1.10.2
+|-- Last Edit: 30/07/20
+|-- Latest update: v1.10.2 - Fixed bug when SLiMFarmer batch run being called from another program, e.g. MultiHAQ
+SLiMFinder: Short Linear Motif Finder
+|-- Current version: SLiMFinder v5.4.0
+|-- Last Edit: 24/05/19
+|-- Latest update: v5.4.0 - Modified qregion=X,Y to be 1-L numbering.
+SLiMMaker: SLiM generator from aligned peptide sequences
+|-- Current version: SLiMMaker v1.7.0
+|-- Last Edit: 01/02/17
+|-- Latest update: v1.7.0 - Added maxlen parameter.
+SLiMMutant: Short Linear Motif Mutation analysis
+|-- Current version: SLiMMutant v1.3
+|-- Last Edit: 16/09/14
+|-- Latest update: v1.3 - Added SLiMPPI analysis (will set analyse=T). Started basing on SLiMCore
+SLiMParser: SLiMSuite REST output parsing tool
+|-- Current version: SLiMParser v0.6.0
+|-- Last Edit: 22/05/19
+|-- Latest update: v0.6.0 - Improved functionality as replacement pureapi with rest=jobid and rest=check functions.
+SLiMProb: Short Linear Motif Probability tool
+|-- Current version: SLiMProb v2.5.1
+|-- Last Edit: 06/09/17
+|-- Latest update: v2.5.1 - Updated resfile to be set by basefile if no resfile=X setting given.
+SLiMSearch: Short Linear Motif Regular Expression Search Tool
+|-- Current version: SLiMSearch v1.7
+|-- Last Edit: 03/12/15
+|-- Latest update: v1.7.1 - Minor modification to docstring. Preparation for update to SLiMSearch 2.0 optimised for proteome searches.
+SLiMSuite: Short Linear Motif analysis Suite
+|-- Current version: SLiMSuite v1.10.0
+|-- Last Edit: 01/02/21
+|-- Latest update: v1.10.0- Various program updates: see release_notes.txt.
+SMRTSCAPE: SMRT Subread Coverage & Assembly Parameter Estimator
+|-- Current version: SMRTSCAPE v2.2.3
+|-- Last Edit: 11/07/18
+|-- Latest update: v2.2.3 - Fixed bug where SMRT subreads are not returned by seqlist in correct order. Fixed RQ=0 bug.
+Snapper: Genome-wide SNP Mapper
+|-- Current version: Snapper v1.8.0
+|-- Last Edit: 22/01/21
+|-- Latest update: v1.8.0 - Added dochtml=T and modified docstring for standalone git repo.
+SynBad: Synteny-based scaffolding adjustment
+|-- Current version: SynBad v0.5.0
+|-- Last Edit: 20/01/21
+|-- Latest update: v0.5.0 - Added HiFi read type. Changed default to gapmode=gapass.
+UNIFAKE: Fake UniProt DAT File Generator
+|-- Current version: UNIFAKE v1.3
+|-- Last Edit: 17/04/12
+|-- Latest update: v1.3 - Removed searching in UniProt if not UniReal features given.

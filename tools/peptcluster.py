@@ -21,7 +21,7 @@ Module:       PeptCluster
 Description:  Peptide Clustering Module
 Version:      1.5.4
 Last Edit:    01/11/17
-Webserver:    http://bioware.soton.ac.uk/peptcluster.html
+Webserver:    http://www.slimsuite.unsw.edu.au/servers/peptcluster.php
 Copyright (C) 2012  Richard J. Edwards - See source code for GNU License Notice
 
 Function:

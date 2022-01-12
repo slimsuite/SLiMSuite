@@ -19,8 +19,8 @@
 """
 Module:       Snapper
 Description:  Genome-wide SNP Mapper
-Version:      1.8.0
-Last Edit:    22/01/21
+Version:      1.8.1
+Last Edit:    12/03/21
 Copyright (C) 2016  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -88,7 +88,7 @@ Commandline:
     ftbest=LIST     : List of features to exclude if earlier feature in list overlaps position [(see above)]
     ### ~ SNP Mapping Options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     snpmap=FILE     : Input table of SNPs for standalone mapping and output (should have locus and pos info) [None]
-    snphead=LIST    : List of SNP file headers []
+    snphead=LIST    : List of SNP file headers (should include Locus, Pos and ALT fields) []
     snpdrop=LIST    : List of SNP fields to drop []
     altpos=T/F      : Whether SNP file is a single mapping (with AltPos) (False=BCF) [True]
     altft=T/F       : Use AltLocus and AltPos for feature mapping (if altpos=T) [False]
@@ -130,6 +130,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 1.6.1 - Fixed bug for reducing to unique-unique pairings that was over-filtering.
     # 1.7.0 - Added mapper=minimap setting, compatible with GABLAM v2.30.0 and rje_paf v0.1.0.
     # 1.8.0 - Added dochtml=T and modified docstring for standalone git repo.
+    # 1.8.1 - Bug fixing SNPMap mode.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -163,7 +164,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copy_right) = ('Snapper', '1.8.0', 'January 2021', '2016')
+    (program, version, last_edit, copy_right) = ('Snapper', '1.8.1', 'March 2021', '2016')
     description = 'Genome-wide SNP Mapper'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_obj.zen()]
@@ -743,7 +744,9 @@ class Snapper(rje_obj.RJE_Object):
         try:### ~ [1] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if not self.getStrLC('Reference'): raise IOError('No reference=FILE given!')
             self.obj['DB'] = rje_db.Database(self.log,self.cmd_list+['TupleKeys=True'])
-            self.obj['SeqList'] = rje_seqlist.SeqList(self.log,self.cmd_list+['autoload=T','seqmode=file'])
+            scmd = ['autoload=F','seqmode=file']
+            if self.getStrLC('SeqIn'): scmd = ['autoload=T','seqmode=file']
+            self.obj['SeqList'] = rje_seqlist.SeqList(self.log,self.cmd_list+scmd)
             ## ~ [1a] Setup FastQ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             fastqfile = '%s.fastq' % rje.baseFile(self.getStr('SeqIn'))
             self.dict['QScore'] = {}
@@ -763,7 +766,8 @@ class Snapper(rje_obj.RJE_Object):
             # This will take a fasta or genbank file. If genbank, will check/generate feature table and use *.full.fas
             # for sequence mapping for SNP effects. If fasta file but <SEQBASE>.gb or <SEQIN>.gb is present, this genbank
             # file will be used if required. Otherwise ftfile=FILE must be present.
-            if self.getStrLC('SNPMap'): self.cmd_list.append('snpfile=%s' % self.getStrLC('SNPFile'))
+            self.printLog('#SNPMAP','snpmap={0}: {1}'.format(self.getStr('SNPMap'),rje.exists(self.getStr('SNPMap'))))
+            if self.getStrLC('SNPMap'): self.cmd_list.append('snpfile=%s' % self.getStr('SNPMap'))
             self.obj['SNPMap'] = snp_mapper.SNPMap(self.log,self.cmd_list)
             self.obj['SNPMap'].setStr({'SeqIn':self.getStr('Reference')})
             self.obj['SNPMap'].setupReference()

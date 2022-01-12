@@ -19,9 +19,10 @@
 """
 Module:       SAAGA
 Description:  Summarise, Annotate & Assess Genome Annotations
-Version:      0.5.4
-Last Edit:    20/11/20
-Citation:     Edwards RJ et al. (2020), bioRxiv https://doi.org/10.1101/2020.11.11.379073
+Version:      0.7.7
+Last Edit:    25/11/21
+Citation:     Edwards RJ et al. (2021), BMC Genomics 22, 188 https://doi.org/10.1186/s12864-021-07493-6
+Assess Citation:  Stuart KC et al. (2021), bioRvix https://doi.org/10.1101/2021.04.07.438753
 GitHub:       http://github.com/slimsuite/saaga
 Copyright (C) 2020  Richard J. Edwards - See source code for GNU License Notice
 
@@ -39,26 +40,30 @@ Run modes:
     longest = Extract the longest protein per gene
     mmseq = Run the mmseq2 steps in preparation for further analysis
     summarise = Summarise annotation from GFF file
+    taxonomy = Summarise taxonomic assignments for contamination assessments (Taxolotl)
 
 Commandline:
     ### ~ Input/Output options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     seqin=FILE      : Protein annotation file to assess [annotation.faa]
     gffin=FILE      : Protein annotation GFF file [annotation.gff]
     cdsin=FILE      : Optional transcript annotation file for renaming and/or longest isoform extraction [annotation.fna]
+    assembly=FILE   : Optional genome fasta file (required for some outputs) [None]
     refprot=FILE    : Reference proteome for mapping data onto [refproteome.fasta]
-    refdb=FILE      : Reference proteome MMseq2 database (over-rule mmseqdb path) []
-    mmseqdb=PATH    : Directory in which to find/create mmseqs2 databases [./mmseqdb/]
-    mmsearch=PATH   : Directory in which to find/create mmseqs2 databases [./mmsearch/]
+    refdb=FILE      : Reference proteome MMseqs2 database (over-rules mmseqdb path) []
+    mmseqdb=PATH    : Directory in which to find/create MMseqs2 databases [./mmseqdb/]
+    mmsearch=PATH   : Directory in which to find/create MMseqs2 databases [./mmsearch/]
     basefile=X      : Prefix for output files [$SEQBASE.$REFBASE]
     gffgene=X       : Label for GFF gene feature type ['gene']
     gffcds=X        : Label for GFF CDS feature type ['CDS']
     gffmrna=X       : Label for GFF mRNA feature type ['mRNA']
+    gffdesc=X       : GFF output field label for annotated proteins (e.g. note, product) [product]
     ### ~ Run mode options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     annotate=T/F    : Rename annotation using reference annotation (could be Swissprot) [False]
     assess=T/F      : Assess annotation using reference annotation [False]
     longest=T/F     : Extract longest protein per gene into *.longest.faa [False]
-    mmseqs=T/F      : Run the mmseq2 steps in preparation for further analysis [True]
+    mmseqs=T/F      : Run the MMseqs2 steps in preparation for further analysis [True]
     summarise=T/F   : Summarise annotation from GFF file [True]
+    taxonomy=T/F    : Summarise taxonomic assignments for contamination assessments (Taxolotl) [False]
     dochtml=T/F     : Generate HTML SAAGA documentation (*.docs.html) instead of main run [False]
     ### ~ Search and filter options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     tophits=INT     : Restrict mmseqs hits to the top X hits [250]
@@ -69,6 +74,18 @@ Commandline:
     ### ~ Batch Run options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     batchseq=FILELIST   : List of seqin=FILE annotation proteomes for comparison
     batchref=FILELIST   : List of refprot=FILE reference proteomes for comparison
+    ### ~ Taxonomy options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+    taxdb=FILE      : MMseqs2 taxonomy database for taxonomy assignment [seqTaxDB]
+    taxbase=X       : Output prefix for taxonomy output [$SEQBASE.$TAXADB]
+    taxorfs=T/F     : Whether to generate ORFs from assembly if no seqin=FILE given [True]
+    taxbyseq=T/F    : Whether to parse and generate taxonomy output for each assembly (GFF) sequence [True]
+    taxbycontig=T/F : Whether to generate taxonomy output for each contig if the assembly is loaded [True]
+    taxbyseqfull=T/F: Whether generate full easy taxonomy report outputs for each assembly (GFF) sequence [False]
+    taxsubsets=FILELIST : Files (fasta/id) with sets of assembly input sequences (matching GFF) to summarise []
+    taxlevels=LIST  : List of taxonomic levels to report (* for superkingdom and below) ['*']
+    taxwarnrank=X   : Taxonomic rank (and above) to warn when deviating for consensus [family]
+    bestlineage=T/F : Whether to enforce a single lineage for best taxa ratings [True]
+    mintaxnum=INT   : Minimum gene count in main dataset to keep taxon, else merge with higher level [2]
     ### ~ System options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     forks=X         : Number of parallel sequences to process at once [0]
     killforks=X     : Number of seconds of no activity before killing all remaining forks. [36000]
@@ -79,7 +96,7 @@ Commandline:
 #########################################################################################################################
 ### SECTION I: GENERAL SETUP & PROGRAM DETAILS                                                                          #
 #########################################################################################################################
-import os, string, sys, time
+import os, re, string, sys, time
 slimsuitepath = os.path.abspath(os.path.join(os.path.dirname(os.path.realpath(__file__)),'../')) + os.path.sep
 sys.path.append(os.path.join(slimsuitepath,'libraries/'))
 sys.path.append(os.path.join(slimsuitepath,'tools/'))
@@ -100,32 +117,55 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 0.5.2 - Fixed issue with swapped transcript and exon feature identifiers following v0.5.1 tidying.
     # 0.5.3 - Added pident compatibility with updated mmseq2. Updated documentation. Modified some stats calculations.
     # 0.5.4 - Added restricted feature parsing from GFF. Fixed GFF type input bug.
+    # 0.6.0 - Added more graceful failure if no sequences loaded. Added GFF renaming output field options. Fixed GFF output bug.
+    # 0.7.0 - Added taxonomy mode for taxonomic summaries and contamination checks.
+    # 0.7.1 - Added taxorfs setting to generate ORFs in absence of GFF or protein file.
+    # 0.7.2 - Updated docstring. Added rating to lca_genes. Add batchrun for matching seqin/gffin pairs. Added GFF output.
+    # 0.7.3 - Fixed lca_genes rating and added taxbycontig=T/F taxonomy output for each contig if the assembly is loaded.
+    # 0.7.4 - Updated some of the outputs to Taxolotl rather than SAAGA.
+    # 0.7.5 - Added bestlineage=T/F : Whether to enforce a single lineage for best taxa ratings [True]
+    # 0.7.6 - Fixed GFF output.
+    # 0.7.7 - Fixed contig output for Taxolotl.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
     '''
-    # [ ] : Populate Module Docstring with basic info.
-    # [ ] : Populate makeInfo() method with basic info.
-    # [ ] : Add full description of program to module docstring.
-    # [ ] : Create initial working version of program.
-    # [ ] : Add REST outputs to restSetup() and restOutputOrder()
+    # [Y] : Populate Module Docstring with basic info.
+    # [Y] : Populate makeInfo() method with basic info.
+    # [Y] : Add full description of program to module docstring.
+    # [Y] : Create initial working version of program.
+    # [?] : Add REST outputs to restSetup() and restOutputOrder()
     # [ ] : Add to SLiMSuite or SeqSuite.
     # [ ] : Add option to only update "Protein of unknown function" annotations using single reference or iteratively.
     # [ ] : Move some functionality into a rje_mmseq2.py module?
     # [ ] : Add passing of MMSeqs options to tweak the sensitivity.
-    # [ ] : Need to separate some of the summarise and assess functions into GFF +/- for batch assessment.
+    # [?] : Need to separate some of the summarise and assess functions into GFF +/- for batch assessment.
+    # [Y] : Add BatchRun options.
+    # [ ] : Document BatchRun options.
     # [ ] : Add mmsearchdir to output names to keep things clean. (And option to clean up everything at end)
-    # [ ] : Add descriptions to longest output if annotate=True (read output back in as seqin object)
-    # [ ] : Add descriptions to GFF and transcript file.
+    # [Y] : Add descriptions to longest output if annotate=True (read output back in as seqin object)
+    # [Y] : Add descriptions to GFF and transcript file.
     # [Y] : Speed up the GFF parsing.
+    # [Y] : Implement taxonomy mode.
+    # [?] : Add taxnoranks=T/F  : Whether to include re-labelled "no rank" or "clade" taxonomic levels in output [False]
+    # [ ] : Add loading of assembly and then summary of percentage coverage of gene and coding sequences.
+    # [Y] : Add taxbycontig=T/F if the assembly is loaded. (Get contig generation from seqlist or synbad?)
+    # [Y] : Add GFF output of taxa ratings withing rating=good/bad/none and note="taxrank:taxid:taxname (taxlineage list)"
+    # [Y] : Move Taxonomy functions to new Taxolotl program. Remove SAAGA from taxonomy outputs.
+    # [ ] : Fix protein sequence name mapping for taxonomy mode in line with rest of SAAGA.
+    # [ ] : Add window and region badtaxa scanning. (Could be useful for HGT detection?)
+    # [ ] : Add CAI calculation.
+    # [ ] : Tidy up the d.p. output for the stats table.
     '''
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copy_right) = ('SAAGA', '0.5.4', 'November 2020', '2020')
-    description = 'GeMoMa output processing module'
+    (program, version, last_edit, copy_right) = ('SAAGA', '0.7.7', 'November 2021', '2020')
+    description = 'Summarise, Annotate & Assess Genome Annotations'
     author = 'Dr Richard J. Edwards.'
-    comments = ['This program is still in development and has not been published.',rje_obj.zen()]
+    comments = ['Citation: Edwards RJ et al. (2021), BMC Genomics 22, 188.',
+                'Assess Citation: Stuart KC et al. (2021), bioRvix https://doi.org/10.1101/2021.04.07.438753',
+                'GitHub: http://github.com/slimsuite/saaga',rje_obj.zen()]
     return rje.Info(program,version,last_edit,description,author,time.time(),copy_right,comments)
 #########################################################################################################################
 def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for more sys.argv commands
@@ -179,15 +219,17 @@ dbformats = {'evalue':'num','raw':'int','qlen':'int','tlen':'int','qstart':'int'
                                                     ### ~ ### ~ ###
 
 #########################################################################################################################
-### SECTION II: GeMoMa Class                                                                                               #
+### SECTION II: SAAGA Class                                                                                             #
 #########################################################################################################################
-class GeMoMa(rje_obj.RJE_Object):
+class SAAGA(rje_obj.RJE_Object):
     '''
-    GeMoMa Class. Author: Rich Edwards (2015).
+    SAAGA Class. Author: Rich Edwards (2015).
 
     Str:str
+    - Assembly=FILE   : Optional genome fasta file (required for some outputs) [None]
     - CDSIn=FILE      : Optional transcript annotation file for renaming and/or longest isoform extraction [annotation.fna]
     - GFFIn=FILE      : Protein annotation GFF file [annotation.gff]
+    - GFFDesc=X       : GFF output field label for annotated proteins (e.g. note, product) [product]
     - GFFGene=X       : Label for GFF gene feature type ['gene']
     - GFFCDS=X        : Label for GFF CDS feature type ['CDS']
     - GFFmRNA=X       : Label for GFF mRNA feature type ['mRNA']
@@ -198,18 +240,28 @@ class GeMoMa(rje_obj.RJE_Object):
     - RefDB=FILE      : Reference proteome MMseq2 database (over-rule mmseqdb path) []
     - RefProt = Reference proteome for mapping data onto []
     - SeqIn = Protein annotation file to assess [annotation.faa]
+    - TaxBase=X       : Output prefix for taxonomy output [$SEQBASE.$TAXADB]
+    - TaxDB=FILE      : MMseqs2 taxonomy database for taxonomy assignment [seqTaxDB]
+    - TaxWarnRank=X   : Taxonomic rank (and above) to warn when deviating for consensus [family]
     - TmpDir=PATH     : Temporary directory path for running mmseqs2 [./tmp/]
 
     Bool:boolean
     - Annotate=T/F    : Rename annotation using reference annotation (could be Swissprot) [False]
     - Assess=T/F      : Assess annotation using reference annotation [False]
     - BatchRun=T/F    : Whether to assess batchrun options (set to False for single runs within batch) [True]
-    - DocHTML=T/F     : Generate HTML BUSCOMP documentation (*.info.html) instead of main run [False]
+    - BestLineage=T/F : Whether to enforce a single lineage for best taxa ratings [True]
+    - DocHTML=T/F     : Generate HTML SAAGA documentation (*.info.html) instead of main run [False]
     - Longest=T/F     : Extract longest protein per gene into *.longest.faa [False]
     - MMseqs=T/F      : Run the mmseq2 steps in preparation for further analysis [True]
     - Summarise=T/F   : Summarise annotation from GFF file [True]
+    - TaxByContig=T/F : Whether to generate taxonomy output for each contig if the assembly is loaded [True]
+    - TaxBySeq=T/F    : Whether to parse and generate taxonomy output for each assembly (GFF) sequence [True]
+    - TaxBySeqFull=T/F: Whether generate full easy taxonomy report outputs for each assembly (GFF) sequence [False]
+    - Taxonomy=T/F    : Summarise taxonomic assignments for contamination assessments [False]
+    - TaxORFs=T/F     : Whether to generate ORFs from assembly if no seqin=FILE given [True]
 
     Int:integer
+    - MinTaxNum=INT   : Minimum gene count in main dataset to keep taxon, else merge with higher level [2]
     - TopHits=INT     : Restrict mmseqs hits to the top X hits [250]
 
     Num:float
@@ -220,8 +272,13 @@ class GeMoMa(rje_obj.RJE_Object):
     List:list
     - BatchSeq=FILELIST   : List of seqin=FILE annotation proteomes for comparison
     - BatchRef=FILELIST   : List of refprot=FILE reference proteomes for comparison
+    - TaxLevels=LIST  : List of taxonomic levels to report (* for superkingdom and below) ['*']
+    - TaxRanks : Actual taxonomic levels used in the taxonomy analysis (high to low)
+    - TaxSubsets=FILELIST : Files (fasta/id) with sets of assembly input sequences (matching GFF) to summarise []
 
-    Dict:dictionary    
+    Dict:dictionary
+    - TaxLineage = taxtuple:list of (taxrank,taxid,taxname) in high to low order
+    - TaxTuple = taxid:(taxrank,taxid,taxname)
 
     Obj:RJE_Objects
     - CDSIn = SeqList: Optional transcript annotation file for renaming and/or longest isoform extraction [annotation.fna]
@@ -237,22 +294,28 @@ class GeMoMa(rje_obj.RJE_Object):
     def _setAttributes(self):   ### Sets Attributes of Object
         '''Sets Attributes of Object.'''
         ### ~ Basics ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-        self.strlist = ['CDSIn','GFFIn','GFFGene','GFFCDS','GFFmRNA','MMHitMap','MMQryMap','MMSearch','MMSeqDB','RefDB','RefProt','SeqIn','TmpDir']
-        self.boollist = ['Annotate','Assess','BatchRun','DocHTML','Longest','MMseqs','Summarise']
-        self.intlist = ['TopHits']
+        self.strlist = ['Assembly','CDSIn','GFFIn','GFFDesc','GFFGene','GFFCDS','GFFmRNA','MMHitMap','MMQryMap','MMSearch',
+                        'MMSeqDB','RefDB','RefProt','SeqIn','TaxBase','TaxDB','TaxWarnRank','TmpDir']
+        self.boollist = ['Annotate','Assess','BatchRun','BestLineage','DocHTML','Longest','MMseqs','Summarise',
+                         'TaxByContig','TaxBySeq','TaxBySeqFull','Taxonomy','TaxORFs']
+        self.intlist = ['MinTaxNum','TopHits']
         self.numlist = ['MinGlobID']
         self.filelist = []
-        self.listlist = ['BatchSeq','BatchRef']
-        self.dictlist = []
+        self.listlist = ['BatchSeq','BatchRef','TaxLevels','TaxRanks','TaxSubsets']
+        self.dictlist = ['TaxLineage','TaxTuple']
         self.objlist = ['SeqIn','RefProt']
         ### ~ Defaults ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         self._setDefaults(str='None',bool=False,int=0,num=0.0,obj=None,setlist=True,setdict=True,setfile=True)
-        self.setStr({'CDSIn':'annotation.fna','GFFGene':'gene','GFFCDS':'CDS','GFFmRNA':'mRNA',
+        self.setStr({'CDSIn':'annotation.fna','GFFGene':'gene','GFFCDS':'CDS','GFFmRNA':'mRNA','GFFDesc':'product',
                      'GFFIn':'annotation.gff','MMSearch':'./mmsearch/','MMSeqDB':'./mmseqdb/',
-                     'RefProt':'refproteome.fasta','SeqIn':'annotation.fasta','TmpDir':'./tmp/'})
-        self.setBool({'Annotate':False,'Assess':False,'BatchRun':True,'DocHTML':False,'Longest':False,'MMseqs':True,'Summarise':True})
-        self.setInt({'TopHits':250})
+                     'RefProt':'refproteome.fasta','SeqIn':'annotation.faa',
+                     'TaxDB':'seqTaxDB', 'TaxWarnRank':'family',
+                     'TmpDir':'./tmp/'})
+        self.setBool({'Annotate':False,'Assess':False,'BatchRun':True,'BestLineage':True,'DocHTML':False,'Longest':False,'MMseqs':True,
+                      'Summarise':True,'TaxByContig':True,'TaxBySeq':True,'TaxBySeqFull':False,'Taxonomy':False,'TaxORFs':True})
+        self.setInt({'MinTaxNum':2,'TopHits':250})
         self.setNum({'MinGlobID':40.0})
+        self.list['TaxLevels'] = ['*']
         ### ~ Other Attributes ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         self.obj['DB'] = rje_db.Database(self.log,self.cmd_list+['tuplekeys=T'])
         self.obj['GFF'] = rje_gff.GFF(self.log,['attfield=T']+self.cmd_list+['tuplekeys=T','warnfield='])
@@ -271,19 +334,21 @@ class GeMoMa(rje_obj.RJE_Object):
                 self._forkCmd(cmd)  # Delete if no forking
                 ### Class Options (No need for arg if arg = att.lower()) ### 
                 #self._cmdRead(cmd,type='str',att='Att',arg='Cmd')  # No need for arg if arg = att.lower()
-                self._cmdReadList(cmd,'str',['GFFGene','GFFCDS','GFFmRNA'])   # Normal strings
+                self._cmdReadList(cmd,'str',['GFFDesc','GFFGene','GFFCDS','GFFmRNA','TaxWarnRank'])   # Normal strings
                 self._cmdReadList(cmd,'path',['MMSearch','MMSeqDB','TmpDir'])  # String representing directory path
-                self._cmdReadList(cmd,'file',['CDSIn','GFFIn','RefDB','RefProt','SeqIn'])  # String representing file path
+                self._cmdReadList(cmd,'file',['Assembly','CDSIn','GFFIn','RefDB','RefProt','SeqIn','TaxBase','TaxDB'])  # String representing file path
                 #self._cmdReadList(cmd,'date',['Att'])  # String representing date YYYY-MM-DD
-                self._cmdReadList(cmd,'bool',['Annotate','Assess','BatchRun','DocHTML','Longest','MMseqs','Summarise'])  # True/False Booleans
-                self._cmdReadList(cmd,'int',['TopHits'])   # Integers
+                self._cmdReadList(cmd,'bool',['Annotate','Assess','BatchRun','BestLineage','DocHTML','Longest','MMseqs','Summarise','TaxByContig','TaxBySeq','TaxBySeqFull','Taxonomy','TaxORFs'])  # True/False Booleans
+                self._cmdRead(cmd,type='bool',att='MMseqs',arg='mmseq')  # No need for arg if arg = att.lower()
+                self._cmdRead(cmd,type='bool',att='MMseqs',arg='mmseqs2')  # No need for arg if arg = att.lower()
+                self._cmdReadList(cmd,'int',['MinTaxNum','TopHits'])   # Integers
                 #self._cmdReadList(cmd,'float',['Att']) # Floats
                 self._cmdReadList(cmd,'perc',['MinGlobID']) # Floats
                 #self._cmdReadList(cmd,'min',['Att'])   # Integer value part of min,max command
                 #self._cmdReadList(cmd,'max',['Att'])   # Integer value part of min,max command
-                #self._cmdReadList(cmd,'list',['Att'])  # List of strings (split on commas or file lines)
+                self._cmdReadList(cmd,'list',['TaxLevels'])  # List of strings (split on commas or file lines)
                 #self._cmdReadList(cmd,'clist',['Att']) # Comma separated list as a *string* (self.str)
-                self._cmdReadList(cmd,'glist',['BatchSeq','BatchRef']) # List of files using wildcards and glob
+                self._cmdReadList(cmd,'glist',['BatchSeq','BatchRef','TaxSubsets']) # List of files using wildcards and glob
                 #self._cmdReadList(cmd,'cdict',['Att']) # Splits comma separated X:Y pairs into dictionary
                 #self._cmdReadList(cmd,'cdictlist',['Att']) # As cdict but also enters keys into list
             except: self.errorLog('Problem with cmd:%s' % cmd)
@@ -308,14 +373,25 @@ class GeMoMa(rje_obj.RJE_Object):
         * `assess` = Assess annotation using reference annotation (e.g. a reference organism proteome)
         * `annotate` = Rename annotation using reference annotation (could be Swissprot)
         * `longest` = Extract the longest protein per gene
-        * `mmseq` = Run the mmseq2 steps in preparation for further analysis
-        * `summarise` = Summarise annotation from a GFF file
+        * `mmseq` = Run the mmseq2 steps in preparation for further analysis (default)
+        * `summarise` = Summarise annotation from a GFF file (default)
+        * `taxonomy` = Summarise taxonomic assignments for contamination assessments
 
-        See <https://slimsuite.github.io/saaga/> for details of each mode. General SLiMSuite run documentation can be
-        found at <https://github.com/slimsuite/SLiMSuite>.
+        See <https://slimsuite.github.io/saaga/> for details of each mode. Multiple modes without conflicting commandline options can be run together. Note that running `taxonomy` mode will switch off the default `mmseq` and `summarise` modes, unless reactivated with additional commands.
+        General SLiMSuite run documentation can be found at <https://github.com/slimsuite/SLiMSuite>.
 
         SAAGA is available as part of SLiMSuite, or via a standalone GitHub repo at
         <https://github.com/slimsuite/saaga>.
+
+        ## Citing SAAGA
+
+        SAAGA `summarise` was introduced with basic annotation summarise functions (v0.4.0) in:
+
+        * Edwards RJ et al. (2021), [BMC Genomics 22, 188](https://doi.org/10.1186/s12864-021-07493-6).
+
+        For `assess` mode (v0.6.0), please cite:
+
+        * Stuart KC et al. (2021), bioRvix https://doi.org/10.1101/2021.04.07.438753. This forms the basis of the explanation for some of the statistics, below.
 
         ---
 
@@ -323,14 +399,14 @@ class GeMoMa(rje_obj.RJE_Object):
 
         SAAGA is written in Python 2.x and can be run directly from the commandline:
 
-            python $CODEPATH/diploidocus.py [OPTIONS]
+            python $CODEPATH/saaga.py [OPTIONS]
 
         If running as part of [SLiMSuite](http://slimsuite.blogspot.com/), `$CODEPATH` will be the SLiMSuite `tools/`
         directory. If running from the standalone [SAAGA git repo](https://github.com/slimsuite/saaga), `$CODEPATH`
         will be the path the to `code/` directory. Please see details in the [SAAGA git repo](https://github.com/slimsuite/saaga)
         for running on example data.
 
-        For `assess`, `annotate` and `mmseq` modes, [MMseqs2](https://github.com/soedinglab/MMseqs2) must be installed and
+        For `assess`, `annotate`, `mmseq` and `taxonomy` modes, [MMseqs2](https://github.com/soedinglab/MMseqs2) must be installed and
         either added to the environment `$PATH`.
 
         ## Commandline options
@@ -344,20 +420,23 @@ class GeMoMa(rje_obj.RJE_Object):
         seqin=FILE      : Protein annotation file to assess [annotation.faa]
         gffin=FILE      : Protein annotation GFF file [annotation.gff]
         cdsin=FILE      : Optional transcript annotation file for renaming and/or longest isoform extraction [annotation.fna]
+        assembly=FILE   : Optional genome fasta file (required for some outputs) [None]
         refprot=FILE    : Reference proteome for mapping data onto [refproteome.fasta]
-        refdb=FILE      : Reference proteome MMseq2 database (over-rule mmseqdb path) []
-        mmseqdb=PATH    : Directory in which to find/create mmseqs2 databases [./mmseqdb/]
-        mmsearch=PATH   : Directory in which to find/create mmseqs2 databases [./mmsearch/]
+        refdb=FILE      : Reference proteome MMseqs2 database (over-rules mmseqdb path) []
+        mmseqdb=PATH    : Directory in which to find/create MMseqs2 databases [./mmseqdb/]
+        mmsearch=PATH   : Directory in which to find/create MMseqs2 databases [./mmsearch/]
         basefile=X      : Prefix for output files [$SEQBASE.$REFBASE]
         gffgene=X       : Label for GFF gene feature type ['gene']
         gffcds=X        : Label for GFF CDS feature type ['CDS']
         gffmrna=X       : Label for GFF mRNA feature type ['mRNA']
+        gffdesc=X       : GFF output field label for annotated proteins (e.g. note, product) [product]
         ### ~ Run mode options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         annotate=T/F    : Rename annotation using reference annotation (could be Swissprot) [False]
         assess=T/F      : Assess annotation using reference annotation [False]
         longest=T/F     : Extract longest protein per gene into *.longest.faa [False]
-        mmseqs=T/F      : Run the mmseq2 steps in preparation for further analysis [True]
+        mmseqs=T/F      : Run the MMseqs2 steps in preparation for further analysis [True]
         summarise=T/F   : Summarise annotation from GFF file [True]
+        taxonomy=T/F    : Summarise taxonomic assignments for contamination assessments [False]
         dochtml=T/F     : Generate HTML SAAGA documentation (*.docs.html) instead of main run [False]
         ### ~ Search and filter options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         tophits=INT     : Restrict mmseqs hits to the top X hits [250]
@@ -368,6 +447,17 @@ class GeMoMa(rje_obj.RJE_Object):
         ### ~ Batch Run options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         batchseq=FILELIST   : List of seqin=FILE annotation proteomes for comparison
         batchref=FILELIST   : List of refprot=FILE reference proteomes for comparison
+        ### ~ Taxonomy options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+        taxdb=FILE      : MMseqs2 taxonomy database for taxonomy assignment [seqTaxDB]
+        taxbase=X       : Output prefix for taxonomy output [$SEQBASE.$TAXADB]
+        taxorfs=T/F     : Whether to generate ORFs from assembly if no seqin=FILE given [True]
+        taxbyseq=T/F    : Whether to parse and generate taxonomy output for each assembly (GFF) sequence [True]
+        taxbyseqfull=T/F: Whether generate full easy taxonomy report outputs for each assembly (GFF) sequence [False]
+        taxsubsets=FILELIST : Files (fasta/id) with sets of assembly input sequences (matching GFF) to summarise []
+        taxlevels=LIST  : List of taxonomic levels to report (* for superkingdom and below) ['*']
+        taxwarnrank=X   : Taxonomic rank (and above) to warn when deviating for consensus [family]
+        bestlineage=T/F : Whether to enforce a single lineage for best taxa ratings [True]
+        mintaxnum=INT   : Minimum gene count in main dataset to keep taxon, else merge with higher level [2]
         ### ~ System options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         forks=X         : Number of parallel sequences to process at once [0]
         killforks=X     : Number of seconds of no activity before killing all remaining forks. [36000]
@@ -394,7 +484,7 @@ class GeMoMa(rje_obj.RJE_Object):
         genes, transcripts and exons are extracted based on the feature type. By default, SAAGA expects GeMoMa annotation
         with `gene`, `mRNA` and `CDS` feature types for genes, transcripts and exons, respectively. If `mRNA` features are
         not found, `prediction` features will be parsed as transcripts. These can be over-ridden with `gffgene=X`,
-        `gffmrna=X` and `gffcds=X`.
+        `gffmrna=X` and `gffcds=X`. An optional `assembly=FILE` genome fasta file can also be provided, in which case the sequence names must match those in the GFF.
 
         Protein names in the `seqin=FILE` are mapped onto the `ID=X` identifiers for transcripts in the GFF file. Transcript
         `Parent=X` identifiers should map onto gene `ID=X` identifiers, and CDS `Parent=X` identifiers should map onto
@@ -404,6 +494,12 @@ class GeMoMa(rje_obj.RJE_Object):
         be used to generate the protein fasta file:
 
             gffread -y $PROTEIN_FASTA -g $GENOME $GFF
+
+        The exception to this is that `taxonomy` mode can be run in one of two simplified modes, depending on the input given. If only `seqin=FILE` is provided (without gffin=FILE), it will be assumed that (1) each protein is encoded by a separate gene, and (2) protein names are in the form `sequence-name.X.Y`. If no `seqin=FILE` is provided, then a simple ORF dataset will be generated of all ORFs (in 6 reading frames) of 100+ amino acids mid-sequence, or 50+ amino acids at a sequence end. These will be named `sequence.RF.ORF`. In each case, the genome assembly must be provided with `assembly=FILE`.
+
+        ### Taxonomy mode
+
+        The `taxonomy` mode in SAAGA can be thought of as a separate tool. (And nearly was!) If `taxonomy` mode is active, this will be run next. See the run modes section below, for details. Unless another mode has been actively set, SAAGA will then exit after completing taxonomy mode.
 
         ### MMseqs Searches
 
@@ -436,24 +532,22 @@ class GeMoMa(rje_obj.RJE_Object):
 
             query,target,raw,tcov,pident,theader
 
-
         The gene and transcripts tables are indexed on `id` for mapping onto other data.
 
         ---
 
         # SAAGA Outputs
 
-        In addition to outputs generated by mmseqs, the main SAAGA outputs are:
+        In addition to outputs generated by mmseqs (and a `*.sys.log` file logging any mmseqs runs), the main SAAGA outputs are:
 
-        * `*.log` = the main SAAGA log file containing
-        * `*.sys.log` = logging of mmseqs runs.
-        * `*.gene.tdt` = summary information per annotated gene
+        * `*.log` = the main SAAGA log file containing details of the run. (All modes)
+        * `*.gene.tdt` = summary information per annotated gene. (`summarise` mode)
         * `*.proteins.tdt` = summary information per annotated protein
         * `*.refprot.tdt` = summary information per reference protein (Assessment mode)
         * `*.stats.tdt`= summary statistics for full annotation
 
-        The fields for the main tables are given below. Details will be added in a future release. Please contact the
-        author in the meantime if anything is not clear.
+        The fields for the main tables are given below. Details for some fields are provided in the **SAAGA run modes** section, below. Please contact the
+        author if anything is not clear.
 
 
         ## Gene table [*.gene.tdt]
@@ -510,7 +604,7 @@ class GeMoMa(rje_obj.RJE_Object):
         * `refdesc` = Description of reference protein
         * `f1` = F1 score = 2 x Pr x Recall / (Pr + Recall) = 2 x refcov x protcov  / (refcov + protcov)
 
-        ## Summary statistics table
+        ## Summary statistics table [*.stats.tdt]
 
         * `seqin` = Input annotation proteome
         * `refdb` = Reference database
@@ -537,69 +631,236 @@ class GeMoMa(rje_obj.RJE_Object):
 
         # SAAGA run modes
 
-        Details for the main SAAGA run modes will be added below.
+        SAAGA can execute one or more different run modes that will generate different subsets of the main outputs. At its core, SAAGA (v0.7.x+) has four different underlying motivations:
+
+        1. Compress protein/transcript annotation by gene to generate non-redundant summaries and/or sequences. In `summarise` mode, the `gene`, `proteins` and `stats` tables will be generated, albeit with fewer fields that in `assess` mode. If `longest` mode is activated, the longest protein sequence per gene will be output to `*.longest.faa` and the corresponding transcripts (if `cdsin=FILE` given) to `*.longest.fna`.
+        2. Map annotation onto a reference proteome and make quality assessments. In `assess` mode, `refdb=FILE` should provide a single high-quality reference proteome. This will work best if the reference proteome is non-redundant and contains a single protein isoform per gene.
+        3. Functional annotation of predicted proteins. In `annotate` mode, `refdb=FILE` should be a comprehensive resource of reliably annotated (named) protein sequences, e.g. SwissProt. This is not compatible with `assess` mode.
+        4. Taxonomic assignment of assembly sequences. In `taxonomy` mode, the genome annotation (or crude ORF predictions) are used in conjunction with mmseqs2 `easy-taxonomy` to make taxonomic assigments for (1) genes, (2) assembly scaffolds, (3) the whole assembly, and (4) specified assembly subsets. Any genes or sequences violating the consensus taxonomy will be flagged. (See `taxonomy` mode for details.)
 
         **NOTE:** SAAGA is under development and documentation might be a bit sparse. Please contact the author or
         post an issue on GitHub if you have any questions.
 
         ---
 
+        ## Annotation summarise mode [summarise=T]
+
+        This mode will summarise the annotation from a GFF file. This is also executed as part of the `assess` mode. It will generate partial assessment statistics versus the `refdb=FILE` reference proteome, but will not perform any reciprocal searches or completeness analysis.
+
+        See **SAAGA Outputs** and **Annotation assessment mode** for details of the statistics generated.
+
+        ---
+
         ## Annotation assessment mode [assess=T]
 
         This mode compares the predicted protein sequences from an annotation to a reference proteome and asseses its
-        quality and completeness.
+        quality and completeness. SAAGA performs a reciprocal MMseqs2 search against `refdb=FILE`, which should be a high-quality non-redundant reference proteome. The best hits are identified and then used to calculate coverage ratios between query and hit proteins as a means of annotation assessment. In general, metrics will be closer to 1 (or 100%) for complete annotations and assemblies without duplications. Although the maximum achievable value for these metrics will generally be unknown, comparative values can be used to assess improvement in assembly and/or annotation, akin to BUSCO scores.
 
-        _Details to follow._
+        The main assessment statistics generated by SAAGA are:
 
-        **NOTE:** SAAGA is still under development. MMseqs2 stringency settings have not yet been optimised for
-        performance.
+        * **Protein length ratio.** (`protratio`) The length ratio of the annotated proteins versus its top reference hit. Long-read genome assemblies are prone to indel errors, whereas short-read assemblies tend to be fragmented. In each case, protein annotations can be truncated or fragmented. SAAGA uses a protein length ratio to assess the extent of this problem. Ideally, annotated protein will, on average, be approximately the same length as orthologous proteins in a high-quality reference proteome. If the protein length ratio is heavily skewed below 1.0, this will indicate a problem with truncated and/or fragmented protein annotations. (This can also be cause by incorrect annotation settings that miss long introns, for example.) `proratio` captures the best value per gene, which is reported as a mean, median and std dev for the whole annotation.
 
+        * **F1 score.** (`f1`, `f1_mean` and `f1_hits`). F1 extends the protein length ratio to an annotation consistency metric calculated using the formula: (2 X PROTCOV X REFCOV) / (PROTCOV + REFCOV) where PROTCOV is the proportion of the annotated protein covered by its best reference protein hit, and REFCOV is the proportion of the best reference protein hit covered by the annotated protein. For the proteome, `f1` is the sum of the proteome coverage, whereas `f1_mean` is the mean `f1` per gene and `f1_hit` is the mean for the subset of proteins with a reference hit. (The former evaluates annotation completeness, whereas the latter evaluates the general quality of the indiviudal annotations.) As with `protratio`, `f1` values close to 1 mean that the query protein closely matches the length of the hit protein, indicating high fidelity of the gene prediction model and underlying assembly.
+
+        * **Completeness.** (`completeness`) The summed percentage coverage of reference proteome by the annotated proteome. This is checking for "missing" proteins. Unless `refdb=FILE` represents the same species, (as with other genome completeness metrics) it is unlikely that the theoretical maximum is 100%. Nevertheless, assembly and/or annotation errors should be more likely to reduced completeness, making it a useful comparative statistic.
+
+        * **Purity.** (`purity`) The summed percentage reference coverage of the annotated proteome, i.e. the reciprocal of completeness. This is checking for "extra" proteins, which may be indicative of either contamination (check with `taxonomy` mode) or false positive gene predictions. Note that an incomplete or divergent reference proteome will also result in low purity. As with completeness, it is unlikely that the theoretical maximum is 100%, but it should be a useful comparative statistic.
+
+        * **Homology.** (`homology`) The percentage of annotated genes with any hit in reference. As with `purity`, this statistic gives an indication of contamination or false predictions, but without requiring good coverage of individudal genes.
+
+        * **Orthology.** (`orthology`) The percentage of annotated genes with reciprocal best hits in the reference proteome. This should increase as assembly/annotation redundancy and duplication is decreased. As with `completeness` and `purity`, it is very unlikely to reach 100% due to lineage-specific duplications and deletions.
+
+        * **Duplicity.** (`duplicity`) The mean number of annotated genes sharing the same best reference hit. This is somewhat analogous to the "Duplicated" part of the BUSCO score, but does not enforce an minimum coverage cutoffs. It can be useful for assessing the success of purging haplotigs, for example.
+
+        * **Compression.** (`compression`) The number of unique annotated genes that were the top hit for reference proteins, divided by the total number of reference proteins with a hit. This is the inverse of `duplicity` and big deviations from 100% can indicate either redundancy in the reference proteome, or missing members of gene families.
+
+        * **Multiplicity.** (`multiplicity`) The ratio of total number of annotated genes to reference proteins. This gives a broad ballpark indication of the completeness and stringency of the genome annotation. Big deviations from 1 need some explanation, whether that is genome/annotation incompleteness (under 1) or an excess of low quality annotations and/or duplications (over 1).
+
+        **NOTE:** MMseqs2 stringency settings have not yet been optimised for performance. Results of `assess` mode should be used primarily for comparisons between annotation, rather than treated as an absolute truth in terms of completeness etc.
+
+        **NOTE:** To use SAAGA for assembly assessment (rather than *annotation* assessment), the rapid homology-based gene prediction program GEMOMA is recommended to generate a draft annotation.
 
         ---
 
         ## Annotation annotation mode [annotate=T]
 
         Based on MAKER2 renaming, this mode will use the top hit to reference proteins (e.g. SwissProt) to add
-        descriptions to predicted gene and proteins.
+        descriptions to predicted gene and proteins. Currently, `annotate` mode is explicitly designed to work with Uniprot format sequences, and will parse the description, organism (`OS=`) and gene (`GN=` where available) for the top reference hit. Proteins will then be renamed:
 
-        _Details to follow._
+            Similar to $GENE: $DESCRIPTION [$ORGANISM]
+
+        or:
+
+            Similar to $DESCRIPTION [$ORGANISM]
+
+        If no `OS=` tag is found, renaming will be simpler:
+
+            Similar to $DESCRIPTION
+
+        In each case, the description is appended with coverage and homology details, in the form `(X% cov @Y%id)`, as generated from the `refcov` and `pident` statistics from MMseqs2.
+
+        Protein sequences with updated descriptions will be output to `*.renamed.faa`. If `cdsin=FILE` was provided, the corresponding transcripts will be output to `*.renamed.fna`.
 
         ---
 
         ## Longest protein mode [longest=T]
 
         This will extract the longest protein per gene, e.g. for reduced `Duplicated` ratings in BUSCO completeness
-        estimates.
+        estimates. The longest protein sequence per gene will be output to `*.longest.faa` and the corresponding transcripts (if `cdsin=FILE` given) to `*.longest.fna`.
 
-        _Details to follow._
-
-        ---
-
-        ## Annotation summarise mode [summarise=T]
-
-        This mode will summarise the annotation from a GFF file. This is also executed as part of the `assess` mode.
-
-        _Details to follow._
+        **NOTE:** This will include any new descriptions from `annotate` mode.
 
         ---
 
-        ## MMSeq2 preparation mode [mmseq=T]
+        ## MMseqs2 preparation mode [mmseq=T]
 
-        This run the mmseq2 steps in preparation for further analysis. It is primarily for debugging or when runs need
-        to be split over multiple systems.
-
-        _Details to follow._
+        This run the MMseqs2 steps in preparation for further analysis. It is primarily for debugging or when runs need
+        to be split over multiple systems. (See **MMseqs Searches**, above.)
 
         ---
+
+        ## Summarise taxonomic assignments for contamination assessments [taxonomy=T]
+
+        Taxonomy mode combines the MMseqs2 `easy-taxonomy` with GFF parsing to perform taxonomic analysis of the input
+        proteome and any subsets given by `taxsubsets=LIST`. Taxonomic assignments are mapped onto genes as well as assembly scaffolds and (if `assembly=FILE` is given) contigs.
+
+        The first step is to run MMseqs2:
+
+            mmseqs easy-taxonomy $PROTEOME $TAXDB $TAXBASE $TMPDIR
+
+        Where `$PROTEOME` is the proteome provided with `seqin=FILE`, `$TAXDB` is a MMseqs2 taxonomic database (see below for creation), provided with `taxdb=FILE`, `$TAXBASE` is the `easy-taxonomy` output prefix, and `$TMPDIR` is the temporary directory (default `tmp`). If pre-existing results exist (`$TAXBASE._report` and `$TAXBASE_lca.tsv`) then these will be loaded, unless `force=T` is set. If MMseqs2 is not installed, pre-computed results *must* be provided. In principle, `report` and `lca.tsv` files generate by other tools should work as long as the format is the same.
+
+        The core of taxonomy mode is the MMSeqs2 "Lowest Common Ancestor" (LCA) assignment, in which each sequence is associated with the lowest unabmigious taxonomic rank possible. Where amibiguity exists, a sequence will be assigned to a higher level. Higher levels also receive all the taxonomic assignments of their daughter taxa, and so the sequence count for any given taxonomic group will always be equal or greater than its lower subdivisions. Conceptually, SAAGA separates out the counts into `taxnum`, which are counts at that level or below, and `taxpure`, which are the numbers assigned specifically to that level. (i.e. `taxnum` will be the sum of `taxpure` for that taxonomic group and all lower divisions.) See the MMseqs2 documentation for more details.
+
+        ### Taxonomy overview
+
+        SAAGA will first read in the `*_report` file to build its internal taxonomy tree for the samples. By default, mmseqs will report all possible taxonomic levels, and SAAGA will retain the following:
+
+            species, species subgroup, species group, subgenus, genus, subtribe, tribe, subfamily, family, superfamily, parvorder, infraorder, suborder, order, superorder, infraclass, subclass, class, superclass, subphylum, phylum, superphylum, subkingdom, kingdom, superkingdom
+
+        This can be reduced further by specifying a subset of taxonomic levels of interest with `taxlevels=LIST`. Any missing levels, along with
+        "no rank" or "clade" taxa (except `unclassified`, `root`, and `cellular organisms`), will be mapped to the next highest taxonomic level. Any MMseqs2 assignments to that level will be transferred to the higher level. Any taxa failing to meet the `mintaxnum=INT` threshold (default=2) will also be mapped onto higher levels.
+
+        Next, the `*_lca.tsv` file is read and mapped onto the `gffin=FILE` GFF file to assign proteins to genes and
+        sequences. The lowest-level hit for each gene will be kept, remapping to `taxlevels` as required. These
+        collated ratings will be output to `*.lca_genes.tsv` and `*.lca_genes.gff` Gene ratings are then summed for each assembly sequence, and the dominant
+        classification for each taxonomic level established for (a) each sequence, and (b) the whole dataset. Full
+        collated ratings will be output to `*.taxolotl_report.tsv`. Ratings per sequence are output to `*.taxbyseq.tsv`. Dominant taxa are reported in the log file as `#BEST` entries.
+
+        To flag contamination, each sequence is assessed against the dominant taxonomic rating at each taxonomic level.
+        The percentage of genes matching each dominant rating is reported for each sequence in `*.taxolotl.tsv`
+        along with the number of genes with a rating at that level, separated with a `|`. This will exclude any genes
+        without ratings at that taxonomic level. A `:consensus:` entry will also report the overall values for the whole
+        assembly.
+
+        Any sequences that have a dominant taxonomic label deviating from the overall consensus at any ranking levels
+        set by `taxwarnrank=X` (default family) or above will raise a contamination warning and be output in the log file with a `#BADTAX` rating. These sequences will have their dominant taxon and it's
+        precentage appended to the consensus percentage, also separated by `|`. For example, `25.00|20|Chordata|50.00`
+        would indicate that 25% of the 20 genes with ratings at that level matched the consensus, whilst the dominant
+        classification was `Chordata` with 50% of 20 rated genes assigned to this category. Such sequences will also have `badtax` rating in the `rating` field of `*.taxolotl.tsv`. Sequences matching the dominant taxa will have a `goodtax` rating, whilst sequences without any genes mapped onto taxa by MMseqs2 will be rated `notax`.
+
+        Good, Bad and missing sequence counts will be summarised in the log file in `#BEST`, `BADTAX`, and `#NOTAX` entries.
+        Sequence subsets are output to `*.id` and `*.fasta` files, and summarised along with the full assembly in
+        `*.seqsummary.tsv`. (Any ratings without sequences will not be output/summarised.) If `assembly=FILE` is provided,
+        sequences without genes will also be summarised. Taxonomy ratings for these subsets are also output to
+        `*.$RATING.taxolotl_report.tsv` files. Any sequence subsets provided by `taxsubsets=LIST` (see below) will also be
+        summarised in `*.$SUBSET.taxolotl_report.tsv` files. It is recommended that all the MMseqs2 `_report` file is loaded
+        with all the `*.taxolotl_report.tsv` for visualisation with [Pavian](https://github.com/fbreitwieser/pavian)
+        (Breitwieser FP and Salzberg SL (2020) [Bioinformatics 36(4):1303-1304](https://doi.org/10.1093/bioinformatics/btz715))
+        through its [Shiny App](https://fbreitwieser.shinyapps.io/pavian/).
+
+        Finally, if `assembly=FILE` is provided (unless `taxbycontig=F`), contigs will be extracted by splitting scaffolds on `mingap=INT` (default 10) consecutive `N`s. Genes will be remapped onto contigs as with sequences, and taxonomic ratings output to `*.taxbyctg.tsv` and `*.ctgtaxolotl.tsv`. These are the contig equivalents of `*.taxbyseq.tsv` and `*.taxolotl.tsv`. Contigs without taxonomic ratings will be listed in the log file with `#BADTAX` entries, unless already reported as an assembly sequence.
+
+        ### Main taxonomy outputs
+
+        Outputs will be given a file prefix set by `taxbase=X`. By default, this will be `$SEQBASE.$TAXADB`, where
+        `$SEQBASE` is the basename of `seqin=FILE` and `$TAXADB` is the taxonomy database set by `taxdb=FILE`.
+
+        The main mmseqs `easy-taxonomy` output will generate:
+
+        * `*_lca.tsv` = best assignments per protein sequence (protein, taxid, rank, taxname): required.
+        * `*_report` = text summary of overall taxonomy that can be loaded by Pavian etc.: required.
+        * `*_tophit_aln` = top database hits for each protein (not currently used): not required.
+        * `*_tophit_report` = taxonomic classification of the top hit proteins: not required.
+
+        In addition, Taxolotl will output:
+
+        * `*.taxbyseq.tsv` = Rating counts for each taxonomic group by assembly sequence (scaffold).
+        * `*.taxolotl_report.tsv` = Collated Kraken-style report file.
+        * `*.lca_genes.tsv` = Best assignments (lowest taxonomic level) for each gene.
+        * `*.lca_genes.gff` = GFF file with Taxolotly ratings for each gene.
+        * `*.taxolotl.tsv` = Tab separated file with consensus taxonomic assignment at each taxonomic rank, and ratings per sequence.
+        * `*.$SUBSET.id` = Sequence identifiers for assembly subsets based on Taxolotl ratings.
+        * `*.$SUBSET.fasta` = Fasta files of assembly subsets based on Taxolotl ratings.
+        * `*.seqsummary.tsv` = Summary statistics for assembly subset fasta files.
+        * `*.taxbyctg.tsv` = Rating counts for each taxonomic group by assembly contig.
+        * `*.ctgtaxolotl.tsv` = Taxolotl ratings by assembly contig.
+
+        #### Taxonomy by sequence output
+
+        If `taxbyseq=T` then an addition `*.taxbyseq.tsv` file will be produced, with the following fields:
+
+        * `seqname` = assembly sequence name
+        * `genenum` = number of genes parsed for that sequence
+        * `protnum` = number of proteins parsed for that sequence
+        * `rank` = taxonomic rank of rating
+        * `genetax` = number of genes with assignment at that level
+        * `taxid` = taxonomic label identifier number
+        * `taxname` = taxonomic label name at that rank
+        * `taxperc` = percentage assignment to this rank or lower
+        * `taxnum` = number of genes assigned to this rank or lower
+        * `taxpure` = number of genes assigned to this rank specifically
+
+        ### Sequence subset analysis
+
+        In addition to the main output for the whole proteome, any subsets given by `taxsubsets=LIST` will have their own `*.taxolotl_report.tsv` file, which can be visualised with Pavian. These must be lists of IDs that match the assembly sequence names in the GFF file. Subsets will be named after the subset file prefix, e.g. `assembly.suspect.id` would generate `*.assembly.suspect.taxolotl_report.tsv`.
+
+
+        ### Generating a taxonomic database
+
+        Please see the MMseqs2 documentation for generating a taxonomic database. To date, Taxolotl has been tested with taxonomy databases generated from NCBI nr, using BLAST+ and MMSeqs2 and the NCBI taxonomy dump (<https://ftp.ncbi.nlm.nih.gov/pub/taxonomy/taxdump.tar.gz>):
+
+        ```
+        blastdbcmd -db $NCBIPATH/nr -entry all > ncbinr.faa
+        blastdbcmd -db $NCBIPATH/nr -entry all -outfmt "%a %T" > ncbinr.faa.taxidmapping
+
+        mmseqs createdb ncbinr.faa ncbinr.faaDB
+        mmseqs createtaxdb ncbinr.faaDB tmp --ncbi-tax-dump taxonomy/ --tax-mapping-file ncbinr.faa.taxidmapping
+        mmseqs createindex ncbinr.faaDB tmp
+        ```
+
+        If the assembly is already in RefSeq, it is recommended that the taxa of the assembly is removed before running Taxolotl, e.g.:
+
+        ```
+        mmseqs filtertaxseqdb ncbinr.faaDB seqTaxNoQueryDB --taxon-list '!178133,!38626'
+        ```
+
+        If getting an error that the `*.dmp` files are missing, these can be added with soft links from the `taxonomy/` directory containing the NCBI taxonomy dump.
+
+
+        ### Simple ORF mode
+
+        If no proteins are given, ORFs will be generated by `SeqSuite` with default settings `minorf=100 rftran=6 terminorf=50 orfgaps=F`, i.e. ORFs of 100+ amino acids from all six reading frames, or 50+ amino acids if truncated at the end of a sequence. ORFs will not span assembly gaps, and any ambiguous (`X`) translations will be replaced with stop codons (`*`), unless `orfgaps=T` is set. Note that, due to introns, it is expected that these ORFs will often represent partial coding sequences, and many will be random junk translations.
+
+        The idea of ORF mode is to provide a quick, crude impression of the taxonomic profile. However, for large assemblies it can be very slow to process.
+
+        In ORF mode, each ORF is assumed to represent a different gene, although this may not be the case. Currently, `SeqSuite` will not generate a GFF file for the ORFs. As a result, the `taxbycontig` output is not available.
+
+
 
         '''
         try:### ~ [1] ~ Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             #i# The setup will parse the input sequences and GFF
             if self.getBool('DocHTML'): return self.docHTML()
-            if not self.setup(): raise ValueError('Problem during setup: aborted')
+            if not self.setup(): self.printLog('#ABORT','Problem during setup: aborted'); return False
             if self.getBool('MMseqs'):
                 self.makeMMseqDB()
             ### ~ [2] ~ Add main run code here ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            if self.getBool('Taxonomy'):
+                self.headLog('TAXONOMY',line='=')
+                self.debug('Pure taxonomy: {0}'.format(self.pureTaxonomy()))
+                if self.pureTaxonomy(): return self.taxonomy()
+                elif not self.taxonomy(): return False
             self.headLog('MMSEARCH',line='=')
             self.runMMseqSearch(reciprocal=self.runMode(['assess','annotate']))
             #!# Add tophits filtering for speed. Use just the best hit for assess mode
@@ -675,8 +936,9 @@ class GeMoMa(rje_obj.RJE_Object):
                                     self.warnLog('Problem with GFF attribute: {0}'.format(attdata))
                             if id and id in newdesc and newdesc[id]:
                                 if not gtext[-1:] == ';': gtext = gtext + ';'
-                                gtext = '{0}note="{1}"'.format(gtext,newdesc[id])
+                                gtext = '{0}{1}="{2}"'.format(gtext,self.getStr('GFFDesc'),newdesc[id])
                                 OUT.write('{0}\n'.format(gtext))
+                            else: OUT.write(gline)
                         else: OUT.write(gline)
                     gline = IN.readline(); gx += 1
                 self.printLog('\r#GFF','Updated {0} GFF lines -> {1}'.format(rje.iStr(gx),newgff))
@@ -718,11 +980,11 @@ class GeMoMa(rje_obj.RJE_Object):
         :return: True/False
         '''
         if not checkmodes:
-            for modestr in ['Annotate','Assess','Longest','MMseqs','Summarise']:
+            for modestr in ['Annotate','Assess','Longest','MMseqs','Summarise','Taxonomy']:
                 self.printLog('#MODE','{0}: {1}'.format(modestr,self.getBool(modestr)))
             return False
         modekeys = {}
-        for modestr in ['Annotate','Assess','Longest','MMseqs','Summarise']:
+        for modestr in ['Annotate','Assess','Longest','MMseqs','Summarise','Taxonomy']:
             modekeys[modestr] = modestr
             modekeys[modestr.lower()] = modestr
         active = None
@@ -736,30 +998,66 @@ class GeMoMa(rje_obj.RJE_Object):
             else: active = active or self.getBool(modestr)
         return active
 #########################################################################################################################
+    def pureTaxonomy(self): ### Returns whether only taxonomy mode is active
+        '''
+        Returns whether only taxonomy mode is active
+        :return:
+        '''
+        if not self.runMode(['Taxonomy']): return False
+        scheck = SAAGA(self.log,['mmseqs=F','summarise=F']+self.cmd_list)
+        self.setBool({'MMseqs':scheck.getBool('MMseqs'),'Summarise':scheck.getBool('Summarise')})
+        if self.runMode(['Annotate','Assess','Longest','Summarise','MMseqs']): return False
+        return True
+#########################################################################################################################
     def setup(self):    ### Main class setup method.
         '''Main class setup method.'''
         try:### ~ [1] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            self.headLog('SETUP',line='=')
             try:
                 mmseq = os.popen('mmseqs').readline().split()[0]
                 if mmseq == 'MMseqs2': self.printLog('#MMSEQ2','MMseqs2 found')
                 else: raise ValueError('Ran "mmseqs" - expected "MMseqs2", returned "{0}"'.format(mmseq))
-                rje.mkDir(self,self.getStr('MMSeqDB'))
+                if not self.pureTaxonomy():
+                    rje.mkDir(self,self.getStr('MMSeqDB'))
             except:
                 self.warnLog('MMseqs2 installation not found. Some functionality will not work.')
                 self.setBool({'MMseqs':False})
+            ## ~ [1a] Assembly ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            self.obj['Assembly'] = None
+            if self.getStrLC('TaxDB') and self.getStrLC('Assembly'):
+                acmd = ['seqin={0}'.format(self.getStr('Assembly')), 'dna=T', 'summarise=F', 'autofilter=F', 'autoload=T']
+                assembly = self.obj['Assembly'] = rje_seqlist.SeqList(self.log, ['minorf=100', 'rftran=6', 'terminorf=50', 'orfgaps=F'] + self.cmd_list + acmd)
+                if self.pureTaxonomy() and assembly and not rje.exists(self.getStr('SeqIn')):
+                    seqout = rje.baseFile(self.getStr('Assembly')) + '.orfs.faa'
+                    self.setStr({'SeqIn': seqout})
+                    self.cmd_list.append('seqin={0}'.format(seqout))
+                    assembly.setStr({'SeqOut': seqout,'ReFormat':'dna2prot'})
+                    assembly.saveSeq(seqfile=seqout)
             ## ~ [1a] Basefile ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-            if not self.getStrLC('Basefile'): self.baseFile('{0}.{1}'.format(self.seqBase(),self.refBase()))
             self.printLog('#SEQIN',self.seqBase())
-            self.printLog('#REFDB',self.refBase())
-            self.printLog('#BASE',self.basefile())
+            if self.pureTaxonomy():
+                if not self.getStrLC('Basefile'): self.baseFile('{0}.{1}'.format(self.seqBase(),rje.baseFile(self.getStr('TaxDB'),strip_path=True)))
+                if not self.getStrLC('TaxBase'): self.baseFile('{0}.{1}'.format(self.seqBase(),rje.baseFile(self.getStr('TaxDB'),strip_path=True)))
+                self.printLog('#TAXDB',self.getStr('TaxDB'))
+                self.printLog('#BASE',self.basefile())
+                self.printLog('#TXBASE',self.getStr('TaxBase'))
+            else:
+                if not self.getStrLC('Basefile'): self.baseFile('{0}.{1}'.format(self.seqBase(),self.refBase()))
+                self.printLog('#REFDB',self.refBase())
+                self.printLog('#BASE',self.basefile())
+                if self.runMode(['Taxonomy']):
+                    if not self.getStrLC('TaxBase'): self.baseFile('{0}.{1}'.format(self.seqBase(), rje.baseFile(self.getStr('TaxDB'), strip_path=True)))
+                    self.printLog('#TAXDB', self.getStr('TaxDB'))
+                    self.printLog('#TXBASE',self.getStr('TaxBase'))
             self.runMode([])
             ## ~ [1b] Precomputed MMSeq2 options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             if not self.getStrLC('MMQryMap'): self.setStr({'MMQryMap':'{0}.{1}.mmseq.tsv'.format(self.seqBase(),self.refBase())})
             if not self.getStrLC('MMHitMap'): self.setStr({'MMHitMap':'{1}.{0}.mmseq.tsv'.format(self.seqBase(),self.refBase())})
             ## ~ [1c] Protein sequence table ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             seqlist = self.obj['SeqIn'] = rje_seqlist.SeqList(self.log,self.cmd_list+['seqmode=file','summarise=F','autofilter=F'])
+            if not seqlist.seqNum(): raise IOError('Failed to load any sequences from "{0}"'.format(self.getStr('SeqIn')))
             seqlist.obj['DB'] = self.obj['DB']
-            if self.runMode(['longest','annotate','summarise','assess']):
+            if self.runMode(['longest','annotate','summarise','assess','taxonomy']):
                 seqlist.summarise(sumdb=True,save=False)
                 seqdb = self.db('sequences') #['name','desc','gene','spec','accnum','length']
                 #i# Drop gene and spec fields
@@ -785,7 +1083,9 @@ class GeMoMa(rje_obj.RJE_Object):
             ### ~ [2] GFF parsing and data checks ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             #i# Parse GFF file
             #i# Will want to use the name field of self.db('sequences') to check against GFF IDs for mRNA
-            if self.runMode(['longest','annotate','summarise','assess']):
+            if self.pureTaxonomy() and not rje.exists(self.getStr('GFFIn')):
+                self.printLog('#WARN','No GFF found. Will assume one protein per gene.')
+            elif self.runMode(['longest','annotate','summarise','assess','taxonomy']):
                 #i# Parse a table of ['locus', 'source', 'ftype', 'start', 'end', 'score', 'strand', 'phase', 'attributes']
                 #i# Elements also extracted from attributes into fields
                 #!# Update self.obj['GFF'].list['Attributes'] = List of attributes (X=Y;) to pull out into own fields ("*" or "all" for all) [*]
@@ -870,7 +1170,7 @@ class GeMoMa(rje_obj.RJE_Object):
                 else:
                     self.printLog('#GFF','All {0} transcript IDs mapped to protein sequence names: OK'.format(rje.iLen(transid)))
                 #i# Option to quit
-                if badgene or badtrans or badseq or badtransid and rje.i() > -1 and rje.yesNo('Possible input errors. Abort run?'):
+                if badgene or badtrans or badseq or badtransid and self.i() > -1 and rje.yesNo('Possible input errors. Abort run?'):
                     return False
             return True     # Setup successful
         except: self.errorLog('Problem during %s setup.' % self.prog()); return False  # Setup failed
@@ -907,10 +1207,10 @@ class GeMoMa(rje_obj.RJE_Object):
             rtxt = rmd.rmdHead(title='%s Documentation' % prog,author='Richard J. Edwards',setup=True)
             #!# Replace this with documentation text?
             rtxt += string.replace(self.run.__doc__,'\n        ','\n')
-            rtxt += '\n\n<br>\n<small>&copy; 2020 Richard Edwards | richard.edwards@unsw.edu.au</small>\n'
+            rtxt += '\n\n<br>\n<small>&copy; 2021 Richard Edwards | richard.edwards@unsw.edu.au</small>\n'
             rmdfile = '%s.docs.Rmd' % self.baseFile()
             open(rmdfile,'w').write(rtxt)
-            self.printLog('#RMD','RMarkdown SAAGA documentation output to %s' % rmdfile)
+            self.printLog('#RMD','RMarkdown {0} documentation output to {1}'.format(info.program,rmdfile))
             rmd.rmdKnit(rmdfile)
         except:
             self.errorLog(self.zen())
@@ -1548,13 +1848,943 @@ class GeMoMa(rje_obj.RJE_Object):
             ## ~ [1b] SwissProt without Gene ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             if rje.matchExp('(.*?)\s+OS=(.*?)\s+PE=',seqdesc):
                 (desc,org) = rje.matchExp('(.*?)\s+OS=(.*?)\s+PE=',seqdesc)
-                return 'Similar to {0} ({1})'.format(desc,org)
+                return 'Similar to {0} [{1}]'.format(desc,org)
             ## ~ [1x] Other ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             if seqdesc: return 'Similar to {0}'.format(seqdesc)
             return ''
         except: self.errorLog('%s.newDesc error' % self.prog()); raise
 #########################################################################################################################
-### End of SECTION II: GeMoMa Class                                                                                     #
+    ### <6> ### Taxonomy Methods                                                                                        #
+#########################################################################################################################
+    def setTaxRanks(self): ### Sets up and returns taxranks high -> low.
+        '''
+        Sets up and returns taxranks high -> low
+        :return: taxranks list
+        '''
+        taxranks = 'species, species subgroup, species group, subgenus, genus, subtribe, tribe, subfamily, family, superfamily, parvorder, infraorder, suborder, order, superorder, infraclass, subclass, class, superclass, subphylum, phylum, superphylum, subkingdom, kingdom, superkingdom'.split(', ')   # List of descending taxonomic rank types
+        taxranks.reverse()
+        # - TaxLevels=LIST  : List of taxonomic levels to report (* for superkingdom and below) ['*']
+        if '*' not in self.list['TaxLevels']:
+            badranks = rje.listDifference(self.list['TaxLevels'],taxranks)
+            if badranks:
+                for bad in badranks:
+                    self.warnLog('"{0}" taxlevels=LIST rank not recognised'.format(bad))
+                self.warnLog('{0} taxlevels=LIST ranks not recognised'.format(len(badranks)))
+            newranks = []
+            for rank in taxranks:
+                if rank in self.list['TaxLevels']: newranks.append(rank)
+            taxranks = newranks
+            if not taxranks: raise ValueError('No recognised taxonomic levels in taxlevels=LIST')
+        self.printLog('#RANKS','{0} taxonomic ranks to consider: {1}'.format(len(taxranks),', '.join(taxranks)))
+        return taxranks
+#########################################################################################################################
+    def taxonomy(self):  ### Performs/parses mmseqs2 easy taxonomy and collates gene/sequence ratings
+        '''
+        Performs/parses mmseqs2 easy taxonomy and collates gene/sequence ratings. See main run docstring for details.
+        '''
+        try:### ~ [0] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            self.headLog('Setup Taxonomy Data',line='-')
+            db = self.db()
+            tmpdir = self.getStr('TmpDir')
+            taxbase = self.getStr('TaxBase')
+            assembly = self.obj['Assembly']
+            ## ~ [1a] Set up TaxRanks ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            mintaxnum = self.getInt('MinTaxNum') # Minimum gene count in main dataset to keep taxon, else merge with higher level [2]
+            self.printLog('#MINTAX','Minimum taxa count threshold (all isoforms): {0}'.format(mintaxnum))
+            #!# Add taxranks to settings that can be set
+            taxranks = self.setTaxRanks()
+            self.list['TaxRanks'] = taxranks = ['no rank'] + taxranks  #i# Add 'no rank' for root and 'cellular organisms'
+            #self.bugPrint(taxranks)
+            ## ~ [1b] Tables created and loaded ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            #i# Parsed seqin and GFF during setup()
+            # loci : ['locus', 'start', 'end', 'sequence']
+            locdb = self.db('loci')     # Scaffolds -> locus = sequences/trans
+            if not locdb:
+                if not assembly: raise IOError('Need GFF or Assembly file')
+                locdb = db.addEmptyTable('loci',['locus', 'start', 'end', 'sequence'],['locus'])
+                for seq in assembly.seqs():
+                    locdb.addEntry({'locus':assembly.shortName(seq), 'start':1, 'end':assembly.seqLen(seq), 'sequence':''})
+            # sequences : ['name', 'desc', 'gene', 'spec', 'accnum', 'length']
+            #seqdb = self.db('sequences')    # Proteins -> name = protdb:id
+            # gene : ['#', 'locus', 'source', 'start', 'end', 'strand', 'attributes', 'name', 'id', 'parent']
+            genedb = self.db('gene')    # Genes -> locus = loci:locus
+            self.debug(genedb)
+            # trans : ['#', 'locus', 'source', 'start', 'end', 'strand', 'attributes', 'name', 'id', 'parent']
+            protdb = self.db('trans')   # Proteins: should map onto sequences -> parent = genedb:id
+            if protdb:
+                protdb.newKey(['id'])
+                genedb.newKey(['id'])
+            else:
+                # sequences : ['name', 'desc', 'gene', 'spec', 'accnum', 'length']
+                protdb = self.db('sequences')    # Proteins -> name = protdb:id
+                protdb.addFields(['id','parent','locus'])
+                for pentry in protdb.entries():
+                    pentry['id'] = pentry['name']
+                    pentry['parent'] = pentry['name']
+                    #!# Will need to improve this
+                    pentry['locus'] = '.'.join(pentry['name'].split('.')[:-2])
+                    if pentry['locus'] not in locdb.dataKeys():
+                        raise ValueError('Cannot parse protein sequence names as locus.RF.ORF')
+                protdb.newKey(['id'])
+                self.printLog('#NOTE','GFF and contig outputs not currently available for ORF input. (Needs GFF.)')
+            ## ~ [1c] Check for existing taxonomy output tables ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            runmmseqs = not rje.checkForFiles(filelist=['_report','_lca.tsv'],basename=taxbase,log=self,cutshort=False,ioerror=False,missingtext='Not found.')
+            if not runmmseqs:
+                if self.force():
+                    self.warnLog('Previous easy-taxonomy results detected and force=True: will be overwritten')
+                    runmmseqs = True
+                else:
+                    self.printLog('#TAXRUN','Previous easy-taxonomy results detected: force=False')
+            ## ~ [1d] Check for TaxDB ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            if runmmseqs:
+                try:
+                    mmseq = os.popen('mmseqs').readline().split()[0]
+                    if mmseq == 'MMseqs2':
+                        self.printLog('#MMSEQ2', 'MMseqs2 found')
+                    else:
+                        raise ValueError('MMseqs2 installation not found. Aborted easy-taxonomy run.')
+                except:
+                    raise ValueError('MMseqs2 installation not found. Aborted easy-taxonomy run.')
+                if not rje.checkForFile(self.getStr('TaxDB')):
+                    raise IOError('TaxDB "{0}" not found. Aborted easy-taxonomy run.'.format(self.getStr('TaxDB')))
+            ## ~ [1e] Load sequence subsets for outputs ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            # - TaxSubsets=FILELIST : Files with sets of assembly input sequences (matching GFF) to summarise []
+            taxsubsets = {}    # Dictionary of {prefix:seqname list}
+            for subfile in self.list['TaxSubsets']:
+                prefix = rje.baseFile(subfile,strip_path=True)
+                seqs = open(subfile).read().split()
+                taxsubsets[prefix] = seqs
+                self.printLog('#SUBSET','{0} sequence IDs loaded for "{1}"'.format(rje.iLen(seqs),prefix))
+
+            ### ~ [2] Run easy-taxonomy ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            #i# If required, run mmseqs easy-taxonomy $QUERY $TARGETDB $PREFIX.easy tmp
+            if runmmseqs:
+                self.headLog('Run easy-taxonomy', line='-')
+                self.printLog('#TMP', 'TmpDir: {0}'.format(tmpdir))
+                mmcmd = 'mmseqs easy-taxonomy {0} {1} {2} {3}'.format(self.getStr('SeqIn'), self.getStr('TaxDB'), taxbase, tmpdir)
+                self.loggedSysCall(mmcmd)
+                if not rje.checkForFiles(filelist=['_report','_lca.tsv'],basename=taxbase,log=self,cutshort=False,ioerror=False,missingtext='Not found.'):
+                    raise IOError('easy-taxonomy output not generated.')
+                self.printLog('#SYS','Check {0}.sys.log for mmseqs2 run details.'.format(self.baseFile()))
+
+            ### ~ [3] Parse easy-taxonomy ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            self.headLog('Parse easy-taxonomy', line='-')
+            reportfile = '{0}_report'.format(taxbase)
+            repdb = db.addTable(reportfile,mainkeys=['#'],datakeys='All',delimit='\t',headers=['taxperc','taxnum','taxpure','taxrank','taxid','taxname'],ignore=[''],name='report',expect=True)
+            #i# Keep TaxID as strings
+            repdb.dataFormat({'taxperc':'float','taxnum':'int','taxpure':'int'}) #,'taxid':'int'})
+            taxtree = {}    # {(rank,id,name):{taxtree}}
+            levels = []     # List of (rank,id,name) tuples corresponding to current level being parsed
+            #X# taxmapping = {} # {(rank,id,name):(rank,id,name)} -> Will be used to reclassify lca table
+            taxmapping = {} # {id:id} -> Will be used to reclassify lca table
+            taxcounts = {}  # {id:taxnum}
+            taxlineage = self.dict['TaxLineage'] = {} # {(rank,id,name):[list of higher levels]}
+            taxtuple = self.dict['TaxTuple'] = {} # {id:(rank,id,name)}
+            taxparent = {}  # {id: parent id}
+            ## ~ [3a] Parse taxonomy tree ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            rx = 0.0; rtot = repdb.entryNum()
+            for rentry in repdb.entries(sorted=True):
+                self.progLog('\r#REPORT','Parsing taxonomy: {0:.2f}%'.format(rx/rtot)); rx += 100.0
+                #self.bugPrint(rentry)
+                #i# Set up root
+                if rentry['taxname'] == 'unclassified':
+                    taxtuple['0'] = ('no rank','0','unclassified')
+                    taxcounts['0'] = rentry['taxnum']
+                    taxlineage[('no rank','0','unclassified')] = []
+                    continue
+                if rentry['taxname'] == 'root':
+                    levels = [('no rank','1','root')]
+                    taxtree[('no rank','1','root')] = {}
+                    taxtuple['1'] = ('no rank','1','root')
+                    taxcounts['1'] = rentry['taxnum']
+                    taxlineage[('no rank','1','root')] = []
+                    continue
+                #i# Parse levels
+                i = len(rje.matchExp('^(\s+)',rentry['taxname'])[0]) / 2
+                levels = levels[:i]
+                #if rx < 1000: self.debug('Level {1}::{0}\n'.format(levels,i))
+                mytree = taxtree
+                for level in levels:
+                    if level in mytree:
+                        mytree = mytree[level]
+                    elif level[0] in taxranks:
+                        raise ValueError('{0} missing from {1}'.format(level,rje.sortKeys(mytree)))
+                taxon = (rentry['taxrank'],rentry['taxid'],rentry['taxname'][i*2:])
+                if taxon in mytree: raise ValueError
+                #i# Map taxa based on absence from taxranks
+                if taxon[0] not in taxranks and taxon[2] not in ['unclassified', 'root', 'cellular organisms']:
+                    i = len(levels) - 1
+                    while levels[i][0] not in taxranks: i -= 1
+                    taxmapping[taxon[1]] = levels[i][1]
+                    #i# Check for additional mapping due to low occurrence levels
+                    while taxmapping[taxon[1]] in taxmapping:
+                        taxmapping[taxon[1]] = taxmapping[taxmapping[taxon[1]]]
+                    #self.debug(taxmapping)
+                #!# Add additional mapping due to small numbers
+                elif rentry['taxnum'] < mintaxnum:
+                    #i# Just map up and then iteratively map
+                    taxmapping[taxon[1]] = levels[-1][1]
+                    while taxmapping[taxon[1]] in taxmapping:
+                        taxmapping[taxon[1]] = taxmapping[taxmapping[taxon[1]]]
+                    mytree[taxon] = {}
+                else:
+                    mytree[taxon] = {}
+                    taxcounts[taxon[1]] = rentry['taxnum']
+                taxparent[taxon[1]] = levels[-1][1]
+                while taxparent[taxon[1]] in taxmapping:
+                    taxparent[taxon[1]] = taxmapping[taxparent[taxon[1]]]
+                taxlineage[taxon] = levels[0:]
+                levels.append(taxon)
+                taxtuple[taxon[1]] = taxon
+                #self.bugPrint('TaxTree::{0}\n'.format(taxtree))
+                #self.debug('Levels::{0}\n'.format(levels))
+            self.printLog('\r#REPORT', 'Parsing taxonomy complete')
+            ## ~ [3b] Process lca table ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            lcafile = '{0}_lca.tsv'.format(taxbase)
+            lcadb = db.addTable(lcafile,mainkeys=['protname'],delimit='\t',headers=['protname','taxid','taxrank','taxname'],ignore=[''],name='lca',expect=True)
+            lcadb.addField('gene')
+            lcadb.addField('seqname')
+            lx = 0.0; ltot = lcadb.entryNum()
+            for lentry in lcadb.entries():
+                self.progLog('\r#LCA','Parsing lca table: {0:.2f}%'.format(lx/ltot)); lx += 100.0
+                pentry = protdb.data(lentry['protname'])
+                if not pentry:
+                    raise ValueError('Problem mapping lca protein names onto annotation ({0} not found)'.format(lentry['protname']))
+                lentry['gene'] = pentry['parent']
+                lentry['seqname'] = pentry['locus']
+                if lentry['taxid'] in taxmapping:
+                    lentry['taxid'] = taxmapping[lentry['taxid']]
+                    lentry['taxrank'] = taxtuple[lentry['taxid']][0]
+                    lentry['taxname'] = taxtuple[lentry['taxid']][2]
+            self.printLog('\r#LCA', 'Parsing lca table complete')
+
+            ### ~ [4] Compress to genes ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            self.headLog('Compress easy-taxonomy to gene level', line='-')
+            #?# Might want to give partial credit per protein, rather than keeping "best" but will this break output that expects integers?
+            #?# Keep the most popular lowest level in the case of ties = taxcounts[lentry['taxid']]
+            lcadb.addField('protnum',evalue=1)
+            lcadb.compress(['gene'], rules={'taxid':'list','protnum':'sum'}, default='str', best=[], joinchar='|')
+            if genedb:  #i# Currently unavailable for ORF mode
+                lcadb.addFields(['start','end','strand'])
+            lx = 0.0; ltot = lcadb.entryNum()
+            for lentry in lcadb.entries():
+                self.progLog('\r#LCA','Assigning gene taxa: {0:.2f}%'.format(lx/ltot)); lx += 100.0
+                try:
+                    if genedb:  # i# Currently unavailable for ORF mode
+                        gentry = genedb.data(lentry['gene'])
+                        lentry['start'] = gentry['start']
+                        lentry['end'] = gentry['end']
+                        lentry['strand'] = gentry['strand']
+                except:
+                    self.warnLog('Problem updating start/end positions for gene "{0}"'.format(lentry['gene']),suppress=True)
+                idlist = lentry['taxid'].split('|')
+                #self.bugPrint(lentry)
+                if len(idlist) > 1:
+                    idsort = []
+                    for id in idlist:
+                        if id == '0': continue
+                        try:
+                            idsort.append((taxranks.index(taxtuple[id][0]),taxcounts[id],id))
+                        except:
+                            self.errorLog('Problem with {0}'.format(lentry))
+                    idsort.sort(reverse=True)
+                    #self.debug(idsort)
+                    lentry['taxid'] = idsort[0][2]
+                    lentry['taxrank'] = taxtuple[lentry['taxid']][0]
+                    lentry['taxname'] = taxtuple[lentry['taxid']][2]
+            self.printLog('\r#LCA', 'Assigning gene taxa complete')
+            #?# Should we re-apply the mintaxnum threshold here?
+            lcafile = '{0}.lca_genes.tsv'.format(taxbase)
+            lcadb.setFields(['seqname','gene','protnum','taxid','taxrank','taxname','start','end','strand'])
+            lcadb.newKey(['seqname', 'gene'])
+
+            ### ~ [5] Compress to taxon counts by sequence ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            self.headLog('Compress to taxon counts by sequence', line='-')
+            #i# Now make the core taxonomic assignment table with numbers per sequence for all represented taxonomic levels
+            # * `seqname` = assembly sequence name
+            # * `genenum` = number of genes parsed for that sequence
+            # * `protnum` = number of proteins parsed for that sequence
+            # * `taxrank` = taxonomic rank of rating
+            # * `genetax` = number of genes with assignment at that level in that sequence
+            # * `taxid` = taxonomic label identifier number
+            # * `taxname` = taxonomic label name at that rank
+            # * `taxperc` = percentage assignment to this rank or lower
+            # * `taxnum` = number of genes assigned to this rank or lower
+            # * `taxpure` = number of genes assigned to this rank specifically
+            taxdb = db.copyTable(lcadb,'taxbyseq')
+            #['seqname','gene','protnum','taxid','taxrank','taxname'])
+            taxdb.addField('genenum',evalue=1)
+            taxdb.addField('taxnum',evalue=1)
+            taxdb.addField('taxpure',evalue=1)
+            taxdb.compress(['seqname','taxid','taxrank','taxname'],rules={'gene':'list'},default='sum')
+            taxdb.dropField('gene')
+            taxdb.setFields(['seqname','genenum','protnum','taxid','taxrank','taxname','taxnum','taxpure'])
+            #i# Calculate numbers
+            genenum = {}
+            protnum = {}
+            for tentry in taxdb.entries():
+                if tentry['seqname'] not in genenum: genenum[tentry['seqname']] = 0
+                if tentry['seqname'] not in protnum: protnum[tentry['seqname']] = 0
+                genenum[tentry['seqname']] += tentry['genenum']
+                protnum[tentry['seqname']] += tentry['protnum']
+            taxdb.dropEntriesDirect('taxid',['0'])
+            #i# Cycle through each taxid and update the taxnum for each parent in levels. (Add if needed)
+            taxdb.newKey(['seqname', 'taxid'])
+            for tentry in taxdb.entries():
+                tentry['genenum'] = genenum[tentry['seqname']]
+                tentry['protnum'] = protnum[tentry['seqname']]
+                taxid = tentry['taxid']
+                taxon = taxtuple[taxid]
+                levels = taxlineage[taxon]
+                for level in levels:
+                    if level[0] in taxranks:
+                        upkey = (tentry['seqname'],level[1])
+                        uentry = taxdb.data(upkey)
+                        if not uentry:
+                            uentry = taxdb.addEntry({'seqname':tentry['seqname'],'genenum':tentry['genenum'],'protnum':tentry['protnum'],'taxid':level[1],'taxrank':level[0],'taxname':level[2],'taxnum':0,'taxpure':0})
+                        uentry['taxnum'] += tentry['taxpure']
+
+            ### ~ [6] Refilter on mintaxnum ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            repdb = db.copyTable(taxdb,'full_report')
+            repdb.keepFields(['seqname', 'taxrank', 'taxid', 'taxname', 'taxnum', 'taxpure'])
+            repdb.compress(['taxid'],default='str',rules={'taxnum':'sum', 'taxpure':'sum'})
+            ## ~ [6a] Map low frequency TaxIDs ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            minmap = {}     # {id:id} mapping for taxa not meeting mintaxnum
+            prerepx = repdb.entryNum(); pretaxx = taxdb.entryNum()
+            for i in range(1,mintaxnum):
+                self.progLog('\r#MAP', 'Mapping n={0} taxid to higher levels'.format(i))
+                while i in repdb.index('taxnum',force=True):
+                    for rentry in repdb.indexEntries('taxnum',i):
+                        taxid = rentry['taxid']
+                        mapid = taxparent[taxid]
+                        #i# Already mapped? If so, map up higher
+                        while mapid in minmap: mapid = minmap[mapid]
+                        minmap[taxid] = mapid
+                        mentry = repdb.data(mapid)
+                        mentry['taxpure'] += rentry['taxpure']
+                        repdb.dropEntry(rentry)
+                        #i# Update taxdb
+                        for tentry in taxdb.indexEntries('taxid',taxid):
+                            seqname = tentry['seqname']
+                            taxdb.data((seqname,mapid))['taxpure'] += tentry['taxpure']
+                            taxdb.dropEntry(tentry)
+            self.printLog('\r#MAP','{0} taxid < mintaxnum mapped to higher levels'.format(rje.iLen(minmap)))
+            self.printLog('\r#MAP','{0} taxid -> {1} taxid for report'.format(rje.iStr(prerepx),repdb.entryNum()))
+            self.printLog('\r#MAP','{0} sequence:taxid pairs -> {1} sequence:taxid pairs'.format(rje.iStr(pretaxx),rje.iStr(taxdb.entryNum())))
+            ## ~ [6b] Sum taxnums across ranks to generate genetax numbers ~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            self.progLog('\r#GENES','Calculating number of rated genes per taxonomic level...')
+            genetax = {}
+            for tentry in taxdb.entries():
+                if tentry['seqname'] not in genetax: genetax[tentry['seqname']] = {'*':0}
+                if tentry['taxrank'] not in genetax[tentry['seqname']]: genetax[tentry['seqname']][tentry['taxrank']] = 0
+                genetax[tentry['seqname']]['*'] += tentry['taxpure']
+                genetax[tentry['seqname']][tentry['taxrank']] += tentry['taxnum']
+            taxdb.addField('genetax')
+            taxdb.addField('taxperc')
+            for tentry in taxdb.entries():
+                tentry['genetax'] = genetax[tentry['seqname']][tentry['taxrank']]
+                tentry['taxperc'] = 100.0 * tentry['taxnum'] / genetax[tentry['seqname']]['*']
+            self.printLog('\r#GENES', 'Calculation of number of rated genes per taxonomic level complete.')
+            self.debug(taxdb.entries()[0])
+            self.debug(taxdb.fields())
+            ## ~ [6c] Save to taxdb to file ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            taxdb.setFields(['seqname', 'genenum', 'protnum', 'taxrank', 'genetax', 'taxid', 'taxname', 'taxperc', 'taxnum', 'taxpure'])
+            if self.getBool('TaxBySeq'):
+                taxdb.saveToFile('{0}.taxbyseq.tsv'.format(taxbase),sfdict={'taxperc':4})
+
+            ### ~ [7] Generate Taxolotl reports ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            self.headLog('Generate Taxolotl reports', line='-')
+            revranks = taxranks[0:]
+            revranks.reverse()   # Now bigger index is higher level
+            bestranks = {}  # {level:(taxid,count)}
+            for prefix in [''] + taxsubsets.keys():
+                ## ~ [7a] ~ Set table ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+                table = 'taxolotl_report'
+                if prefix: table = '{0}.taxolotl_report'.format(prefix)
+                repdb = db.copyTable(taxdb,table)
+                if prefix:
+                    self.headLog(prefix, line='~')
+                    repdb.dropEntriesDirect('seqname',taxsubsets[prefix],inverse=True)
+                repdb.keepFields(['seqname', 'taxrank', 'taxid', 'taxname', 'taxnum', 'taxpure'])
+                repdb.compress(['taxid'],default='str',rules={'taxnum':'sum', 'taxpure':'sum','genenum':'sum', 'protnum':'sum'})
+                genenum = 0
+                for rentry in repdb.entries():
+                    genenum += rentry['taxpure']
+                repdb.addField('taxperc')
+                for rentry in repdb.entries():
+                    rentry['taxperc'] = rje.dp(100.0 * rentry['taxnum'] / genenum,4)
+                ## ~ [7b] Sort out ordering ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+                repdb.addField('#')
+                repdb.addField('taxtext')
+                repsort = []    # This is going to be a list of tuple lists
+                for rentry in repdb.entries():
+                    taxid = rentry['taxid']
+                    taxon = taxtuple[taxid]
+                    sorter = []
+                    for taxup in taxlineage[taxon]:
+                        if repdb.data(taxup[1]):
+                            sorter.append((repdb.data(taxup[1])['taxnum'],taxup[1]))
+                    sorter.append((rentry['taxnum'],taxid))
+                    repsort.append(sorter)
+                repsort.sort(reverse=True)
+                ## ~ [7c] Work through taxa ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+                repkeys = repdb.dataKeys()  # Slowly work through these, removing them
+                rx = 1
+                for sorter in repsort:
+                    ix = -1
+                    for (taxnum,taxid) in sorter:
+                        ix += 1
+                        if taxid in repkeys:
+                            #i# Update taxon rentry and mark as done by removing from repkeys
+                            repkeys.remove(taxid)
+                            rentry = repdb.data(taxid)
+                            rentry['#'] = rx; rx += 1
+                            #taxon = taxtuple[taxid]
+                            rentry['taxtext'] = '  ' * ix + rentry['taxname']
+                            taxrank = rentry['taxrank']
+                            #i# Set best lineage. May be over-written if bestlineage=F
+                            if taxrank not in bestranks: bestranks[taxrank] = (taxnum, taxid)
+                ## ~ [7d] Output ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+                repdb.newKey(['#'])
+                repdb.saveToFile('{0}.{1}.tsv'.format(taxbase,table),delimit='\t',savefields=['taxperc','taxnum','taxpure','taxrank','taxid','taxtext'],headers=False)
+                ## ~ [7e] Calculate best taxa per level ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+                if prefix: continue
+                if not self.getBool('BestLineage'):
+                    for rentry in repdb.entries(sorted=True):
+                        taxid = rentry['taxid']
+                        taxrank = rentry['taxrank']
+                        taxnum = rentry['taxnum']
+                        #!# Add toggle for dependent or independent
+                        if taxrank not in bestranks or taxnum > bestranks[taxrank][0]:
+                            bestranks[taxrank] = (taxnum,taxid)
+                prevnum = 0
+                for taxrank in revranks:
+                    if taxrank == 'no rank':
+                        bestranks.pop(taxrank)
+                        continue
+                    if taxrank in bestranks:
+                        taxid = bestranks[taxrank][1]
+                        taxnum = bestranks[taxrank][0]
+                        if taxnum < prevnum:
+                            bestranks.pop(taxrank)
+                            continue
+                        prevnum = taxnum
+                        taxname = taxtuple[taxid][2]
+                        taxperc = rje.dp(100.0 * taxnum / genenum, 2)
+                        self.printLog('#BEST','Best "{0}" rating = {1}% {2} (taxid:{3})'.format(taxrank,taxperc,taxname,taxid))
+                self.debug(bestranks)
+                ## ~ [7f] Update lca_genes table with best taxa rating ~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+                #i# If this taxon matches the consensus taxon at a level at/below , the lowest level will be given in rating
+                #i# If it matches at no level
+                lcadb.addField('rating')
+                lcadb.addField('lineage')
+                lx = 0.0; ltot = lcadb.entryNum()
+                nx = 0; bx = 0; gx = 0
+                self.debug(revranks)
+                for lentry in lcadb.entries():
+                    self.progLog('\r#LCA','Adding gene-level best taxa ratings to lca_genes table: {0:.1f}%'.format(lx/ltot)); lx += 100.0
+                    lentry['lineage'] = ''
+                    taxid = lentry['taxid']
+                    taxon = taxtuple[taxid]
+                    for taxup in taxlineage[taxon]:
+                        if taxup[0] not in ['no rank','clade']:
+                            lentry['lineage'] += '{0}:{1}:{2}|'.format(taxup[0].upper()[:1], taxup[1], taxup[2])
+                    lentry['lineage'] = lentry['lineage'][:-1]
+                    taxup = taxlineage[taxon][0:]
+                    #i# If taxrank not in bestranks, work up through lineage to set new taxrank
+                    #i# If taxrank in bestranks and taxid matches -> goodtax = taxrank
+                    #i# If taxrank in bestranks and taxid does not match -> badtax
+                    #i# If taxrank is not in bestranks -> notax
+                    while taxup and (taxon[0] not in bestranks or revranks.index(taxon[0]) < revranks.index(self.getStr('TaxWarnRank'))):
+                        taxon = taxup.pop(-1)
+                    if taxon[0] in bestranks:
+                        if bestranks[taxon[0]][1] == taxon[1]:
+                            lentry['rating'] = taxon[0]
+                            gx += 1
+                        else:
+                            lentry['rating'] = 'badtax'
+                            bx += 1
+                    else:
+                        lentry['rating'] = 'notax'
+                        nx += 1
+                self.printLog('\r#LCA','Gene-level best taxa ratings: {0} good and {1} bad at {2} level; {3} w/o rank.'.format(rje.iStr(gx),rje.iStr(bx),self.getStr('TaxWarnRank'),rje.iStr(nx)))
+                lcadb.saveToFile(filename=lcafile)
+                if genedb:  # i# Currently unavailable for ORF mode
+                    lcadb.dataFormat({'start':'int','end':'int'})
+                    lcadb.newKey(('seqname', 'start', 'end', 'strand'))
+                    ctgdb = db.copyTable(lcadb, 'taxbyctg')
+                ## ~ [7g] Output GFF file of genes with taxa ranks and ratings ~~~~~~~~~~~~~~~~~~~~ ##
+                #!# Add GFF output of taxa ratings withing rating=good/bad/none and note="taxrank:taxid:taxname (taxlineage list)"
+                    lcadb.addField('source',evalue='taxolotl')
+                    lcadb.addField('ftype',evalue='gene')
+                    lcadb.addField('score',evalue='.')
+                    lcadb.addField('phase',evalue='.')
+                    lcadb.addField('attributes')
+                    for lentry in lcadb.entries():
+                        if lentry['lineage']:
+                            lentry['attributes'] = 'ID={0};Rating="{1}";Note="{2}:{3}:{4} ({5});'.format(lentry['gene'],lentry['rating'],lentry['taxrank'],lentry['taxid'],lentry['taxname'],lentry['lineage'])
+                        else:
+                            lentry['attributes'] = 'ID={0};Rating="{1}";Note="{2}:{3}:{4};'.format(lentry['gene'],lentry['rating'],lentry['taxrank'],lentry['taxid'],lentry['taxname'])
+                    gfields = ['seqname', 'source', 'ftype', 'start', 'end', 'score', 'strand', 'phase', 'attributes']
+                    #i# Save comments first then, table with selected headers, minus the headers!
+                    gcomments = ['##gff-version 3','##Generated by Taxolotl taxonomy run']
+                    lcagff = '{0}.lca_genes.gff'.format(taxbase)
+                    lcadb.saveToFile(lcagff,delimit='\t',backup=True,append=False,savefields=gfields,log=True,headers=False,comments=gcomments)
+
+            ### ~ [8] TaxBySeqFull output ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            # Add taxbyseqfull output here
+            if self.getBool('TaxBySeqFull'):
+                self.headLog('Generate Taxolotl reports for each sequence', line='-')
+                outdir = '{0}.taxbyseq'.format(taxbase)
+                rje.mkDir(self,outdir)
+                seqtaxdb = db.splitTable(taxdb,'seqname',asdict=True,keepfield=False)
+                for seqname in rje.sortKeys(seqtaxdb):
+                    ## ~ [8a] ~ Set table ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+                    repdb = seqtaxdb[seqname]
+                    table = '{0}.taxolotl_report'.format(seqname)
+                    repdb.keepFields(['seqname', 'taxrank', 'taxid', 'taxname', 'taxnum', 'taxpure'])
+                    repdb.compress(['taxid'],default='str',rules={'taxnum':'sum', 'taxpure':'sum','genenum':'sum', 'protnum':'sum'})
+                    genenum = 0
+                    for rentry in repdb.entries():
+                        genenum += rentry['taxpure']
+                    repdb.addField('taxperc')
+                    for rentry in repdb.entries():
+                        rentry['taxperc'] = rje.dp(100.0 * rentry['taxnum'] / genenum,4)
+                    ## ~ [8b] Sort out ordering ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+                    repdb.addField('#')
+                    repdb.addField('taxtext')
+                    repsort = []    # This is going to be a list of tuple lists
+                    for rentry in repdb.entries():
+                        taxid = rentry['taxid']
+                        taxon = taxtuple[taxid]
+                        sorter = []
+                        for taxup in taxlineage[taxon]:
+                            if repdb.data(taxup[1]):
+                                sorter.append((repdb.data(taxup[1])['taxnum'],taxup[1]))
+                        sorter.append((rentry['taxnum'],taxid))
+                        repsort.append(sorter)
+                    repsort.sort(reverse=True)
+                    ## ~ [8c] Work through taxa ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+                    repkeys = repdb.dataKeys()  # Slowly work through these, removing them
+                    rx = 1
+                    for sorter in repsort:
+                        ix = -1
+                        for (taxnum,taxid) in sorter:
+                            ix += 1
+                            if taxid in repkeys:
+                                #i# Update taxon rentry and mark as done by removing from repkeys
+                                repkeys.remove(taxid)
+                                rentry = repdb.data(taxid)
+                                rentry['#'] = rx; rx += 1
+                                #taxon = taxtuple[taxid]
+                                rentry['taxtext'] = '  ' * ix + rentry['taxname']
+                    ## ~ [8d] Output ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+                    repdb.newKey(['#'])
+                    repdb.saveToFile('{0}/{1}.tsv'.format(outdir,table),delimit='\t',savefields=['taxperc','taxnum','taxpure','taxrank','taxid','taxtext'],headers=False)
+
+            ### ~ [9] Contamination checking ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            self.headLog('Checking for contamination', line='-')
+            # To flag contamination, each sequence will also be assessed against the dominant taxonomic rating at each level.
+            # The percentage of genes matching each dominant rating will be reported for each sequence in `*.consensus.tsv`
+            # along with the number of genes with a rating at that level, separated with a `|`. This will exclude any genes
+            # without ratings at that taxonomic level. A `Consensus` entry will also report the overall values for the whole
+            # assembly.
+            #
+            # Any sequences that have a dominant taxonomic label deviating from the overall consensus at any ranking levels
+            # set by `taxwarnrank=X` (default family) or above will raise a contamination warning and be output to
+            # `*.warnings.tsv`. This will have the same output as `*.consensus.tsv` but will have the dominant taxon and it's
+            # precentage appended to the consensus percentage, also separated by `|`. For example, `25.00|20|Chordata|50.00`
+            # would indicate that 25% of the 20 genes with ratings at that level matched the consensus, whilst the dominant
+            # classification was `Chordata` with 50% of 20 rated genes assigned to this category.
+            #
+            ## ~ [9a] Set up the table fields ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            #i# bestranks now has the consensus best taxon per level
+            #i# Update and output modified taxdb
+            confields = ['seqname','rating']
+            centry = {'seqname':':consensus:','rating':'best-taxa'}
+            genetax = {}    # {taxrank:{seqname:genetax}}
+            rankbest = {}   # {taxrank:taxname}
+            for taxrank in revranks:
+                if taxrank in bestranks:
+                    confields.insert(2,taxrank)
+                    taxnum = bestranks[taxrank][0]
+                    taxid = bestranks[taxrank][1]
+                    taxname = taxtuple[taxid][2]
+                    #!# Add the percentage and total number at this level as for the sequences
+                    centry[taxrank] = (taxname,taxid,taxnum)
+                    rankbest[taxrank] = taxname
+                    genetax[taxrank] = {}
+            condb = db.addEmptyTable('consensus',confields,['seqname'])
+            ## ~ [9b] Establish counts for conensus and best taxa ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            seqbest = {}    # {seqname:{taxrank:(taxnum,taxid)}}
+            seqcons = {}    # {seqname:{taxrank:taxnum}}
+            for tentry in taxdb.entries():
+                seqname = tentry['seqname']
+                if seqname not in seqbest:
+                    seqbest[seqname] = {}
+                    seqcons[seqname] = {}
+                bdict = seqbest[seqname]
+                cdict = seqcons[seqname]
+                taxid = tentry['taxid']
+                taxrank = tentry['taxrank']
+                if taxrank not in confields: continue
+                taxnum = tentry['taxnum']
+                if taxrank not in bdict or taxnum > bdict[taxrank][0]:
+                    bdict[taxrank] = (taxnum,taxid)
+                if taxid == bestranks[taxrank][1]:
+                    cdict[taxrank] = (taxnum, taxid)
+                genetax[taxrank][seqname] = tentry['genetax']
+            ## ~ [9c] Consensus values ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            #!# Add up the genetax[taxrank].values() for each taxrank and update centry
+            for taxrank in confields[2:]:
+                rankgenes = sum(genetax[taxrank].values())
+                (taxname, taxid, taxnum) = centry[taxrank]
+                taxperc = rje.dp(100.0 * taxnum / rankgenes, 2)
+                centry[taxrank] = '{0}|{1}|{2}:{3}'.format(taxperc,rankgenes,taxname,taxid)
+            condb.addEntry(centry)
+            ## ~ [9d] Process each sequence ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            taxwarn = {}    # Dictionary of {seqname:warning text}
+            warnrank = self.getStr('TaxWarnRank')
+            if warnrank not in confields:
+                self.warnLog('TaxWarnRank "{0}" not found in taxonomic ranks'.format(warnrank))
+                warnrank = ''
+            for seqname in rje.sortKeys(seqbest):
+                sentry = {'seqname':seqname,'rating':'goodtax'}
+                for taxrank in confields[2:]:
+                    bdict = seqbest[seqname]
+                    if taxrank not in bdict:
+                        sentry[taxrank] = '0.00|0'
+                        continue
+                    cdict = seqcons[seqname]
+                    if taxrank in cdict:
+                        tentry = taxdb.data((seqname,cdict[taxrank][1]))
+                        taxperc = rje.dp(100.0 * tentry['taxnum'] / tentry['genetax'], 2)
+                    else:
+                        taxperc = '0.00'
+                        tentry = {'taxnum': 0}
+                    bentry = taxdb.data((seqname, bdict[taxrank][1]))
+                    taxg = bentry['genetax']
+                    sentry[taxrank] = '{0}|{1}'.format(taxperc,taxg)
+                    taxid = bentry['taxid']
+                    if taxid != bestranks[taxrank][1] and bentry['taxnum'] > tentry['taxnum']:
+                        bperc = rje.dp(100.0 * bentry['taxnum'] / bentry['genetax'], 2)
+                        taxname = bentry['taxname']
+                        sentry[taxrank] = '{0}|{1}|{2}'.format(sentry[taxrank],taxname,bperc)
+                        if seqname not in taxwarn and warnrank and confields.index(taxrank) <= confields.index(warnrank):
+                            taxwarn[seqname] = '{0} diverges from consensus at {1} level: "{2}" not "{3}"'.format(seqname,taxrank,taxname,rankbest[taxrank])
+                            sentry['rating'] = 'badtax'
+                            self.debug(taxwarn[seqname])
+                condb.addEntry(sentry)
+            ## ~ [9e] Output warnings ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            warnx = 0; missx = 0; goodx = 0
+            for seqname in locdb.dataKeys():
+                if seqname in taxwarn:
+                    self.warnLog(taxwarn[seqname]); warnx += 1
+                elif seqname in seqbest:
+                    goodx += 1
+                else:
+                    if self.v() > 1: self.printLog('#BADTAX','{0} has no taxonomic assignment'.format(seqname))
+                    missx += 1
+                    sentry = {'seqname':seqname,'rating':'notax'}
+                    for taxrank in confields[2:]:
+                        sentry[taxrank] = '0.00|0'
+                    condb.addEntry(sentry)
+            self.printLog('#BEST','{0} sequences match consensus taxa. See *.taxolotl.tsv for details.'.format(rje.iStr(goodx)))
+            self.printLog('#BADTAX','{0} sequences have divergent taxa. See log #BADTAX entries for details.'.format(rje.iStr(warnx)))
+            self.printLog('#NOTAX','{0} sequences have no taxonomic assigment. See *.notax.id for details.'.format(rje.iStr(missx)))
+            condb.index('rating')
+            self.debug(condb.index('rating'))
+            condb.saveToFile('{0}.taxolotl.tsv'.format(taxbase))
+            ## ~ [9f] Output sequence subsets ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            self.headLog('Output sequence subsets', line='-')
+            #i# Save to *.id and *.fasta and summarise
+            seqfiles = []
+            if not self.getStrLC('Assembly'): self.printLog('#FASOUT','No assembly file for sequence subset output')
+            elif not rje.exists(self.getStr('Assembly')): self.warnLog('#FASOUT','Assembly file "{0} not found!'.format(self.getStr('Assembly')))
+            else: seqfiles.append(self.getStr('Assembly'))
+            for prefix in ['best-taxa','goodtax','badtax','notax']:
+                if prefix not in condb.index('rating'): continue
+                seqids = condb.index('rating')[prefix]
+                if prefix == 'best-taxa':
+                    seqids = locdb.dataKeys()
+                    prefix = 'geneseq'
+                idfile = '{0}.{1}.id'.format(taxbase,prefix)
+                rje.backup(self,idfile)
+                open(idfile,'w').write('\n'.join(seqids))
+                self.printLog('#IDFILE','{0} sequence IDs output to {1}'.format(rje.iLen(seqids),idfile))
+                if self.getStrLC('Assembly'):
+                    acmd = ['seqin={0}'.format(self.getStr('Assembly')),'dna=T','summarise=F','autofilter=T','autoload=T']
+                    if prefix == 'geneseq':
+                        if len(seqids) >= self.obj['Assembly'].seqNum():
+                            self.printLog('#SEQID','No SeqID without genes for *.nogenes.fasta output.')
+                            continue
+                        acmd += ['badseq={0}'.format(idfile),'seqout={0}.nogenes.fasta'.format(taxbase)]
+                        seqfiles.append('{0}.nogenes.fasta'.format(taxbase))
+                    else:
+                        acmd += ['goodseq={0}'.format(idfile),'seqout={0}.{1}.fasta'.format(taxbase, prefix)]
+                        seqfiles.append('{0}.{1}.fasta'.format(taxbase, prefix))
+                    rje_seqlist.SeqList(self.log, self.cmd_list + acmd)
+            sdb = rje_seqlist.batchSummarise(self, seqfiles, save=False, overwrite=True, seqcmd=['dna=T'])
+            sdb.saveToFile('{0}.seqsummary.tsv'.format(taxbase))
+
+            ### ~ [10] Generate Taxolotl reports ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            for prefix in ['goodtax','badtax']:
+                if len(condb.index('rating')) < 3: break
+                if prefix not in condb.index('rating'): continue
+                if prefix in taxsubsets.keys():
+                    self.warnLog('Loaded taxsubset "{0}" name clash: skipping Taxolotl report output'.format(prefix))
+                    continue
+                self.headLog('{0} Taxolotl Report'.format(prefix), line='~')
+                ## ~ [10a] ~ Set table ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+                table = '{0}.taxolotl_report'.format(prefix)
+                repdb = db.copyTable(taxdb,table)
+                repdb.dropEntriesDirect('seqname',condb.index('rating')[prefix],inverse=True)
+                repdb.keepFields(['seqname', 'taxrank', 'taxid', 'taxname', 'taxnum', 'taxpure'])
+                repdb.compress(['taxid'],default='str',rules={'taxnum':'sum', 'taxpure':'sum','genenum':'sum', 'protnum':'sum'})
+                genenum = 0
+                for rentry in repdb.entries():
+                    genenum += rentry['taxpure']
+                repdb.addField('taxperc')
+                for rentry in repdb.entries():
+                    rentry['taxperc'] = rje.dp(100.0 * rentry['taxnum'] / genenum,4)
+                ## ~ [10b] Sort out ordering ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+                repdb.addField('#')
+                repdb.addField('taxtext')
+                repsort = []    # This is going to be a list of tuple lists
+                for rentry in repdb.entries():
+                    taxid = rentry['taxid']
+                    taxon = taxtuple[taxid]
+                    sorter = []
+                    for taxup in taxlineage[taxon]:
+                        if repdb.data(taxup[1]):
+                            sorter.append((repdb.data(taxup[1])['taxnum'],taxup[1]))
+                    sorter.append((rentry['taxnum'],taxid))
+                    repsort.append(sorter)
+                repsort.sort(reverse=True)
+                ## ~ [10c] Work through taxa ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+                repkeys = repdb.dataKeys()  # Slowly work through these, removing them
+                rx = 1
+                for sorter in repsort:
+                    ix = -1
+                    for (taxnum,taxid) in sorter:
+                        ix += 1
+                        if taxid in repkeys:
+                            #i# Update taxon rentry and mark as done by removing from repkeys
+                            repkeys.remove(taxid)
+                            rentry = repdb.data(taxid)
+                            rentry['#'] = rx; rx += 1
+                            rentry['taxtext'] = '  ' * ix + rentry['taxname']
+                ## ~ [10d] Output ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+                repdb.newKey(['#'])
+                repdb.saveToFile('{0}.{1}.tsv'.format(taxbase,table),delimit='\t',savefields=['taxperc','taxnum','taxpure','taxrank','taxid','taxtext'],headers=False)
+
+            ### ~ [11] Contig table ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            #i# This is going to be based on the consensus table
+            #i# Need to identify the contigs and remap genes onto contigs, then compress as with genes
+            if assembly and self.getBool('TaxByContig') and genedb:
+                self.headLog('Taxonomy by Contig', line='-')
+                mingap = max(1, assembly.getInt('MinGap'))
+                gapre = re.compile('N{%d,}' % mingap)
+                #i# ctgdb   # lcadb.newKey(('seqname','start','end','strand'))
+                ## ~ [11a] Generate contigs ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+                contigs = {}    # Dictionary of seqname:[contigs]
+                ctglist = []
+                for seq in assembly.seqs():
+                    sequence = assembly.seqSequence(seq).upper()
+                    sname = assembly.shortName(seq)
+                    contigs[sname] = []
+                    seqi = seqj = 0
+                    for m in gapre.finditer(sequence):
+                        seqj = m.start()
+                        contig = sequence[seqi:seqj]
+                        cname = '{0}.{1}-{2}'.format(sname, seqi + 1, seqj)
+                        if contig:
+                            contigs[sname].append((cname,seqi+1,seqj))
+                            ctglist.append(cname)
+                        seqi = m.end()
+                    if seqi:
+                        seqj = len(sequence)
+                        cname = '{0}.{1}-{2}'.format(sname, seqi + 1, seqj)
+                        contigs[sname].append((cname,seqi+1,seqj))
+                        ctglist.append(cname)
+                    elif not seqj:
+                        contigs[sname].append((sname,1,len(sequence)))
+                        ctglist.append(sname)
+                ## ~ [11b] Assign genes to contigs ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+                genectgs = {}   # Dictionary of gene:[contigs]
+                for centry in ctgdb.entries():
+                    gene = centry['gene']
+                    sname = centry['seqname']
+                    genectgs[gene] = []
+                    for contig in contigs[sname]:
+                        if contig[1] < centry['end'] and contig[2] > centry['start']:
+                            genectgs[gene].append(contig[0])
+                ## ~ [11c] Remake gene taxonomy table with contigs ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+                prex = ctgdb.entryNum()
+                for centry in ctgdb.entries():
+                    gene = centry['gene']
+                    centry['seqname'] = genectgs[gene].pop(0)
+                    for contig in genectgs[gene]:
+                        ctgdb.addEntry(rje.combineDict({'seqname':contig},centry,overwrite=False))
+                self.printLog('#CTGTAX','{0} gene-taxa seqname mappings -> {1} contig mappings'.format(rje.iStr(prex),rje.iStr(ctgdb.entryNum())))
+                ## ~ [11d] Repeat the taxa-by-sequence compilation ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+                ctgdb.addField('genenum',evalue=1)
+                ctgdb.addField('taxnum',evalue=1)
+                ctgdb.addField('taxpure',evalue=1)
+                ctgdb.compress(['seqname','taxid','taxrank','taxname'],rules={'gene':'list'},default='sum')
+                ctgdb.dropField('gene')
+                ctgdb.setFields(['seqname','genenum','protnum','taxid','taxrank','taxname','taxnum','taxpure'])
+                #i# Calculate numbers
+                genenum = {}
+                protnum = {}
+                for tentry in ctgdb.entries():
+                    if tentry['seqname'] not in genenum: genenum[tentry['seqname']] = 0
+                    if tentry['seqname'] not in protnum: protnum[tentry['seqname']] = 0
+                    genenum[tentry['seqname']] += tentry['genenum']
+                    protnum[tentry['seqname']] += tentry['protnum']
+                ctgdb.dropEntriesDirect('taxid',['0'])
+                #i# Cycle through each taxid and update the taxnum for each parent in levels. (Add if needed)
+                ctgdb.newKey(['seqname', 'taxid'])
+                for tentry in ctgdb.entries():
+                    tentry['genenum'] = genenum[tentry['seqname']]
+                    tentry['protnum'] = protnum[tentry['seqname']]
+                    taxid = tentry['taxid']
+                    taxon = taxtuple[taxid]
+                    levels = taxlineage[taxon]
+                    for level in levels:
+                        if level[0] in revranks:
+                            upkey = (tentry['seqname'],level[1])
+                            uentry = ctgdb.data(upkey)
+                            if not uentry:
+                                uentry = ctgdb.addEntry({'seqname':tentry['seqname'],'genenum':tentry['genenum'],'protnum':tentry['protnum'],'taxid':level[1],'taxrank':level[0],'taxname':level[2],'taxnum':0,'taxpure':0})
+                            uentry['taxnum'] += tentry['taxpure']
+                #X# Missing out [6] Refilter on mintaxnum and [6a] remapping based on full_report processing
+                #X# I think this should have been done to the lca_genes table already!
+                ## ~ [11e] Sum taxnums across ranks to generate genetax numbers ~~~~~~~~~~~~~~~~~~~~~~~~ ##
+                self.progLog('\r#GENES','Calculating number of rated genes per taxonomic level...')
+                genetax = {}  # {taxrank:{contig:genetax}}
+                for taxrank in revranks:
+                    if taxrank in bestranks:
+                        genetax[taxrank] = {}
+                for tentry in ctgdb.entries():
+                    if tentry['seqname'] not in genetax: genetax[tentry['seqname']] = {'*':0}
+                    if tentry['taxrank'] not in genetax[tentry['seqname']]: genetax[tentry['seqname']][tentry['taxrank']] = 0
+                    genetax[tentry['seqname']]['*'] += tentry['taxpure']
+                    genetax[tentry['seqname']][tentry['taxrank']] += tentry['taxnum']
+                ctgdb.addField('genetax')
+                ctgdb.addField('taxperc')
+                for tentry in ctgdb.entries():
+                    tentry['genetax'] = genetax[tentry['seqname']][tentry['taxrank']]
+                    tentry['taxperc'] = 100.0 * tentry['taxnum'] / genetax[tentry['seqname']]['*']
+                self.printLog('\r#GENES', 'Calculation of number of rated genes per taxonomic level complete.')
+                self.debug(ctgdb.entries()[0])
+                self.debug(ctgdb.fields())
+                ## ~ [11f] Save to taxdb to file ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+                ctgdb.setFields(['seqname', 'genenum', 'protnum', 'taxrank', 'genetax', 'taxid', 'taxname', 'taxperc', 'taxnum', 'taxpure'])
+                ctgdb.renameField('seqname','contig')
+                ctgdb.saveToFile('{0}.taxbyctg.tsv'.format(taxbase),sfdict={'taxperc':4})
+                ## ~ [11g] Generate contig consensus.tsv ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+                #i# bestranks has the consensus best taxon per level
+                #i# Update and output modified ctgdb
+                confields = ['contig','seqname','start','end'] + condb.fields()[1:]
+                centry = condb.data(':consensus:')
+                centry['contig'] = centry['seqname']
+                centry['start'] = 0
+                centry['end'] = 0
+                ctgcondb = db.addEmptyTable('ctgconsensus',confields,['contig'])
+                ctgcondb.addEntry(centry)
+                ## ~ [11h] Establish counts for consensus and best taxa ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+                self.headLog('Establishing Contig taxon counts', line='~')
+                self.debug(bestranks)
+                seqbest = {}    # {seqname:{taxrank:(taxnum,taxid)}}
+                seqcons = {}    # {seqname:{taxrank:taxnum}}
+                for tentry in ctgdb.entries():
+                    seqname = tentry['contig']
+                    if seqname not in seqbest:
+                        seqbest[seqname] = {}
+                        seqcons[seqname] = {}
+                    bdict = seqbest[seqname]
+                    cdict = seqcons[seqname]
+                    taxid = tentry['taxid']
+                    taxrank = tentry['taxrank']
+                    if taxrank not in confields: continue
+                    taxnum = tentry['taxnum']
+                    if taxrank not in bdict or taxnum > bdict[taxrank][0]:
+                        bdict[taxrank] = (taxnum,taxid)
+                    if taxid == bestranks[taxrank][1]:
+                        cdict[taxrank] = (taxnum, taxid)
+                    genetax[taxrank][seqname] = tentry['genetax']
+                ## ~ [11i] Process each sequence ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+                taxwarn = {}    # Dictionary of {seqname:warning text}
+                warnrank = self.getStr('TaxWarnRank')
+                if warnrank not in confields:
+                    self.warnLog('TaxWarnRank "{0}" not found in taxonomic ranks'.format(warnrank))
+                    warnrank = ''
+                for seqname in rje.sortKeys(seqbest):
+                    sentry = {'contig':seqname,'rating':'goodtax'}
+                    details = rje.matchExp('^(\S+)\.(\d+)-(\d+)$',seqname)
+                    if details:
+                        (sentry['seqname'],sentry['start'],sentry['end']) = details
+                    elif seqname in contigs:
+                        (sentry['seqname'], sentry['start'], sentry['end']) = (seqname, 1, contigs[seqname][0][2])
+                    else:
+                        (sentry['seqname'], sentry['start'], sentry['end']) = (seqname, 1, -1)
+                    for taxrank in confields[confields.index('rating')+1:]:
+                        bdict = seqbest[seqname]
+                        if taxrank not in bdict:
+                            sentry[taxrank] = '0.00|0'
+                            continue
+                        cdict = seqcons[seqname]
+                        if taxrank in cdict:
+                            tentry = ctgdb.data((seqname,cdict[taxrank][1]))
+                            taxperc = rje.dp(100.0 * tentry['taxnum'] / tentry['genetax'], 2)
+                        else:
+                            taxperc = '0.00'
+                            tentry = {'taxnum':0}
+                        bentry = ctgdb.data((seqname, bdict[taxrank][1]))
+                        taxg = bentry['genetax']
+                        sentry[taxrank] = '{0}|{1}'.format(taxperc,taxg)
+                        taxid = bentry['taxid']
+                        if taxid != bestranks[taxrank][1] and bentry['taxnum'] > tentry['taxnum']:
+                            bperc = rje.dp(100.0 * bentry['taxnum'] / bentry['genetax'], 2)
+                            taxname = bentry['taxname']
+                            sentry[taxrank] = '{0}|{1}|{2}'.format(sentry[taxrank],taxname,bperc)
+                            if seqname not in taxwarn and warnrank and confields.index(taxrank) <= confields.index(warnrank):
+                                taxwarn[seqname] = 'Contig {0} diverges from consensus at {1} level: "{2}" not "{3}"'.format(seqname,taxrank,taxname,rankbest[taxrank])
+                                sentry['rating'] = 'badtax'
+                    self.debug(sentry)
+                    ctgcondb.addEntry(sentry)
+                ## ~ [11j] Output warnings ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+                warnx = 0; missx = 0
+                for seqname in ctglist:
+                    if seqname in taxwarn:
+                        if seqname not in locdb.dataKeys():
+                            self.printLog('#BADTAX',taxwarn[seqname])
+                        warnx += 1
+                    elif seqname not in seqbest:
+                        if self.v() > 1: self.warnLog('{0} has no taxonomic assignment'.format(seqname))
+                        missx += 1
+                        sentry = {'contig':seqname,'rating':'notax'}
+                        details = rje.matchExp('^(\S+)\.(\d+)-(\d+)$', seqname)
+                        if details:
+                            (sentry['seqname'], sentry['start'], sentry['end']) = details
+                        elif seqname in contigs:
+                            (sentry['seqname'], sentry['start'], sentry['end']) = (seqname, 1, contigs[seqname][0][2])
+                        else:
+                            (sentry['seqname'], sentry['start'], sentry['end']) = (seqname, 1, -1)
+                        for taxrank in confields[confields.index('rating')+1:]:
+                            sentry[taxrank] = '0.00|0'
+                        ctgcondb.addEntry(sentry)
+                self.printLog('#BADTAX','{0} contigs have divergent taxa. See log #BADTAX entries for details.'.format(rje.iStr(warnx)))
+                self.printLog('#NOTAX','{0} contigs have no taxonomic assigment.'.format(rje.iStr(missx)))
+                self.debug(ctgcondb.index('rating'))
+                self.debug(ctgcondb.fields())
+                ctgcondb.saveToFile('{0}.ctgtaxolotl.tsv'.format(taxbase))
+
+            return True
+        except: self.errorLog('%s.taxonomy error' % self.prog()); return False
+#########################################################################################################################
+### End of SECTION II: SAAGA Class                                                                                      #
 #########################################################################################################################
 
                                                     ### ~ ### ~ ###
@@ -1579,7 +2809,28 @@ def runMain():
     except: rje.printf('Unexpected error during program setup:', sys.exc_info()[0]); return
     
     ### ~ [2] ~ Rest of Functionality... ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-    try: GeMoMa(mainlog,cmd_list).run()
+    try:
+        saaga = SAAGA(mainlog,cmd_list)
+        if saaga.list['BatchSeq'] or saaga.list['BatchRef']:
+            #i# Setup batch lists
+            batchseq = []
+            for seqfile in saaga.list['BatchSeq']:
+                batchseq.append((seqfile,rje.baseFile(seqfile)+'.gff'))
+                saaga.printLog('#BATCH','Queuing up batch run: seqin={0} and gffin={1}'.format(seqfile,batchseq[-1][1]))
+            if not batchseq:
+                batchseq.append((saaga.getStr('SeqIn'), saaga.getStr('GFFIn')))
+            batchref = saaga.list['BatchRef'][0:]
+            if not batchref: batchref.append(saaga.getStr('RefProt'))
+            #i# Run through batch runs
+            for seqfile in batchseq:
+                for reffile in batchref:
+                    saaga.headLog('BATCH RUN',line='=')
+                    saaga.printLog('#SEQIN',seqfile[0])
+                    saaga.printLog('#REF',reffile)
+                    scmd = ['seqin={0}'.format(seqfile[0]),'gffin={0}'.format(seqfile[1]),'cdsin=None','basefile=None','refprot={0}'.format(reffile),'refdb=None']
+                    SAAGA(mainlog, cmd_list + scmd).run()
+        else:
+            saaga.run()
 
     ### ~ [3] ~ End ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     except SystemExit: return  # Fork exit etc.

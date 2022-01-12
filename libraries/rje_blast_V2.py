@@ -19,8 +19,8 @@
 """
 Module:       rje_blast
 Description:  BLAST+ Control Module
-Version:      2.26.1
-Last Edit:    30/11/20
+Version:      2.27.0
+Last Edit:    02/03/21
 Copyright (C) 2013  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -142,6 +142,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 2.25.0 - Added bitscore=T/F toggle to switch between BitScore (True) and regular Score (False) [True]
     # 2.26.0 - Initial Python3 code conversion.
     # 2.26.1 - Tweaked to handle BLAST v5 formatting.
+    # 2.27.0 - Modified to handle NCBI nr without main fasta file.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -172,11 +173,12 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
     # [Y] : Add selfhit removal option for qassemble
     # [ ] : Add Description to Search table.
     # [ ] : Add GFF3 and SAM Output.
+    # [ ] : Add checkdb=T/F to split ignoredate=T functions.
     '''
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, cyear) = ('RJE_BLAST', '2.26.1', 'November 2020', '2013')
+    (program, version, last_edit, cyear) = ('RJE_BLAST', '2.27.0', 'March 2021', '2013')
     description = 'BLAST+ Control Module'
     author = 'Dr Richard J. Edwards.'
     comments = ['Please report any unexpected behaviour.']
@@ -473,17 +475,24 @@ class BLASTRun(rje_obj.RJE_Object):
                 self.list['ResTab'].append('Local')
             needtoblast = self.force()
             for table in self.list['ResTab']: needtoblast = needtoblast or not self.db(table).entryNum()
-            #self.deBug('needtoblast: %s' % needtoblast)
+            self.deBug('needtoblast: %s' % needtoblast)
             if needtoblast and not self.getBool('FormatDB'):
                 if self.getStr('Type') in ['blastn','tblastn','tblastx']: self.formatDB(protein=False,force=self.force())
                 else: self.formatDB(force=self.force())
             if needtoblast:
                 if clear: self.clear()
                 if self.db('Search').entryNum(): self.warnLog('Previous BLAST results not cleared. May be overwritten if same queries used.')
+            if needtoblast and not rje.checkForFile(self.getStr('Name')):
+                self.printLog('#INFILE','InFile "%s": %s' % (self.getStr('InFile'), rje.checkForFile(self.getStr('InFile'))))
             ### ~ [2] ~ Main run code here ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            if needtoblast and rje.checkForFile(self.getStr('DBase')) and rje.checkForFile(self.getStr('InFile')):
-                self.blast(use_existing=not self.force())
+            if needtoblast and rje.checkForFile(self.getStr('InFile')):
+                if not rje.checkForFile(self.getStr('DBase')) and not self.getBool('IgnoreDate'):
+                    self.printLog('#DB', 'Search database file missing and ignoredate=F: no BLAST')
+                else:
+                    self.deBug('blasting...')
+                    self.blast(use_existing=not self.force())
             if needtoblast and rje.checkForFile(self.getStr('Name')):
+                self.deBug('reading...')
                 self.readBLAST(gablam=gablam,local=True,keepaln='sam' in self.list['SaveLocal'])
                 for table in self.db().list['Tables']:
                     if save and table.name() in self.list['ResTab']:
@@ -898,7 +907,7 @@ class BLASTRun(rje_obj.RJE_Object):
                     if log: self.printLog('#PROG','BLAST Program changed (%s): %s vs %s' % (self.str['Type'],qtype,stype))
                     return True
             else: blastp = 'Unknown'
-            self.printLog('#ERR','WARNING: %s vs %s and blastp=%s (Recommended: %s)' % (qtype,stype,self.str['Type'],blastp))
+            self.printLog('#ERR','WARNING: sequences appear to be %s vs %s, but blastp=%s (Recommended: %s)' % (qtype,stype,self.str['Type'],blastp))
             return False
         except: self.errorLog('Something went wrong with blast.checkProg()'); return False
 #########################################################################################################################
@@ -1434,21 +1443,26 @@ class BLASTRun(rje_obj.RJE_Object):
         << returns dictionary of {Hit:Sequence}
         '''
         try:### ~ [1] ~ Map hits to seqlist sequences and return dictionary ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            self.debug(self.getStr('DBase'))
+            self.bugPrint('BLAST.hitToSeq')
+            self.bugPrint(self.getStr('DBase'))
             seqobj = '%s' % seqlist
             newseqlist = seqobj.startswith('<rje_seqlist')
             if newseqlist:
-                seqdic = seqlist.makeSeqNameDic('max')
+                #i# This newseqlist object should correspond to the BLAST database
+                if not seqlist.dict['SeqDict']: seqlist.makeSeqNameDic('max',warnings=False)
+                seqdic = seqlist.seqNameDic()
                 seqlist.setStr({'BLAST+ Path': self.getStr('BLAST+ Path')})
-            else: seqdic = seqlist.seqNameDic(proglog=False)
+            else: seqdic = seqlist.seqNameDic(proglog=self.debugging())
             hitseq = {}; hx = 0; hitseqlist = []
             if not hitlist: hitlist = self.queryHits(query)
             for hit in hitlist:
                 hitseq[hit] = None
                 if seqdic.has_key(hit):
+                    self.bugPrint('From dict: {0}'.format(hit))
                     hitseq[hit] = seqdic[hit]; hitseqlist.append(seqdic[hit])
                     hx += 1
                 else:
+                    self.bugPrint('From blastDBCmd: {0}'.format(hit))
                     newseq = seqlist.seqFromBlastDBCmd(hit,self.getStr('DBase'))
                     if newseq:
                         hitseq[hit] = newseq; hx += 1
@@ -1458,6 +1472,8 @@ class BLASTRun(rje_obj.RJE_Object):
                             self.verbose(2,4,'Seq %d retrieved from %s: %s.' % (len(hitseqlist),self.getStr('DBase'),sname),1)
                         else: self.verbose(2,4,'Seq %d retrieved from %s: %s.' % (seqlist.seqNum(),self.getStr('DBase'),newseq.shortName()),1)
                     else: self.errorLog('No Seq retrieval for %s using BLASTRun.hitToSeq().' % hit,printerror=False)
+            if newseqlist: self.bugPrint('{0} seqs from {1}'.format(len(hitseqlist),seqlist))
+            else: self.bugPrint('{0} seqs from {1}'.format(len(seqlist.seq[-hx:]),seqlist))
             if hx and hitseq and filename and filename.lower() != 'none':
                 if newseqlist: seqlist.saveSeq(seqs=hitseqlist,seqfile=filename,append=appendfile)
                 else: seqlist.saveFasta(seqs=seqlist.seq[-hx:],seqfile=filename,append=appendfile)
@@ -2987,8 +3003,11 @@ def checkForDB(dbfile=None,checkage=True,log=None,protein=True,oldblast=False): 
     '''
     try:### ~ [1] ~ Check for files ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         if not os.path.exists(dbfile):
-            if log: log.errorLog('%s missing' % dbfile,False,False)
-            return False
+            if checkage:
+                if log: log.errorLog('%s missing. Set ignoredate=T to run without dbfile present.' % dbfile,False,False)
+                return False
+            else:
+                if log: log.warnLog('%s missing (ignoredate=T). Not all functions may operate.' % dbfile)
         if protein: suffix = ['phr','pin','psq','pog']    # v5 db compatible: drop 'psd','psi'
         else: suffix = ['nhr','nin','nsq','nog']        # v5 db dropped 'nsd','nsi'
         if oldblast: suffix.pop(-1)

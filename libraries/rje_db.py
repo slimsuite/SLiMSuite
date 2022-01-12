@@ -787,6 +787,7 @@ class Table(rje.RJE_Object):
         >> keylist:list [] = List of key values to join with delimiter or convert to tuple
         >> expect:bool [False] = Whether to raise exception if missing, else return None.
         '''
+        if not key and key not in [None, False]: return None
         if not (key or makekey or keylist): return self.dict['Data']
         try:
             if key: return self.dict['Data'][key]
@@ -825,8 +826,9 @@ class Table(rje.RJE_Object):
     def entrySummary(self,entry,fields=[],invert=False,collapse=False):   ### Returns a string summary of an entry - useful for debugging etc.
         '''Returns a string summary of an entry - useful for debugging etc.'''
         if not fields: fields = self.fields()
-        estr = 'Entry "%s"\n' % str(self.makeKey(entry))
+        estr = 'Entry "%s"' % str(self.makeKey(entry))
         if collapse: estr += '|--'
+        else: estr += '\n'
         for field in self.fields():
             if field in fields != invert:
                 if collapse: estr += ' %s:"%s";' % (field,entry[field])
@@ -1243,6 +1245,7 @@ class Table(rje.RJE_Object):
             if log: self.progLog('\r#SAVE','Saving table "%s"...' % (self.info['Name']))
             if append and rje.exists(filename): OUT = open(filename,'a')
             else:
+                append = False
                 OUT = open(filename,'w')
                 if comments:
                     hashwarn = 0
@@ -1276,7 +1279,9 @@ class Table(rje.RJE_Object):
                 OUT.write('%s\n' % string.join(outlist,delimit)); sx += 1
             OUT.close()
             if log:
-                if sx: self.printLog('\r#SAVE','Table "%s" saved to "%s": %s entries.' % (self.info['Name'],filename,rje.iStr(sx)))
+                if sx and append: self.printLog('\r#SAVE','Table "%s" appended to "%s": %s entries.' % (self.info['Name'],filename,rje.iStr(sx)))
+                elif sx: self.printLog('\r#SAVE','Table "%s" saved to "%s": %s entries.' % (self.info['Name'],filename,rje.iStr(sx)))
+                elif append: self.printLog('\r#SAVE','No Table "%s" entries to append to "%s".' % (self.info['Name'],filename))
                 else: self.printLog('\r#SAVE','Table "%s" saved to "%s": headers only.' % (self.info['Name'],filename))
             return filename
         except: self.errorLog('Problem saving table "%s" to "%s"' % (self.info['Name'],filename))
@@ -1843,6 +1848,9 @@ class Table(rje.RJE_Object):
         except:
             self.errorLog('DropEntry error!')
 #########################################################################################################################
+    def dropEntryList(self,entries,inverse=False,log=True,logtxt=''): return self.dropEntries(entries,inverse,log,logtxt,purelist=True)
+    def dropEntriesFromKeys(self,keys,inverse=False,log=True,logtxt=''): return self.dropEntries(entries,inverse,log,logtxt,keylist=True)
+#########################################################################################################################
     def dropEntries(self,filters,inverse=False,log=True,logtxt='',purelist=False,keylist=False):    ### Drops certain entries from Table
         '''
         Drops certain entries from Table.
@@ -1880,14 +1888,25 @@ class Table(rje.RJE_Object):
         >> force:bool [False] = Whether to force regeneration of index
         '''
         try:### ~ [1] Process ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            prex = self.entryNum()
+            indexfields = rje.sortKeys(self.dict['Index'])
+            prex = self.entryNum(); px = 0.0
             for ikey in rje.sortKeys(self.index(field,force=force)):
                 if ikey in values and not inverse:
-                    for dkey in self.index(field)[ikey][0:]: self.dropEntry(self.data(dkey)) #self.dict['Data'].pop(dkey)
+                    for dkey in self.index(field)[ikey][0:]:
+                        if log: self.progLog('\r#DROP','Dropping %s entries on %s: %.2f%%' % (self.info['Name'],field,px/prex)); px += 100
+                        # self.dropEntry(self.data(dkey))
+                        self.dict['Data'].pop(dkey)
                 elif inverse and ikey not in values:
-                    for dkey in self.index(field)[ikey][0:]: self.dropEntry(self.data(dkey)) #self.dict['Data'].pop(dkey)
-            if prex != self.entryNum() and log: self.printLog('#DROP','%s %s entries reduced to %s entries on %s.' % (rje.integerString(prex),self.info['Name'],rje.integerString(self.entryNum()),field))
-            #if prex != self.entryNum(): self.dict['Index'] = {}
+                    for dkey in self.index(field)[ikey][0:]:
+                        if log: self.progLog('\r#DROP','Dropping %s entries on %s: %.2f%%' % (self.info['Name'],field,px/prex)); px += 100
+                        # self.dropEntry(self.data(dkey))
+                        self.dict['Data'].pop(dkey)
+                else:
+                    if log: self.progLog('\r#DROP','Dropping %s entries on %s: %.2f%%' % (self.info['Name'],field,px/prex)); px += (100 * len(self.index(field)[ikey]))
+            if prex != self.entryNum() and log: self.printLog('\r#DROP','%s %s entries reduced to %s entries on %s.' % (rje.integerString(prex),self.info['Name'],rje.integerString(self.entryNum()),field))
+            self.dict['Index'] = {}
+            for ifield in indexfields:
+                self.index(ifield,log=log)
         except TypeError:
             try:
                 check = values[0:]
@@ -1906,15 +1925,16 @@ class Table(rje.RJE_Object):
         >> force:bool [False] = Whether to force regeneration of index
         '''
         try:### ~ [1] Process ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            prex = self.entryNum()
-            if type(values) == str: values = [values]
-            entries = []
-            for value in values: entries += self.indexEntries(index,value)  # Returns list of entries from index & value
-            for entry in self.entries():
-                if entry in entries:
-                    if not inverse: self.dropEntry(entry)
-                elif inverse: self.dropEntry(entry)
-            if prex != self.entryNum() and log: self.printLog('#DROP','%s %s entries reduced to %s entries on %s.' % (rje.integerString(prex),self.info['Name'],rje.integerString(self.entryNum()),index))
+            return self.dropEntriesDirect(index,values,inverse,log,force)
+            # prex = self.entryNum()
+            # if type(values) == str: values = [values]
+            # entries = []
+            # for value in values: entries += self.indexEntries(index,value)  # Returns list of entries from index & value
+            # for entry in self.entries():
+            #     if entry in entries:
+            #         if not inverse: self.dropEntry(entry)
+            #     elif inverse: self.dropEntry(entry)
+            # if prex != self.entryNum() and log: self.printLog('#DROP','%s %s entries reduced to %s entries on %s.' % (rje.integerString(prex),self.info['Name'],rje.integerString(self.entryNum()),index))
         except: self.log.errorLog('Major problem during Table.dropIndexEntries()'); raise
 #########################################################################################################################
     def dropFields(self,fields,inverse=False,log=None): ### Drops certain fields from Table
@@ -2002,7 +2022,7 @@ class Table(rje.RJE_Object):
                             else: entry[field] = False
                     except:
                         fx += 1
-                        self.deBug('%s "%s" - %s?' % (field,entry[field],self.dict['DataTypes'][field]))
+                        #x#self.deBug('%s "%s" - %s?' % (field,entry[field],self.dict['DataTypes'][field]))
                 if rekey:
                     newkey = self.makeKey(entry)
                     self.dict['Data'][newkey] = self.dict['Data'].pop(oldkey)

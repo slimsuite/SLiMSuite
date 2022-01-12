@@ -19,8 +19,8 @@
 """
 Module:       GapSpanner
 Description:  Genome assembly gap long read support and reassembly tool
-Version:      0.0.0
-Last Edit:    29/01/21
+Version:      0.1.1
+Last Edit:    09/09/21
 Copyright (C) 2021  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -126,9 +126,9 @@ GapSpanner run modes:
 
 
 Commandline:
-    ### ~ Main Diploidocus run options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+    ### ~ Main GapSpanner run options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     seqin=FILE      : Input sequence assembly [None]
-    runmode=X       : Diploidocus run mode (gapspan/gapass/gapfill) [gapspan]
+    runmode=X       : GapSpanner run mode (gapspan/gapass/gapfill) [gapspan]
     basefile=FILE   : Root of output file names [gapspanner or $SEQIN basefile]
     summarise=T/F   : Whether to generate and output summary statistics sequence data before and after processing [True]
     genomesize=INT  : Haploid genome size (bp) [0]
@@ -136,7 +136,7 @@ Commandline:
     bam=FILE        : BAM file of long reads mapped onto assembly [$BASEFILE.bam]
     reads=FILELIST  : List of fasta/fastq files containing reads. Wildcard allowed. Can be gzipped. []
     readtype=LIST   : List of ont/pb/hifi file types matching reads for minimap2 mapping [ont]
-    dochtml=T/F     : Generate HTML Diploidocus documentation (*.docs.html) instead of main run [False]
+    dochtml=T/F     : Generate HTML GapSpanner documentation (*.docs.html) instead of main run [False]
     tmpdir=PATH     : Path for temporary output files during forking (not all modes) [./tmpdir/]
     ### ~ Gaps spanning and reassembly options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     checkflanks=LIST: List of lengths flanking check regions that must also be spanned by reads [0,100,1000,5000]
@@ -167,6 +167,7 @@ import rje, rje_obj, rje_rmd
 def history():  ### Program History - only a method for PythonWin collapsing! ###
     '''
     # 0.0.0 - Initial Compilation. Wrapper for Diploidocus v0.14.0 gapspan modes.
+    # 0.1.0 - Modified sequence summary output.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -177,11 +178,12 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
     # [Y] : Create initial working version of program.
     # [X] : Add REST outputs to restSetup() and restOutputOrder()
     # [ ] : Add to SLiMSuite or SeqSuite.
+    # [ ] : Fixed missing basefile bug.
     '''
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copy_right) = ('GapSpanner', '0.0.0', 'January 2021', '2021')
+    (program, version, last_edit, copy_right) = ('GapSpanner', '0.1.1', 'September 2021', '2021')
     description = 'Genome assembly gap long read support and reassembly tool'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_obj.zen()]
@@ -243,7 +245,8 @@ class GapSpanner(rje_obj.RJE_Object):
     GapSpanner Class. Author: Rich Edwards (2021).
 
     Str:str
-    
+    - SeqIn=FILE      : Input sequence assembly [None]
+
     Bool:boolean
     - DocHTML=T/F     : Generate HTML BUSCOMP documentation (*.info.html) instead of main run [False]
 
@@ -265,7 +268,7 @@ class GapSpanner(rje_obj.RJE_Object):
     def _setAttributes(self):   ### Sets Attributes of Object
         '''Sets Attributes of Object.'''
         ### ~ Basics ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-        self.strlist = []
+        self.strlist = ['SeqIn']
         self.boollist = ['DocHTML']
         self.intlist = []
         self.numlist = []
@@ -293,7 +296,7 @@ class GapSpanner(rje_obj.RJE_Object):
                 self._forkCmd(cmd)  # Delete if no forking
                 ### Class Options (No need for arg if arg = att.lower()) ### 
                 #self._cmdRead(cmd,type='str',att='Att',arg='Cmd')  # No need for arg if arg = att.lower()
-                #self._cmdReadList(cmd,'str',['Att'])   # Normal strings
+                self._cmdReadList(cmd,'str',['SeqIn'])   # Normal strings
                 #self._cmdReadList(cmd,'path',['Att'])  # String representing directory path 
                 #self._cmdReadList(cmd,'file',['Att'])  # String representing file path 
                 #self._cmdReadList(cmd,'date',['Att'])  # String representing date YYYY-MM-DD
@@ -374,7 +377,7 @@ class GapSpanner(rje_obj.RJE_Object):
 
         If running as part of [SLiMSuite](http://slimsuite.blogspot.com/), `$CODEPATH` will be the SLiMSuite `tools/`
         directory. If running from the standalone [GapSpanner git repo](https://github.com/slimsuite/gapspanner), `$CODEPATH`
-        will be the path the to `code/` directory. Please see details in the [Snapper git repo](https://github.com/slimsuite/gapspanner)
+        will be the path the to `code/` directory. Please see details in the [GapSpanner git repo](https://github.com/slimsuite/gapspanner)
         for running on example data.
 
         ## Dependencies
@@ -396,9 +399,9 @@ class GapSpanner(rje_obj.RJE_Object):
         use commandline options, including setting default values with **INI files**.
 
         ```
-        ### ~ Main Diploidocus run options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+        ### ~ Main GapSpanner run options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         seqin=FILE      : Input sequence assembly [None]
-        runmode=X       : Diploidocus run mode (gapspan/gapass/gapfill) [gapspan]
+        runmode=X       : GapSpanner run mode (gapspan/gapass/gapfill) [gapspan]
         basefile=FILE   : Root of output file names [gapspanner or $SEQIN basefile]
         summarise=T/F   : Whether to generate and output summary statistics sequence data before and after processing [True]
         genomesize=INT  : Haploid genome size (bp) [0]
@@ -406,7 +409,7 @@ class GapSpanner(rje_obj.RJE_Object):
         bam=FILE        : BAM file of long reads mapped onto assembly [$BASEFILE.bam]
         reads=FILELIST  : List of fasta/fastq files containing reads. Wildcard allowed. Can be gzipped. []
         readtype=LIST   : List of ont/pb/hifi file types matching reads for minimap2 mapping [ont]
-        dochtml=T/F     : Generate HTML Diploidocus documentation (*.docs.html) instead of main run [False]
+        dochtml=T/F     : Generate HTML GapSpanner documentation (*.docs.html) instead of main run [False]
         tmpdir=PATH     : Path for temporary output files during forking (not all modes) [./tmpdir/]
         ### ~ Gaps spanning and reassembly options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         checkflanks=LIST: List of lengths flanking check regions that must also be spanned by reads [0,100,1000,5000]
@@ -467,11 +470,12 @@ class GapSpanner(rje_obj.RJE_Object):
             if self.getBool('DocHTML'): return rje_rmd.docHTML(self)
             if not self.setup(): return False
             ### ~ [2] ~ Add main run code here ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            dipobj = diploidocus.Diploidocus(self.log,['runmode=gapspan']+self.cmd_list)
+            dipobj = diploidocus.Diploidocus(self.log,['dna=T','runmode=gapspan']+self.cmd_list)
             dipobj.setup()
             if not dipobj.getStrLC('RunMode') in ['gapspan','gapass','gapfill']:
                 raise ValueError('RunMode "{0}" not recognised'.format(dipobj.getStr('RunMode')))
             self.printLog('#MODE',dipobj.getStrLC('RunMode'))
+            dipobj.seqinObj(summarise=False)
             dipobj.gapSpan()
         except:
             self.errorLog(self.zen())
@@ -485,16 +489,6 @@ class GapSpanner(rje_obj.RJE_Object):
                 else: raise ValueError('seqin=FILE must be set')
             return True     # Setup successful
         except: self.errorLog('Problem during %s setup.' % self.prog()); return False  # Setup failed
-#########################################################################################################################
-    ### <3> ### Additional Class Methods                                                                                #
-#########################################################################################################################
-    def _method(self):      ### Generic method
-        '''
-        Generic method. Add description here (and arguments.)
-        '''
-        try:### ~ [1] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            return
-        except: self.errorLog('%s.method error' % self.prog())
 #########################################################################################################################
 ### End of SECTION II: GapSpanner Class                                                                                 #
 #########################################################################################################################

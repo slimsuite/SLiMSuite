@@ -19,8 +19,8 @@
 """
 Module:       SAMPhaser
 Description:  Diploid chromosome phasing from SAMTools Pileup format.
-Version:      0.10.1
-Last Edit:    20/01/21
+Version:      0.11.0
+Last Edit:    24/03/21
 Citation:     Song, Thomas & Edwards (2019), Marine Genomics 48:100687.
 Documentation: https://github.com/slimsuite/SLiMSuite/wiki/SAMPhaser
 Copyright (C) 2016  Richard J. Edwards - See source code for GNU License Notice
@@ -84,6 +84,8 @@ Commandline:
     phaseloci=LIST  : Optional list of loci (full names or accnum) to phase (will skip rest) []
     reads=FILELIST  : List of fasta/fastq files containing reads. Wildcard allowed. Can be gzipped. []
     readtype=LIST   : List of ont/pb/hifi file types matching reads for minimap2 mapping [ont]
+    pafphase=FILE   : PAF file for experimental phasing (dev=T only) [None]
+    readnames=T/F   : Output the read names to the RID file (dev PAFPhase mode only) [False]
     ### ~ Phasing options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     phasecut=X      : Minimum read count for minor allele for phasing (proportion of QN if <1) [0.25]
     absphasecut=X   : Absolute minimum read count for phasecut (used if phasecut<1) [5]
@@ -135,6 +137,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 0.9.0 - Added generation of mpileup file.
     # 0.9.1 - Tweaked naming for PAGSAT.
     # 0.10.0 - Added HiFi read type.
+    # 0.11.0 - Added pafphase mode (dev=T) and readnames=T/F.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -157,7 +160,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copy_right) = ('SAMPhaser', '0.10.0', 'January 2021', '2016')
+    (program, version, last_edit, copy_right) = ('SAMPhaser', '0.11.0', 'March 2021', '2016')
     description = 'Diploid chromosome phasing from SAMTools Pileup format'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_obj.zen()]
@@ -219,6 +222,7 @@ class SAMPhaser(rje_obj.RJE_Object):
     SAMPhaser Class. Author: Rich Edwards (2015).
 
     Str:str
+    - PAFPhase=FILE   : PAF file for experimental phasing (dev=T only)
     - Pileup=FILE     : Pileup file of reads against input genome. []
     - Seqin=FASFILE   : Input genome to phase variants in []
 
@@ -367,6 +371,7 @@ class SAMPhaser(rje_obj.RJE_Object):
                 snpdb = self.db().addTable(snpfile,mainkeys=['Locus','Pos'],datakeys='All',name='snp',expect=True)
                 ridfile = '%s.rid.tdt' % self.getStr('PAFPhase')
                 riddb = self.db().addTable(ridfile,mainkeys=['RID'],datakeys='All',name='rid',expect=True)
+                #!# Add readnames=T/F   : Output the read names to the RID file (SAM parsing only) [False]
                 riddb.dataFormat({'RID':'str','Start':'int','End':'int'})
                 self.phase()
                 self.unzipSeq()

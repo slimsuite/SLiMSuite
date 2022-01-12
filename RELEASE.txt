@@ -1,4 +1,4 @@
-## SLiMSuite release notes (1.10.0) [Mon 1 Feb 2021 21:21:21 AEDT]
+## SLiMSuite release notes (1.11.0) [Wed 12 Jan 2022 13:12:16 AEDT]
 
 Please see individual modules for summary of update history.
 
@@ -17,17 +17,25 @@ BUDAPEST: Bioinformatics Utility for Data Analysis of Proteomics on ESTs
 |-- Last Edit: 31/07/13
 |-- Latest update: v2.3 - Updated to use rje_blast_V2. Needs further updates for BLAST+. Deleted obsolete OLDreadMascot() method.
 BUSCOMP: BUSCO Compilation and Comparison tool
-|-- Current version: BUSCOMP v0.10.1
-|-- Last Edit: 20/01/21
-|-- Latest update: v0.10.1- Changed BUSCOMP to be BUSCO Compilation and Comparison Tool.
+|-- Current version: BUSCOMP v1.0.1
+|-- Last Edit: 10/01/22
+|-- Latest update: v1.0.1 - Fixed parsing of MetaEuk sequences that have extra letters to BuscoID in full table.
 CompariMotif: Motif vs Motif Comparison
 |-- Current version: CompariMotif v3.14.1
 |-- Last Edit: 12/11/19
 |-- Latest update: v3.14.1 - Fixed forking memsaver mode to take (Q)SLiMFinder input format.
+DepthKopy: Single-copy read-depth based copy number analysis
+|-- Current version: DepthKopy v1.0.1
+|-- Last Edit: 13/12/21
+|-- Latest update: v1.0.1 - Added passing on of gfftype=LIST option to Rscript.
+DepthSizer: Read-depth based genome size prediction
+|-- Current version: DepthSizer v1.6.1
+|-- Last Edit: 12/01/22
+|-- Latest update: v1.6.1 - Bug fixes to underlying R script and related core codebase.
 Diploidocus: Diploid genome assembly analysis toolkit.
-|-- Current version: Diploidocus v0.14.0
-|-- Last Edit: 20/01/21
-|-- Latest update: v0.14.0 - Added HiFi read type.
+|-- Current version: Diploidocus v1.1.1
+|-- Last Edit: 06/01/22
+|-- Latest update: v1.1.1 - Fixed DepthSizer object bug for DipCycle.
 FIESTA: Fasta Input EST Analysis
 |-- Current version: FIESTA v1.9.0
 |-- Last Edit: 26/11/14
@@ -53,21 +61,21 @@ HAPPI: Hyperlinked Analysis of Protein-Protein Interactions
 |-- Last Edit: 06/03/13
 |-- Latest update: v1.2 - Added addclass and refined output for Host-Pathogen PPI analysis.
 HAQESAC: Homologue Alignment Quality, Establishment of Subfamilies and Ancestor Construction
-|-- Current version: HAQESAC v1.143.0
+|-- Current version: HAQESAC v1.14.0
 |-- Last Edit: 25/06/19
 |-- Latest update: v1.14.0 - Added keepvar=LIST to enable auto-retention of vairants for multiple species
 MULTIHAQ: Multi-Query HAQESAC controller
-|-- Current version: MULTIHAQ v1.4.2
-|-- Last Edit: 31/07/20
-|-- Latest update: v1.4.3 - Updated warnings if BLAST2FAS files not found.
+|-- Current version: MULTIHAQ v1.5.0
+|-- Last Edit: 23/09/20
+|-- Latest update: v1.5.0 - Updated BLAST2FAS code to use rje_seqlist for speed up.
 PAFScaff: Pairwise mApping Format reference-based scaffold anchoring and super-scaffolding
-|-- Current version: PAFScaff v0.4.1
-|-- Last Edit: 25/08/20
-|-- Latest update: v0.4.1 - Fixed some issues with ambiguous scaffold output.
+|-- Current version: PAFScaff v0.5.0
+|-- Last Edit: 06/01/22
+|-- Latest update: v0.5.0 - Added ctgprefix=X : Unplaced contig prefix. Replaces unplaced=X when 0 gaps. [None]
 PAGSAT: Pairwise Assembled Genome Sequence Analysis Tool
-|-- Current version: PAGSAT v2.7.0
-|-- Last Edit: 03/09/20
-|-- Latest update: v2.7.1 - Fixed bug that caused assembly PNGs to disappear.
+|-- Current version: PAGSAT v2.8.1
+|-- Last Edit: 24/03/21
+|-- Latest update: v2.8.1 - Fixed bug that caused too many assembly PNGs to disappear!
 PeptCluster: Peptide Clustering Module
 |-- Current version: PeptCluster v1.5.4
 |-- Last Edit: 01/11/17
@@ -92,22 +100,22 @@ QSLiMFinder: Query Short Linear Motif Finder
 |-- Current version: QSLiMFinder v2.3.0
 |-- Last Edit: 24/05/19
 |-- Latest update: v2.3.0 - Modified qregion=X,Y to be 1-L numbering.
-SAAGA: GeMoMa output processing module
-|-- Current version: SAAGA v0.5.4
-|-- Last Edit: 20/11/20
-|-- Latest update: v0.5.4 - Added restricted feature parsing from GFF. Fixed GFF type input bug.
+SAAGA: Summarise, Annotate & Assess Genome Annotations
+|-- Current version: SAAGA v0.7.7
+|-- Last Edit: 25/11/21
+|-- Latest update: v0.7.7 - Fixed contig output for Taxolotl.
 SAMPhaser: Diploid chromosome phasing from SAMTools Pileup format
-|-- Current version: SAMPhaser v0.10.0
-|-- Last Edit: 20/01/21
-|-- Latest update: v0.10.0 - Added HiFi read type.
+|-- Current version: SAMPhaser v0.11.0
+|-- Last Edit: 24/03/21
+|-- Latest update: v0.11.0 - Added pafphase mode (dev=T) and readnames=T/F.
 SeqMapper: Sequence Mapping Program
 |-- Current version: SeqMapper v2.3.0
 |-- Last Edit: 17/10/18
 |-- Latest update: v2.3.0 - Added GABLAM-free method.
-SeqSuite: Miscellaneous biological sequence analysis tools suite
-|-- Current version: SeqSuite v1.25.0
-|-- Last Edit: 01/02/21
-|-- Latest update: v1.25.0 - Added SeqMapper and SAMPhaser.
+SeqSuite: Genomics and biological sequence analysis toolkit
+|-- Current version: SeqSuite v1.27.0
+|-- Last Edit: 10/12/21
+|-- Latest update: v1.27.0 - Added DepthKopy.
 SLiMBench: Short Linear Motif prediction Benchmarking
 |-- Current version: SLiMBench v2.19.0
 |-- Last Edit: 31/01/19
@@ -141,21 +149,25 @@ SLiMSearch: Short Linear Motif Regular Expression Search Tool
 |-- Last Edit: 03/12/15
 |-- Latest update: v1.7.1 - Minor modification to docstring. Preparation for update to SLiMSearch 2.0 optimised for proteome searches.
 SLiMSuite: Short Linear Motif analysis Suite
-|-- Current version: SLiMSuite v1.10.0
-|-- Last Edit: 01/02/21
-|-- Latest update: v1.10.0- Various program updates: see release_notes.txt.
+|-- Current version: SLiMSuite v1.11.0
+|-- Last Edit: 06/04/21
+|-- Latest update: v1.11.0- SeqSuite added DepthSizer and DepthKopy.
 SMRTSCAPE: SMRT Subread Coverage & Assembly Parameter Estimator
 |-- Current version: SMRTSCAPE v2.2.3
 |-- Last Edit: 11/07/18
 |-- Latest update: v2.2.3 - Fixed bug where SMRT subreads are not returned by seqlist in correct order. Fixed RQ=0 bug.
 Snapper: Genome-wide SNP Mapper
-|-- Current version: Snapper v1.8.0
-|-- Last Edit: 22/01/21
-|-- Latest update: v1.8.0 - Added dochtml=T and modified docstring for standalone git repo.
-SynBad: Synteny-based scaffolding adjustment
-|-- Current version: SynBad v0.5.0
-|-- Last Edit: 20/01/21
-|-- Latest update: v0.5.0 - Added HiFi read type. Changed default to gapmode=gapass.
+|-- Current version: Snapper v1.8.1
+|-- Last Edit: 12/03/21
+|-- Latest update: v1.8.1 - Bug fixing SNPMap mode.
+SynBad: Synteny-based scaffolding assessment and adjustment
+|-- Current version: SynBad v0.9.0
+|-- Last Edit: 19/11/21
+|-- Latest update: v0.9.0 - Added hidegaps=LIST option for hiding gaps. Add MashMap in place of GABLAM (dev=True). Fixed naming clashes.
+Taxolotl: Taxolotl genome assembly taxonomy summary and assessment tool
+|-- Current version: Taxolotl v0.1.1
+|-- Last Edit: 25/11/21
+|-- Latest update: v0.1.1 - Fix bug with contig output. Added seqname, start and end to contig summary.
 UNIFAKE: Fake UniProt DAT File Generator
 |-- Current version: UNIFAKE v1.3
 |-- Last Edit: 17/04/12

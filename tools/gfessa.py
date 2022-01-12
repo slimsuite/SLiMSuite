@@ -21,6 +21,7 @@ Program:      GFESSA
 Description:  Genome-Free EST SuperSAGE Analysis
 Version:      1.4
 Last Edit:    20/08/13
+Citation:     Johansson SA et al (2020). Algal Research 48:101917
 Copyright (C) 2011  Richard J. Edwards - See source code for GNU License Notice
 
 Function:

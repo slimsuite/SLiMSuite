@@ -18,9 +18,9 @@
 
 """
 Module:       SeqSuite
-Description:  Miscellaneous biological sequence analysis toolkit
-Version:      1.25.0
-Last Edit:    01/02/21
+Description:  Genomics and biological sequence analysis toolkit
+Version:      1.27.0
+Last Edit:    10/12/21
 Copyright (C) 2014  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -41,6 +41,8 @@ SeqSuite tools:
     - BLAST = rje_blast_V2.BLASTRun. BLAST+ Control Module.
     - BUSCOMP = buscomp.BUSCOMP. BUSCO Compiler and Comparison tool.
     - DBase = rje_dbase.DatabaseController. Database downloading and processing.
+    - DepthKopy = depthkopy.DepthKopy. Single-copy read-depth based copy number analysis.
+    - DepthSizer = depthsizer.DepthSizer. Read-depth based genome size prediction.
     - Diploidocus = diploidocus.Diploidocus. Diploid genome assembly analysis toolkit.
     - Ensembl = rje_ensembl.EnsEMBL. EnsEMBL Processing/Manipulation.
     - ExTATIC = extatic.ExTATIC. !!! Development only. Not available in main download. !!!
@@ -111,6 +113,7 @@ import pingu_V4 as pingu
 import pagsat, smrtscape, snapper, snp_mapper, rje_samtools, rje_apollo
 import revert
 import saaga, diploidocus, synbad, samphaser
+import depthkopy, depthsizer
 #########################################################################################################################
 # Dev modules (not in main download):
 try:
@@ -158,6 +161,8 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 1.23.2 - Dropped pacbio as synonym for smrtscape. (Causing REST server issues.)
     # 1.24.0 - Added SAAGA, Diploidocus, SynBad and rje_genomics to programs.
     # 1.25.0 - Added SeqMapper and SAMPhaser.
+    # 1.26.0 - Added DepthSizer. Added gzip support to batch summarise.
+    # 1.27.0 - Added DepthKopy.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -174,10 +179,11 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copy_right) = ('SeqSuite', '1.25.0', 'January 2021', '2014')
-    description = 'Miscellaneous biological sequence analysis tools suite'
+    (program, version, last_edit, copy_right) = ('SeqSuite', '1.27.0', 'December 2021', '2014')
+    description = 'Genomics and biological sequence analysis toolkit'
     author = 'Dr Richard J. Edwards.'
-    comments = ['This program is still in development and has not been published.',rje_obj.zen()]
+    comments = ['NOTE: Some tools are still in development and have not been published.',
+                'Please see individual programs for citation details.',rje_obj.zen()]
     return rje.Info(program,version,last_edit,description,author,time.time(),copy_right,comments)
 #########################################################################################################################
 def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for more sys.argv commands
@@ -234,6 +240,7 @@ mod = {'seqlist':rje_seqlist,'rje_seqlist':rje_seqlist,'rje_seq':rje_seq,'seq':r
        'samtools':rje_samtools,'snapper':snapper,'snp_mapper':snp_mapper,'seqmapper':seqmapper,'samphaser':samphaser,
        'saaga':saaga, 'diploidocus':diploidocus, 'synbad':synbad,'rje_genomics':rje_genomics,'genomics':rje_genomics,
        'ensembl':rje_ensembl,'rje_ensembl':rje_ensembl,'extatic':extatic,
+       'depthsizer':depthsizer,'depthkopy':depthkopy,
        'fiesta':fiesta,'haqesac':haqesac,'multihaq':multihaq,'revert':revert}
 #########################################################################################################################
 # List of queries to remove from command list in REST server output
@@ -408,6 +415,8 @@ class SeqSuite(rje_obj.RJE_Object):
                 elif prog in ['saaga']: self.obj['Prog'] = saaga.SAAGA(self.log,progcmd)
                 elif prog in ['synbad']: self.obj['Prog'] = synbad.SynBad(self.log,progcmd)
                 elif prog in ['rje_genomics','genomics']: self.obj['Prog'] = rje_genomics.Genomics(self.log,progcmd)
+                elif prog in ['depthsizer','gensize']: self.obj['Prog'] = depthsizer.DepthSizer(self.log,progcmd)
+                elif prog in ['depthkopy','depthcopy']: self.obj['Prog'] = depthkopy.DepthKopy(self.log,progcmd)
 
             ### ~ [2] ~ Failure to recognise program ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if not self.obj['Prog']:
@@ -491,7 +500,15 @@ class SeqSuite(rje_obj.RJE_Object):
             ### ~ [2] Run Summarise ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             self.printLog('#BATCH','Batch summarising %s input files' % rje.iLen(self.list['BatchRun']))
             for file in self.list['BatchRun']:
-                seqdata = rje_seqlist.SeqList(self.log,self.cmd_list+['seqin=%s' % file,'autoload=T','summarise=F']).summarise()
+                seqin = file
+                if file.endswith('.gz'):
+                    self.printLog('#UNZIP','unpigz -v {0}'.format(file))
+                    os.popen('unpigz -v {0}'.format(file)).read()
+                    seqin = file[:-3]
+                seqdata = rje_seqlist.SeqList(self.log,self.cmd_list+['seqin=%s' % seqin,'autoload=T','summarise=F']).summarise()
+                if file.endswith('.gz'):
+                    self.printLog('#GZIP','pigz -v {0}'.format(seqin))
+                    os.popen('pigz -v {0}'.format(seqin)).read()
                 #!# For gapstats and fracstats, add retrieval and integration of SeqList.db() 'fracstats' and 'gaps' tables
                 if seqdata:
                     if 'GC' in seqdata and 'GCPC' in seqdata:

@@ -19,8 +19,8 @@
 """
 Module:       PAFScaff
 Description:  Pairwise mApping Format reference-based scaffold anchoring and super-scaffolding.
-Version:      0.4.1
-Last Edit:    25/08/20
+Version:      0.5.0
+Last Edit:    06/01/22
 Citation:     Field et al. (2020), GigaScience 9(4):giaa027. [PMID: 32236524]
 GitHub:       https://github.com/slimsuite/pafscaff
 Copyright (C) 2019  Richard J. Edwards - See source code for GNU License Notice
@@ -69,6 +69,7 @@ Commandline:
     refprefix=X     : Reference chromosome prefix. If None, will use all $REFERENCE scaffolds [None]
     newprefix=X     : Assembly chromosome prefix. If None, will not rename $ASSEMBLY scaffolds [None]
     unplaced=X      : Unplaced scaffold prefix. If None, will not rename unplaced $ASSEMBLY scaffolds [None]
+    ctgprefix=X     : Unplaced contig prefix. Replaces unplaced=X when 0 gaps. [None]
     sorted=X        : Criterion for $ASSEMBLY scaffold sorting (QryLen/Coverage/RefStart/None) [QryLen]
     minmap=PERC     : Minimum percentage mapping to a chromosome for assignment [0.0]
     minpurity=PERC  : Minimum percentage "purity" for assignment to Ref chromosome [50.0]
@@ -108,6 +109,9 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 0.3.0 - Added pagsat=T/F : Whether to output sequence names in special PAGSAT-compatible format [False]
     # 0.4.0 - Added purity criteria for more stringent assignment to chromosomes.
     # 0.4.1 - Fixed some issues with ambiguous scaffold output.
+    # 0.4.2 - Unplaced scaffold output bug fix for GitHub issue#2.
+    # 0.4.3 - Fixed the descriptions for Unplaced scaffolds in the summary table.
+    # 0.5.0 - Added ctgprefix=X : Unplaced contig prefix. Replaces unplaced=X when 0 gaps. [None]
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -125,11 +129,12 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
     # [Y] : Add option to name scaffolds in Size order (scaffold=T), or Start Position (scaffold=F)
     # [ ] : Add option to mask ends of sequences prior to scaffolding using KAT self-kmers.
     # [ ] : Finish the dochtml information.
+    # [ ] : Need to tidy the output code to make it clearer and more consistent.
     '''
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copy_right) = ('PAFScaff', '0.4.1', 'August 2020', '2019')
+    (program, version, last_edit, copy_right) = ('PAFScaff', '0.5.0', 'January 2022', '2019')
     description = 'Pairwise mApping Format reference-based scaffold anchoring and super-scaffolding'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_obj.zen()]
@@ -143,7 +148,7 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         ### ~ [2] ~ Look for help commands and print options if found ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         cmd_help = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
         if cmd_help > 0:
-            print '\n\nHelp for %s %s: %s\n' % (info.program, info.version, time.asctime(time.localtime(info.start_time)))
+            rje.printf('\n\nHelp for {0} {1}: {2}\n'.format(info.program, info.version, time.asctime(time.localtime(info.start_time))))
             out.verbose(-1,4,text=__doc__)
             if rje.yesNo('Show general commandline options?'): out.verbose(-1,4,text=rje.__doc__)
             if rje.yesNo('Quit?'): sys.exit()           # Option to quit after help
@@ -153,7 +158,7 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         return cmd_list
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Major Problem with cmdHelp()'
+    except: rje.printf('Major Problem with cmdHelp()')
 #########################################################################################################################
 def setupProgram(): ### Basic Setup of Program when called from commandline.
     '''
@@ -176,7 +181,7 @@ def setupProgram(): ### Basic Setup of Program when called from commandline.
         return (info,out,log,cmd_list)                      # Returns objects for use in program
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Problem during initial setup.'; raise
+    except: rje.printf('Problem during initial setup.'); raise
 #########################################################################################################################
 ### END OF SECTION I                                                                                                    #
 #########################################################################################################################
@@ -184,13 +189,14 @@ def setupProgram(): ### Basic Setup of Program when called from commandline.
                                                     ### ~ ### ~ ###
 
 #########################################################################################################################
-### SECTION II: New Class                                                                                               #
+### SECTION II: PAFScaff Class                                                                                          #
 #########################################################################################################################
 class PAFScaff(rje_obj.RJE_Object):
     '''
     PAFScaff Class. Author: Rich Edwards (2015).
 
     Str:str
+    - CtgPrefix=X     : Unplaced contig prefix. Replaces unplaced=X when 0 gaps. [None]
     - NewChr=X        : Prefix for short PAGSAT sequence identifiers [ctg]
     - NewPrefix=X     : Assembly chromosome prefix. If None, will not rename $ASSEMBLY scaffolds [None]
     - PAFIn=PAFFILE   : PAF generated from $REFERENCE $ASSEMBLY mapping []
@@ -235,7 +241,7 @@ class PAFScaff(rje_obj.RJE_Object):
     def _setAttributes(self):   ### Sets Attributes of Object
         '''Sets Attributes of Object.'''
         ### ~ Basics ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-        self.strlist = ['NewChr','NewPrefix','PAFIn','Reference','RefPrefix','SeqIn','Sorted','SpCode','Unplaced']
+        self.strlist = ['CtgPrefix','NewChr','NewPrefix','PAFIn','Reference','RefPrefix','SeqIn','Sorted','SpCode','Unplaced']
         self.boollist = ['DocHTML','PAGSAT','RevComp','Scaffold','Sorted']
         self.intlist = ['MMSecNum']
         self.numlist = ['MinMap','MinPurity','MMPCut']
@@ -264,7 +270,7 @@ class PAFScaff(rje_obj.RJE_Object):
                 self._forkCmd(cmd)  # Delete if no forking
                 ### Class Options (No need for arg if arg = att.lower()) ### 
                 self._cmdRead(cmd,type='file',att='SeqIn',arg='Assembly')  # No need for arg if arg = att.lower()
-                self._cmdReadList(cmd,'str',['NewChr','NewPrefix','RefPrefix','SpCode','Unplaced'])   # Normal strings
+                self._cmdReadList(cmd,'str',['CtgPrefix','NewChr','NewPrefix','RefPrefix','SpCode','Unplaced'])   # Normal strings
                 #self._cmdReadList(cmd,'path',['Att'])  # String representing directory path 
                 self._cmdReadList(cmd,'file',['PAFIn','Reference','SeqIn'])  # String representing file path
                 #self._cmdReadList(cmd,'date',['Att'])  # String representing date YYYY-MM-DD
@@ -359,6 +365,7 @@ class PAFScaff(rje_obj.RJE_Object):
         refprefix=X     : Reference chromosome prefix. If None, will used all $REFERENCE scaffolds [None]
         newprefix=X     : Assembly chromosome prefix. If None, will not rename $ASSEMBLY scaffolds [None]
         unplaced=X      : Unplaced scaffold prefix. If None, will not rename unplaced $ASSEMBLY scaffolds [None]
+        ctgprefix=X     : Unplaced contig prefix. Replaces unplaced=X when 0 gaps. [None]
         sorted=X        : Criterion for $ASSEMBLY scaffold sorting (QryLen/Coverage/RefStart/None) [QryLen]
         minmap=PERC     : Minimum percentage mapping to a chromosome for assignment [0.0]
         minpurity=PERC  : Minimum percentage "purity" for assignment to Ref chromosome [50.0]
@@ -472,6 +479,9 @@ class PAFScaff(rje_obj.RJE_Object):
         * `START:END` = start and end positions on reference chromosome of query mapping.
         * `INV% REF(INVSTRAND)` = percentage mapped onto inverse strand of reference chromosome. (Omitted if 0%.)
         * `OTHER%` = percentage mapped onto other reference chromosome. (Omitted if 0%.)
+
+        Unplaced sequences will either not be renamed, or will have a different prefix if `unplaced=X` is set. If
+        `ctgprefix=X` is also set, any unplaced sequences without gaps will have a different prefix set by `ctgprefix=X`.
 
         ### Output
 
@@ -718,34 +728,48 @@ class PAFScaff(rje_obj.RJE_Object):
                     ux += 1
                     scaffnum[sname] = ux
                     scaffseq.append(sname)
+            umax = ux; missx = 0
             #i# Output scaffolds
             aseq = assembly.nextSeq()
-            if scaffnum: aseq = assembly.getSeq(seqdict[scaffseq.pop(0)],'tuple')
+            if scaffnum:
+                if len(scaffnum) != len(scaffseq): raise ValueError('Sorted unplaced scaffold number mismatch')
+                self.printLog('#SORT','{0} sorted unplaced scaffolds for output'.format(rje.iLen(scaffseq)))
+                aseq = assembly.getSeq(seqdict[scaffseq.pop(0)],'tuple')
+            elif self.getBool('Sorted'):
+                self.printLog('#SORT','Generating unplaced scaffold output without sorting.'.format(rje.iLen(scaffseq)))
+            else:
+                self.printLog('#SORT','Generating unsorted scaffold output.'.format(rje.iLen(scaffseq)))
             while aseq:
                 if self.getBool('Sorted'):
                     self.progLog('#OUT','Unplaced scaffold output...')
                 else: self.progLog('#OUT','Unsorted scaffold output...')
                 (aname,sequence) = aseq
                 sname = string.split(aname)[0]
+                sdesc = string.split(aname,maxsplit=1)[1]
                 ambentry = pafdb.data(sname)
                 if sname not in pafdb.index('Scaffold') or pafdb.indexEntries('Scaffold',sname)[0]['RefMap'] == 'Ambiguous':
-                    #UFILE.write(assembly.fasta[aseq])
-                    #ux += 1
-                    ux = scaffnum[sname]
                     if self.getStrLC('Unplaced') or self.getBool('PAGSAT'):
-                        newname = '%s%s' % (self.getStr('Unplaced'),rje.preZero(ux,assembly.seqNum()))
-                        if self.getBool('PAGSAT'):
-                            newname = '%sUn.%s_%s__%s' %  (self.getStr('NewChr'),rje.preZero(ux,assembly.seqNum()),self.getStr('SpCode'),newname)
+                        try: ux = scaffnum[sname]
+                        except:
+                            missx += 1
+                            umax += 1
+                            ux = umax
                         stype = 'contig'
                         if 'NNNNNNNNNN' in sequence.upper(): stype = 'scaffold'
+                        if self.getStrLC('CtgPrefix') and stype == 'contig':
+                            newname = '%s%s' % (self.getStr('CtgPrefix'),rje.preZero(ux,assembly.seqNum()))
+                        else:
+                            newname = '%s%s' % (self.getStr('Unplaced'),rje.preZero(ux,assembly.seqNum()))
+                        if self.getBool('PAGSAT'):
+                            newname = '%sUn.%s_%s__%s' %  (self.getStr('NewChr'),rje.preZero(ux,assembly.seqNum()),self.getStr('SpCode'),newname)
                         UFILE.write('>%s %s len=%s; Unplaced %s\n%s\n' % (newname,aname,rje_seqlist.dnaLen(len(sequence),dp=0,sf=4),stype,sequence))
                         if ambentry:
                             ambentry['Qry'] = newname
                             pafdb.dict['Data'][newname] = pafdb.dict['Data'].pop(sname)
-                        else: pafdb.addEntry({'Qry':newname,'Scaffold':aname,'RefMap':'Unplaced','QryLen':len(sequence)})
+                        else: pafdb.addEntry({'Qry':newname,'Scaffold':sname,'Description':sdesc,'RefMap':'Unplaced','QryLen':len(sequence)})
                     else:
                         UFILE.write('>%s\n%s\n' % (aname,sequence))
-                        if not ambentry: pafdb.addEntry({'Qry':aname,'Scaffold':aname,'RefMap':'Unplaced','QryLen':len(sequence)})
+                        if not ambentry: pafdb.addEntry({'Qry':aname,'Scaffold':sname,'Description':sdesc,'RefMap':'Unplaced','QryLen':len(sequence)})
                 elif not self.getBool('Sorted'):
                     entry = pafdb.indexEntries('Scaffold',sname)[0]
                     if revcomp and entry['Strand'] == '-': sequence = rje_sequence.reverseComplement(sequence)
@@ -766,6 +790,7 @@ class PAFScaff(rje_obj.RJE_Object):
             self.printLog('#OUT','%s placed scaffolds output to: %s' % (rje.iStr(px),pfile))
             UFILE.close()
             self.printLog('#OUT','%s unplaced scaffolds output to: %s' % (rje.iStr(ux),ufile))
+            if missx: self.warnLog('{0} scaffolds somehow escaped sorting. See GitHub issue #2 for details. This should only affect output order in fasta files.'.format(rje.iStr(missx)))
             ## ~ [4b] Add sequence summary of assigned sequences ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             if anchored: rje_seqlist.SeqList(self.log,self.cmd_list+['seqin=%s' % afile,'seqmode=file','summarise','dna','autoload'])
             if px: rje_seqlist.SeqList(self.log,self.cmd_list+['seqin=%s' % pfile,'seqmode=file','summarise','dna','autoload'])
@@ -862,7 +887,7 @@ def runMain():
     ### ~ [1] ~ Basic Setup of Program  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try: (info,out,mainlog,cmd_list) = setupProgram()
     except SystemExit: return  
-    except: print 'Unexpected error during program setup:', sys.exc_info()[0]; return
+    except: rje.printf('Unexpected error during program setup:', sys.exc_info()[0]); return
     
     ### ~ [2] ~ Rest of Functionality... ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try: PAFScaff(mainlog,cmd_list+['tuplekeys=T']).run()
@@ -875,7 +900,7 @@ def runMain():
 #########################################################################################################################
 if __name__ == "__main__":      ### Call runMain 
     try: runMain()
-    except: print 'Cataclysmic run error:', sys.exc_info()[0]
+    except: rje.printf('Cataclysmic run error: {0}'.format(sys.exc_info()[0]))
     sys.exit()
 #########################################################################################################################
 ### END OF SECTION IV                                                                                                   #

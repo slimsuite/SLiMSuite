@@ -19,8 +19,8 @@
 """
 Module:       SNP_Mapper
 Description:  SNP consensus sequence to CDS mapping 
-Version:      1.2.0
-Last Edit:    23/11/17
+Version:      1.2.1
+Last Edit:    03/05/21
 Copyright (C) 2013  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -114,6 +114,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 1.1.0 - Added pNS and modified the "Positive" CDS rating to be pNS < 0.05.
     # 1.1.1 - Updated pNS calculation to include EXT mutations and substitution frequency.
     # 1.2.0 - SNPByFType=T/F  : Whether to output mapped SNPs by feature type (before FTBest filtering) [False]
+    # 1.2.1 - Fixed GFF parsing bug.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -140,7 +141,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, cyear) = ('SNP_MAPPER', '1.2.0', 'November 2017', '2015')
+    (program, version, last_edit, cyear) = ('SNP_MAPPER', '1.2.3', 'May 2021', '2015')
     description = 'SNP consensus sequence to CDS mapping'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_zen.Zen().wisdom()]
@@ -349,6 +350,8 @@ class SNPMap(rje_obj.RJE_Object):
                 ftdb = self.db().addTable(self.getStr('FTFile'),name='FTFile',expect=True,mainkeys=['locus','feature','position'])
                 self.db().mergeTables(self.db('Feature'),ftdb)
             elif open(self.getStr('FTFile'),'r').readline().startswith('##gff-'):
+                baddetails = 0
+                protected = ['locus','feature','position','start','end']
                 ftdb = self.db().addEmptyTable('Feature',['locus','feature','position','start','end','product','gene_synonym','note','db_xref','locus_tag','details'],['locus','feature','position'])
                 for gline in open(self.getStr('FTFile'),'r').readlines():
                     if gline.startswith('##FASTA'): break
@@ -360,11 +363,25 @@ class SNPMap(rje_obj.RJE_Object):
                     else: gentry['position'] = 'complement(%s..%s)' % (gdata[3],gdata[4])
                     ginfo = string.split(gdata[8],';')
                     for detail in ginfo[0:]:
-                        [dkey,dvalue] = string.split(detail,'=',maxsplit=1)
-                        if dkey in gentry: gentry[dkey] = dvalue; ginfo.remove(detail)
+                        try:
+                            [dkey,dvalue] = string.split(detail,'=',maxsplit=1)
+                            if dkey in protected: continue
+                            if dkey in gentry:
+                                gentry[dkey] = dvalue
+                                ginfo.remove(detail)
+                            elif dkey in ['Parent','ID','Name']:
+                                gentry[dkey] = dvalue
+                        except:
+                            baddetails += 1
+                    if not gentry['locus_tag']:
+                        for att in ['Parent','ID','Name']:
+                            if att in gentry and gentry[att]:
+                                gentry['locus_tag'] = gentry[att]
+                                break
                     gentry['details'] = string.join(ginfo,'; ')
                     ftdb.addEntry(gentry)
                 self.printLog('#FTFILE','%s features parsed from GFF %s' % (rje.iStr(ftdb.entryNum()),self.getStr('FTFile')))
+                if baddetails: self.warnLog('{0} details had issues with parsing. (Lacking "=" or ";" inside quotes.)'.format(rje.iStr(baddetails)))
                 newftfile = '%s.Feature.tdt' % rje.baseFile(seqin,strip_path=True)
                 ftdb.saveToFile(newftfile)
             else: self.db().addTable(self.getStr('FTFile'),name='Feature',expect=True,mainkeys=['locus','feature','position'])

@@ -1,7 +1,7 @@
 ########################################################
 ### RJE Genomics Plot Functions                ~~~~~ ###
-### VERSION: 0.2.0                             ~~~~~ ###
-### LAST EDIT: 28/03/17                        ~~~~~ ###
+### VERSION: 0.3.0                             ~~~~~ ###
+### LAST EDIT: 03/01/21                        ~~~~~ ###
 ### AUTHORS: Richard Edwards 2016              ~~~~~ ###
 ### CONTACT: richard.edwards@unsw.edu.au       ~~~~~ ###
 ########################################################
@@ -12,7 +12,233 @@
 ################# ::: HISTORY ::: ######################
 # v0.0.0 : Initial version based on PAGSAT v0.7.4 for use with samtools.R v0.0.0.
 # v0.1.0 : Added SAMPhaser methods for used with SAMPhaser v0.4.0.
-# v0.2.0 : Added Genome feature setup and plotting methods
+# v0.2.0 : Added Genome feature setup and plotting methods.
+# v0.3.0 : Added some assembly functions.
+
+
+################# ::: TO DO ::: ######################
+# [Y] : Add function for transforming genomic locations (newseqname,shift,revcomp).
+# [Y] : Add functions for generating new assembly from old assembly and SynBad-style edit table.
+
+
+################# ::: SETUP ::: ######################
+
+if(! "settings" %in% ls()){
+  settings <- list(outlog=stdout())
+}
+
+if(! "logWrite" %in% ls()){
+    if(! outlog %in% names(settings)){ settings$outlog <- stdout() }
+    logWrite <- function(logstr){
+      writeLines(paste0("[",date(),"] ",logstr),con=settings$outlog)
+    }
+}
+
+################# ::: ASSEMBLY FUNCTIONS ::: ######################
+
+### ~ Transform genomic locations ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+# > D : data frame with SeqName, Start, End, and Strand
+# > transdb : data frame with SeqName, Start, End, NewSeqName, Shift, RevComp
+# > strict=FALSE : boolean as to whether to exclude any regions in D that are not in transdb
+# > logwrite=TRUE : Whether to summarise to logWrite()
+# [ ] : Future > split=TRUE : whether to split partially overlapping regions rather than dumping them
+transformLocations <- function(D,transdb,strict=FALSE,logwrite=TRUE){
+    # Check that unique(SeqName, Start, End) is unique
+    transdb <- transdb %>% filter(! SeqName == "Gap")
+    ucheck <- transdb %>% select(SeqName, Start, End)
+    ucheck <- unique(ucheck)
+    if(nrow(ucheck) != nrow(transdb)){
+       abort("transformLocations() was given transdb with non-unique Seqname, Start, End data")
+    }
+    maxlen <- max(D$End)
+    if(max(transdb$End) < 1){
+      transdb[transdb$End < 1,]$End <- maxlen
+    }
+    # Work through D and shift
+    newD <- D
+    newD$Edit <- FALSE
+    for(i in 1:nrow(transdb)){
+        reg <- transdb[i,]
+        if(reg$SeqName == reg$NewSeqName & reg$Shift == 0 & ! reg$RevComp){ next }
+        newDreg <- D$SeqName == reg$SeqName & D$Start >= reg$Start & D$End <= reg$End
+        if(sum(newDreg) == 0){ next }
+        if(sum(newD[newDreg,]$Edit) > 0){
+            abort("transformLocations() is trying to edit same region multiple times")
+        }
+        writeLines(paste(sum(newDreg),"transformations"))
+        newD[newDreg,]$SeqName <- reg$NewSeqName
+        if(reg$RevComp){
+            # Need to move everything to be from reg$End not 1 and swap
+            newD[newDreg,]$Start <- reg$End - D[newDreg,]$End + 1 + reg$Shift
+            newD[newDreg,]$End <- reg$End - D[newDreg,]$Start + 1 + reg$Shift
+            if(sum(newDreg & D$Strand == "+")){ #   ("+" %in% newD[newDreg,]$Strand){
+              newD[newDreg & D$Strand == "+",]$Strand <- "-"
+            }
+            if(sum(newDreg & D$Strand == "-")){ #if("-" %in% newD[newDreg,]$Strand){
+              newD[newDreg & D$Strand == "-",]$Strand <- "+"
+            }
+        }else{
+            # Otherwise, simple shift
+            newD[newDreg,]$Start <- D[newDreg,]$Start + reg$Shift
+            newD[newDreg,]$End <- D[newDreg,]$End + reg$Shift
+        }
+        newD[newDreg,]$Edit <- TRUE
+    }
+    # Summarise
+    if(logwrite & "logWrite" %in% ls()){
+      logWrite(paste(sum(newD$Edit),"of",nrow(D),"regions mapped to new names/locations"))
+    }
+    return(newD)
+}
+
+### ~ Reverse complement sequence ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+revComp <- function(dnaseq){
+    compvec <- c("A" = "1", "T" = "2", "G" = "3", "C" = "4", "a" = "5", "t" = "6", "g" = "7", "c" = "8", "u" = "6", "U" = "2",
+                 "1" = "T", "2" = "A", "3" = "C", "4" = "G", "5" = "t", "6" = "a", "7" = "c", "8" = "g")
+    newseq <- str_replace_all(dnaseq, compvec)
+    newseq <- stringi::stri_reverse(newseq)
+    return(newseq)
+}
+
+### ~ FASTA to sequence list (dictionary) ~~~~~~~~~~~~~~~~~~~~~~ ###
+# > filename: fasta file
+# > seqlist: list of name=sequence loaded from filename
+# > shortname: whether to only use first word of name for seqlist name
+fastaToList <- function(filename,seqlist=list(),shortname=TRUE){
+  indata = readLines(filename)
+  i = 1
+  logWrite(paste0("Loading sequence data from ",filename,"..."))
+  while(i < length(indata)){
+    seqname = indata[i]
+    if(startsWith(seqname,">")){
+      cat(".", file = stderr())
+      seqname = substr(seqname,2,nchar(seqname))
+      if(shortname){
+        seqname <- strsplit(seqname,split=" ",fixed=TRUE)[[1]][1]
+      }
+      seqlist[[seqname]] = indata[i+1]
+      i = i + 2
+    }else{
+      seqlist[[names(seqlist)[length(seqlist)]]] <- paste0(seqlist[[names(seqlist)[length(seqlist)]]],seqname)
+      i = i + 1
+    }
+  }
+  cat("\n", file = stderr())
+  logWrite(paste("#FASTA Sequence data for",length(seqlist),"sequences loaded from",filename))
+  return(seqlist)
+}
+
+### ~ Sequence list (dictionary) to FASTA ~~~~~~~~~~~~~~~~~~~~~~ ###
+# > filename: fasta file
+# > seqlist: list of name=sequence loaded from filename
+# > seqdesc: optional list of names to descriptions
+listToFasta <- function(filename,seqlist,seqdesc=list(),append=FALSE){
+  # Write output to filename
+  for(seqname in sort(names(seqlist))){
+    outname <- seqname
+    if(seqname %in% seqdesc){
+      outname <- paste(seqname, seqdesc[[seqname]])
+    }
+    cat(paste0(">",outname,"\n"), file=filename,append=append)
+    append=TRUE
+    cat(paste0(seqlist[[seqname]],"\n"), file=filename, append=TRUE)
+  }
+}
+
+
+### ~ Remake sequence list from table ~~~~~~~~~~~~~~~~~~~~~~ ###
+# > seqdb: tibble including NewSeqName, Chunk, SeqName, Start, End, Strand
+# > seqlist: list of SeqName=sequence from which to build new sequences
+# > makeD$seqlist: list of sequences to return
+# > makeD$seqdb: updated tibble with NewStart and NewEnd
+# > makeD$transdb: translation table matching the new sequences
+makeSeqs <- function(seqdb,seqlist,newseqlist=list()){
+  # Sort into the order of constructing new sequences
+  newnames <- unique(seqdb[seqdb$SeqName %in% names(seqlist),]$NewSeqName)
+  seqdb <- seqdb %>% filter(NewSeqName %in% newnames) %>% arrange(NewSeqName,Chunk)
+  # End of sequence updates
+  for(seqname in seqdb[seqdb$End < 1,]$SeqName){
+    #print(seqname)
+    seqlen <- nchar(seqlist[[seqname]])
+    seqdb[seqdb$End < 1 & seqdb$SeqName == seqname,]$End <- seqlen
+  }
+  transdb <- seqdb
+  seqdb$NewStart <- 0
+  seqdb$NewEnd <- 0
+
+  # Generate transdb
+  transdb$Shift <- 0
+  transdb$RevComp <- FALSE
+  transdb[transdb$Strand == "-",]$RevComp <- TRUE
+  # Make new sequences
+  for(newseqname in newnames){
+    ishift <- 0
+    newseq <- ""
+    chunks <- seqdb %>% filter(NewSeqName == newseqname)
+    for(i in 1:nrow(chunks)){
+        seqi <- seqdb$NewSeqName == newseqname & seqdb$Chunk == chunks$Chunk[i]
+        seqdb[seqi,]$NewStart <- ishift + 1
+        # - SeqName can be "Gap"
+        if(chunks$SeqName[i] == "Gap"){
+          newseq <- paste0(c(newseq,rep("N",chunks$End[i])),collapse="")
+          ishift <- ishift + chunks$End[i]
+        }else{
+        # Otherwise, extract regions
+          fullseq <- seqlist[[chunks$SeqName[i]]]
+          partseq <- substr(fullseq,chunks$Start[i],chunks$End[i])
+          if(chunks$Strand[i] == "-"){
+            partseq <- revComp(partseq)
+          }
+          newseq <- paste0(newseq,partseq)
+          transdb[seqi,]$Shift <- (ishift - chunks$Start[i] + 1)
+          ishift <- ishift + chunks$End[i] - chunks$Start[i] + 1
+        }
+        seqdb[seqi,]$NewEnd <- ishift
+        if(ishift != nchar(newseq)){
+            writeLines(paste(newseqname,chunks$Chunk[i],"->",nchar(newseq),"bp but should be",ishift,"bp"))
+        }
+    }
+    newseqlist[[newseqname]] <- newseq
+  }
+  return(list(seqlist=newseqlist,seqdb=seqdb,transdb=transdb))
+}
+
+
+### ~ Make transdb from newseq table ~~~~~~~~~~~~~~~~~~~~~~ ###
+# > seqdb: tibble including NewSeqName, Chunk, SeqName, Start, End, Strand
+# > seqlist: list of SeqName=sequence from which to build new sequences
+# < transdb: Transformation table to return: SeqName, Start, End, NewSeqName, Shift, RevComp
+makeTransDB <- function(seqdb,seqlist){
+  # Sort into the order of constructing new sequences
+  transdb <- seqdb %>% filter(SeqName %in% names(seqlist)) %>% arrange(desc(NewSeqName),Chunk)
+  newnames <- unique(transdb$NewSeqName)
+  transdb$Shift <- 0
+  transdb$RevComp <- FALSE
+  transdb[transdb$Strand == "-",]$RevComp <- TRUE
+  # End of sequence updates
+  for(seqname in transdb[transdb$End < 1,]$SeqName){
+    #print(seqname)
+    seqlen <- nchar(seqlist[[seqname]])
+    transdb[transdb$End < 1 & transdb$SeqName == seqname,]$End <- seqlen
+  }
+  # Make new sequences
+  for(newseqname in newnames){
+    ishift <- 0
+    chunks <- transdb %>% filter(NewSeqName == newseqname)
+    for(i in 1:nrow(chunks)){
+        # - SeqName can be "Gap"
+        if(chunks$SeqName[i] == "Gap"){
+          ishift <- ishift + chunks$End[i]
+        }else{
+        # Otherwise, extract regions
+          treg <- transdb$NewSeqName == newseqname & transdb$Chunk == chunks$Chunk[i]
+          transdb[treg,]$Shift <- (ishift - chunks$Start[i] + 1)
+          ishift <- ishift + chunks$End[i] - chunks$Start[i] + 1
+        }
+    }
+  }
+  return(transdb)
+}
 
 
 ################# ::: PLOTTING FUNCTIONS ::: ######################
@@ -99,8 +325,9 @@ regionDepth = function(checkdata,chrom,spans=c(0),col=c(rgb(1,0,0),rgb(0,0,1))){
       lines(c(x,y),c(h,h),lwd=2,col=spancol)
     }
   }
-  
+
 }
+
 
 
 
@@ -160,7 +387,8 @@ regionXPlot2 = function(trackdepdata,trackhapdata,onex,ymin,tcol){
 #># hapdata: Locus	Block	Track	Start	End	HapStart	HapEnd	Haplotig HapAcc	nSNP	nRID	MeanX
 #># locus: Locus for plot
 #># onex: Median X depth
-samphaserStackPlot = function(depdata,hapdepdata,hapdata,locus,onex){
+#># ylim: Maximum multiplier of onex for ymax. (Avoids crazy depths messing things up)
+samphaserStackPlot = function(depdata,hapdepdata,hapdata,locus,onex,ylim=10){
   ## Setup Empty Plot Region and Labels. chromPlotSetup will scale x-axis automatically.
   #i# The individual depth plot uses ygrid=c(onex/8,onex/2) and ymax=min(ymax,10*onex)
   #i# The region itself should be plotted at -0.25 to 0, with a gap of -0.5 to -0.25 between each A/B/C section
@@ -171,6 +399,7 @@ samphaserStackPlot = function(depdata,hapdepdata,hapdata,locus,onex){
   while(ymax < xcovmax){ ymax = ymax + onex/2 }
   # Add extra for the plot and gap
   (ymax = ymax + onex/2)
+  ymax = min(ymax,ylim*onex)
   main = paste(locus,"haplotig read depth")
   chromPlotSetup(xmax=xmax,ymax=ymax*3,ylab="",main=main,ygrid=c(onex/8,onex/2),yaxt="n")
   
@@ -188,7 +417,7 @@ samphaserStackPlot = function(depdata,hapdepdata,hapdata,locus,onex){
   }
 }
 
-samphaserStackPlot2 = function(depdata,hapdepdata,hapdata,hapsnpdata,locus,onex,zoom=c(0,0)){
+samphaserStackPlot2 = function(depdata,hapdepdata,hapdata,hapsnpdata,locus,onex,zoom=c(0,0),ylim=10){
   ## Setup Empty Plot Region and Labels. chromPlotSetup will scale x-axis automatically.
   #i# The individual depth plot uses ygrid=c(onex/8,onex/2) and ymax=min(ymax,10*onex)
   #i# The region itself should be plotted at -0.25 to 0, with a gap of -0.5 to -0.25 between each A/B/C section
@@ -203,6 +432,7 @@ samphaserStackPlot2 = function(depdata,hapdepdata,hapdata,hapsnpdata,locus,onex,
   # First establish onex value that covers full depth
   ymax = onex
   while(ymax < xcovmax){ ymax = ymax + onex/2 }
+  ymax = min(ymax,ylim*onex)
   # Add extra for the plot and gap
   main = paste(locus,"haplotig read depth")
   chromPlotSetup(xmin=xmin,xmax=xmax,ymin=-onex/2,ymax=ymax,ylab="",main=main,ygrid=c(onex/8,onex/2))

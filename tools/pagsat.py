@@ -19,8 +19,8 @@
 """
 Module:       PAGSAT
 Description:  Pairwise Assembled Genome Sequence Analysis Tool
-Version:      2.7.1
-Last Edit:    03/09/20
+Version:      2.8.1
+Last Edit:    24/03/21
 Copyright (C) 2015  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -110,6 +110,7 @@ Commandline:
     tidy=T/F        : Execute semi-automated assembly tidy/edit mode to complete draft assembly [False]
     newacc=X        : New base for edited contig accession numbers (None will keep old accnum) [None]
     newchr=X        : Code to replace "chr" in new sequence names for additional PAGSAT compatibility [ctg]
+    keepchr=T/F     : Keep the existing chromosome assigments during tidy if found [False]
     spcode=X        : Species code for renaming assembly sequences [PAGSAT]
     refchr=X        : Code used in place of "chr" for reference sequence names [chr]
     orphans=T/F     : Whether to include and process orphan contigs [True]
@@ -196,6 +197,8 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 2.6.9 - Fixed renamed assembly bug when basefile not set.
     # 2.7.0 - Added BAM generation for assembly if reads given.
     # 2.7.1 - Fixed bug that caused assembly PNGs to disappear.
+    # 2.8.0 - Added keepchr=T/F : Keep the existing chromosome assigments during tidy if found [False]
+    # 2.8.1 - Fixed bug that caused too many assembly PNGs to disappear!
    '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -257,7 +260,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copy_right) = ('PAGSAT', '2.7.0', 'February 2020', '2015')
+    (program, version, last_edit, copy_right) = ('PAGSAT', '2.8.1', 'March 2021', '2015')
     description = 'Pairwise Assembled Genome Sequence Analysis Tool'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_obj.zen()]
@@ -271,9 +274,9 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         ### ~ [2] ~ Look for help commands and print options if found ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         cmd_help = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
         if cmd_help > 0:
-            print '\n\nHelp for %s %s: %s\n' % (info.program, info.version, time.asctime(time.localtime(info.start_time)))
+            rje.printf('\n\nHelp for {0} {1}: {2}\n'.format(info.program, info.version, time.asctime(time.localtime(info.start_time))))
             out.verbose(-1,4,text=__doc__)
-            if rje.yesNo('Show general commandline options?'): out.verbose(-1,4,text=rje.__doc__)
+            if rje.yesNo('Show general commandline options?',default='N'): out.verbose(-1,4,text=rje.__doc__)
             if rje.yesNo('Quit?'): sys.exit()           # Option to quit after help
             cmd_list += rje.inputCmds(out,cmd_list)     # Add extra commands interactively.
         elif out.stat['Interactive'] > 1: cmd_list += rje.inputCmds(out,cmd_list)    # Ask for more commands
@@ -281,9 +284,9 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         return cmd_list
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Major Problem with cmdHelp()'
+    except: rje.printf('Major Problem with cmdHelp()')
 #########################################################################################################################
-def setupProgram(extracmd=[]): ### Basic Setup of Program when called from commandline.
+def setupProgram(): ### Basic Setup of Program when called from commandline.
     '''
     Basic Setup of Program when called from commandline:
     - Reads sys.argv and augments if appropriate
@@ -293,18 +296,18 @@ def setupProgram(extracmd=[]): ### Basic Setup of Program when called from comma
     try:### ~ [1] ~ Initial Command Setup & Info ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         info = makeInfo()                                   # Sets up Info object with program details
         if len(sys.argv) == 2 and sys.argv[1] in ['version','-version','--version']: rje.printf(info.version); sys.exit(0)
-        if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: rje.printf('{0} v{1}'.format(info.program,info.version)); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: rje.printf('%s v%s' % (info.program,info.version)); sys.exit(0)
         if len(sys.argv) == 2 and sys.argv[1] in ['description','-description','--description']: rje.printf('%s: %s' % (info.program,info.description)); sys.exit(0)
-        cmd_list = rje.getCmdList(sys.argv[1:]+extracmd,info=info)   # Reads arguments and load defaults from program.ini
+        cmd_list = rje.getCmdList(sys.argv[1:],info=info)   # Reads arguments and load defaults from program.ini
         out = rje.Out(cmd_list=cmd_list)                    # Sets up Out object for controlling output to screen
-        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2 
+        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2
         out.printIntro(info)                                # Prints intro text using details from Info object
         cmd_list = cmdHelp(info,out,cmd_list)               # Shows commands (help) and/or adds commands from user
         log = rje.setLog(info,out,cmd_list)                 # Sets up Log object for controlling log file output
         return (info,out,log,cmd_list)                      # Returns objects for use in program
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Problem during initial setup.'; raise
+    except: rje.printf('Problem during initial setup.'); raise
 #########################################################################################################################
 ### END OF SECTION I                                                                                                    #
 #########################################################################################################################
@@ -345,6 +348,7 @@ class PAGSAT(rje_obj.RJE_Object):
     - Features=T/F    : Whether to expect a Features table (from Genbank processing) [True]
     - GeneSummary=T/F : Whether to include reference gene searches in summary data [True]
     - GeneTar=T/F     : Whether to tar and zip the GeneHits/ and ProtHits/ folders (if generated & Mac/Linux) [True]
+    - KeepChr=T/F     : Keep the existing chromosome assigments during tidy if found [False]
     - MapFas=T/F      : Output assembly *.map.fasta file with RevComp contigs based on initial (automatic) mapping [True]
     - OrderedFas=T/F  : Whether to generate crude ordered contig output for e.g. Progressive Mauve [False]
     - Orphans=T/F     : Whether to include and process orphan contigs [True]
@@ -388,7 +392,7 @@ class PAGSAT(rje_obj.RJE_Object):
         self.strlist = ['Assembly','BaseBase','CaseFilter','ChrMap','CutBase','GABLAMDir','JoinMerge','JoinSort',
                         'Mapper','NewAcc','NewChr','RefBase','RefChr','RefGenome','ResDir']
         self.boollist = ['Assessment','ChromAlign','Diploid','DisMatrix','DotPlots','Features','GeneSummary','GeneTar',
-                         'MapFas','Orphans','ProtSummary','RGraphics','Report','Snapper','Tidy']
+                         'KeepChr','MapFas','Orphans','ProtSummary','RGraphics','Report','Snapper','Tidy']
         self.intlist = ['JoinMargin','MinContigLen','MinLocLen','MinQV','MinUnique']
         self.numlist = ['MinLocID','TopHitBuffer']
         self.filelist = []
@@ -400,7 +404,7 @@ class PAGSAT(rje_obj.RJE_Object):
         self.setStr({'ChrMap':'unique','GABLAMDir':rje.makePath('GABLAM/'),'JoinMerge':'mid','JoinSort':'Identity',
                      'Mapper':'blast','NewChr':'ctg','RefChr':'chr'})
         self.setBool({'Assessment':False,'CaseFilter':True,'ChromAlign':False,
-                      'Diploid':False,'DisMatrix':False,'DotPlots':False,'Features':True,
+                      'Diploid':False,'DisMatrix':False,'DotPlots':False,'Features':True,'KeepChr':False,
                       'GeneSummary':True,'GeneTar':True,'MapFas':False,'OrderedFas':False,'Orphans':True,
                       'ProtSummary':True,'RGraphics':True,'Report':False,'Snapper':True,'Tidy':False})
         self.setInt({'JoinMargin':10,'MinLocLen':250,'MinQV':20,'MinContigLen':1000,'MinUnique':250})
@@ -432,7 +436,7 @@ class PAGSAT(rje_obj.RJE_Object):
                 self._cmdReadList(cmd,'file',['Assembly','RefGenome'])  # String representing file path
                 self._cmdRead(cmd,type='file',att='RefGenome',arg='reference')  # No need for arg if arg = att.lower()
                 #self._cmdReadList(cmd,'date',['Att'])  # String representing date YYYY-MM-DD
-                self._cmdReadList(cmd,'bool',['Assessment','CaseFilter','ChromAlign','Diploid','DisMatrix','DotPlots','GeneSummary','GeneTar','MapFas',
+                self._cmdReadList(cmd,'bool',['Assessment','CaseFilter','ChromAlign','Diploid','DisMatrix','DotPlots','GeneSummary','GeneTar','KeepChr','MapFas',
                                               'OrderedFas','Orphans','ProtSummary','RGraphics','Report','Snapper','Tidy'])  # True/False Booleans
                 self._cmdReadList(cmd,'int',['JoinMargin','MinContigLen','MinLocLen','MinQV','MinUnique'])   # Integers
                 self._cmdReadList(cmd,'float',['TopHitBuffer']) # Floats
@@ -2572,7 +2576,7 @@ class PAGSAT(rje_obj.RJE_Object):
                 hbody = sectdata[section]['HTML']
                 hbody += ['<a name="%s"></a><h2 title="%s">%s %s</h2>' % (sectdata[section]['Link'],sectdata[section]['LinkDesc'],basename,section),hlink,'']
                 for pnglink in glob.glob('%s.assembly*png' % plotbase):
-                    #if not rje.matchExp('%s.assembly\.(\d+)\.png' % plotbase,pnglink): continue # Individual chromosome or contig
+                    if rje.matchExp('%s.assembly\.(.+_.+)\.png' % plotbase,pnglink): continue # Individual chromosome or contig
                     pngdesc = 'Reference chromosomes plotted against assembly contigs.'
                     hbody.append('<a href="%s"><img src="%s" width="100%%" title="%s"></a>' % (pnglink,pnglink,pngdesc))
 
@@ -2862,6 +2866,7 @@ class PAGSAT(rje_obj.RJE_Object):
             self.report(assembly=True)
 
             ### ~ [3] Load, rename and sort sequences ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            self.printLog('#~~#','## ~~~~~~~~~~~~~~~ Load, rename and sort sequences ~~~~~~~~~~~~~~~~~ ##')
             #seqdb.newKey('OldName')
             #self.debug(seqdb.fields())
             hfile = '%s.assembly.html' % self.baseFile(strip_path=True)
@@ -2905,6 +2910,11 @@ class PAGSAT(rje_obj.RJE_Object):
                 #    short = string.split(sname,maxsplit=1)[0]
                 #    entry = seqdb.data(short)
                 #    if not entry: raise ValueError('Contig %s not found in %s table.' % (short,maptable))
+                    if self.getBool('KeepChr') and short.startswith(self.getStr('NewChr')):
+                        entry['NewChrom'] = short.split('_')[0].split('.')[0]
+                        entry['Ctid'] = 'N'
+                        entry['MapDirn'] = 'Fwd'
+                        entry['NewAcc'] = short.split('__')[-1]
                     newname = entry['Name'] = '%s%s_%s__%s' % (entry['NewChrom'],entry['Ctid'],entry['Spec'],entry['NewAcc'])
                     if entry['MapDirn'] == 'Rev':
                         newname += ' RevComp'
@@ -4500,7 +4510,7 @@ def runMain():
     ### ~ [1] ~ Basic Setup of Program  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try: (info,out,mainlog,cmd_list) = setupProgram()
     except SystemExit: return  
-    except: print 'Unexpected error during program setup:', sys.exc_info()[0]; return
+    except: rje.printf('Unexpected error during program setup:', sys.exc_info()[0]); return
     
     ### ~ [2] ~ Rest of Functionality... ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try: PAGSAT(mainlog,['taxdir=None']+cmd_list).run()
@@ -4511,9 +4521,9 @@ def runMain():
     except: mainlog.errorLog('Fatal error in main %s run.' % info.program)
     mainlog.endLog(info)
 #########################################################################################################################
-if __name__ == "__main__":      ### Call runMain 
+if __name__ == "__main__":      ### Call runMain
     try: runMain()
-    except: print 'Cataclysmic run error:', sys.exc_info()[0]
+    except: rje.printf('Cataclysmic run error: {0}'.format(sys.exc_info()[0]))
     sys.exit()
 #########################################################################################################################
 ### END OF SECTION IV                                                                                                   #

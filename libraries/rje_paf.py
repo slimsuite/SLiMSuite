@@ -19,8 +19,8 @@
 """
 Module:       rje_paf
 Description:  Minimap2 PAF parser and converter
-Version:      0.11.0
-Last Edit:    20/01/21
+Version:      0.13.0
+Last Edit:    01/09/21
 Copyright (C) 2019  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -29,7 +29,7 @@ Function:
 
     Input is a PAF file with --cs flag, produced by minimap:
 
-    `minimap2 --cs -N 100 -p 0.0001 -x asm5 $REFERENCE $ASSEMBLY > $PAFILE`
+    `minimap2 --cs -N 100 -p 0.0001 -x asm20 $REFERENCE $ASSEMBLY > $PAFILE`
 
     Setting `pafin=minimap` will run minimap2 and generate $BASEFILE.paf output, which will then be processed.
 
@@ -63,7 +63,7 @@ Commandline:
     minloclen=INT   : Minimum length for aligned chunk to be kept (local hit length in bp) [0]
     endextend=X     : Extend minimap2 hits to end of sequence if query region with X bp of end [0]
     minimap2=PROG   : Full path to run minimap2 [minimap2]
-    mapopt=CDICT    : Dictionary of minimap2 options [N:100,p:0.0001,x:asm5]
+    mapopt=CDICT    : Dictionary of minimap2 options [N:100,p:0.0001,x:asm20]
     mapsplice=T/F   : Switch default minimap2 options to `-x splice -uf -C5` [False]
     reads=FILELIST  : List of fasta/fastq read files for minimap2 mapping to BAM. Wildcard allowed. Can be gzipped. []
     readtype=LIST   : List of ont/pb/hifi file types matching reads for minimap2 mapping [ont]
@@ -77,6 +77,7 @@ Commandline:
     qcut=X          : Min. quality score for a mapped read to be included [0]
     minqn=X         : Min. number of non-N reads meeting qcut for output (after indel filtering) [10]
     rid=T/F         : Whether to include Read ID (number) lists for each allele [True]
+    readnames=T/F   : Output the read names to the RID file [False]
     indels=T/F      : Whether to include indels in "SNP" parsing [True]
     skiploci=LIST   : List of loci to exclude from pileup parsing (e.g. mitochondria) []
     mincut=X        : Minimum read count for minor allele (proportion if <1) [0.05]
@@ -123,6 +124,8 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 0.10.2 - Fixed formatting for Python 2.6 back compatibility for servers.
     # 0.10.3 - Fixing issues of PAF files not being generated.
     # 0.11.0 - Added HiFi read type.
+    # 0.12.0 - Added readnames=T/F : Output the read names to the RID file [False]
+    # 0.13.0 - Updated default -x to asm20 (5% divergence). Use minimap2 map-hifi setting for hifi read mapping.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -155,7 +158,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copy_right) = ('RJE_PAF', '0.11.0', 'January 2021', '2019')
+    (program, version, last_edit, copy_right) = ('RJE_PAF', '0.13.0', 'September 2021', '2019')
     description = 'Minimap2 PAF parser and converter'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_obj.zen()]
@@ -295,6 +298,7 @@ class PAF(rje_obj.RJE_Object):
     - LocalAln = Whether to keep local alignments in Local Table [False]
     - MapSplice=T/F   : Switch default minimap2 options to `-x splice -uf -C5` [False]
     - MockBLAST = Whether to output mock BLAST headers even when not appropriate [True]
+    - ReadNames=T/F   : Output the read names to the RID file [False]
     - RID=T/F         : Whether to include Read ID (number) lists for each allele [True]
     - SNPTableOut=T/F : Generated output of filtered variants to SNP Table [False]
     - UniqueHit=T/F   : Option to use *.hitunique.tdt table of unique coverage for GABLAM coverage stats [False]
@@ -321,7 +325,7 @@ class PAF(rje_obj.RJE_Object):
     - SkipLoci=LIST   : List of loci to exclude from pileup parsing (e.g. mitochondria) []
 
     Dict:dictionary    
-    MapOpt=CDICT    : Dictionary of minimap2 options [N:100,p:0.0001,x:asm5]
+    MapOpt=CDICT    : Dictionary of minimap2 options [N:100,p:0.0001,x:asm20]
 
     Obj:RJE_Objects
     - DB: Database object for main IO
@@ -335,7 +339,7 @@ class PAF(rje_obj.RJE_Object):
         '''Sets Attributes of Object.'''
         ### ~ Basics ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         self.strlist = ['CheckPos','Minimap2','PAFIn','SeqIn','SpanID','Reference','TmpDir']
-        self.boollist = ['AlnSeq','BiAllelic','IgnoreN','IgnoreRef','Indels','LocalAln','MapSplice','MockBLAST','RID','SNPTableOut','UniqueHit','UniqueOut']
+        self.boollist = ['AlnSeq','BiAllelic','IgnoreN','IgnoreRef','Indels','LocalAln','MapSplice','MockBLAST','ReadNames','RID','SNPTableOut','UniqueHit','UniqueOut']
         self.intlist = ['AbsMinCut','EndExtend','MinLocLen','MinQN','QCut']
         self.numlist = ['MinCut','MinLocID']
         self.filelist = []
@@ -346,10 +350,10 @@ class PAF(rje_obj.RJE_Object):
         self._setDefaults(str='None',bool=False,int=0,num=0.0,obj=None,setlist=True,setdict=True,setfile=True)
         self.setStr({'Minimap2':'minimap2','TmpDir':'./tmp/'})
         self.setBool({'AlnSeq':False,'LocalAln':False,'MapSplice':False,'MockBLAST':True,'UniqueHit':False,'UniqueOut':True,
-                      'BiAllelic':False,'IgnoreN':True,'IgnoreRef':True,'Indels':True,'RID':True,'SNPTableOut':False})
+                      'BiAllelic':False,'IgnoreN':True,'IgnoreRef':True,'Indels':True,'ReadNames':False,'RID':True,'SNPTableOut':False})
         self.setInt({'AbsMinCut':2,'EndExtend':0,'MinLocLen':1,'MinQN':10,'QCut':0})
         self.setNum({'MinCut':0.05,'MinLocID':0.0})
-        self.dict['MapOpt'] = {} #'N':'100','p':'0.0001','x':'asm5'}
+        self.dict['MapOpt'] = {} #'N':'100','p':'0.0001','x':'asm20'}
         self.list['CheckFlanks'] = [0,100,1000,5000]
         self.list['CheckFields'] = ['Locus','Start','End']
         ### ~ Other Attributes ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -374,7 +378,7 @@ class PAF(rje_obj.RJE_Object):
                 self._cmdReadList(cmd,'path',['TmpDir'])  # String representing directory path
                 self._cmdReadList(cmd,'file',['CheckPos','PAFIn','SeqIn','Reference'])  # String representing file path
                 #self._cmdReadList(cmd,'date',['Att'])  # String representing date YYYY-MM-DD
-                self._cmdReadList(cmd,'bool',['AlnSeq','BiAllelic','IgnoreN','IgnoreRef','Indels','LocalAln','MapSplice','MockBLAST','RID','SNPTableOut','UniqueHit','UniqueOut'])  # True/False Booleans
+                self._cmdReadList(cmd,'bool',['AlnSeq','BiAllelic','IgnoreN','IgnoreRef','Indels','LocalAln','MapSplice','MockBLAST','ReadNames','RID','SNPTableOut','UniqueHit','UniqueOut'])  # True/False Booleans
                 self._cmdReadList(cmd,'int',['AbsMinCut','EndExtend','MinLocLen','MinQN','QCut'])   # Integers
                 self._cmdReadList(cmd,'perc',['MinLocID'])   # 0-100 percentage, converted x100 if <=1
                 self._cmdReadList(cmd,'float',['MinCut']) # Floats
@@ -425,7 +429,7 @@ class PAF(rje_obj.RJE_Object):
             if not self.getStrLC('Basefile'): self.baseFile('rje_paf')
             self.printLog('#BASE',self.baseFile())
             if self.getBool('MapSplice'): defaults = {'x':'splice'} #,'uf':'','C5':''}
-            else: defaults = {'N':'100','p':'0.0001','x':'asm5'}
+            else: defaults = {'N':'100','p':'0.0001','x':'asm20'}
             self.dict['MapOpt'] = rje.combineDict(defaults,self.dict['MapOpt'],overwrite=True)
             #self.devLog('#MAPOPT','%s' % self.dict['MapOpt'])
             if self.getInt('Forks') > 0:
@@ -490,9 +494,11 @@ class PAF(rje_obj.RJE_Object):
                 pafin = self.getStr('PAFIn')
             if not rje.exists(pafin): raise IOError('PAFIn file "%s" not found!' % pafin)
             self.setStr({'PAFIn':pafin})
+            tmpshush = pafin.endswith('.tmp') and not self.debugging()
             #self.printLog('#~~#','## ~~~~~ Parsing PAF Alignments ~~~~~ ##')
-            self.headLog('Parsing PAF Alignments')
-            self.printLog('\r#PAF','Parsing %s' % pafin)
+            if not tmpshush:
+                self.headLog('Parsing PAF Alignments')
+                self.printLog('\r#PAF','Parsing %s' % pafin)
 
             ### ~ [2] Load PAF file with auto-counter ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             lfiltx = 0; ifiltx = 0
@@ -503,7 +509,7 @@ class PAF(rje_obj.RJE_Object):
             px = 0
             with open(pafin,'r') as PAF:
                 for line in PAF:
-                    self.progLog('\r#PAF','Parsing %s lines' % (rje.iStr(px)))
+                    if not tmpshush: self.progLog('\r#PAF','Parsing %s lines' % (rje.iStr(px)))
                     px += 1
                     data = string.split(rje.chomp(line),'\t')
                     #i# Added for checkpos
@@ -544,14 +550,14 @@ class PAF(rje_obj.RJE_Object):
                         self.deBug('Length=%s; Identity=%s; nn=%s; :%s; Alnlen=%s' % (pentry['Length'],pentry['Identity'],nn,cstats[':'],cstats['AlnLen']))
 
 
-
-            self.printLog('\r#PAF','Parsed %s lines from %s' % (rje.iStr(px),pafin))
-            #if not pafdb.entryNum(): self.warnLog('No hits parsed from %s: check minimap2=PROG setting' % pafin)
-            if lfiltx: self.printLog('#FILT','%s PAF lines filtered with (Length+nn) < minloclen=%d' % (rje.iStr(lfiltx),minloclen))
-            if ifiltx: self.printLog('#FILT','%s PAF lines filtered with (Identity+nn)/(Length+nn) < minlocid=%.2f%%' % (rje.iStr(ifiltx),minlocid*100.0))
+            if not tmpshush:
+                self.printLog('\r#PAF','Parsed %s lines from %s' % (rje.iStr(px),pafin))
+                #if not pafdb.entryNum(): self.warnLog('No hits parsed from %s: check minimap2=PROG setting' % pafin)
+                if lfiltx: self.printLog('#FILT','%s PAF lines filtered with (Length+nn) < minloclen=%d' % (rje.iStr(lfiltx),minloclen))
+                if ifiltx: self.printLog('#FILT','%s PAF lines filtered with (Identity+nn)/(Length+nn) < minlocid=%.2f%%' % (rje.iStr(ifiltx),minlocid*100.0))
 
             ### ~ [3] Return PAF Data ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            if self.dev(): pafdb.saveToFile()
+            #if self.dev(): pafdb.saveToFile()
             return pafdb
         except: self.errorLog('%s.parsePAF error' % self.prog()); return False
 #########################################################################################################################
@@ -2483,8 +2489,9 @@ class PAF(rje_obj.RJE_Object):
                     maplog = '{0}.log'.format(prefix)
                     ## ~ [2a] Make SAM ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
                     maprun = '{0} -t {1} --secondary=no -o {2}.paf -L -x map-{3} {4} {5}'.format(paf.getStr('Minimap2'),self.threads(),prefix,rtype,self.getStr('SeqIn'),readfile)
-                    if rtype in ['hifi']:
-                        maprun = '{0} -t {1} --secondary=no -o {2}.paf -L -x asm20 {4} {5}'.format(paf.getStr('Minimap2'),self.threads(),prefix,rtype,self.getStr('SeqIn'),readfile)
+                    #i# Minimap2 now has a HiFi mapping mode
+                    #if rtype in ['hifi']:
+                    #    maprun = '{0} -t {1} --secondary=no -o {2}.paf -L -x asm20 {4} {5}'.format(paf.getStr('Minimap2'),self.threads(),prefix,rtype,self.getStr('SeqIn'),readfile)
                     logline = self.loggedSysCall(maprun,maplog,append=False)
                     #!# Add check that run has finished #!#
                     rpfile = '{0}.paf'.format(prefix)
@@ -2588,10 +2595,12 @@ class PAF(rje_obj.RJE_Object):
 #########################################################################################################################
     ### <9> ### Read coverage position checking                                                                         #
 #########################################################################################################################
-    def checkPos(self,save=True):  ### Checks read coverage spanning given positions
+    def checkPos(self,save=True,cdb=None):  ### Checks read coverage spanning given positions
         '''
         Checks read coverage spanning given positions.
-        >> returns table of checked positions
+        >> save:bool [True] = Whether to save table
+        >> cdb:Table [None] = Existing table with self.list['CheckFields'] fields for checking.
+        << returns table of checked positions
         '''
         try:### ~ [1] ~ Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             forker = self.obj['Forker']
@@ -2600,7 +2609,9 @@ class PAF(rje_obj.RJE_Object):
             if not self.getStrLC('Basefile'): self.baseFile(rje.baseFile(self.getStr('SeqIn'),strip_path=True))
             basefile = self.baseFile()
             self.printLog('#BASE',self.baseFile())
-            db = self.obj['DB'] = rje_db.Database(self.log,self.cmd_list+['tuplekeys=T','basefile=%s' % self.baseFile()])
+            db = self.db()
+            if not db:
+                db = self.obj['DB'] = rje_db.Database(self.log,self.cmd_list+['tuplekeys=T','basefile=%s' % self.baseFile()])
             if self.getStrLC('PAFIn') in ['minimap','minimap2']:
                 self.setStr({'PAFIn':'%s.paf' % self.baseFile()})
                 self.printLog('#PAFIN','Minimap2 PAF file set: %s' % self.getStr('PAFIn'))
@@ -2610,7 +2621,8 @@ class PAF(rje_obj.RJE_Object):
                 raise ValueError('checkfields=LIST must have exactly 3 elements: Locus, Start, End. %d found!' % len(self.list['CheckFields']))
             [locusfield,startfield,endfield] = self.list['CheckFields']
             #cdb = db.addTable(self.getStr('CheckPos'),mainkeys=self.list['CheckFields'],name='check',expect=True)
-            cdb = db.addTable(self.getStr('CheckPos'),mainkeys='auto',name='check',expect=True)
+            if not cdb:
+                cdb = db.addTable(self.getStr('CheckPos'),mainkeys='auto',name='check',expect=True)
             cdb.dataFormat({startfield:'int',endfield:'int'})
             cdb.compress(self.list['CheckFields'],rules={self.getStr('SpanID'):'list'})
             cdb.setStr({'Delimit':'\t'})

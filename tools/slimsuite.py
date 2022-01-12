@@ -20,8 +20,8 @@
 """
 Module:       SLiMSuite
 Description:  Short Linear Motif analysis Suite
-Version:      1.10.0
-Last Edit:    01/02/21
+Version:      1.11.0
+Last Edit:    06/04/21
 Citation:     Edwards et al. (2020), Methods Mol Biol. 2141:37-72. [PMID: 32696352]
 Old citation: Edwards RJ & Palopoli N (2015): Methods Mol Biol. 1268:89-141. [PMID: 25555723]
 Copyright (C) 2014  Richard J. Edwards - See source code for GNU License Notice
@@ -42,17 +42,17 @@ Function:
 
 SLiMSuite tools:
     The list of tools recognised by `prog=X` will be added here as the relevant code is added:
+    - PeptCluster = peptcluster.PeptCluster. Peptide alignment, pairwise distance and clustering tool.
+    - QSLiMFinder = qslimfinder.QSLiMFinder. Query-based Short Linear Motif Finder - de novo SLiM prediction.
+    - SLiMBench = slimbench.SLiMBench. SLiM discovery benchmarking module.
     - SLiMCore = rje_slimcore.SLiMCore. SLiMSuite core module with MegaSLiM and UPC functions.
     - SLiMFarmer = slimfarmer.SLiMFarmer. SLiMSuite job forking/HPC controller.
-    - QSLiMFinder = qslimfinder.QSLiMFinder. Query-based Short Linear Motif Finder - de novo SLiM prediction.
     - SLiMFinder = slimfinder.SLiMFinder. Short Linear Motif Finder - de novo SLiM prediction.
     - SLiMList = rje_slimlist.SLiMList. Short Linear Motif manipulation/filtering module.
-    - SLiMProb = slimprob.SLiMProb. Short Linear Motif Probability - known SLiM prediction.
-    - SLiMBench = slimbench.SLiMBench. SLiM discovery benchmarking module.
     - SLiMMaker = slimmaker.SLiMMaker. Simple SLiM generation from aligned peptide sequences.
     - SLiMMutant = slimmutant.SLiMMutant. Short Linear Motif Mutation Analysis Tool
     - SLiMParser - slimparser.SLiMParser. SLiMSuite REST output parsing tool.
-    - PeptCluster = peptcluster.PeptCluster. Peptide alignment, pairwise distance and clustering tool.
+    - SLiMProb = slimprob.SLiMProb. Short Linear Motif Probability - known SLiM prediction.
 
 Example use to run SLiMFinder:
     python SLiMSuitePATH/tools/slimsuite.py slimfinder
@@ -113,6 +113,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 1.9.0 - Added SAAGA, Diploidocus, SynBad and Genomics. Slight module tidy for GitHub updates.
     # 1.9.1 - Added SLiMParser and SLiMMutant to wrapped tools to match documentation.
     # 1.10.0- Various program updates: see release_notes.txt.
+    # 1.11.0- SeqSuite added DepthSizer and DepthKopy.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -127,10 +128,10 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copy_right) = ('SLiMSuite', '1.10.0', 'January 2021', '2014')
+    (program, version, last_edit, copy_right) = ('SLiMSuite', '1.11.0', 'January 2022', '2014')
     description = 'Short Linear Motif analysis Suite'
     author = 'Dr Richard J. Edwards.'
-    comments = ['This program is still in development and has not been published.',
+    comments = ['NOTE: Some tools are still in development and have not been published.',
                 'Please see individual programs for citation details.',rje_obj.zen()]
     return rje.Info(program,version,last_edit,description,author,time.time(),copy_right,comments)
 #########################################################################################################################

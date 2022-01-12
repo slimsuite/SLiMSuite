@@ -19,8 +19,8 @@
 """
 Module:       rje
 Description:  Contains SLiMSuite and Sequite General Objects
-Version:      4.23.0
-Last Edit:    21/08/20
+Version:      4.23.1
+Last Edit:    15/10/21
 Copyright (C) 2005  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -174,6 +174,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 4.22.4 - Added some Python 2.6 back-compatbility for the server.
     # 4.22.5 - Added checking of glist inputs.
     # 4.23.0 - Added rje_py2 and rje_py3 code divergence for Python3 compatibility development.
+    # 4.23.1 - Added HPC etc. warning for i>=0.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -382,7 +383,8 @@ class RJE_Object_Shell(object):     ### Metaclass for inheritance by other class
         ### ~ [0] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         if arg == None: arg = att.lower()
         cmdarg = cmd.split('=')[0].lower()
-        if cmdarg not in [arg,'-{0}'.format(arg)]: return
+        if cmdarg[:1] == '-': cmdarg = cmdarg[1:]
+        if cmdarg != arg: return
         value = cmd[len('{0}='.format(arg)):]
         value = value.replace('#DATE',dateTime(dateonly=True))
         ### ~ [1] Basic commandline types ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -1554,7 +1556,7 @@ class RJE_ObjectLite(RJE_Object_Shell):     ### Metclass for inheritance by othe
 #########################################################################################################################
     ### <2> ### Object Attributes                                                                                       #
 #########################################################################################################################
-    def details(self): return attDetails(printblanks=False)  ### Prints Details to screen
+    def details(self): return self.attDetails(printblanks=False)  ### Prints Details to screen
     def attDetails(self,types=['All'],printblanks=True):     ### Prints Details to screen
         '''Returns object details as text.'''
         try:### ~ [0] ~ Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -4590,6 +4592,8 @@ def setLog(info,out,cmd_list,printlog=True,fullcmd=True):  ### Makes Log Object 
             if fullcmd: log.printLog('#CMD','Full Command List: {0}'.format(argString(tidyArgs(cmd_list))),screen=False)
             log.printLog('#VIO','Verbosity: {0}; Interactivity: {1}.'.format(log.v(),log.i()))
             if log.dev() or log.test(): log.printLog('#DEV','Development mode: {0}; Testing mode: {1}.'.format(log.dev(),log.test()))
+            if log.i() >= 0:
+                log.printLog('#NOTE','Interactivity could cause problems for queued HPC jobs etc. If so, set i=-1.')
             if log.info['ErrorLog'].lower() not in ['','none']:
                 log.printLog('#~~#','#~~#',timeout=False,screen=False,error=True)
                 log.printLog('#LOG','Error Log for {0} {1}: {2}'.format(info.program,info.version,time.asctime(time.localtime(info.start_time))),screen=False,error=True)

@@ -1,5 +1,203 @@
 RELEASE NOTES
 
+UPDATES SINCE SLiMSuite v1.10.0
+|-- SLiMSuite v1.11.0 / SeqSuite v1.27.0
+
+#tools/
+buscomp
+    # 0.11.0- Updated for BUSCO v5.
+    # 0.12.0- Added parsing for v5 proteome and transcriptome modes.
+    # 0.12.1- Fixed group deletion bug.
+    # 0.13.0- Added generation of missing MetaEuk *.fna files using rje_busco module.
+    # 1.0.0 - Added citation to main documentation and switched to version 1.x for release with publication.
+    # 1.0.1 - Fixed parsing of MetaEuk sequences that have extra letters to BuscoID in full table.
+    
+depthkopy - NEW!
+    # 0.0.0 - Initial Compilation.
+    # 0.1.0 - Added KAT kmers and self-homology. Renamed DepthKopy.
+    # 0.1.1 - Fixed chromcheck setting bug.
+    # 0.1.2 - Implemented kmerself=F toggle.
+    # 0.2.0 - Added seqstats=T/F : Whether to output CN and depth data for full sequences as well as BUSCO genes [False]
+    # 0.2.1 - Fixed occasional R BUSCO bug and renamed pngplots directory after basefile.
+    # 0.2.2 - Fixed ignoredate bug.
+    # 0.3.0 - Added support for multiple regfiles. Added maxcn=INT option. Fixed end of sequence window size.
+    # 0.3.1 - Fixed reghead bug.
+    # 0.4.0 - Updated to use the seqin file to restrict sequences under analysis from regfile/BUSCO etc. Updated docs.
+    # 1.0.0 - Added over-ride of BUSCO calculation when scdepth=X is provided. First true release. Added to SeqSuite.
+    # 1.0.1 - Added passing on of gfftype=LIST option to Rscript.
+    
+depthsizer - NEW!
+    # 0.0.0 - Initial Compilation.
+    # 1.0.0 - Initial working version of DepthSizer based on Diploidocus v0.16.2.
+    # 1.1.0 - Updated to use updated ReadCore and DepthCopy code, plus new Indel ratio calculation (dev=T).
+    # 1.2.0 - Added CovBases lower depthsizer estimate output based solely on mapped reads. Fixed unmapped read bug.
+    # 1.2.1 - Fixed major flaw in indelratio calculation.
+    # 1.3.0 - Added adjust string and benchmark=T option for additional calculations. IndelRatio no longer dev only.
+    # 1.3.1 - Tweaked some input checks and log output. Replaced indelratio sort -u with uniq for speed and memory.
+    # 1.4.0 - Added seqstats=T/F : Whether to output CN and depth data for full sequences as well as BUSCO genes [False]
+    # 1.4.1 - Added citation and fixed minor output typo.
+    # 1.4.2 - Fixed bug that causes clashes with v5 full_table.bed files.
+    # 1.5.0 - Add additional map adjustment variants:
+    #       - MapAdjust2 = allbases, not covbases
+    #       - MapBases = Use map bases, not covbases for min read volumne
+    #       - MapRatio = Use mapbases adjusted by indelratio
+    # 1.6.0 - Disable legacy mode using Diploidocus.
+    # 1.6.1 - Bug fixes to underlying R script and related core codebase.
+
+diploidocus
+    # 0.14.1 - Added GapSpanner sequence summary to end.
+    # 0.14.2 - Fixed scdepth re-use printing bug.
+    # 0.15.0 - Added mapadjust=T/F   : Whether to adjust predicted genome size based on read length:mapping ratio [False]
+    # 0.16.0 - Updated vecscreen mode to have two-tier length filter, and partial masking to avoid splitting contigs.
+    # 0.16.1 - Added *.repeats.fasta output of the non-score diploidocus sequences.
+    # 0.16.2 - Minor bug fix catching Class key error. Added logo to docs.
+    # 0.16.3 - Updated some of the documentation.
+    # 0.16.4 - Fixed a bug where pretrim of vecscreen results will cause BUSCO genes to be missed during classification.
+    # 0.17.0 - Added purgecyc=INT : Minimum number of purged sequences to trigger next round of dipcycle [2]
+    # 0.17.1 - Minor tweaks to log output.
+    # 0.17.2 - Stopped CSI indexing from crashing Diploidocus but not compatible with PurgeHaplotigs.
+    # 0.18.0 - Implementation of density-based CNV estimation (dev=T).
+    # 1.0.0 - Updated to use rje_kat and rje_readcore and made v1.0.0 in line with Stuart et al. publication.
+    # 1.0.1 - Bug fixes for GFF checkpos.
+    # 1.1.0 - Fixed TeloRev sequence for finding 3' telomeres. Add reporting of telomere lengths.
+    # 1.1.1 - Fixed DepthSizer object bug for DipCycle.
+
+multihaq
+    # 1.5.0 - Updated BLAST2FAS code to use rje_seqlist for speed up.
+
+pafscaff
+    # 0.3.0 - Added pagsat=T/F : Whether to output sequence names in special PAGSAT-compatible format [False]
+    # 0.4.0 - Added purity criteria for more stringent assignment to chromosomes.
+    # 0.4.1 - Fixed some issues with ambiguous scaffold output.
+    # 0.4.2 - Unplaced scaffold output bug fix for GitHub issue#2.
+    # 0.4.3 - Fixed the descriptions for Unplaced scaffolds in the summary table.
+    # 0.5.0 - Added ctgprefix=X : Unplaced contig prefix. Replaces unplaced=X when 0 gaps. [None]
+
+pagsat
+    # 2.8.0 - Added keepchr=T/F : Keep the existing chromosome assigments during tidy if found [False]
+    # 2.8.1 - Fixed bug that caused too many assembly PNGs to disappear!
+
+saaga
+    # 0.6.0 - Added more graceful failure if no sequences loaded. Added GFF renaming output field options. Fixed GFF output bug.
+    # 0.7.0 - Added taxonomy mode for taxonomic summaries and contamination checks.
+    # 0.7.1 - Added taxorfs setting to generate ORFs in absence of GFF or protein file.
+    # 0.7.2 - Updated docstring. Added rating to lca_genes. Add batchrun for matching seqin/gffin pairs. Added GFF output.
+    # 0.7.3 - Fixed lca_genes rating and added taxbycontig=T/F taxonomy output for each contig if the assembly is loaded.
+    # 0.7.4 - Updated some of the outputs to Taxolotl rather than SAAGA.
+    # 0.7.5 - Added bestlineage=T/F : Whether to enforce a single lineage for best taxa ratings [True]
+    # 0.7.6 - Fixed GFF output.
+    # 0.7.7 - Fixed contig output for Taxolotl.
+
+samphaser
+    # 0.11.0 - Added pafphase mode (dev=T) and readnames=T/F.
+
+snapper
+    # 1.8.1 - Bug fixing SNPMap mode.
+
+synbad
+    # 0.5.0 - Added HiFi read type. Changed default to gapmode=gapspan.
+    # 0.5.1 - Added some extra bug-fixes for running Diploidocus checkpos.
+    # 0.6.0 - Added additional gap-spanning classes and qry-hit pair compression. Added dev reworking on main compression.
+    # 0.6.1 - Tidy up of code and transition of reworked code to main run (no longer dev=T only).
+    # 0.7.0 - Added code for fixing Inversions and well-supported translocations. Updated defaults.
+    # 0.8.0 - Added hicbam=FILE inputs and initial HiC assessment. Fixed inversion bug.
+    # 0.8.1 - Adding hicbest and summary table output. Fixed some calculation and re-run bugs.
+    # 0.8.2 - Separated and tidied HiC processing from contig flank/end processing. Fixed summary. Added correct=T/F option.
+    # 0.8.3 - Fixed HIC flank mapping error.
+    # 0.8.4 - Added simple duplicity analysis with KAT kmers and Diploidocus CNV. Added extract and relocate edits.
+    # 0.8.5 - Replace swap edits with break and join edits -> only join if pair are both scaffold ends. Add rejoin=T/F. Fixed major gap update bug.
+    # 0.8.6 - Small bug fixes for partial input.
+    # 0.9.0 - Added hidegaps=LIST option for hiding gaps. Add MashMap in place of GABLAM (dev=True). Fixed naming clashes.
+
+taxolotl - NEW!
+    # 0.0.0 - Initial Compilation.
+    # 0.1.0 - Added tabreport function.
+    # 0.1.1 - Fix bug with contig output. Added seqname, start and end to contig summary.
+
+#dev/
+gapspanner
+    # 0.1.0 - Modified sequence summary output.
+
+numtfinder - NEW!
+    # 0.0.0 - Initial Compilation.
+    # 0.1.0 - Added dochtml=T and modified docstring for standalone git repo.
+    # 0.1.1 - Fixed bug with default fragmerge=INT. Now set to 8kb.
+    # 0.2.0 - Added SAM output and depth profile of coverage across mitochondrion.
+    # 0.3.0 - Added additional exclusion, flagging and filtering of possible mtDNA.
+    # 0.4.0 - Added output of zero-coverage mtDNA regions, block fasta, and coverage summary.
+    # 0.4.1 - Fixed bug when no NUMTs. Added a bit more documentation of output.
+    # 0.4.2 - Fixed coverage output bugs for -ve strand hits over circularisation spot. Improved pickup of partial run.
+    # 0.5.0 - Modified depth plot defaults to remove the smoothing.
+    # 0.5.1 - Fixed bug with peak fasta output.
+
+#libraries/
+rje
+    # 4.23.1 - Added HPC etc. warning for i>=0.
+
+rje_blast_V2.py
+    # 2.27.0 - Modified to handle NCBI nr without main fasta file.
+
+rje_busco
+    # 0.0.0 - Initial Compilation.
+    # 0.1.0 - Added recognition and parsing of transcriptome mode output, which lacks Start and End.
+    # 0.1.1 - Fixed bug with sequence names containing pipe characters. (Why?!)
+    # 0.1.2 - Fixed bug with odd MetaEuk runs with appended letter on BUSCO ID.
+
+rje_kat - NEW
+    # 0.0.0 - Initial Compilation.
+    # 0.1.0 - Fixed _setKatAttributes bug.
+
+rje_lrbridge
+    # 0.0 - Initial Compilation.
+
+rje_mashmap
+    # 0.0.0 - Initial Compilation.
+
+rje_obj
+    # 2.7.2 - Tweaked the forks and threads settings and methods.
+    # 2.7.3 - Added generic checkForProgram() method.
+    # 2.8.0 - Added recognition of -cmd=ARG arguments.
+    # 2.8.1 - Fixed ignoredate bug.
+    # 2.9.0 - Expanded checkForProgram() method
+
+rje_paf
+    # 0.12.0 - Added readnames=T/F : Output the read names to the RID file [False]
+    # 0.13.0 - Updated default -x to asm20 (5% divergence). Use minimap2 map-hifi setting for hifi read mapping.
+
+rje_readcore - NEW!
+    # 0.0.0 - Initial Compilation.
+    # 0.1.0 - Adding forking for fastdepth file generation.
+    # 0.2.0 - Added CovBases lower depthsizer estimate output based solely on mapped reads.
+    # 0.2.1 - Added unique sorting of CIGAR strings for indel ratio. Fixed end padding of zero-coverage depths.
+    # 0.2.2 - Fixed major flaw in indelratio calculation.
+    # 0.3.0 - Add benchmark=T/F option to the genome size prediction. Tidied CovBase and MapAdjust.
+    # 0.3.1 - Tweaked some input checks and log output. Replaced indelratio sort -u with uniq for speed and memory.
+    # 0.4.0 - Added seqstats=T/F : Whether to output CN and depth data for full sequences as well as BUSCO genes [False]
+    # 0.4.1 - Fixed bug that causes clashes with v5 full_table.bed files.
+    # 0.5.0 - Add additional map adjustment variants:
+    #       - MapAdjust2 = allbases, not covbases
+    #       - MapBases = Use map bases, not covbases for min read volumne
+    #       - MapRatio = Use mapbases adjusted by indelratio
+    # 0.6.0 - Added support for multiple regfiles and setting max limit for CN graphics.
+    # 0.7.0 - Added passing on of gfftype=LIST option to Rscript.
+    # 0.7.1 - Fixed readtype recycle bug.
+
+rje_samtools
+    # 1.21.0 - Added readnames=T/F : Output the read names to the RID file (SAM parsing only) [False]
+
+rje_seqlist
+    # 1.45.3 - Fixed bug for summarising masked assemblies.
+    # 1.46.0 - Added dna2orfs reformatting options.
+    # 1.46.1 - Tweaked the batchSummarise method.
+    # 1.46.2 - Added orfgaps=T/F. Partial implementation of GFF output for dna2orfs reformatting. Need completion.
+    # 1.47.0 - Added reformat=degap option for removing alignment gaps from input sequences.
+    # 1.48.0 - Output a table of contigs during summarise (sets gapstats=T) [False]. Removed some dependencies.
+
+snp_mapper
+    # 1.2.1 - Fixed GFF parsing bug.
+
+---
+
 UPDATES SINCE SLiMSuite v1.9.1
 |-- SLiMSuite v1.10.0 / SeqSuite v1.25.0
 

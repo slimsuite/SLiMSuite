@@ -29,7 +29,7 @@ Copyright (C) 2007  Richard J. Edwards - See source code for GNU License Notice
 Function:
     SLiMProb is a tool for finding pre-defined SLiMs (Short Linear Motifs) in a protein sequence database. SLiMProb
     can make use of corrections for evolutionary relationships and a variation of the SLiMChance alogrithm from
-    SLiMFinder to assess motifs for statistical over- and under-representation. SLiMProb is replace for the original
+    SLiMFinder to assess motifs for statistical over- and under-representation. SLiMProb is a replacement for the original
     SLiMSearch, which itself was a replacement for PRESTO. The basic architecture is the same but it was felt that having
     two different "SLiMSearch" servers was confusing. 
 

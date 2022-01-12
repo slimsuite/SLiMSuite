@@ -439,7 +439,7 @@ class GFF(rje_obj.RJE_Object):
             sregx = sdb.entryNum()
             ## ~ [2b] Features ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             if ftypes:
-                self.debug('%s' % ftypes)
+                #self.debug('%s' % ftypes)
                 ftnr = rje.sortUnique(ftypes)
                 if '' in ftnr: ftnr.remove('')
                 self.printLog('#GFF','Parsing %d feature types: %s' % (len(ftnr),','.join(ftnr)))
@@ -800,7 +800,7 @@ class GFF(rje_obj.RJE_Object):
                 if not gffdb or not gffdb.entryNum():
                     self.printLog('#OUT','Cannot save to GFFOut: no GFF features parsed.')
                 else:
-                    gfields = ['locus', 'source', 'ftype', 'start', 'end', 'score', 'strand', 'phase']
+                    gfields = ['locus', 'source', 'ftype', 'start', 'end', 'score', 'strand', 'phase', 'attributes']
                     #i# Save comments first then, table with selected headers, minus the headers!
                     gffdb.saveToFile(self.getStr('GFFOut'),delimit='\t',backup=True,append=False,savefields=gfields,log=True,headers=False,comments=self.list['Comments'])
 
