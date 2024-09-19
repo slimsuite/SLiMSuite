@@ -108,10 +108,8 @@ Uses RJE modules: rje, rje_db, rje_sequence
 ### SECTION I: GENERAL SETUP & PROGRAM DETAILS                                                                          #
 #########################################################################################################################
 import glob, os, re, string, sys, time
-try:
-    import urllib2 as urllib2
-except:
-    import urllib.request as urllib2
+try: import urllib2 as urllib2
+except: import urllib.request as urllib2
 #########################################################################################################################
 sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)),'../libraries/'))
 sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)),'../tools/'))
@@ -410,7 +408,7 @@ class UniProt(rje.RJE_Object):
             except: self.log.errorLog('Problem with cmd:%s' % cmd)
         ### ~ [2] ~ Special processing ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         if self.getBool('GOTable'): self.list['DBList'].append('GO')
-        if 'all' in string.join(self.list['DBList']).lower(): self.list['DBList'] = []
+        if 'all' in rje.join(self.list['DBList']).lower(): self.list['DBList'] = []
         else: self.list['DBList'] = rje.listLower(self.list['DBList'])
         delimit = rje.getDelimit(self.cmd_list)
         for ofile in ['DBIndex','DATOut','TabOut','XRefOut','FTOut','MapOut','PfamOut']:
@@ -516,8 +514,8 @@ class UniProt(rje.RJE_Object):
             if outfmt in ['fullhtml','html']: return self.restHTMLOutput()
             if outfmt == 'version': return rje.Out(self.log,['v=-1']).printIntro(self.log.obj['Info'])
             if outfmt == 'outfmt': return self.restSetup.__doc__
-            if outfmt == 'warnings': return string.join(self.log.list['WarnLog'],'\n')  # List of log warning messages.
-            if outfmt == 'errors': return string.join(self.log.list['ErrorLog'],'\n')   # List of log error messages.
+            if outfmt == 'warnings': return rje.join(self.log.list['WarnLog'],'\n')  # List of log warning messages.
+            if outfmt == 'errors': return rje.join(self.log.list['ErrorLog'],'\n')   # List of log error messages.
             if outfmt in ['fas','fasta']:
                 fastxt = ''
                 for entry in self.entries(): fastxt += entry.fasta()
@@ -624,8 +622,8 @@ class UniProt(rje.RJE_Object):
             line = INDEX.readline()
             self.progLog('\r#ACC','Extracting IDs for %d taxa: %s found.' % (len(self.list['SpecDat']),rje.integerString(len(self.list['Extract']))))
             while line:
-                if rje.matchExp('(\S+_(%s));' % string.join(self.list['SpecDat'],'|'),line):
-                    self.list['Extract'].append(rje.matchExp('(\S+_(%s));' % string.join(self.list['SpecDat'],'|'),line)[0])
+                if rje.matchExp('(\S+_(%s));' % rje.join(self.list['SpecDat'],'|'),line):
+                    self.list['Extract'].append(rje.matchExp('(\S+_(%s));' % rje.join(self.list['SpecDat'],'|'),line)[0])
                     pc = 100.0 * INDEX.tell() / end_pos
                     self.progLog('\r#ACC','Extracting IDs for %d taxa %.1f%%: %s found.' % (len(self.list['SpecDat']),pc,rje.integerString(len(self.list['Extract']))))
                 line = INDEX.readline()
@@ -722,10 +720,10 @@ class UniProt(rje.RJE_Object):
                 ## Update ##
                 (line,start_pos) = rje.fileLineFromSeek(INDEX,ipos,reseek=False,next=False)
                 (matchacc,key,pos) = rje.matchExp(re_index,line)        #INDEX.readline())
-                if dat_dict[key].has_key(pos):  # Dictionary of (key:{dictionary of {positions:list of accs/ids}})
+                if pos in dat_dict[key]:  # Dictionary of (key:{dictionary of {positions:list of accs/ids}})
                     dat_dict[key][pos].append(acc)
                 else: dat_dict[key][pos] = [acc]
-                if acc_dict.has_key(acc):   # Dictionary of (acc/id:{list of {key:pos}}) (single acc can have multiple entries)
+                if acc in acc_dict:   # Dictionary of (acc/id:{list of {key:pos}}) (single acc can have multiple entries)
                     acc_dict[acc].append({key:pos})  
                 else: acc_dict[acc] = [{key:pos}]   
                 self.progLog('\r#INDEX','Found index entries for %s of %s AccNum/ID. %s missing.' % (rje.integerString(len(acc_dict)),rje.integerString(len(acclist)),rje.integerString(len(missing))))
@@ -746,10 +744,10 @@ class UniProt(rje.RJE_Object):
                     ## Update ##
                     (line,start_pos) = rje.fileLineFromSeek(INDEX,ipos,reseek=False,next=False)
                     (matchacc,key,pos) = rje.matchExp(re_index,line)        #INDEX.readline())
-                    if dat_dict[key].has_key(pos):  # Dictionary of (key:{dictionary of {positions:list of accs/ids}})
+                    if pos in dat_dict[key]:  # Dictionary of (key:{dictionary of {positions:list of accs/ids}})
                         dat_dict[key][pos].append(acc)
                     else: dat_dict[key][pos] = [acc]
-                    if acc_dict.has_key(acc):   # Dictionary of (acc/id:{list of {key:pos}}) (single acc can have multiple entries)
+                    if acc in acc_dict:   # Dictionary of (acc/id:{list of {key:pos}}) (single acc can have multiple entries)
                         acc_dict[acc].append({key:pos})  
                     else: acc_dict[acc] = [{key:pos}]   
                     self.progLog('\r#INDEX','Found index entries for %s of %s AccNum/ID. %s missing.' % (rje.integerString(len(acc_dict)),rje.integerString(len(acclist)),rje.integerString(len(missing))))
@@ -777,7 +775,7 @@ class UniProt(rje.RJE_Object):
                         new_id = self.list['Entry'][-1].obj['Sequence'].info['ID']
                         new_acc = self.list['Entry'][-1].obj['Sequence'].info['AccNum']
                         for acc in wanted_acc:
-                            tracc = string.split(acc,'_')[0]
+                            tracc = rje.split(acc,'_')[0]
                             if acc not in [new_id,new_acc] and tracc != new_acc:
                                 self.printLog('\n#ACC','Secondary AccNum %s mapped to %s (%s).' % (acc,new_id,new_acc),screen=self.v() > 0)
                             try: self.db('map').addEntry({'uniprotid':acc,'accnum':new_acc},warn=False)
@@ -836,11 +834,11 @@ class UniProt(rje.RJE_Object):
                 if not pickup: rje.backup(self,datout)
             ### ~ [1] ~ Process ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             logtext = 'Extracting proteomes from https://www.uniprot.org/uniprot/'
-            if self.getBool('UseBeta'): logtext = string.replace(logtext,'www','beta')
+            if self.getBool('UseBeta'): logtext = rje.replace(logtext,'www','beta')
             if self.opt['Complete']:
-                logtext = string.replace(logtext,'proteomes','complete proteomes')
+                logtext = rje.replace(logtext,'proteomes','complete proteomes')
                 self.warnLog('Specifying complete=T may not be working after Uniprot change. Use with caution.')
-            if self.opt['Reviewed']: logtext = string.replace(logtext,'proteomes','reviewed proteomes')
+            if self.opt['Reviewed']: logtext = rje.replace(logtext,'proteomes','reviewed proteomes')
             #self.deBug(logtext)
             #if log: self.progLog('\r#URL','%s ...' % logtext)
             ttot = len(taxalist); tx = 0
@@ -850,7 +848,7 @@ class UniProt(rje.RJE_Object):
                 if taxonomy: uniurl = 'https://www.uniprot.org/uniprot/?query=taxonomy:%s' % taxid
                 else: uniurl = 'https://www.uniprot.org/uniprot/?query=taxonomy:%s+AND+proteome:*' % taxid
                 try:
-                    if self.getBool('UseBeta'): uniurl = string.replace(uniurl,'www','beta')
+                    if self.getBool('UseBeta'): uniurl = rje.replace(uniurl,'www','beta')
                     if self.opt['Complete']: uniurl += '+AND+keyword:"Complete"'
                     if self.opt['Reviewed']: uniurl += '+AND+reviewed:yes'
                     ## ~ [1a] Special download ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
@@ -871,7 +869,7 @@ class UniProt(rje.RJE_Object):
                             except: self.printLog('\r#WAIT','SpecSleep cancelled!       ',log=False)
                         continue
                     ## ~ [1b] Regular processing ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-                    acclist = string.split(urllib2.urlopen('%s&format=list' % uniurl).read())
+                    acclist = rje.split(urllib2.urlopen('%s&format=list' % uniurl).read())
                     self.printLog('#ACC','%s accession numbers identified for TaxaID %s proteome.' % (rje.iLen(acclist),taxid))
                     uniurl += '&format=txt'     # NB. Could use list to get accnum only
                     #!# Add option to download only as compressed file #!#
@@ -911,7 +909,7 @@ class UniProt(rje.RJE_Object):
             ## ~ [0a] ~ Strip splice variants ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             extract = []
             for acc in acclist:
-                extract.append(string.split(acc,'-')[0])
+                extract.append(rje.split(acc,'-')[0])
             extract = rje.sortUnique(extract)
             if self.warn() and len(extract) != len(acclist): self.warnLog('AccList for _extractProteinsFromURL contains duplicates.')
             if self.warn() and len(extract) > 1e5: self.warnLog('Very long extraction list (%s identifiers) might fail!' % rje.iLen(extract))
@@ -925,9 +923,9 @@ class UniProt(rje.RJE_Object):
             if log: self.progLog('\r#URL','%s...' % (logtext))
             while batch:
                 tmpdat = '%s.%s.tmp' % (rje.baseFile(self.getStr('DATOut')),rje.randomString(6))
-                #uniurl = "https://www.uniprot.org/uniprot/?query=%s&format=txt" % string.join(batch[:batchn],',')
+                #uniurl = "https://www.uniprot.org/uniprot/?query=%s&format=txt" % rje.join(batch[:batchn],',')
                 #!# Note, this will not maintain the order #!#
-                uniurl = "https://www.uniprot.org/uniprot/?query=accession:%s&format=txt" % string.join(batch[:batchn],'+OR+accession:')
+                uniurl = "https://www.uniprot.org/uniprot/?query=accession:%s&format=txt" % rje.join(batch[:batchn],'+OR+accession:')
                 #self.debug(uniurl)
                 try: UNIPROT = urllib2.urlopen(uniurl)
                 except:
@@ -991,7 +989,7 @@ class UniProt(rje.RJE_Object):
                     self.errorLog('Something went wrong parsing entries from https://www.uniprot.org/uniprot/?query=ACCLIST&format=txt')
                     #i# Extract list will now be longer
                 x = UNIPROT.readlines()
-                #self.debug('>>>\n%d\n%s\n???' % (len(x),string.join(x[-5:])))
+                #self.debug('>>>\n%d\n%s\n???' % (len(x),rje.join(x[-5:])))
                 UNIPROT.close()
                 if rje.exists(tmpdat): os.unlink(tmpdat)
                 singles = []
@@ -1010,7 +1008,7 @@ class UniProt(rje.RJE_Object):
                 if self.getStrLC('DATOut'): mfile = rje.baseFile(self.getStr('DATOut')) + '.missing.acc'
                 else: mfile = None
                 if mfile and (self.i() < 0 or rje.yesNo('Save missing accnum to %s?' % mfile)):
-                    open(mfile,'w').write(string.join(extract,'\n'))
+                    open(mfile,'w').write(rje.join(extract,'\n'))
                     self.printLog('#FAIL','%s missing accnum output to %s' % (rje.iLen(extract),mfile))
                     self.dict['Output']['failed'] = mfile
                 if not self.getStrLC('Rest') and (self.i() < 0 or rje.yesNo('Try one-by-one for the %s failures?' % rje.iStr(fx))):
@@ -1047,7 +1045,7 @@ class UniProt(rje.RJE_Object):
             ### ~ [1] ~ Process ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             logtext = 'Extracting %s AccNum from https://www.uniprot.org/uniprot/' % rje.iLen(acclist)
             for acc in acclist[0:]:
-                if self.getBool('SpliceVar'): acc = string.split(acc,'-')[0]
+                if self.getBool('SpliceVar'): acc = rje.split(acc,'-')[0]
                 if acc in primaries + secondaries: dx += 1; continue
                 extracted[acc] = 0
                 try:
@@ -1099,7 +1097,7 @@ class UniProt(rje.RJE_Object):
             if url: UNIPROT = urllib2.urlopen(filename)
             else: UNIPROT = open(filename, 'r')
             ### ~ [1] ~ Process ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            logtext = 'Extracting entries from %s' % string.split(filename,os.sep)[-1]
+            logtext = 'Extracting entries from %s' % rje.split(filename,os.sep)[-1]
             while self._readSingleEntry(UNIPROT,logft=logft,cleardata=cleardata,reformat=reformat):
                 rx += 1
                 self._entryTableData(self.list['Entry'][-1])
@@ -1117,7 +1115,7 @@ class UniProt(rje.RJE_Object):
     def _newEntryObject(self):
         ecmd = self.cmd_list
         # Add Pfam to DBParse list if required for PfamOut
-        if self.getStrLC('PfamOut') and 'pfam' not in self.list['DBList']: ecmd.append('dblist=%s,pfam' % string.join(self.list['DBList'],','))
+        if self.getStrLC('PfamOut') and 'pfam' not in self.list['DBList']: ecmd.append('dblist=%s,pfam' % rje.join(self.list['DBList'],','))
         return UniProtEntry(log=self.log,cmd_list=ecmd,parent=self)
 #########################################################################################################################
     def _writeSingleEntry(self,_entry,reformat=False): ### Handles writing of entry data from _readSingleEntry
@@ -1128,7 +1126,7 @@ class UniProt(rje.RJE_Object):
                 datapp = False
                 datout = rje.makePath(self.info['SplitOut']) + self.info['DATOut']
                 rje.mkDir(self,datout)
-                datout = string.join([datout,_entry.info['Type'],_entry.info['ID'],'dat'],'.')
+                datout = rje.join([datout,_entry.info['Type'],_entry.info['ID'],'dat'],'.')
             else: datout = self.info['DATOut']; datapp = True
             #self.debug(datout)
             #self.debug(datapp)
@@ -1137,7 +1135,7 @@ class UniProt(rje.RJE_Object):
             #!# >>>>>> This is a fudge but it's OK for now <<<<<<<<<<< #!#
             #X#self.tableOutput(_entry)
             for k in ['DBLinks']:
-                if not self.list.has_key(k): self.list[k] = []
+                if k not in self.list: self.list[k] = []
             for k in ['DBLinks']:
                 for i in _entry.dict[k].keys():
                     if i not in self.list[k]: self.list[k].append(i)
@@ -1202,15 +1200,15 @@ class UniProt(rje.RJE_Object):
                         self.deBug('Bad Entry'); self.deBug(_entry); self.deBug(self.list['Extract']); return None
                 ## ~ [1d] ~ Entry Details read into a dictionary within the entry ~~~~~~~~~~~~~~~~~ ##
                 if not rest: self.deBug(line)
-                if _entry.dict['Data'].has_key(ltype):   # Append list
+                if ltype in _entry.dict['Data']:   # Append list
                     if rest[:1] != ' ': _entry.dict['Data'][ltype].append(rest)   # New entry
                     else:
                         while rest[:1] == ' ': rest = rest[1:]
                         _entry.dict['Data'][ltype][-1] = '%s %s' % (_entry.dict['Data'][ltype][-1], rest)
                 elif ltype == '  ':
-                    if _entry.dict['Data'].has_key('SEQ'):
+                    if 'SEQ' in _entry.dict['Data']:
                         _entry.dict['Data']['SEQ'][0] = '%s %s' % (_entry.dict['Data']['SEQ'][0],rest)
-                    elif _entry.dict['Data'].has_key('SQ'): _entry.dict['Data']['SEQ'] = [rest]
+                    elif 'SQ' in _entry.dict['Data']: _entry.dict['Data']['SEQ'] = [rest]
                 elif ltype not in ['XX']: _entry.dict['Data'][ltype] = [rest]
                 if self.opt['FullRef'] and ltype in ['RN','RP','RC','RX','RA','RT','RL','RG']: _entry.list['References'].append(line)
                 ## ~ [1e] ~ Quick skip if reviewed constraint not met ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
@@ -1234,10 +1232,10 @@ class UniProt(rje.RJE_Object):
             if not acclist: return True
             elif self.getStr('UniPath').lower() in ['url','url/']: return True
             for acc in acclist[0:]:
-                if self.getBool('SpliceVar'): acc = string.split(acc,'-')[0] 
-                if _entry.dict['Data'].has_key('AC') and string.join([' '] + _entry.dict['Data']['AC'],' ').find(' %s;' % acc) > 0: return True
-                if _entry.dict['Data'].has_key('AC') and string.join([' '] + _entry.dict['Data']['AC'],' ').find(' %s;' % string.split(acc,'_')[0]) > 0: return True
-                if _entry.dict['Data'].has_key('ID') and string.join(_entry.dict['Data']['ID'],' ').find('%s ' % acc) == 0: return True
+                if self.getBool('SpliceVar'): acc = rje.split(acc,'-')[0] 
+                if 'AC' in _entry.dict['Data'] and rje.join([' '] + _entry.dict['Data']['AC'],' ').find(' %s;' % acc) > 0: return True
+                if 'AC' in _entry.dict['Data'] and rje.join([' '] + _entry.dict['Data']['AC'],' ').find(' %s;' % rje.split(acc,'_')[0]) > 0: return True
+                if 'ID' in _entry.dict['Data'] and rje.join(_entry.dict['Data']['ID'],' ').find('%s ' % acc) == 0: return True
         except: self.errorLog('Cataclysmic error during _add_entry')
         return False
 #########################################################################################################################
@@ -1279,8 +1277,8 @@ class UniProt(rje.RJE_Object):
                     if db in ['Pfam']:
                         idlist = []
                         for dbid in rje.sortKeys(entry.dict['DB'][db]): idlist.append('%s; %s' % (dbid,entry.dict['DB'][db][dbid]))
-                        xentry = xdb.addEntry({'accnum':entry.obj['Sequence'].info['AccNum'],'db':db,'xref':string.join(idlist,'|')})
-                    else: xentry = xdb.addEntry({'accnum':entry.obj['Sequence'].info['AccNum'],'db':db,'xref':string.join(rje.sortUnique(entry.dict['DB'][db]),'|')})
+                        xentry = xdb.addEntry({'accnum':entry.obj['Sequence'].info['AccNum'],'db':db,'xref':rje.join(idlist,'|')})
+                    else: xentry = xdb.addEntry({'accnum':entry.obj['Sequence'].info['AccNum'],'db':db,'xref':rje.join(rje.sortUnique(entry.dict['DB'][db]),'|')})
                     #self.debug(xentry)
             ### ~ [2] Features Table ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if fdb:     # ['accnum','feature','ft_start','ft_end','description'],['accnum','feature','ft_start','ft_end']
@@ -1359,78 +1357,78 @@ class UniProt(rje.RJE_Object):
                     elif h == 'Len':
                         data.append('%d' % seq.aaLen())
                     elif h == 'Gene':
-                        data.append(string.join([seq.info['Gene']] + entry.list['Synonyms'],'; '))
+                        data.append(rje.join([seq.info['Gene']] + entry.list['Synonyms'],'; '))
                     elif h == 'Species':
                         data.append('%s [%s]' % (seq.info['Species'],seq.info['SpecCode']))
                     #2# Function & Activity #
                     elif h == 'Function':
                         text = ''
                         for cc in ['FUNCTION','PATHWAY','DOMAIN']:
-                            if entry.dict['Comments'].has_key(cc):
+                            if cc in entry.dict['Comments']:
                                 comments.remove(cc)
                                 if text:
                                     text += ' '
-                                text += '%s: %s' % (cc,string.join(entry.dict['Comments'][cc],' >> '))
+                                text += '%s: %s' % (cc,rje.join(entry.dict['Comments'][cc],' >> '))
                                 if text[-1] != '.':
                                     text += '.'
                         data.append(text)
                     elif h == 'GO_MF':
                         go = []
-                        if entry.dict['DBLinks'].has_key('GO'):
+                        if 'GO' in entry.dict['DBLinks']:
                             go = entry.dict['DBLinks']['GO'][0:]
                             for g in go[0:]:
                                 if g.find('; F:') < 0:
                                     go.remove(g)
-                        data.append(string.join(go,' >> '))
+                        data.append(rje.join(go,' >> '))
                     elif h == 'GO_BP':
                         go = []
-                        if entry.dict['DBLinks'].has_key('GO'):
+                        if 'GO' in entry.dict['DBLinks']:
                             go = entry.dict['DBLinks']['GO'][0:]
                             for g in go[0:]:
                                 if g.find('; P:') < 0:
                                     go.remove(g)
-                        data.append(string.join(go,' >> '))
+                        data.append(rje.join(go,' >> '))
                     elif h == 'Activity':   #!# Join to Function #!#
                         text = ''
                         for cc in ['CATALYTIC ACTIVITY','COFACTOR']:
-                            if entry.dict['Comments'].has_key(cc):
+                            if cc in entry.dict['Comments']:
                                 comments.remove(cc)
                                 if text:
                                     text += ' '
-                                text += '%s: %s' % (cc,string.join(entry.dict['Comments'][cc],' >> '))
+                                text += '%s: %s' % (cc,rje.join(entry.dict['Comments'][cc],' >> '))
                                 if text[-1] != '.':
                                     text += '.'
                         data.append(text)
                     elif h == 'Interactions':
                         text = ''
                         for cc in ['INTERACTION','ENZYME REGULATION','SUBUNIT','PTM']:
-                            if entry.dict['Comments'].has_key(cc):
+                            if cc in entry.dict['Comments']:
                                 comments.remove(cc)
                                 if text:
                                     text += ' '
-                                text += '%s: %s' % (cc,string.join(entry.dict['Comments'][cc],' >> '))
+                                text += '%s: %s' % (cc,rje.join(entry.dict['Comments'][cc],' >> '))
                                 if text[-1] != '.':
                                     text += '.'
                         data.append(text)
                     elif h == 'Phenotype':
                         text = ''
                         for cc in ['DISEASE','POLYMORPHISM']:
-                            if entry.dict['Comments'].has_key(cc):
+                            if cc in entry.dict['Comments']:
                                 comments.remove(cc)
                                 if text:
                                     text += ' '
-                                text += '%s: %s' % (cc,string.join(entry.dict['Comments'][cc],' >> '))
+                                text += '%s: %s' % (cc,rje.join(entry.dict['Comments'][cc],' >> '))
                                 if text[-1] != '.':
                                     text += '.'
                         data.append(text)
                     elif h == 'Similarity':
                         text = ''
                         for cc in ['SIMILARITY']:
-                            if entry.dict['Comments'].has_key(cc):
+                            if cc in entry.dict['Comments']:
                                 comments.remove(cc)
                                 if text:
                                     text += ' '
-                                text += '%s: %s' % (cc,string.join(entry.dict['Comments'][cc],' >> '))
+                                text += '%s: %s' % (cc,rje.join(entry.dict['Comments'][cc],' >> '))
                                 if text[-1] != '.':
                                     text += '.'
                         data.append(text)
@@ -1438,58 +1436,58 @@ class UniProt(rje.RJE_Object):
                     elif h == 'Tissue':
                         text = ''
                         if entry.list['Tissues']:
-                            text = 'TISSUES: %s' % string.join(entry.list['Tissues']+[''],'; ')
+                            text = 'TISSUES: %s' % rje.join(entry.list['Tissues']+[''],'; ')
                         for cc in ['TISSUE SPECIFICITY','DEVELOPMENTAL STAGE','INDUCTION']:
-                            if entry.dict['Comments'].has_key(cc):
+                            if cc in entry.dict['Comments']:
                                 comments.remove(cc)
                                 if text:
                                     text += ' '
-                                text += '%s: %s' % (cc,string.join(entry.dict['Comments'][cc],' >> '))
+                                text += '%s: %s' % (cc,rje.join(entry.dict['Comments'][cc],' >> '))
                                 if text[-1] != '.':
                                     text += '.'
                         data.append(text)
                     elif h == 'Cell_Loc':
                         go = []
-                        if entry.dict['DBLinks'].has_key('GO'):
+                        if 'GO' in entry.dict['DBLinks']:
                             go = entry.dict['DBLinks']['GO'][0:]
                             for g in go[0:]:
                                 if g.find('; C:') < 0:
                                     go.remove(g)
                         cc = 'SUBCELLULAR LOCATION'
-                        if entry.dict['Comments'].has_key(cc):
+                        if cc in entry.dict['Comments']:
                             comments.remove(cc)
                             go = entry.dict['Comments'][cc] + go
-                        data.append(string.join(go,' >> '))
+                        data.append(rje.join(go,' >> '))
                     elif h in ['PDB','InterPro','Pfam','PROSITE','Ensembl']:
-                        if entry.dict['DBLinks'].has_key(h):
-                            data.append(string.join(entry.dict['DBLinks'][h],' >> '))
+                        if h in entry.dict['DBLinks']:
+                            data.append(rje.join(entry.dict['DBLinks'][h],' >> '))
                         else:
                             data.append('')
                     elif h == 'Isoforms':
                         text = ''
                         for cc in ['ALTERNATIVE PRODUCTS']:
-                            if entry.dict['Comments'].has_key(cc):
+                            if cc in entry.dict['Comments']:
                                 comments.remove(cc)
                                 if text:
                                     text += ' '
-                                text += '%s: %s' % (cc,string.join(entry.dict['Comments'][cc],' >> '))
+                                text += '%s: %s' % (cc,rje.join(entry.dict['Comments'][cc],' >> '))
                                 if text[-1] != '.':
                                     text += '.'
                         data.append(text)
                     #4# References & Links
                     elif h == 'GeneCards':
-                        if entry.dict['DBLinks'].has_key('HGNC'):
-                            data.append(string.join(entry.dict['DBLinks']['HGNC'],' >> '))
+                        if 'HGNC' in entry.dict['DBLinks']:
+                            data.append(rje.join(entry.dict['DBLinks']['HGNC'],' >> '))
                         else:
                             data.append('')
                     elif h in ['PubMed']:
                         if entry.list[h]:
-                            data.append('http://www.ncbi.nlm.nih.gov/entrez/query.fcgi?cmd=Retrieve&db=pubmed&dopt=Abstract&list_uids=%s' % string.join(entry.list[h],','))
+                            data.append('http://www.ncbi.nlm.nih.gov/entrez/query.fcgi?cmd=Retrieve&db=pubmed&dopt=Abstract&list_uids=%s' % rje.join(entry.list[h],','))
                         else:
                             data.append('')
                     elif h in ['Keywords']:
                         if entry.list[h]:
-                            data.append(string.join(entry.list[h],','))
+                            data.append(rje.join(entry.list[h],','))
                         else:
                             data.append('')
                     elif h == 'Comments':
@@ -1497,7 +1495,7 @@ class UniProt(rje.RJE_Object):
                         for cc in comments:
                             if text:
                                 text += ' '
-                            text += '%s: %s' % (cc,string.join(entry.dict['Comments'][cc],' >> '))
+                            text += '%s: %s' % (cc,rje.join(entry.dict['Comments'][cc],' >> '))
                             if text[-1] != '.':
                                 text += '.'
                         data.append(text)
@@ -1520,14 +1518,14 @@ class UniProt(rje.RJE_Object):
             #DR   GO; GO:0021766; P:hippocampus development; IMP:MGI.
             #DR   GO; GO:0035308; P:negative regulation of protein dephosphorylation; IDA:MGI.
             for entry in xdb.indexEntries('db','GO'):
-                for gox in string.split(entry['xref'],'|'):
-                    godata = string.split(gox,'; ')
+                for gox in rje.split(entry['xref'],'|'):
+                    godata = rje.split(gox,'; ')
                     gentry = {'accnum':entry['accnum'],
-                              'go':string.split(godata[0],':')[1],
-                              'type':string.split(godata[1],':')[0],
-                              'desc':string.split(godata[1],':')[1],
-                              'evidence':string.split(godata[2],':')[0],
-                              'source':string.split(godata[2],':')[1]}
+                              'go':rje.split(godata[0],':')[1],
+                              'type':rje.split(godata[1],':')[0],
+                              'desc':rje.split(godata[1],':')[1],
+                              'evidence':rje.split(godata[2],':')[0],
+                              'source':rje.split(godata[2],':')[1]}
                     gdb.addEntry(gentry)
             gdb.saveToFile()
             ### ~ [2] ~ Memsaver clearup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -1586,8 +1584,8 @@ class UniProt(rje.RJE_Object):
                 self.debug(acclist)
                 for acc in acclist:
                     if acc in pfamdata:
-                        for pfamdom in string.split(pfamdata.pop(acc)['xref'],'|'):
-                            domdata = string.split(pfamdom,'; ')
+                        for pfamdom in rje.split(pfamdata.pop(acc)['xref'],'|'):
+                            domdata = rje.split(pfamdom,'; ')
                             pentry = {'accnum':acc,'pfam':domdata[0],'name':pfamdom,'num':0}
                             if len(domdata) > 1: pentry['name'] = domdata[1]
                             if len(domdata) > 2: pentry['num'] = int(domdata[2][:-1])
@@ -1624,8 +1622,8 @@ class UniProt(rje.RJE_Object):
                 ex += 1
                 data = [rje.preZero(ex,self.entryNum()),entry.obj['Sequence'].info['AccNum']]
                 for db in dblist:
-                    if entry.dict['DBLinks'].has_key(db):
-                        data.append(string.join(entry.dict['DBLinks'][db],' >> '))
+                    if db in entry.dict['DBLinks']:
+                        data.append(rje.join(entry.dict['DBLinks'][db],' >> '))
                     else:
                         data.append('')
                 rje.writeDelimit(LINKFILE,data,delimit)
@@ -1655,11 +1653,11 @@ class UniProt(rje.RJE_Object):
                 ex = 0
                 for entry in xdb.indexEntries('db',db):
                     ex += 1
-                    for dbid in string.split(entry['xref'],'|'):
+                    for dbid in rje.split(entry['xref'],'|'):
                         data = {'Uniprot':entry['accnum'],db:dbid}
                         if db == 'Pfam':
                             #self.debug(entry)
-                            [data[db],data['Domain'],data['N']] = string.split(data[db],'; ')
+                            [data[db],data['Domain'],data['N']] = rje.split(data[db],'; ')
                             data['N'] = data['N'][:-1]
                             rje.delimitedFileOutput(self,OUTFILE,dbhead,datadict=data,delimit='\t')
                         else: OUTFILE.write('%s\t%s\n' % (entry['accnum'],dbid))
@@ -1736,10 +1734,10 @@ class UniProt(rje.RJE_Object):
                 ft_dict = {}
                 for ft in entry.list['Feature']:
                     ft_start = ft['Start']
-                    if not ft_dict.has_key(ft_start):
+                    if ft_start not in ft_dict:
                         ft_dict[ft_start] = {}
                     ft_end = ft['End']
-                    if not ft_dict[ft_start].has_key(ft_end):
+                    if ft_end not in ft_dict[ft_start]:
                         ft_dict[ft_start][ft_end] = []
                     ft_dict[ft_start][ft_end].append(ft)
                 ## Sort and output ##
@@ -1778,7 +1776,7 @@ class UniProt(rje.RJE_Object):
                 seq = entry.obj['Sequence']
                 ## ~ [1a] ~ Standard info ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
                 for key in ['ID','AC','DT','DE','GN','OS']:
-                    if entry.dict['Data'].has_key(key):
+                    if key in entry.dict['Data']:
                         for rest in entry.dict['Data'][key]: OUT.write('%s   %s\n' % (key,rje.chomp(rest)))
                 ## ~ [1b] ~ Other data, except Features and sequence ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
                 for key in rje.sortKeys(entry.dict['Data']):
@@ -1801,7 +1799,7 @@ class UniProt(rje.RJE_Object):
                 else: OUT.write('SQ   SEQUENCE%s%d AA;  %d MW;  000000000000000 RJE06;\n' % (' ' * (7 - len('%d' % seq.aaLen())),seq.aaLen(),rje_sequence.MWt(seq.info['Sequence'])))
                 uniseq = seq.info['Sequence'][0:]
                 while len(uniseq) > 0:
-                    OUT.write('     %s\n' % string.join([uniseq[0:10],uniseq[10:20],uniseq[20:30],uniseq[30:40],uniseq[40:50],uniseq[50:60]],' '))
+                    OUT.write('     %s\n' % rje.join([uniseq[0:10],uniseq[10:20],uniseq[20:30],uniseq[30:40],uniseq[40:50],uniseq[50:60]],' '))
                     uniseq = uniseq[60:]
                 OUT.write('//\n')
             OUT.close()
@@ -1880,11 +1878,11 @@ class UniProt(rje.RJE_Object):
                 ## Update ##
                 (line,start_pos) = rje.fileLineFromSeek(INDEX,ipos,reseek=False,next=False)
                 (matchacc,key,pos) = rje.matchExp(re_index,line)        #INDEX.readline())
-                if dat_dict[key].has_key(pos):  # Dictionary of (key:{dictionary of {positions:list of accs/ids}})
+                if pos in dat_dict[key]:  # Dictionary of (key:{dictionary of {positions:list of accs/ids}})
                     dat_dict[key][pos].append(acc)
                 else:
                     dat_dict[key][pos] = [acc]
-                if acc_dict.has_key(acc):   # Dictionary of (acc/id:{list of {key:pos}}) (single acc can have multiple entries)
+                if acc in acc_dict:   # Dictionary of (acc/id:{list of {key:pos}}) (single acc can have multiple entries)
                     acc_dict[acc].append({key:pos})  
                 else:                    
                     acc_dict[acc] = [{key:pos}]   
@@ -1910,11 +1908,11 @@ class UniProt(rje.RJE_Object):
                     ## Update ##
                     (line,start_pos) = rje.fileLineFromSeek(INDEX,ipos,reseek=False,next=False)
                     (matchacc,key,pos) = rje.matchExp(re_index,line)        #INDEX.readline())
-                    if dat_dict[key].has_key(pos):  # Dictionary of (key:{dictionary of {positions:list of accs/ids}})
+                    if pos in dat_dict[key]:  # Dictionary of (key:{dictionary of {positions:list of accs/ids}})
                         dat_dict[key][pos].append(acc)
                     else:
                         dat_dict[key][pos] = [acc]
-                    if acc_dict.has_key(acc):   # Dictionary of (acc/id:{list of {key:pos}}) (single acc can have multiple entries)
+                    if acc in acc_dict:   # Dictionary of (acc/id:{list of {key:pos}}) (single acc can have multiple entries)
                         acc_dict[acc].append({key:pos})  
                     else:                    
                         acc_dict[acc] = [{key:pos}]   
@@ -1981,7 +1979,7 @@ class UniProt(rje.RJE_Object):
             for acc in acc_list: accmap[acc] = acc.split('-')[0]    # Strip splice variants
             ### ~ [1] Extract ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             for entry in self.entries():
-                e_acc = string.split(entry.info['Name'],'__')
+                e_acc = rje.split(entry.info['Name'],'__')
                 try: e_acc += entry.obj['Sequence'].list['Secondary ID']
                 except: pass
                 for acc in e_acc:
@@ -2069,11 +2067,11 @@ class UniProt(rje.RJE_Object):
                 ## Update ##
                 (line,start_pos) = rje.fileLineFromSeek(INDEX,ipos,reseek=False,next=False)
                 (matchacc,key,pos) = rje.matchExp(re_index,line)        #INDEX.readline())
-                if dat_dict[key].has_key(pos):  # Dictionary of (key:{dictionary of {positions:list of accs/ids}})
+                if pos in dat_dict[key]:  # Dictionary of (key:{dictionary of {positions:list of accs/ids}})
                     dat_dict[key][pos].append(acc)
                 else:
                     dat_dict[key][pos] = [acc]
-                if acc_dict.has_key(acc):   # Dictionary of (acc/id:{list of {key:pos}}) (single acc can have multiple entries)
+                if acc in acc_dict:   # Dictionary of (acc/id:{list of {key:pos}}) (single acc can have multiple entries)
                     acc_dict[acc].append({key:pos})  
                 else:                    
                     acc_dict[acc] = [{key:pos}]   
@@ -2099,11 +2097,11 @@ class UniProt(rje.RJE_Object):
                     ## Update ##
                     (line,start_pos) = rje.fileLineFromSeek(INDEX,ipos,reseek=False,next=False)
                     (matchacc,key,pos) = rje.matchExp(re_index,line)        #INDEX.readline())
-                    if dat_dict[key].has_key(pos):  # Dictionary of (key:{dictionary of {positions:list of accs/ids}})
+                    if pos in dat_dict[key]:  # Dictionary of (key:{dictionary of {positions:list of accs/ids}})
                         dat_dict[key][pos].append(acc)
                     else:
                         dat_dict[key][pos] = [acc]
-                    if acc_dict.has_key(acc):   # Dictionary of (acc/id:{list of {key:pos}}) (single acc can have multiple entries)
+                    if acc in acc_dict:   # Dictionary of (acc/id:{list of {key:pos}}) (single acc can have multiple entries)
                         acc_dict[acc].append({key:pos})  
                     else:                    
                         acc_dict[acc] = [{key:pos}]   
@@ -2295,23 +2293,23 @@ class UniProtEntry(rje.RJE_Object):
             #X#print '\nAcc:', self.dict['Data']['AC']
             _stage = 'Compress Certain uniprot lists'
             for key in ['DE','GN','OC','AC','RA','RT']:
-                if self.dict['Data'].has_key(key): self.dict['Data'][key] = [string.join(self.dict['Data'][key])]
+                if key in self.dict['Data']: self.dict['Data'][key] = [rje.join(self.dict['Data'][key])]
                                     
             ### Basic Sequence Details ###
             _stage = 'Basic Details (ID)'
             parse = self._uniParse('ID')
             if parse:
                 (self.info['Name'],self.info['Type'],self.stat['Length']) = parse[:3]
-                self.stat['Length'] = string.atoi(self.stat['Length'])
+                self.stat['Length'] = rje.atoi(self.stat['Length'])
             else: self.stat['Length'] = -1
             self.info['ID'] = seqi['ID'] = self.info['Name']
 
             _stage = 'AccNum (AC)'
-            full_acc = string.split(string.join(self.dict['Data']['AC']))
-            self.obj['Sequence'].list['Secondary ID'] = string.split(string.join(full_acc,''),';')[1:-1]
+            full_acc = rje.split(rje.join(self.dict['Data']['AC']))
+            self.obj['Sequence'].list['Secondary ID'] = rje.split(rje.join(full_acc,''),';')[1:-1]
             parse = self._uniParse('AC')
             if parse: seqi['AccNum'] = parse[0]
-            if string.split(self.info['Name'])[0] == seqi['AccNum']:
+            if rje.split(self.info['Name'])[0] == seqi['AccNum']:
                 seqi['ID'] = seqi['AccNum']
                 seqi['DBase'] = 'custom'
             elif self.info['Name'].find(seqi['AccNum']) == 0: seqi['DBase'] = 'trembl'
@@ -2326,10 +2324,10 @@ class UniProtEntry(rje.RJE_Object):
             parse = self._uniParse('GN')
             if parse: seqi['Gene'] = parse[0]
             if seqi['Gene'][-1:] == ';': seqi['Gene'] = seqi['Gene'][:-1]
-            if self.dict['Data'].has_key('GN'):
+            if 'GN' in self.dict['Data']:
                 if rje.matchExp(uniparse['SY'],self.dict['Data']['GN'][0]):
-                    syn = string.split(rje.matchExp(uniparse['SY'],self.dict['Data']['GN'][0])[0],';')[0]
-                    self.list['Synonyms'] = string.split(syn,', ')
+                    syn = rje.split(rje.matchExp(uniparse['SY'],self.dict['Data']['GN'][0])[0],';')[0]
+                    self.list['Synonyms'] = rje.split(syn,', ')
                     
             _stage = 'Species (OS)'
             parse = self._uniParse('OS')
@@ -2341,7 +2339,7 @@ class UniProtEntry(rje.RJE_Object):
             _stage = 'Name'
             if seqi['DBase'] == 'trembl' and seqi['Gene'] != 'None':
                 for g in seqi['Gene'][0:]:
-                    if not rje.matchExp('([A-Za-z0-9_-])',g) and g not in ['.','#']: seqi['Gene'] = string.replace(seqi['Gene'],g,'')
+                    if not rje.matchExp('([A-Za-z0-9_-])',g) and g not in ['.','#']: seqi['Gene'] = rje.replace(seqi['Gene'],g,'')
                 seqi['ID'] = '%s_%s' % (seqi['Gene'].lower(),seqi['SpecCode'])
             if seqi['ID'] == seqi['AccNum']:
                 seqi['Name'] = '%s %s' % (seqi['ID'],seqi['Description'])
@@ -2351,29 +2349,29 @@ class UniProtEntry(rje.RJE_Object):
                 seqi['Format'] = 'gn_sp__acc'
             
             _stage = 'Sequence'
-            if self.dict['Data'].has_key('SEQ'): seqi['Sequence'] = self.dict['Data'].pop('SEQ')[0]
+            if 'SEQ' in self.dict['Data']: seqi['Sequence'] = self.dict['Data'].pop('SEQ')[0]
             seqi['Sequence'] = re.sub('\s+','',seqi['Sequence']).upper()
             if not self.stat['Length']: self.stat['Length'] = len(seqi['Sequence'])
 
             ### Comments (CC) ###
             _stage = 'Comments'
-            if self.dict['Data'].has_key('CC'):
+            if 'CC' in self.dict['Data']:
                 self.dict['Comments'] = {}  # Dictionary of comments: {Type:List of Comments}
                 for cc in self.dict['Data']['CC']:
                     if cc.find('-----') == 0: break
-                    csplit = string.split(cc[4:],': ')
+                    csplit = rje.split(cc[4:],': ')
                     ctype = csplit[0]
-                    cdetail = string.join(csplit[1:],': ')
-                    if self.dict['Comments'].has_key(ctype): self.dict['Comments'][ctype].append(cdetail)
+                    cdetail = rje.join(csplit[1:],': ')
+                    if ctype in self.dict['Comments']: self.dict['Comments'][ctype].append(cdetail)
                     else: self.dict['Comments'][ctype] = [cdetail]
 
             ### Features ###
             _stage = 'Features'
-            if self.dict['Data'].has_key('FT'):
+            if 'FT' in self.dict['Data']:
                 for ft in self.dict['Data']['FT']:
                     # Remove '?'
-                    while rje.matchExp('(\?\d)',ft) or rje.matchExp('(\d\?)',ft): ft = string.replace(ft,'?','')
-                    ft = string.replace(ft,'?','0')
+                    while rje.matchExp('(\?\d)',ft) or rje.matchExp('(\d\?)',ft): ft = rje.replace(ft,'?','')
+                    ft = rje.replace(ft,'?','0')
                     parse = rje.matchExp(uniparse['FT'],ft)
                     parse_nodesc = rje.matchExp('(\S+)\s+<*(\d+)\s+>*(\d+)\.*',ft)
                     parse_onepos = rje.matchExp('(\S+)\s+(\d+)\.*\s+(\S+)',ft)
@@ -2385,15 +2383,15 @@ class UniProtEntry(rje.RJE_Object):
                     if parse:
                         ftdic = {
                             'Type' : parse[0],
-                            'Start' : string.atoi(parse[1]),
-                            'End' : string.atoi(parse[2]),
+                            'Start' : rje.atoi(parse[1]),
+                            'End' : rje.atoi(parse[2]),
                             'Desc' : parse[3]
                             }
-                        if rje.matchExp(string.join(['(\S+)','<(\d+)','>*(\d+)\.*','(\S.+)\s*$'], '\s+'),ft) or rje.matchExp(string.join(['(\S+)','<*(\d+)','>(\d+)','(\S.+)\s*$'], '\s+'),ft):
+                        if rje.matchExp(rje.join(['(\S+)','<(\d+)','>*(\d+)\.*','(\S.+)\s*$'], '\s+'),ft) or rje.matchExp(rje.join(['(\S+)','<*(\d+)','>(\d+)','(\S.+)\s*$'], '\s+'),ft):
                             ftdic['Desc'] = ftdic['Desc'] + ' (Truncated?)'
                         ftdic['Desc'] = re.sub('\s+',' ',ftdic['Desc'])
                         if self.opt['TMConvert'] and ftdic['Type'] == 'TOPO_DOM':
-                            ftdic['Type'] = string.strip(string.split(ftdic['Desc'])[0].upper(),'.')
+                            ftdic['Type'] = rje.strip(rje.split(ftdic['Desc'])[0].upper(),'.')
                             ftdic['Desc'] = 'TOPO_DOM %s' % ftdic['Desc']
                         self.list['Feature'].append(ftdic)
                     elif parse_nodesc:
@@ -2401,8 +2399,8 @@ class UniProtEntry(rje.RJE_Object):
                         if parse:
                             ftdic = {
                                 'Type' : parse[0],
-                                'Start' : string.atoi(parse[1]),
-                                'End' : string.atoi(parse[2]),
+                                'Start' : rje.atoi(parse[1]),
+                                'End' : rje.atoi(parse[2]),
                                 'Desc' : parse[0]
                                 }
                             if rje.matchExp('(\S+)\s+<(\d+)\s+>*(\d+)\.*',ft) or rje.matchExp('(\S+)\s+<*(\d+)\s+>(\d+)\.*',ft):
@@ -2413,8 +2411,8 @@ class UniProtEntry(rje.RJE_Object):
                         if parse:
                             ftdic = {
                                 'Type' : parse[0],
-                                'Start' : string.atoi(parse[1]),
-                                'End' : string.atoi(parse[1]),
+                                'Start' : rje.atoi(parse[1]),
+                                'End' : rje.atoi(parse[1]),
                                 'Desc' : parse[2]
                                 }
                             self.list['Feature'].append(ftdic)
@@ -2422,8 +2420,8 @@ class UniProtEntry(rje.RJE_Object):
                         parse = parse_newpos
                         ftdic = {
                             'Type' : parse[0],
-                            'Start' : string.atoi(parse[1]),
-                            'End' : string.atoi(parse[2]),
+                            'Start' : rje.atoi(parse[1]),
+                            'End' : rje.atoi(parse[2]),
                             'Desc' : parse[3]
                             }
                         self.list['Feature'].append(ftdic)
@@ -2431,8 +2429,8 @@ class UniProtEntry(rje.RJE_Object):
                         parse = parse_newid
                         ftdic = {
                             'Type' : parse[0],
-                            'Start' : string.atoi(parse[1]),
-                            'End' : string.atoi(parse[2]),
+                            'Start' : rje.atoi(parse[1]),
+                            'End' : rje.atoi(parse[2]),
                             'Desc' : parse[3]
                             }
                         self.list['Feature'].append(ftdic)
@@ -2440,8 +2438,8 @@ class UniProtEntry(rje.RJE_Object):
                         parse = parse_newev
                         ftdic = {
                             'Type' : parse[0],
-                            'Start' : string.atoi(parse[1]),
-                            'End' : string.atoi(parse[2]),
+                            'Start' : rje.atoi(parse[1]),
+                            'End' : rje.atoi(parse[2]),
                             'Desc' : 'evidence='+parse[3]
                             }
                         self.list['Feature'].append(ftdic)
@@ -2449,8 +2447,8 @@ class UniProtEntry(rje.RJE_Object):
                         parse = parse_newnull
                         ftdic = {
                             'Type' : parse[0],
-                            'Start' : string.atoi(parse[1]),
-                            'End' : string.atoi(parse[2]),
+                            'Start' : rje.atoi(parse[1]),
+                            'End' : rje.atoi(parse[2]),
                             'Desc' : ''
                             }
                         self.list['Feature'].append(ftdic)
@@ -2483,10 +2481,10 @@ class UniProtEntry(rje.RJE_Object):
                 for ftdic in self.list['Feature']:
                     if ftdic['Type'] != 'VAR_SEQ': continue
                     #self.bugPrint(ftdic['Desc'])
-                    for isoform in string.split(ftdic['Desc'],'isoform')[1:]:
+                    for isoform in rje.split(ftdic['Desc'],'isoform')[1:]:
                         #self.bugPrint(isoform)
-                        isoform = string.replace(isoform,' and','')
-                        try: var = splicevar[string.replace(isoform,' ','')]
+                        isoform = rje.replace(isoform,' and','')
+                        try: var = splicevar[rje.replace(isoform,' ','')]
                         except:
                             #self.bugPrint('%s' % rje.matchExp('^\s*(\d+)[\W]',isoform))
                             try: var = splicevar[rje.matchExp('^\s*(\d+)[\W]',isoform)[0]]
@@ -2494,7 +2492,7 @@ class UniProtEntry(rje.RJE_Object):
                                 var = None
                                 for isomap in splicevar:
                                     var = rje.matchExp('^\s*(%s)\W' % rje.strEscape(isomap,'()[]+'),isoform)
-                                    if not var: var = rje.matchExp('^(%s)\W' % rje.strEscape(isomap,'()[]+'),string.replace(isoform,' ',''))
+                                    if not var: var = rje.matchExp('^(%s)\W' % rje.strEscape(isomap,'()[]+'),rje.replace(isoform,' ',''))
                                     if var: var = splicevar[isomap]; break
                                 if not var:
                                     self.deBug('\nIsoform mapping failure...\n%s' % isoform)
@@ -2503,7 +2501,7 @@ class UniProtEntry(rje.RJE_Object):
                         if var not in varseq: varseq[var] = []
                         if ftdic['Desc'].startswith('Missing'): varseq[var].append((ftdic['Start']-1,ftdic['End'],''))
                         else:
-                            vardat = rje.matchExp('^(\S+)->(\w+)\(',string.replace(ftdic['Desc'],' ',''))
+                            vardat = rje.matchExp('^(\S+)->(\w+)\(',rje.replace(ftdic['Desc'],' ',''))
                             if vardat:
                                 if seqi['Sequence'][ftdic['Start']-1:ftdic['End']] != vardat[0]:
                                     self.errorLog('%s-%s: VAR_SEQ replacement sequence error' % (seqi['AccNum'],var),printerror=False); varseq[var].append('')
@@ -2524,26 +2522,26 @@ class UniProtEntry(rje.RJE_Object):
 
             ### Tissues (RC) ###
             _stage = 'Tissues'
-            if self.dict['Data'].has_key('RC'):
+            if 'RC' in self.dict['Data']:
                 tissues = []
                 self.list['Tissues'] = []
                 for rc in self.dict['Data']['RC']:
                     parse = rje.matchExp(uniparse['RC'],rc)
-                    if parse: tissues += string.split(parse[0],', ')
+                    if parse: tissues += rje.split(parse[0],', ')
                 for tissue in tissues:
                     if tissue[:4] == 'and ': self.list['Tissues'].append(tissue[4:])
                     else: self.list['Tissues'].append(tissue)
 
             ### Keywords (KW) ###
             _stage = 'Keywords'
-            if self.dict['Data'].has_key('KW'):
-                keywords = string.join(self.dict['Data']['KW'])
+            if 'KW' in self.dict['Data']:
+                keywords = rje.join(self.dict['Data']['KW'])
                 if keywords[-1:] == '.': keywords = keywords[:-1]    # Remove full stop
-                self.list['Keywords'] = string.split(keywords,'; ')
+                self.list['Keywords'] = rje.split(keywords,'; ')
 
             ### References (RX) ###
             _stage = 'PubMed IDs'
-            if self.dict['Data'].has_key('RX'):
+            if 'RX' in self.dict['Data']:
                 self.list['PubMed'] = []
                 for rx in self.dict['Data']['RX']:
                     parse = rje.matchExp(uniparse['RX'],rx)
@@ -2552,8 +2550,8 @@ class UniProtEntry(rje.RJE_Object):
                 newreflist = []
                 while self.list['References']:
                     rline = self.list['References'].pop(0)
-                    type = string.split(rline)[0]
-                    rline = string.join(string.split(rline)[1:])
+                    type = rje.split(rline)[0]
+                    rline = rje.join(rje.split(rline)[1:])
                     if type == 'RN': newreflist.append({'RN':rje.matchExp(uniparse['RN'],rline)[0]})
                     elif type in newreflist[-1]: newreflist[-1][type] += ' %s' % rline
                     else: newreflist[-1][type] = rline
@@ -2562,7 +2560,7 @@ class UniProtEntry(rje.RJE_Object):
 
             ### Database Links ### (DR)
             _stage = 'Database Links'
-            if self.dict['Data'].has_key('DR'):
+            if 'DR' in self.dict['Data']:
                 self.dict['DBLinks'] = {}   # Database Link dictionary {Dbase,List of Details}
                 for dr in self.dict['Data']['DR']:
                     if rje.matchExp(uniparse['DR'],dr):
@@ -2572,12 +2570,8 @@ class UniProtEntry(rje.RJE_Object):
                     else: continue
                     #if self.dbToParse(ctype) or self.dbLinks(ctype): self.parseDB(ctype,cdetail)   # Extracts specific information to self.dict['DB']
                     if self.dbToParse(ctype): self.parseDB(ctype,cdetail)   # Extracts specific information to self.dict['DB']
-                    #if not self.dbLinks(ctype): continue
-                    #if self.dict['DBLinks'].has_key(ctype): self.dict['DBLinks'][ctype].append(cdetail)
-                    #else: self.dict['DBLinks'][ctype] = [cdetail]
             if self.dbToParse('id'): self.parseDB('ID',self.id())
             if self.dbToParse('gene'): self.parseDB('Gene',self.gene())
-
 
             ### CC to FT ###
             _stage = 'End'
@@ -2636,9 +2630,9 @@ class UniProtEntry(rje.RJE_Object):
             if dbase == "UniProtKB/Swiss-Prot":
                 try: (uni_sv,uni_id) = rje.matchExp('^(\S+); (\S+);',details)
                 except: return
-                uni_acc = string.split(uni_sv,'-')[0]
+                uni_acc = rje.split(uni_sv,'-')[0]
                 for db in ['UniAccNum','UniID','UniSV']:
-                    if not self.dict['DB'].has_key(db): self.dict['DB'][db] = []
+                    if db not in self.dict['DB']: self.dict['DB'][db] = []
                 self.dict['DB']['UniAccNum'].append(uni_acc)
                 self.dict['DB']['UniID'].append(uni_id)
                 if uni_acc.find('-') > 0: self.dict['DB']['UniSV'].append(uni_sv)
@@ -2650,13 +2644,13 @@ class UniProtEntry(rje.RJE_Object):
             ## Also EnsemblMetazoa; etc.
             if dbase.lower().startswith('ensembl'):
                 for db in ['ENSG','ENSP','ENST']:
-                    if not self.dict['DB'].has_key(db): self.dict['DB'][db] = []
+                    if db not in self.dict['DB']: self.dict['DB'][db] = []
                 if rje.matchExp('(ENS\S*P\S+);',details): self.dict['DB']['ENSP'].append(rje.matchExp('(ENS\S*P\S+);',details)[0])
                 if rje.matchExp('(ENS\S*T\S+);',details): self.dict['DB']['ENST'].append(rje.matchExp('(ENS\S*T\S+);',details)[0])
                 if rje.matchExp('(ENS\S*G\S+);',details): self.dict['DB']['ENSG'].append(rje.matchExp('(ENS\S*G\S+);',details)[0])
                 if rje.matchExp('(ENS\S*G\S+)\.',details): self.dict['DB']['ENSG'].append(rje.matchExp('(ENS\S*G\S+)\.',details)[0])
                 if rje.matchExp('\s(\S+-P\S)',details):  # Ensembl subset sequences
-                    for ens in string.split(details):
+                    for ens in rje.split(details):
                         ensm = rje.matchExp('(\S+)-(P\S)',ens)
                         if ensm: self.dict['DB']['ENSP'].append('%s-%s' % ensm)
                         else:
@@ -2675,7 +2669,7 @@ class UniProtEntry(rje.RJE_Object):
             ## DR   RefSeq; XP_006499972.1; XM_006499909.1. [Q9CQV8-1]
             ## DR   RefSeq; NP_033562.3; NM_009536.4.
             if dbase.upper().startswith('REFSEQ'):
-                if not self.dict['DB'].has_key('RefSeq'): self.dict['DB']['RefSeq'] = []
+                if 'RefSeq' not in self.dict['DB']: self.dict['DB']['RefSeq'] = []
                 self.dict['DB']['RefSeq'].append(rje.matchExp('(\S+_\S+);',details)[0])
                 return True
 
@@ -2684,7 +2678,7 @@ class UniProtEntry(rje.RJE_Object):
             ## DR   HGNC; HGNC:19152; PACRG.    = UniProt
             if dbase == 'HGNC':
                 for db in ['Symbol','HGNC']:
-                    if not self.dict['DB'].has_key(db): self.dict['DB'][db] = []
+                    if db not in self.dict['DB']: self.dict['DB'][db] = []
                 if rje.matchExp('^HGNC:(\d+); (\S+).',details): (hgnc,symbol) = rje.matchExp('^HGNC:(\d+); (\S+).',details)
                 else: (hgnc,symbol) = rje.matchExp('^(\d+); (\S+);',details)
                 self.dict['DB']['HGNC'].append(hgnc)
@@ -2695,7 +2689,7 @@ class UniProtEntry(rje.RJE_Object):
             ## DR   MGI; MGI:1891917; Ywhab.
             if dbase == 'MGI':
                 for db in ['Symbol','MGI']:
-                    if not self.dict['DB'].has_key(db): self.dict['DB'][db] = []
+                    if db not in self.dict['DB']: self.dict['DB'][db] = []
                 if rje.matchExp('^MGI:(\d+); (\S+).',details): (hgnc,symbol) = rje.matchExp('^MGI:(\d+); (\S+).',details)
                 else: (hgnc,symbol) = rje.matchExp('^(\d+); (\S+);',details)
                 self.dict['DB']['MGI'].append(hgnc)
@@ -2705,21 +2699,21 @@ class UniProtEntry(rje.RJE_Object):
             ###~Entrez Gene (From IPI DAT)~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~###
             ## DR   Entrez Gene; 6780; STAU1; -.
             if dbase == 'Entrez Gene':
-                if not self.dict['DB'].has_key('Entrez'): self.dict['DB']['Entrez'] = []
+                if 'Entrez' not in self.dict['DB']: self.dict['DB']['Entrez'] = []
                 self.dict['DB']['Entrez'].append(rje.matchExp('^(\d+);',details)[0])
                 return True
                 
             ###~FlyBaseGene (From UniProt)~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~###
             ## DR   FlyBase; FBgn0010339; 128up.
             if dbase == 'FlyBase':
-                if not self.dict['DB'].has_key('FlyBase'): self.dict['DB']['FlyBase'] = []
+                if 'FlyBase' not in self.dict['DB']: self.dict['DB']['FlyBase'] = []
                 self.dict['DB']['FlyBase'].append(rje.matchExp('^(FBgn\d+);',details)[0])
                 return True
 
             ###~WormBaseGene (From UniProt)~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~###
             ## DR   WormBase; F15E11.1; CE16999; WBGene00017490; pud-2.1.
             if dbase == 'WormBase':
-                if not self.dict['DB'].has_key('WormBase'): self.dict['DB']['WormBase'] = []
+                if 'WormBase' not in self.dict['DB']: self.dict['DB']['WormBase'] = []
                 try: self.dict['DB']['WormBase'].append(rje.matchExp('(WBGene\d+);',details)[0])
                 except: self.errorLog('Cannot parse WBGene from "%s"!' % details)
                 return True
@@ -2728,15 +2722,15 @@ class UniProtEntry(rje.RJE_Object):
             ## DR   VectorBase; AGAP001357; Anopheles gambiae.
             if dbase in ['VectorBase']:
                 if dbase not in self.dict['DB']: self.dict['DB'][dbase] = []
-                self.dict['DB'][dbase].append(string.split(details,';')[0])
+                self.dict['DB'][dbase].append(rje.split(details,';')[0])
                 return True
 
             ###~PFam (From UniProt)~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~###
             ## DR   Pfam; PF07714; Pkinase_Tyr; 1.
             if dbase == 'Pfam':     ## Makes a dictionary of {PfamID:'name; number'}
                 if 'Pfam' not in self.dict['DB']: self.dict['DB']['Pfam'] = {}
-                details = string.split(details,'; ')
-                self.dict['DB']['Pfam'][details[0]] = string.join(details[1:],'; ')
+                details = rje.split(details,'; ')
+                self.dict['DB']['Pfam'][details[0]] = rje.join(details[1:],'; ')
                 return True
 
             ### ~ [2] ~ No Special DB recognised: add full details ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -2751,14 +2745,14 @@ class UniProtEntry(rje.RJE_Object):
             ### Setup ###
             pos = (1,self.obj['Sequence'].aaLen())
             go = []
-            if self.dict['DBLinks'].has_key('GO'):
+            if 'GO' in self.dict['DBLinks']:
                 go = self.dict['DBLinks']['GO'][0:]
                 for g in go[0:]:
                     if g.find('; C:') < 0:
                         go.remove(g)
             cc = 'SUBCELLULAR LOCATION'
-            if self.dict['Comments'].has_key(cc):
-                go = string.split(string.join(self.dict['Comments'][cc],'; '),'; ') + go
+            if cc in self.dict['Comments']:
+                go = rje.split(rje.join(self.dict['Comments'][cc],'; '),'; ') + go
             ftlist = {'TISSUE':self.list['Tissues'],'LOCATION':go}
             ### Add FT ##
             for type in ftlist.keys():
@@ -2870,7 +2864,7 @@ class UniProtEntry(rje.RJE_Object):
                 self.dict['Data']['ID'] = ['%s_%s     %s;   %d AA.\n' % (seq.info['AccNum'],seq.info['SpecCode'],seq.info['Type'],seq.aaLen())]
             else:
                 self.dict['Data']['ID'] = ['%s     %s;   %d AA.\n' % (seq.info['AccNum'],seq.info['Type'],seq.aaLen())]
-            if self.dict['Data'].has_key('AC'):
+            if 'AC' in self.dict['Data']:
                 self.dict['Data']['AC'] = ['%s;' % seq.info['AccNum']] + self.dict['Data']['AC']
             else:
                 self.dict['Data']['AC'] = ['%s;' % seq.info['AccNum']]
@@ -2879,16 +2873,16 @@ class UniProtEntry(rje.RJE_Object):
             else:
                 self.dict['Data']['DE'] = ['']
             if seq.info['Species'] not in ['None','Unknown',seq.info['SpecCode'],'']:
-                if self.dict['Data'].has_key('OS'):
+                if 'OS' in self.dict['Data']:
                     self.dict['Data']['OS'] = ['%s.' % seq.info['Species']] + self.dict['Data']['OS']
                 else:
                     self.dict['Data']['OS'] = ['%s.' % seq.info['Species']]
-            dt = string.split(time.ctime())
-            if self.dict['Data'].has_key('DT'):
+            dt = rje.split(time.ctime())
+            if 'DT' in self.dict['Data']:
                 self.dict['Data']['DT'] = ['%s-%s-%s, generated by rje_uniprot' % (dt[2],dt[1].upper(),dt[-1])] + self.dict['Data']['DT']
             else:
                 self.dict['Data']['DT'] = ['%s-%s-%s, generated by rje_uniprot' % (dt[2],dt[1].upper(),dt[-1])]
-            if self.dict['Data'].has_key('CC'):
+            if 'CC' in self.dict['Data']:
                 self.dict['Data']['CC'] = ['-!- Entry generated by rje_uniprot %s' % time.ctime()] + self.dict['Data']['CC']
             else:
                 self.dict['Data']['CC'] = ['-!- Entry generated by rje_uniprot %s' % time.ctime()]
@@ -3029,7 +3023,7 @@ def processUniProt(callobj,makeindex=True,makespec=True,makefas=True,temp=False)
                 if callobj and 'GrepDat' in callobj.opt and callobj.opt['GrepDat']:
                     grepindex = True
                     wanted.remove('//'); wanted.append('//')
-                    wantgrep = string.join(wanted,' |')
+                    wantgrep = rje.join(wanted,' |')
                     callobj.printLog('#GREP',"grep '^(%s)' -E %s" % (wantgrep,dat))
                     DAT = os.popen("grep '^(%s)' -E %s" % (wantgrep,dat))
                 else: DAT = open(dat, 'r')
@@ -3049,8 +3043,8 @@ def processUniProt(callobj,makeindex=True,makespec=True,makefas=True,temp=False)
                     if line[:2] not in wanted: continue
                     ## ~ [3c] Process ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
                     if line[0:2] == 'ID':
-                        id = string.split(line)[1]
-                        try: code = string.split(id,'_')[1]
+                        id = rje.split(line)[1]
+                        try: code = rje.split(id,'_')[1]
                         except: pass
                         seq_index = file_pos
                     elif line[0:2] == 'AC':
@@ -3069,21 +3063,21 @@ def processUniProt(callobj,makeindex=True,makespec=True,makefas=True,temp=False)
                                 except: species = rje.matchExp('^OS\s+(\S.+\S)',line)[0]
                         if not code: code = rje_sequence.getSpecCode(species)
                     elif line[0:2] == 'OC':
-                        taxonomy = taxonomy + string.split(re.sub('\s+','',rje.matchExp('^OC\s+(\S.+)$',line)[0]),';')
+                        taxonomy = taxonomy + rje.split(re.sub('\s+','',rje.matchExp('^OC\s+(\S.+)$',line)[0]),';')
                         if '' in taxonomy: taxonomy.remove('')
                     elif line[0:2] == 'OX':
                         taxid = rje.matchExp('^OX\s+NCBI_TaxID=(\d+)',line)[0]
                         taxonomy.append(species)
-                    elif line[:2] == '  ': seq += string.replace(rje.chomp(line[5:]),' ','')
+                    elif line[:2] == '  ': seq += rje.replace(rje.chomp(line[5:]),' ','')
                     elif line[0:2] == '//':
                         sx += 1
-                        if makefas and seq: open(fasfile,'a').write('>%s__%s %s\n%s\n' % (id,string.split(acc,';')[0],desc,seq))
+                        if makefas and seq: open(fasfile,'a').write('>%s__%s %s\n%s\n' % (id,rje.split(acc,';')[0],desc,seq))
                         if code and makespec:
                             tx += 1
-                            SPEC.write('%s\t:%s:\t:%s:\n' % (code, string.join(taxonomy,':'), taxid))
+                            SPEC.write('%s\t:%s:\t:%s:\n' % (code, rje.join(taxonomy,':'), taxid))
                         if makeindex and not grepindex:
                             file_pos = DAT.tell()
-                            ilist = string.split(string.join(string.split(acc) + [id],''),';')
+                            ilist = rje.split(rje.join(rje.split(acc) + [id],''),';')
                             while '' in ilist: ilist.remove('')
                             for acc in ilist: INDEX.write('%s;%d:%d\n' % (acc,dx,seq_index))
                         id = acc = code = species = seq = taxid = desc = ''
@@ -3109,10 +3103,10 @@ def processUniProt(callobj,makeindex=True,makespec=True,makefas=True,temp=False)
                         ## ~ [3c] Process ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
                         if line[0:2] == 'ID':
                             seq_index = file_pos
-                            id = string.split(line)[1]
+                            id = rje.split(line)[1]
                             INDEX.write('%s;%d:%d\n' % (id,dx,seq_index))
                         elif line[0:2] == 'AC':
-                            for acc in string.split(rje.matchExp('^AC\s+(\S.+)\s*$',line)[0]): INDEX.write('%s;%d:%d\n' % (string.replace(acc,';',''),dx,seq_index))
+                            for acc in rje.split(rje.matchExp('^AC\s+(\S.+)\s*$',line)[0]): INDEX.write('%s;%d:%d\n' % (rje.replace(acc,';',''),dx,seq_index))
                         elif line[0:2] == '//':
                             sx += 1; file_pos = DAT.tell(); seq_index = -1; lx += 1
                             if lx == 1000: callobj.progLog('\r#DB','%s %s lines; %s entries' % (dbtext,rje.integerString(ix),rje.integerString(sx))); lx = 0
@@ -3140,18 +3134,18 @@ def processUniProt(callobj,makeindex=True,makespec=True,makefas=True,temp=False)
                         px += 1
                         start = line[:subset]
                         if start not in subindex: subindex[start] = []
-                        subindex[start].append(string.replace(line,';;',';'))
+                        subindex[start].append(rje.replace(line,';;',';'))
                         callobj.progLog('\r#INDEX','Processing index lines: %s' % rje.integerString(px))
                     callobj.printLog('\r#INDEX','Processed %s index lines.' % rje.integerString(px),log=False,newline=False)
                     TMP.close()
                     ### Process SubFiles ###
                     tmplines = callobj.loadFromFile('%s.head' % indexfile)
                     INDEX = open(indexfile,'w')
-                    INDEX.write(string.join(tmplines,''))
+                    INDEX.write(rje.join(tmplines,''))
                     sx = 0.0; stot = len(subindex)
                     for start in rje.sortKeys(subindex):
                         subindex[start].sort()
-                        INDEX.write(string.join(subindex[start],''))
+                        INDEX.write(rje.join(subindex[start],''))
                         callobj.progLog('\r#INDEX','Saving index: %.2f%%' % (sx/stot)); sx += 100.0
                     INDEX.close()
                     callobj.printLog('\r#INDEX','Saving index %s complete.' % indexfile)
@@ -3176,7 +3170,7 @@ def processUniProt(callobj,makeindex=True,makespec=True,makefas=True,temp=False)
                     subindex.sort()
                     tmplines = callobj.loadFromFile('%s.head' % indexfile)
                     INDEX = open(indexfile,'w')
-                    INDEX.write(string.join(tmplines,''))
+                    INDEX.write(rje.join(tmplines,''))
                     for file in subindex:
                         TMP = open(file,'r')
                         tmplines = []
@@ -3190,16 +3184,16 @@ def processUniProt(callobj,makeindex=True,makespec=True,makefas=True,temp=False)
                         px = 0
                         while tmplines:
                             px += 50.0
-                            indata = string.split(rje.chomp(tmplines.pop(0)),';')
-                            if indexdict.has_key(indata[0]): indexdict[indata[0]] 
+                            indata = rje.split(rje.chomp(tmplines.pop(0)),';')
+                            if indata[0] in indexdict: indexdict[indata[0]]
                             else: indexdict[indata[0]] = []
                             for idat in indata[1:]:
                                 if idat not in indexdict[indata[0]]: indexdict[indata[0]].append(idat)
                             callobj.log.printLog('\r#INDEX','Processing %s index lines: %.2f%%' % (file,(px/pxx)),log=False,newline=False)
                         for key in rje.sortKeys(indexdict):
                             px += 50.0
-                            outdata = [key,string.join(indexdict.pop(key),';')]
-                            INDEX.write('%s\n' % string.join(outdata,';'))
+                            outdata = [key,rje.join(indexdict.pop(key),';')]
+                            INDEX.write('%s\n' % rje.join(outdata,';'))
                             callobj.log.printLog('\r#INDEX','Processing %s index lines: %.2f%%' % (file,(px/pxx)),log=False,newline=False)
                         callobj.log.printLog('\r#INDEX','Processing %s index lines: Complete.' % file,log=False)
                         TMP.close()
@@ -3325,8 +3319,8 @@ def forkProcess(callobj,alldatfiles,makeindex,makespec,makefas,forkbytes=1e8):  
                         ## ~ [3c] Process ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
                         try:
                             if line[0:2] == 'ID' and line[:3] != 'ID=':
-                                id = string.split(line)[1]
-                                try: code = string.split(id,'_')[1]
+                                id = rje.split(line)[1]
+                                try: code = rje.split(id,'_')[1]
                                 except: pass
                                 seq_index = file_pos
                             elif line[0:2] == 'AC':
@@ -3345,23 +3339,23 @@ def forkProcess(callobj,alldatfiles,makeindex,makespec,makefas,forkbytes=1e8):  
                                         except: species = rje.matchExp('^OS\s+(\S.+\S)',line)[0]
                                 if not code: code = rje_sequence.getSpecCode(species)
                             elif line[0:2] == 'OC':
-                                taxonomy = taxonomy + string.split(re.sub('\s+','',rje.matchExp('^OC\s+(\S.+)$',line)[0]),';')
+                                taxonomy = taxonomy + rje.split(re.sub('\s+','',rje.matchExp('^OC\s+(\S.+)$',line)[0]),';')
                                 if '' in taxonomy: taxonomy.remove('')
                             elif line[0:2] == 'OX':
                                 taxid = rje.matchExp('^OX\s+NCBI_TaxID=(\d+)',line)[0]
                                 taxonomy.append(species)
-                            elif line[:2] == '  ': seq += string.replace(rje.chomp(line[5:]),' ','')
+                            elif line[:2] == '  ': seq += rje.replace(rje.chomp(line[5:]),' ','')
                             elif line[0:2] == '//':
                                 sx += 1
-                                if makefas and seq and id: FAS.write('>%s__%s %s\n%s\n' % (id,string.split(acc,';')[0],desc,seq))
+                                if makefas and seq and id: FAS.write('>%s__%s %s\n%s\n' % (id,rje.split(acc,';')[0],desc,seq))
                                 elif makefas and seq and not id: self.errorLog('Protein ID missing!',printerror=False)
                                 if code and makespec:
-                                    thisspec = '%s\t:%s:\t:%s:\n' % (code, string.join(taxonomy,':'), taxid)
+                                    thisspec = '%s\t:%s:\t:%s:\n' % (code, rje.join(taxonomy,':'), taxid)
                                     if thisspec != lastspec: SPEC.write(thisspec)
                                 else: thisspec = ''
                                 file_pos = FDAT.tell()
                                 if makeindex and id:
-                                    ilist = string.split(string.join(string.split(acc) + [id],''),';')
+                                    ilist = rje.split(rje.join(rje.split(acc) + [id],''),';')
                                     while '' in ilist: ilist.remove('')
                                     for acc in ilist: INDEX.write('%s;%d:%d\n' % (acc,dx,seq_index))
                                 id = acc = code = species = seq = taxid = desc = ''
@@ -3407,8 +3401,8 @@ def forkProcess(callobj,alldatfiles,makeindex,makespec,makefas,forkbytes=1e8):  
                             fbool = [makeindex,makespec,makefas]
                             for f in range(3):
                                 if fbool[f] and not rje.checkForFile(fcheck[f]): self.errorLog('%s not found!' % fcheck[f],printerror=False,quitchoice=True)
-                            prog = string.split(rje.chomp(open('%s.%d.prog' % (rje.baseFile(dat),fork),'r').readline()))
-                            totline += string.atoi(prog[0]); totseq += string.atoi(prog[1])
+                            prog = rje.split(rje.chomp(open('%s.%d.prog' % (rje.baseFile(dat),fork),'r').readline()))
+                            totline += rje.atoi(prog[0]); totseq += rje.atoi(prog[1])
                             os.unlink('%s.%d.prog' % (rje.baseFile(dat),fork))
                             #print pid, dat, fork, prog,
                             if makeindex: rje.fileTransfer(fromfile='%s.%d.temp' % (indexfile,fork),tofile='%s.temp' % (indexfile),deletefrom=True,append=True)
@@ -3453,18 +3447,18 @@ def forkProcess(callobj,alldatfiles,makeindex,makespec,makefas,forkbytes=1e8):  
                 px += 1
                 start = line[:subset]
                 if start not in subindex: subindex[start] = []
-                subindex[start].append(string.replace(line,';;',';'))
+                subindex[start].append(rje.replace(line,';;',';'))
                 callobj.progLog('\r#INDEX','Processing index lines: %s' % rje.integerString(px))
             callobj.printLog('\r#INDEX','Processed %s index lines.' % rje.integerString(px),log=False,newline=False)
             TMP.close()
             ### Process SubFiles ###
             tmplines = callobj.loadFromFile('%s.head' % indexfile)
             INDEX = open(indexfile,'w')
-            INDEX.write(string.join(tmplines,''))
+            INDEX.write(rje.join(tmplines,''))
             sx = 0.0; stot = len(subindex)
             for start in rje.sortKeys(subindex):
                 subindex[start].sort()
-                INDEX.write(string.join(subindex[start],''))
+                INDEX.write(rje.join(subindex[start],''))
                 callobj.progLog('\r#INDEX','Saving index: %.2f%%' % (sx/stot)); sx += 100.0
             INDEX.close()
             callobj.printLog('\r#INDEX','Saving index %s complete.' % indexfile)

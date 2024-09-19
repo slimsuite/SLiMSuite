@@ -436,7 +436,7 @@ class Tree(rje.RJE_Object):     ### Class for handling phylogenetic trees.
                 self.log.errorLog('Problem with cmd:%s' % cmd)
         ### ~ [2] ~ Adjustments ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         self.info['SaveType'] = self.info['SaveType'].lower()
-        self.list['TreeFormats'] = [self.info['SaveType']] + string.split(string.join(self.list['TreeFormats']).lower())
+        self.list['TreeFormats'] = [self.info['SaveType']] + rje.split(rje.join(self.list['TreeFormats']).lower())
         for format in self.list['TreeFormats'][0:]:
             if format not in treeformats or self.list['TreeFormats'].count(format) > 1: self.list['TreeFormats'].remove(format)
         if self.info['SaveTree'] in ['','none'] and self.list['TreeFormats'] and self.info['Basefile'].lower() not in ['','none']:
@@ -551,12 +551,12 @@ class Tree(rje.RJE_Object):     ### Class for handling phylogenetic trees.
         multi_seq_per_line = False
         for line in file_lines:
             if line.count(':') > 1: multi_seq_per_line = True; break
-        if multi_seq_per_line: return string.join(string.split(string.join(file_lines)),'')
+        if multi_seq_per_line: return rje.join(rje.split(rje.join(file_lines)),'')
         nsftree = ''
         for line in file_lines:
             if line.find(':') > 0:
-                start = string.split(string.replace(line,':',' '))[0]
-                end = string.split(line,':')[-1]
+                start = rje.split(rje.replace(line,':',' '))[0]
+                end = rje.split(line,':')[-1]
                 nsftree += '%s:%s' % (start,end)
                 #self.deBug(nsftree)
             else: nsftree += line
@@ -669,8 +669,8 @@ class Tree(rje.RJE_Object):     ### Class for handling phylogenetic trees.
                 n1 = int(n_clade[1])
                 if self.opt['Bootstrapped']:
                     try:
-                        if '.' in n_clade[2]: boot = int(self.stat['Bootstraps']*string.atof(n_clade[2])+0.5)
-                        else: boot = string.atoi(n_clade[2])
+                        if '.' in n_clade[2]: boot = int(self.stat['Bootstraps']*rje.atof(n_clade[2])+0.5)
+                        else: boot = rje.atoi(n_clade[2])
                     except: boot = 0
                     myboot = self._maxBoot(boot,myboot)
                 else: boot = -1
@@ -768,7 +768,7 @@ class Tree(rje.RJE_Object):     ### Class for handling phylogenetic trees.
             for node in self.node:
                 if seqnames and rje.matchExp('^(\d+)_(.+)$',node.info['Name']):
                     mname = rje.matchExp('^(\d+)_(.+)$',node.info['Name'])
-                    if string.atoi(mname[0]) > self.nodeNum(): nodenameid = False
+                    if rje.atoi(mname[0]) > self.nodeNum(): nodenameid = False
                 else: nodenameid = False
                 if not nodenameid: break
             for node in self.node:
@@ -777,7 +777,7 @@ class Tree(rje.RJE_Object):     ### Class for handling phylogenetic trees.
                 if seqnames and nodenameid:
                     mname = rje.matchExp('^(\d+)_(.+)$',node.info['Name'])
                     node.info['Name'] = mname[1]
-                    node.stat['ID'] = string.atoi(mname[0])
+                    node.stat['ID'] = rje.atoi(mname[0])
                     #self.deBug('%s:%s' % (node.info, node.stat))
             #!# Check that this next change does not cause problems!
             if seqnames : self._reorderNodes()
@@ -977,7 +977,7 @@ class Tree(rje.RJE_Object):     ### Class for handling phylogenetic trees.
             numlist = []
             for node in self.node:
                 if node.stat['ID'] < self.stat['SeqNum'] and re.search('\D',node.info['Name']): return False
-                elif node.stat['ID'] <= self.stat['SeqNum'] and check1toN: numlist.append(string.atoi(node.info['Name']))
+                elif node.stat['ID'] <= self.stat['SeqNum'] and check1toN: numlist.append(rje.atoi(node.info['Name']))
             numlist.sort()
             if check1toN and numlist != range(1,len(numlist)+1): return False
             return True
@@ -1015,7 +1015,7 @@ class Tree(rje.RJE_Object):     ### Class for handling phylogenetic trees.
                 node.obj['Sequence'] = None  # Clear sequence
                 ## <iii> ## Text Match
                 _stage ='<b-iii> Map Termini - Text Match'
-                if seqdic.has_key(node.info['Name']):   # Exact match
+                if node.info['Name'] in seqdic:   # Exact match
                     mapped = seqdic[node.info['Name']]
                 else:   # Partial Match
                     for seq in anclist.seq:
@@ -1039,7 +1039,7 @@ class Tree(rje.RJE_Object):     ### Class for handling phylogenetic trees.
                     if re.search('^(\d+)\s(\S.+)',mapped.info['Name']):
                         details = rje.matchExp('^(\d+)\s(\S.+)',mapped.info['Name'])
                         #print details
-                        s = string.atoi(details[0])
+                        s = rje.atoi(details[0])
                         mapped.info['Name'] = details[1]
                         mapped.extractDetails()
                     else:
@@ -1073,7 +1073,7 @@ class Tree(rje.RJE_Object):     ### Class for handling phylogenetic trees.
                 ## <iii> ## Match according to links
                 for seq in anclist.seq:
                     if re.search('^\d.+\S*Node \d+ \((\S+)\)',seq.info['Name']):
-                        links = string.split(rje.matchExp('^\d.+\S*Node \d+ \((\S+)\)',seq.info['Name'])[0],',') # List of link IDs
+                        links = rje.split(rje.matchExp('^\d.+\S*Node \d+ \((\S+)\)',seq.info['Name'])[0],',') # List of link IDs
                         mapped = seq
                         for desc in node.neighbours(ignore=[node.ancNode()]):
                             d = '%d' % desc.stat['ID']
@@ -1095,7 +1095,7 @@ class Tree(rje.RJE_Object):     ### Class for handling phylogenetic trees.
                     if re.search('^(\d+)\s(\S.+)',mapped.info['Name']):
                         details = rje.matchExp('^(\d+)\s(\S.+)',mapped.info['Name'])
                         #print details
-                        s = string.atoi(details[0])
+                        s = rje.atoi(details[0])
                         mapped.info['Name'] = details[1]
                         mapped.extractDetails()
                     else:
@@ -1170,7 +1170,7 @@ class Tree(rje.RJE_Object):     ### Class for handling phylogenetic trees.
             numlist = []
             for seq in seqlist.seq:
                 if rje.matchExp('^(\d+)\s+\S',seq.info['Name']):
-                    numlist.append(string.atoi(rje.matchExp('^(\d+)\s+\S',seq.info['Name'])[0]))
+                    numlist.append(rje.atoi(rje.matchExp('^(\d+)\s+\S',seq.info['Name'])[0]))
                 else:
                     numbernames = False
             numlist.sort()
@@ -1202,18 +1202,18 @@ class Tree(rje.RJE_Object):     ### Class for handling phylogenetic trees.
                         mapped['NUMBERS'].append(seqlist.seq[num-1])
                 ## Name Match ##
                 else:
-                    name = string.split(node.info['Name'])[0]
+                    name = rje.split(node.info['Name'])[0]
                     if treenumbers:
-                        num = string.atoi(name)
+                        num = rje.atoi(name)
                     for seq in seqlist.seq:
                         seqname = seq.shortName()
-                        if numbernames and len(string.split(seq.info['Name'])) > 1:
-                            seqname = string.split(seq.info['Name'])[1]
+                        if numbernames and len(rje.split(seq.info['Name'])) > 1:
+                            seqname = rje.split(seq.info['Name'])[1]
                         ## EXACT ##
                         if seqname == name:
                             mapped['EXACT'].append(seq)
                         ## NUMBERS ##
-                        elif numbernames and treenumbers and num == string.atoi(seq.shortName()):
+                        elif numbernames and treenumbers and num == rje.atoi(seq.shortName()):
                             mapped['NUMBERS'].append(seq)
                         ## UNDERSCORE ##
                         else:
@@ -1741,8 +1741,8 @@ class Tree(rje.RJE_Object):     ### Class for handling phylogenetic trees.
             for node in nodelist:
                 if id: sumtxt.append('%d' % node.stat['ID'])
                 else: sumtxt.append(node.shortName())
-            if space: return '(%s)' % string.join(sumtxt,', ')
-            else: return '(%s)' % string.join(sumtxt,',')
+            if space: return '(%s)' % rje.join(sumtxt,', ')
+            else: return '(%s)' % rje.join(sumtxt,',')
         except:
             self.log.errorLog('Problem with nodeList()')
             raise
@@ -1918,7 +1918,7 @@ class Tree(rje.RJE_Object):     ### Class for handling phylogenetic trees.
                 self.log.errorLog('Sorry. Output type %s not supported.' % type,printerror=False)
                 raise ValueError
             ### ~ [3] ~ Save file ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            if multiline: outtree = string.replace(outtree,'(','(\n')
+            if multiline: outtree = rje.replace(outtree,'(','(\n')
             open(filename, 'w').write(outtree)
         except: self.errorLog('Major problem with saveTree(%s).' % type)
 #########################################################################################################################
@@ -1970,7 +1970,7 @@ class Tree(rje.RJE_Object):     ### Class for handling phylogenetic trees.
                 branch = None
                 ## Add automatic collapse/expand if number given
                 try:
-                    n = string.atoi(choice) # Will raise ValueError if choice not an integer string
+                    n = rje.atoi(choice) # Will raise ValueError if choice not an integer string
                     node = self._getNode(n)
                     if node.opt['Compress']:
                         choice = 'E'
@@ -2246,7 +2246,7 @@ class Tree(rje.RJE_Object):     ### Class for handling phylogenetic trees.
             _stage = 'd'
             if filename and filename.lower() != 'none':
                 try:
-                    open(filename, 'w').write(string.join(treelines,''))
+                    open(filename, 'w').write(rje.join(treelines,''))
                     self.log.printLog("#OUT","Text tree saved to %s" % filename,1)
                 except:
                     self.log.errorLog("Problem saving text tree to %s" % filename)
@@ -2261,7 +2261,7 @@ class Tree(rje.RJE_Object):     ### Class for handling phylogenetic trees.
                     else:
                         self.verbose(0,1,line,0)
                         p = 0
-            return string.join(treelines,'')
+            return rje.join(treelines,'')
         except: self.errorLog('Major Problem with Tree.textTree()')
 #########################################################################################################################
     def rTree(self,filename,seqname='short',nodename='long',blen='Length',fromnode=None,compress=True,title=None,qry='qry'):
@@ -2296,7 +2296,7 @@ class Tree(rje.RJE_Object):     ### Class for handling phylogenetic trees.
                 subfams[subfam] = famname
                 for node in self._nodeClade(subfam,internal=True): subfams[node] = famname
             for node in self.nodes():
-                if string.split(node.info['Name'],'_')[0] == qry: subfams[node] = qry
+                if rje.split(node.info['Name'],'_')[0] == qry: subfams[node] = qry
                 elif node.obj['Sequence'] and qseq and node.obj['Sequence'].sameSpec(qseq): subfams[node] = 'qry'
             #self.debug(subfams)
                     
@@ -2381,7 +2381,7 @@ class Tree(rje.RJE_Object):     ### Class for handling phylogenetic trees.
                     elif nodename == 'num': data['name'] = node.stat['ID']
                     elif nodename == 'short': data['name'] = node.shortName()
                     elif nodename == 'long': data['name'] = node.info['Name']
-                data['name'] = string.replace(data['name'],'"',"'") 
+                data['name'] = rje.replace(data['name'],'"',"'") 
                 rje.delimitedFileOutput(self,filename,headers,',',data)
             self.printLog('#RTREE','Data for %d nodes output to %s' % (len(ynode),filename))
 
@@ -2413,13 +2413,13 @@ class Tree(rje.RJE_Object):     ### Class for handling phylogenetic trees.
             #self.info['RPath'] = 'c:\\"Program Files"\\R\\R-2.6.2\\bin\\R.exe'
             #print self.info['RPath']
             rfile = {'png':'rje','bud':'budapest','qspec':'budapest','cairo':'rje_tree.cairo'}[type]
-            self.info['PathR'] = rje.makePath(os.path.abspath(string.join(string.split(sys.argv[0],os.sep)[:-1]+[''],os.sep)))
+            self.info['PathR'] = rje.makePath(os.path.abspath(rje.join(rje.split(sys.argv[0],os.sep)[:-1]+[''],os.sep)))
             rtree = rje.makePath('%s%s.r' % (self.info['PathR'],rfile),wholepath=True)
             if not os.path.exists(rtree):
-                self.info['PathR'] = rje.makePath(os.path.abspath(string.join(string.split(sys.argv[0],os.sep)[:-2]+['libraries','r',''],os.sep)))
+                self.info['PathR'] = rje.makePath(os.path.abspath(rje.join(rje.split(sys.argv[0],os.sep)[:-2]+['libraries','r',''],os.sep)))
                 rtree = rje.makePath('%s%s.r' % (self.info['PathR'],rfile),wholepath=True)
             if not os.path.exists(rtree):
-                self.info['PathR'] = rje.makePath(os.path.abspath(string.join(string.split(sys.argv[0],os.sep)[:-1]+['libraries','r',''],os.sep)))
+                self.info['PathR'] = rje.makePath(os.path.abspath(rje.join(rje.split(sys.argv[0],os.sep)[:-1]+['libraries','r',''],os.sep)))
                 rtree = rje.makePath('%s%s.r' % (self.info['PathR'],rfile),wholepath=True)
             self.printLog('#%s' % type.upper(),rtree)
             if rfile == 'rje':
@@ -2431,7 +2431,7 @@ class Tree(rje.RJE_Object):     ### Class for handling phylogenetic trees.
                 if title: rcmd += ' "%s"' % title
             #rcmd += ' < "%s" > "%s.r.tmp.txt" 2>&1' % (rtree,rje.baseFile(filename))
             rcmd += ' < "%s" > "%s.r.run"' % (rtree,rje.baseFile(filename))
-            #x#rcmd = string.replace(rcmd,'\\','\\\\')
+            #x#rcmd = rje.replace(rcmd,'\\','\\\\')
             self.printLog('#RTREE',rcmd)
             problems = os.popen(rcmd).read()
             if problems:
@@ -2472,7 +2472,7 @@ class Tree(rje.RJE_Object):     ### Class for handling phylogenetic trees.
                 subfams[subfam] = famname
                 for node in self._nodeClade(subfam,internal=True):
                     subfams[node] = famname
-                    if string.split(node.info['Name'],'_')[0] == type: subfams[node] = type
+                    if rje.split(node.info['Name'],'_')[0] == type: subfams[node] = type
                     
             ### ~ [1] ~ Establish Base of Tree ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             ignore = []     # List of nodes to ignore when expanding tree (not in tree or already expanded)
@@ -2553,7 +2553,7 @@ class Tree(rje.RJE_Object):     ### Class for handling phylogenetic trees.
                     elif nodename == 'num': data['name'] = node.stat['ID']
                     elif nodename == 'short': data['name'] = node.shortName()
                     elif nodename == 'long': data['name'] = node.info['Name']
-                data['name'] = string.replace(data['name'],'"',"'")
+                data['name'] = rje.replace(data['name'],'"',"'")
                 for h in headers:
                     if h not in data: data[h] = ''
                 datadict[node.stat['ID']] = data
@@ -2681,7 +2681,7 @@ class Tree(rje.RJE_Object):     ### Class for handling phylogenetic trees.
             self._regenerateSeqList(seqlist,self.node)
             for seq in seqlist.seq:
                 if rje.matchExp('^(\d+\s+)\S',seq.info['Name']):
-                    try: seq.info['Name'] = string.replace(seq.info['Name'],rje.matchExp('^(\d+\s+)\S',seq.info['Name'])[0],'',1)
+                    try: seq.info['Name'] = rje.replace(seq.info['Name'],rje.matchExp('^(\d+\s+)\S',seq.info['Name'])[0],'',1)
                     except: seq.info['Name'] = seq.info['Name'].replace(rje.matchExp('^(\d+\s+)\S',seq.info['Name'])[0],'',1)
         except:
             self.log.errorLog('Major Problem with ancSeqOut().')
@@ -3427,7 +3427,7 @@ class Tree(rje.RJE_Object):     ### Class for handling phylogenetic trees.
         '''Returns list of species codes for descendant clade (assumes gn_sp__acc).'''
         specdict = {}
         for node in self._nodeClade(node,internal=False):
-            try: spec = string.split(node.shortName(),'_')[1]
+            try: spec = rje.split(node.shortName(),'_')[1]
             except: spec = 'Unknown'
             if spec not in specdict: specdict[spec] = 0
             specdict[spec] += 1
@@ -3524,17 +3524,17 @@ class Tree(rje.RJE_Object):     ### Class for handling phylogenetic trees.
                     clade = self._descClades(node)
                     cladespec = []
                     for s in clade[0] + clade[1]:
-                        spcode = string.split(s.info['Name'],'_')[1]
+                        spcode = rje.split(s.info['Name'],'_')[1]
                         if spcode.startswith('9') and not self.getBool('9SPEC'): spcode = 'UNK'
                         if spcode not in cladespec: cladespec.append(spcode)
                     for s in clade[0]:
-                        spcode = string.split(s.info['Name'],'_')[1]
+                        spcode = rje.split(s.info['Name'],'_')[1]
                         if spcode.startswith('9') and not self.getBool('9SPEC'): spcode = 'UNK'
                         if node.opt['Duplication']: break
                         elif (species == None) or (species == spcode):
                             myspec = spcode
                             for t in clade[1]:
-                                tspec = string.split(t.info['Name'],'_')[1]
+                                tspec = rje.split(t.info['Name'],'_')[1]
                                 if tspec.startswith('9') and not self.getBool('9SPEC'): tspec = 'UNK'
                                 if node.opt['Duplication']: break
                                 elif (tspec != 'UNK') and (tspec == myspec): node.opt['Duplication'] = True
@@ -3880,7 +3880,7 @@ class Tree(rje.RJE_Object):     ### Class for handling phylogenetic trees.
             ### <c> ### Save/Print Tree
             if filename != None:
                 try:
-                    open(filename, 'w').write(string.join(treelines,'\n'))
+                    open(filename, 'w').write(rje.join(treelines,'\n'))
                     self.log.printLog("#OUT","Text tree saved to %s" % filename,1)
                 except:
                     self.log.errorLog("Problem saving text tree to %s" % filename)
@@ -4027,7 +4027,7 @@ class Node(rje.RJE_Object):
             if len(self.branch) == 1: return  # Terminus
             links = []
             for branch in self.branch: links.append('%d' % branch.link(self).stat['ID'])
-            newname = 'Node %d (%s)' % (self.stat['ID'],string.join(links,','))
+            newname = 'Node %d (%s)' % (self.stat['ID'],rje.join(links,','))
             if self.opt['Duplication']: newname = 'Duplication ' + newname
             elif self.opt['SpecDup']: newname = 'Lineage-specific duplication' + newname
             if len(self.branch) == 2: # Root

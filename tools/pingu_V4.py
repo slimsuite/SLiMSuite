@@ -204,7 +204,7 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         ### ~ [2] ~ Look for help commands and print options if found ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         helpx = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
         if helpx > 0:
-            print '\n\nHelp for %s %s: %s\n' % (info.program, info.version, time.asctime(time.localtime(info.start_time)))
+            rje.printf('\n\nHelp for {0} {1}: {2}\n'.format(info.program, info.version, time.asctime(time.localtime(info.start_time))))
             out.verbose(-1,4,text=__doc__)
             if rje.yesNo('Show general commandline options?',default='N'): out.verbose(-1,4,text=rje.__doc__)
             if rje.yesNo('Quit?'): sys.exit()           # Option to quit after help
@@ -214,7 +214,7 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         return cmd_list
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Major Problem with cmdHelp()'
+    except: rje.printf('Major Problem with cmdHelp()')
 #########################################################################################################################
 def setupProgram(): ### Basic Setup of Program when called from commandline.
     '''
@@ -230,14 +230,14 @@ def setupProgram(): ### Basic Setup of Program when called from commandline.
         if len(sys.argv) == 2 and sys.argv[1] in ['description','-description','--description']: rje.printf('%s: %s' % (info.program,info.description)); sys.exit(0)
         cmd_list = rje.getCmdList(sys.argv[1:],info=info)   # Reads arguments and load defaults from program.ini
         out = rje.Out(cmd_list=cmd_list)                    # Sets up Out object for controlling output to screen
-        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2 
+        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2
         out.printIntro(info)                                # Prints intro text using details from Info object
         cmd_list = cmdHelp(info,out,cmd_list)               # Shows commands (help) and/or adds commands from user
         log = rje.setLog(info,out,cmd_list)                 # Sets up Log object for controlling log file output
         return (info,out,log,cmd_list)                      # Returns objects for use in program
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Problem during initial setup.'; raise
+    except: rje.printf('Problem during initial setup.'); raise
 #########################################################################################################################
 ### END OF SECTION I                                                                                                    #
 #########################################################################################################################
@@ -332,7 +332,7 @@ class PINGU(rje_obj.RJE_Object):
         self.setBool({'Download':True,'HubOnly':False,'Integrity':True,'PPIDBReport':True,'Symmetry':True})
         self.setInt({})
         self.setNum({})
-        self.list['MapFields'] = string.split('Gene,Uniprot,UniprotID,Secondary,Ensembl,Aliases,Accessions,RefSeq,GenPept,Previous Symbols,Synonyms',',')
+        self.list['MapFields'] = rje.split('Gene,Uniprot,UniprotID,Secondary,Ensembl,Aliases,Accessions,RefSeq,GenPept,Previous Symbols,Synonyms',',')
         self.list['PPISpec'] = ['HUMAN']
         self.list['TaxID'] = ['9606']
         ### ~ Other Attributes ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -431,8 +431,8 @@ class PINGU(rje_obj.RJE_Object):
                 if rje.exists(hgncfile):
                     xref.setStr({'KeyID':'Approved Symbol'})
                     xref.list['XRefData'] = [hgncfile]
-                    xref.list['NewHeaders'] = string.split('HGNC,Gene,Name,Status,Previous Symbols,Synonyms,Chromosome,Accessions,Entrez,Ensembl,RefSeq,OMIM,Uniprot',',')
-                    xref.list['MapFields'] = string.split('HGNC,Gene,Uniprot,Ensembl,RefSeq,Previous Symbols,Synonyms,Entrez',',')
+                    xref.list['NewHeaders'] = rje.split('HGNC,Gene,Name,Status,Previous Symbols,Synonyms,Chromosome,Accessions,Entrez,Ensembl,RefSeq,OMIM,Uniprot',',')
+                    xref.list['MapFields'] = rje.split('HGNC,Gene,Uniprot,Ensembl,RefSeq,Previous Symbols,Synonyms,Entrez',',')
             ## ~ [0b] ~ Update XRef entries ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             sdb.addEntry({'Name':'XRef','Status':xref.setup()})
             sdb.data('XRef')['File'] = xref.basefile()
@@ -471,11 +471,11 @@ class PINGU(rje_obj.RJE_Object):
                     try: uni = accmap[entry[ufield]]
                     except: uni = None
                     if not uni:
-                        if entry[ufield]: self.warnLog('Cannot map "%s" to %s Uniprot entry.' % (entry[ufield],string.join(self.list['PPISpec'],'/')))
+                        if entry[ufield]: self.warnLog('Cannot map "%s" to %s Uniprot entry.' % (entry[ufield],rje.join(self.list['PPISpec'],'/')))
                         continue
-                    entry[ufield] = string.split(uni.info['Name'],'__')[-1]
-                    entry['UniprotID'] = string.split(uni.info['Name'],'__')[0]
-                    entry['Secondary'] = string.join(uni.obj['Sequence'].list['Secondary ID'],'|')
+                    entry[ufield] = rje.split(uni.info['Name'],'__')[-1]
+                    entry['UniprotID'] = rje.split(uni.info['Name'],'__')[0]
+                    entry['Secondary'] = rje.join(uni.obj['Sequence'].list['Secondary ID'],'|')
                 xdb.index(ufield,force=True); xdb.index('Secondary',force=True); xdb.index('UniprotID',force=True)
                 xdb.saveToFile(newxfile)
             if xdb:
@@ -534,7 +534,7 @@ class PINGU(rje_obj.RJE_Object):
                         if not ppisource: self.warnLog('%s exists but source %s not found.' % (self.getStr('PPI.%s' % spec),self.getStr('PPISource')),quitchoice=self.getBool('Integrity'))
                         ppdb = self.db().addTable(ppifile,mainkeys=['Hub','Spoke'],name='PPI.%s' % spec)
                     elif not ppifile and setup_ppi:  ## Generate Pairwise PPI file
-                        ppifile = string.replace(ppisource,'ppi','pairwise')
+                        ppifile = rje.replace(ppisource,'ppi','pairwise')
                         ppi = rje_ppi.PPI(self.log,self.cmd_list)
                         ppi.loadPairwisePPI(ppisource)
                         ppdb = ppi.db('Edge')
@@ -584,7 +584,7 @@ class PINGU(rje_obj.RJE_Object):
                     if domfile:
                         domdb = self.db().addTable(domfile,mainkeys=['Pfam','Spoke'],name='DomPPI.%s' % spec)
                     elif not domfile and setup_dmi:  ## Generate Pairwise PPI file
-                        domfile = string.replace(ppisource,'ppi','domppi')
+                        domfile = rje.replace(ppisource,'ppi','domppi')
                         domdb = self.db().addEmptyTable('DomPPI.%s' % spec,['Hub','Pfam','Spoke','SpokeUni'],keys=['Pfam','Spoke'])
                         if not ppuni:
                             if spec in self.dict['UniSpec']: ppuni = self.dict['UniSpec'][spec]
@@ -602,7 +602,7 @@ class PINGU(rje_obj.RJE_Object):
                             epx += 1
                             for pfam in entry.dict['DB']['Pfam']:
                                 pfx += 1
-                                hub = string.split(entry.dict['DB']['Pfam'][pfam],';')[0]
+                                hub = rje.split(entry.dict['DB']['Pfam'][pfam],';')[0]
                                 for pentry in ppdb.indexEntries('HubUni',acc): domdb.addEntry({'Hub':hub,'Pfam':pfam,'Spoke':pentry['Spoke'],'SpokeUni':pentry['SpokeUni']},warn=False)
                         self.printLog('\r#PFAM','Added %s DomPPI for %s Pfam domains in %s of %s UniProt entries.' % (rje.iStr(domdb.entryNum()),rje.iStr(pfx),rje.iStr(epx),rje.iStr(utot)))
                         domdb.saveToFile(domfile); sdb.data('DomPPI.%s' % spec)['Status'] = 'Generated'
@@ -631,7 +631,7 @@ class PINGU(rje_obj.RJE_Object):
 
             ### ~ [2] Setup Output ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if not self.getStrLC('FasID'):
-                fasid = string.split(rje.stripPath(self.getStrLC('PPISource')),'.')[0]
+                fasid = rje.split(rje.stripPath(self.getStrLC('PPISource')),'.')[0]
                 self.debug(fasid)
                 if setup_dmi: fasid += '-dom'
                 self.setStr({'FasID':fasid})
@@ -717,21 +717,21 @@ class PINGU(rje_obj.RJE_Object):
                         for dentry in drdb.entries():
                             #if db == 'hint': self.debug(dentry)
                             if db.lower() in ['cpdb','consensuspathdb']: dentry['Evidence'] = 'cpdb'
-                            evidence = string.split(dentry['Evidence'],'|')
+                            evidence = rje.split(dentry['Evidence'],'|')
                             dentry['Evidence'] = []
-                            for istr in evidence: dentry['Evidence'].append(string.split(istr,':',maxsplit=1)[-1])  # Strip db
-                            dentry['Evidence'] = string.join(dentry['Evidence'],'|')
-                            itypes = string.split(dentry['IType'],'|')
+                            for istr in evidence: dentry['Evidence'].append(rje.split(istr,':',maxsplit=1)[-1])  # Strip db
+                            dentry['Evidence'] = rje.join(dentry['Evidence'],'|')
+                            itypes = rje.split(dentry['IType'],'|')
                             dentry['IType'] = []
-                            for istr in itypes: dentry['IType'].append(string.split(istr,':',maxsplit=1)[-1])  # Strip db
-                            dentry['IType'] = string.join(dentry['IType'],'|')
+                            for istr in itypes: dentry['IType'].append(rje.split(istr,':',maxsplit=1)[-1])  # Strip db
+                            dentry['IType'] = rje.join(dentry['IType'],'|')
                         drdb.compress(['Evidence','IType'],rules={'Hub':'list','Spoke':'list','PPI':'sum'},joinchar='|')
                         drdb.dropField('#')
                         drdb.addField('DB',evalue=db)
                         for dentry in drdb.entries():
                             #if db == 'hint': self.bugPrint(dentry)
-                            dentry['Hub'] = len(string.split(dentry['Hub'],'|'))
-                            dentry['Spoke'] = len(string.split(dentry['Spoke'],'|'))
+                            dentry['Hub'] = len(rje.split(dentry['Hub'],'|'))
+                            dentry['Spoke'] = len(rje.split(dentry['Spoke'],'|'))
                         #['DB','Evidence','IType','PPI','Hub','Spoke'],['DB','Evidence','IType']
                         drdb.newKey(['DB','Evidence','IType'])
                         #self.db().mergeTables(repdb,drdb,overwrite=False,matchfields=False)
@@ -764,13 +764,13 @@ class PINGU(rje_obj.RJE_Object):
                 rx = 0.0; rtot = pdb.entryNum()
                 for entry in pdb.entries():
                     self.progLog('\r#REPORT','Parsing DB/Evidence report: %.2f%%' % (rx/rtot),rand=0.01); rx += 100.0
-                    for dbmethod in string.split(entry['Evidence'],'|'):
-                        (db,ev) = string.split(dbmethod,':',1)
+                    for dbmethod in rje.split(entry['Evidence'],'|'):
+                        (db,ev) = rje.split(dbmethod,':',1)
                         if db in report['DB']: report['DB'][db] += 1
                         else: report['DB'][db] = 1
                         if ev in report['METHOD']: report['METHOD'][ev] += 1
                         else: report['METHOD'][ev] = 1
-                    for itype in string.split(entry['IType'],'|'):
+                    for itype in rje.split(entry['IType'],'|'):
                         if itype in report['ITYPE']: report['ITYPE'][itype] += 1
                         else: report['ITYPE'][itype] = 1
                 self.printLog('\r#REPORT','Parsed DB/Evidence report for %s PPI.' % rje.iStr(rtot))
@@ -788,8 +788,8 @@ class PINGU(rje_obj.RJE_Object):
                 for db in ['Unique','Total']: dbdb.addField(db,evalue=0)
                 for entry in pdb.entries():
                     pdblist = []
-                    for dbmethod in string.split(entry['Evidence'],'|'):
-                        evdb = string.split(dbmethod,':')[0]
+                    for dbmethod in rje.split(entry['Evidence'],'|'):
+                        evdb = rje.split(dbmethod,':')[0]
                         if evdb not in self.dict['PPICompile'] and evdb in dbconvert: evdb = dbconvert[evdb]
                         if evdb not in self.dict['PPICompile']:
                             self.warnLog('Database %s not recognised' % evdb,warntype='db_missing',quitchoice=True,suppress=True,dev=False,screen=True)
@@ -837,23 +837,23 @@ class PINGU(rje_obj.RJE_Object):
                             filt['TaxID'] += 1; pdb.dict['Data'].pop(pkey); continue
                 ## ~ [1b] Filter by PPIType ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
                 if 'IType' in pdb.fields():
-                    itypes = string.split(entry['IType'],'|')
+                    itypes = rje.split(entry['IType'],'|')
                     if self.list['GoodPPI'] and not rje.listIntersect(self.list['GoodPPI'],itypes):
                         filt['GoodPPI'] += 1; pdb.dict['Data'].pop(pkey); continue
                     if self.list['BadPPI']:
                         itypes = rje.listDifference(itypes,self.list['BadPPI'])
-                        if itypes: entry['IType'] = string.join(itypes,'|')
+                        if itypes: entry['IType'] = rje.join(itypes,'|')
                         else: filt['BadPPI'] += 1; pdb.dict['Data'].pop(pkey); continue
                 ## ~ [1c] Filter by DB ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
                 if 'Evidence' in pdb.fields():
-                    evidence = string.split(entry['Evidence'],'|')
+                    evidence = rje.split(entry['Evidence'],'|')
                     goodev = []
                     for dbmethod in evidence[0:]:
-                        db = string.split(dbmethod,':')[0]
+                        db = rje.split(dbmethod,':')[0]
                         if self.list['GoodDB'] and db not in self.list['GoodDB']: continue
                         if self.list['BadDB'] and db in self.list['BadDB']: continue
                         goodev.append(dbmethod)
-                    if goodev: entry['Evidence'] = string.join(goodev,'|')
+                    if goodev: entry['Evidence'] = rje.join(goodev,'|')
                     elif self.list['GoodDB']: filt['GoodDB'] += 1; pdb.dict['Data'].pop(pkey); continue
                     elif self.list['BadDB']: filt['BadDB'] += 1; pdb.dict['Data'].pop(pkey); continue
                     else: self.warnLog('Fiddlesticks!')
@@ -938,7 +938,7 @@ class PINGU(rje_obj.RJE_Object):
             pdb = self.db().addEmptyTable('pairwise',['#','Hub','Spoke','HubUni','SpokeUni','HubTaxID','SpokeTaxID','Evidence','IType'],['#'])
             xref = self.obj['XRef']
             ufield = self.getStr('UniField')
-            try: taxid = {'human':'9606','mouse':'MOUSE','yeast':'YEAST'}[string.split(dbfile,'_')[1]]  # Add more nos.
+            try: taxid = {'human':'9606','mouse':'MOUSE','yeast':'YEAST'}[rje.split(dbfile,'_')[1]]  # Add more nos.
             except: self.errorLog('Cannot extract TaxID for %s: %s!' % (db,self.info[db]),printerror=False,quitchoice=True); return False
             if db.lower() == 'hprd': xfields = ['HPRD']
             else: xfields = self.list['MapFields'][0:]
@@ -955,10 +955,10 @@ class PINGU(rje_obj.RJE_Object):
             for dline in dlines:
                 self.progLog('\r#PARSE','Parsing %s PPI: %.2f%%; %s PPI; %s failed.' % (db,dx/dtot,rje.iStr(ex),rje.iStr(fx))); dx += 100.0
                 if dline[:1] == '#': continue
-                try: (source,pub,prots,conf) = string.split(dline,'\t')
+                try: (source,pub,prots,conf) = rje.split(dline,'\t')
                 except: continue
-                evidence = string.join(['']+string.split(source,','),'|cpdb:')[1:]
-                prots = string.split(string.replace(prots,'.',','),',')
+                evidence = rje.join(['']+rje.split(source,','),'|cpdb:')[1:]
+                prots = rje.split(rje.replace(prots,'.',','),',')
                 pairs = []
                 if len(prots) == 1: itype = 'homodimer'; pairs = [prots * 2]
                 elif len(prots) == 2: itype = 'binary'
@@ -986,7 +986,7 @@ class PINGU(rje_obj.RJE_Object):
                     pdb.addEntry(entry); ex += 1
             self.printLog('\r#PARSE','Parsing %s PPI complete: %s PPI; %s failed.' % (db,rje.iStr(ex),rje.iStr(fx)))
             failed_id.sort()
-            open('%s.%s.failed.id' % (self.basefile(),db),'w').write(string.join(failed_id,'\n'))
+            open('%s.%s.failed.id' % (self.basefile(),db),'w').write(rje.join(failed_id,'\n'))
             self.printLog('#FAIL','%s failed IDs outout to %s.%s.failed.id.' % (rje.iLen(failed_id),self.basefile(),db))
             return pdb
         except: self.log.errorLog('Pingu.parse() my arse!')
@@ -1037,8 +1037,8 @@ class PINGU(rje_obj.RJE_Object):
                     elif not sgene: fx += 1; continue
                     entry = {'#':pdb.entryNum(),'Hub':hgene,'Spoke':sgene,'HubUni':huni,'SpokeUni':suni,
                                   'HubTaxID':'9606','SpokeTaxID':'9606',
-                                  'Evidence':string.join(['']+ppi[hub][spoke],'|%s:' % db.lower())[1:],
-                                  'IType':string.join(['']+ppi[hub][spoke],'|%s:' % db.lower())[1:]}
+                                  'Evidence':rje.join(['']+ppi[hub][spoke],'|%s:' % db.lower())[1:],
+                                  'IType':rje.join(['']+ppi[hub][spoke],'|%s:' % db.lower())[1:]}
                     #if 'PCNA' in [spoke,sgene,hub,hgene]: self.bugPrint('%s,%s >> %s' % (hub,spoke,entry))
                     #elif 'BRCA1' in [spoke,sgene,hub,hgene]: self.bugPrint('%s,%s >> %s' % (hub,spoke,entry))
                     #elif self.dev(): continue
@@ -1060,7 +1060,7 @@ class PINGU(rje_obj.RJE_Object):
             taxid = {'HUMAN':'9606','YEAST':'559292','DROME':'7227','CAEEL':'6239'}
             for spec in rje.sortKeys(taxid):
                 if taxid[spec] in self.list['TaxID'] and spec not in self.list['PPISpec']: self.list['PPISpec'].append(spec)
-            self.printLog('#HINT','Parsing HINT for %s. (Use pairwise file input if already parsed.)' % string.join(self.list['PPISpec'],', '))
+            self.printLog('#HINT','Parsing HINT for %s. (Use pairwise file input if already parsed.)' % rje.join(self.list['PPISpec'],', '))
             pdb = self.db().addEmptyTable('hint',['#','Hub','Spoke','HubUni','SpokeUni','HubTaxID','SpokeTaxID','Evidence','IType'],['#'])
             xdb = self.xrefDB()
             xref = self.obj['XRef']
@@ -1130,10 +1130,10 @@ class PINGU(rje_obj.RJE_Object):
                              'HubTaxID':taxid[spec],'SpokeTaxID':taxid[spec],'IType':'hint','Evidence':'hint:hint'}
                     try:
                         entry['Evidence'] = []
-                        for hintev in string.split(pentry['pmid:method:quality'],'|'):
-                            entry['Evidence'].append('hint:%s' % string.split(hintev,':')[1])
-                            entry['Evidence'].append('hint:%s' % string.split(hintev,':')[2])
-                        entry['Evidence'] = string.join(rje.sortUnique(entry['Evidence']),'|')
+                        for hintev in rje.split(pentry['pmid:method:quality'],'|'):
+                            entry['Evidence'].append('hint:%s' % rje.split(hintev,':')[1])
+                            entry['Evidence'].append('hint:%s' % rje.split(hintev,':')[2])
+                        entry['Evidence'] = rje.join(rje.sortUnique(entry['Evidence']),'|')
                     except: entry['Evidence'] = 'hint:unparsed'
                     #if 'PCNA' in [pentry['Hub'],pentry['Spoke'],entry['Hub'],entry['Spoke']]: self.bugPrint('%s >> %s' % (pentry,entry))
                     #elif 'BRCA1' in [pentry['Hub'],pentry['Spoke'],entry['Hub'],entry['Spoke']]: self.bugPrint('%s >> %s' % (pentry,entry))
@@ -1301,7 +1301,7 @@ class PINGU(rje_obj.RJE_Object):
                         if len(ppifas) < self.getInt('MinPPI'): minx += 1; continue
                         ppifas.sort()
                         PPISEQ = open(ppiseqfile,'w')
-                        PPISEQ.write(string.join(ppifas,''))
+                        PPISEQ.write(rje.join(ppifas,''))
                         PPISEQ.close()
                         self.printLog('\r#SEQ','%s sequences output to %s' % (len(ppifas),ppiseqfile),screen=self.v()>1)
                         for rseq in redseq:
@@ -1309,7 +1309,7 @@ class PINGU(rje_obj.RJE_Object):
                             for seq in ppiseqs:
                                 if seq[0] == rseq: redspoke.append(seq[1])
                             redspoke.sort()
-                            self.warnLog('Check %s for multiple mapping to %s: %s.' % (ppisource,rseq.shortName(),string.join(redspoke,'; ')))
+                            self.warnLog('Check %s for multiple mapping to %s: %s.' % (ppisource,rseq.shortName(),rje.join(redspoke,'; ')))
                         seqfilex += 1
                     else:
                         if self.db('pairwise',add=False):
@@ -1351,7 +1351,7 @@ class PINGU(rje_obj.RJE_Object):
                     if qry not in qseqdict: self.warnLog('Cannot find Query "%s" in %s' % (qry,self.getStr('QuerySeq')),warntype='Missing Query',suppress=self.dev())
             else: self.printLog('#QSEQ','No query sequence file: will look for queries within PPI datasets.')
             ## ~ [1c] Make output directory ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-            ppisource = string.split(self.getStr('PPISource'),'.')[0]
+            ppisource = rje.split(self.getStr('PPISource'),'.')[0]
             datadir = rje.makePath('%s%s.%s.%s.%s/' % (self.getStr('ResDir'),ppisource,ppitype,spec,rje.baseFile(self.getStr('QueryPPI'),strip_path=True)))
             if os.path.exists(datadir) and force: rje.deleteDir(self,datadir)
             rje.mkDir(self,datadir,True)
@@ -1397,18 +1397,18 @@ class PINGU(rje_obj.RJE_Object):
                         ppiseqs = [qseqlist.getSeq(qseqdict[qry])]
                         if self.getBool('AllQuery'):
                             for allqry in hubqueries:
-                                if allqry not in [qry] + hseqdict.keys(): ppiseqs.append(qseqlist.getSeq(qseqdict[allqry]))
+                                if allqry not in [qry] + list(hseqdict.keys()): ppiseqs.append(qseqlist.getSeq(qseqdict[allqry]))
                     elif qid: ppiseqs = [hseqlist.getSeq(hseqdict[qid])]
                     else: ppiseqs = [hseqlist.getSeq(hseqdict[qry])]
                     pepmatch = True
                     if 'QRegion' in qdb.fields():
                         qregion = qentry['QRegion']
                         qsequence = ppiseqs[-1][1].lower()
-                        try: pepseq = string.split(qentry['Peptide'],'|')
+                        try: pepseq = rje.split(qentry['Peptide'],'|')
                         except: pepseq = []
-                        for qregion in string.split(qregion,'|')[0:]:
+                        for qregion in rje.split(qregion,'|')[0:]:
                             if not qregion: continue
-                            qregion = string.split(qregion,',')
+                            qregion = rje.split(qregion,',')
                             qregion[0] = int(qregion[0]) - 1
                             qregion[1] = int(qregion[1])
                             #self.debug(qsequence)
@@ -1469,13 +1469,13 @@ class PINGU(rje_obj.RJE_Object):
             pdb = self.db('pairwise')
             if not pdb or not pdb.entryNum(): self.dict['Output']['pairwise'] = 'No PPI parsed/retained.'
             else:
-                self.dict['Output']['spokes'] = string.join(pdb.indexKeys('Spoke'),'\n')
+                self.dict['Output']['spokes'] = rje.join(pdb.indexKeys('Spoke'),'\n')
                 uacc = pdb.indexKeys('SpokeUni')
                 if '' in uacc: uacc.remove('')
                 #afile = '%s.uniprot' % self.baseFile()
                 #self.dict['Output']['uniprot'] = afile
-                #open(afile,'w').write(string.join(uacc,'\n'))
-                self.dict['Output']['uniprot'] = string.join(uacc,'\n')
+                #open(afile,'w').write(rje.join(uacc,'\n'))
+                self.dict['Output']['uniprot'] = rje.join(uacc,'\n')
             ## ~ [1a] ~ SIF Output ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             gfile = '%s.gene.sif' % self.baseFile(); GFILE = open(gfile,'w')
             self.dict['Output']['sif-gene'] = gfile
@@ -1493,7 +1493,7 @@ class PINGU(rje_obj.RJE_Object):
                 phead = pdb.fields()
                 pdb.index('Evidence',splichar='|')
                 for evidence in pdb.indexKeys('Evidence'):
-                    (db,etype) = string.split(evidence,':',1)
+                    (db,etype) = rje.split(evidence,':',1)
                     if not self.db(db): dbdb = self.db().addEmptyTable(db,phead,['Hub','Spoke']); self.list['RestDB'].append(db)
                     else: dbdb = self.db(db)
                     for entry in pdb.indexEntries('Evidence',evidence): dbdb.addEntry(entry)
@@ -1522,7 +1522,7 @@ def runMain():
     ### ~ [1] ~ Basic Setup of Program  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try: (info,out,mainlog,cmd_list) = setupProgram()
     except SystemExit: return  
-    except: print 'Unexpected error during program setup:', sys.exc_info()[0]; return
+    except: rje.printf('Unexpected error during program setup:', sys.exc_info()[0]); return
     
     ### ~ [2] ~ Rest of Functionality... ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try: PINGU(mainlog,cmd_list).run()
@@ -1535,7 +1535,7 @@ def runMain():
 #########################################################################################################################
 if __name__ == "__main__":      ### Call runMain 
     try: runMain()
-    except: print 'Cataclysmic run error:', sys.exc_info()[0]
+    except: rje.printf('Cataclysmic run error: {0}'.format(sys.exc_info()[0]))
     sys.exit()
 #########################################################################################################################
 ### END OF SECTION IV                                                                                                   #

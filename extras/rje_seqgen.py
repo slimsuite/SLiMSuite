@@ -146,47 +146,46 @@ def makeInfo():     ### Makes Info object
 #########################################################################################################################
 def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for more sys.argv commands
     '''Prints *.__doc__ and asks for more sys.argv commands.'''
-    try:
+    try:### ~ [1] ~ Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         if not info: info = makeInfo()
         if not out: out = rje.Out()
-        help = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
-        if help > 0:
-            print '\n\nHelp for %s %s: %s\n' % (info.program, info.version, time.asctime(time.localtime(info.start_time)))
+        ### ~ [2] ~ Look for help commands and print options if found ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+        cmd_help = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
+        if cmd_help > 0:
+            rje.printf('\n\nHelp for {0} {1}: {2}\n'.format(info.program, info.version, time.asctime(time.localtime(info.start_time))))
             out.verbose(-1,4,text=__doc__)
-            if rje.yesNo('Show general commandline options?'): out.verbose(-1,4,text=rje.__doc__)
-            if rje.yesNo('Quit?'): sys.exit()
-            cmd_list += rje.inputCmds(out,cmd_list)
+            if rje.yesNo('Show general commandline options?',default='N'): out.verbose(-1,4,text=rje.__doc__)
+            if rje.yesNo('Quit?'): sys.exit()           # Option to quit after help
+            cmd_list += rje.inputCmds(out,cmd_list)     # Add extra commands interactively.
         elif out.stat['Interactive'] > 1: cmd_list += rje.inputCmds(out,cmd_list)    # Ask for more commands
+        ### ~ [3] ~ Return commands ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         return cmd_list
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Major Problem with cmdHelp()'
+    except: rje.printf('Major Problem with cmdHelp()')
 #########################################################################################################################
-def setupProgram(): ### Basic Setup of Program
+def setupProgram(): ### Basic Setup of Program when called from commandline.
     '''
-    Basic setup of Program:
+    Basic Setup of Program when called from commandline:
     - Reads sys.argv and augments if appropriate
     - Makes Info, Out and Log objects
     - Returns [info,out,log,cmd_list]
     '''
-    try:
-        ### Initial Command Setup & Info ###
-        info = makeInfo()
-        cmd_list = rje.getCmdList(sys.argv[1:],info=info)      ### Load defaults from program.ini
-        ### Out object ###
-        out = rje.Out(cmd_list=cmd_list)
-        out.verbose(2,2,cmd_list,1)
-        out.printIntro(info)
-        ### Additional commands ###
-        cmd_list = cmdHelp(info,out,cmd_list)
-        ### Log ###
-        log = rje.setLog(info=info,out=out,cmd_list=cmd_list)
-        return [info,out,log,cmd_list]
+    try:### ~ [1] ~ Initial Command Setup & Info ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+        info = makeInfo()                                   # Sets up Info object with program details
+        if len(sys.argv) == 2 and sys.argv[1] in ['version','-version','--version']: rje.printf(info.version); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: rje.printf('%s v%s' % (info.program,info.version)); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['description','-description','--description']: rje.printf('%s: %s' % (info.program,info.description)); sys.exit(0)
+        cmd_list = rje.getCmdList(sys.argv[1:],info=info)   # Reads arguments and load defaults from program.ini
+        out = rje.Out(cmd_list=cmd_list)                    # Sets up Out object for controlling output to screen
+        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2
+        out.printIntro(info)                                # Prints intro text using details from Info object
+        cmd_list = cmdHelp(info,out,cmd_list)               # Shows commands (help) and/or adds commands from user
+        log = rje.setLog(info,out,cmd_list)                 # Sets up Log object for controlling log file output
+        return (info,out,log,cmd_list)                      # Returns objects for use in program
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except:
-        print 'Problem during initial setup.'
-        raise
+    except: rje.printf('Problem during initial setup.'); raise
 #########################################################################################################################
 ### END OF SECTION I                                                                                                    #
 #########################################################################################################################
@@ -355,7 +354,7 @@ class SeqGen(rje.RJE_Object):
                 #?!#markovbuild._buildProbTree()
             self.deBug(markovbuild.suftree())
 
-            print 'Xmers', self.stat['MarkovX'], 'vs loaded', markovbuild.getMaxXmer(markovbuild.suftree())
+            print(' '.join(['Xmers', self.stat['MarkovX'], 'vs loaded', markovbuild.getMaxXmer(markovbuild.suftree())]))
             self.deBug(markovbuild.suftree())
             # Markov Screen Object #
             markovscreen = self.obj['ScreenMarkov']
@@ -755,7 +754,7 @@ class SeqGen(rje.RJE_Object):
                         newpep = ''
                         while cyc < self.stat['ScrambleCyc']:
                             cyc += 1
-                            scramble = string.join(rje.randomList(rje.strList(peptide)),'')
+                            scramble = rje.join(rje.randomList(rje.strList(peptide)),'')
                             self.log.printLog('\r#SCR','Scrambling %s %4s: %7s' % (seq.shortName(),s+1,cyc),newline=False,log=False)
                             ## Check ScreenX violation ##
                             r = 0
@@ -1003,11 +1002,10 @@ class SeqGen(rje.RJE_Object):
 #########################################################################################################################
 def runMain():
     ### ~ [1] ~ Basic Setup of Program  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-    try: [info,out,mainlog,cmd_list] = setupProgram()
-    except SystemExit: return  
-    except:
-        print 'Unexpected error during program setup:', sys.exc_info()[0]
-        return 
+    try: (info,out,mainlog,cmd_list) = setupProgram()
+    except SystemExit: return
+    except: rje.printf('Unexpected error during program setup:', sys.exc_info()[0]); return
+
     ### ~ [2] ~ Rest of Functionality... ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try:
         seqgen = SeqGen(mainlog,cmd_list)
@@ -1019,11 +1017,11 @@ def runMain():
     except SystemExit: return  # Fork exit etc.
     except KeyboardInterrupt: mainlog.errorLog('User terminated.')
     except: mainlog.errorLog('Fatal error in main %s run.' % info.program)
-    mainlog.printLog('#LOG', '%s V:%s End: %s\n' % (info.program,info.version,time.asctime(time.localtime(time.time()))))
+    mainlog.endLog(info)
 #########################################################################################################################
-if __name__ == "__main__":      ### Call runMain 
+if __name__ == "__main__":      ### Call runMain
     try: runMain()
-    except: print 'Cataclysmic run error:', sys.exc_info()[0]
+    except: rje.printf('Cataclysmic run error: {0}'.format(sys.exc_info()[0]))
     sys.exit()
 #########################################################################################################################
 ### END OF SECTION IV                                                                                                   #

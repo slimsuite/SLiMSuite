@@ -669,7 +669,7 @@ class Gopher(rje.RJE_Object):
             else: self.deBug('Fork.StiggMe - %s' % acc)
             seqfile = 'ORTH' + os.sep + '%s.orth.fas' % acc
             stickylist = rje_seq.SeqInfoListFromFile(self,seqfile,'short')  # To StiGG
-            try: stickylist += string.split(open('ORTH' + os.sep + '%s.sticky.id' % acc,'r').read(),'\n')
+            try: stickylist += rje.split(open('ORTH' + os.sep + '%s.sticky.id' % acc,'r').read(),'\n')
             except: self.errorLog('No *.sticky.id file made for %s' % acc)
             self.deBug(stickylist)
             if seq: stigg = seq.shortName()
@@ -696,7 +696,7 @@ class Gopher(rje.RJE_Object):
         if stigg in self.dict['Sticky']: return self.dict['Sticky'][stigg]
         stickylist = self.getOrth(stigg,gopherseq,gopherblast,accdict)
         acc = accdict[stigg]
-        try: stickylist += string.split(open('ORTH' + os.sep + '%s.sticky.id' % acc,'r').read(),'\n')
+        try: stickylist += rje.split(open('ORTH' + os.sep + '%s.sticky.id' % acc,'r').read(),'\n')
         except: self.errorLog('No *.sticky.id file made for %s' % acc)
         while '' in stickylist: stickylist.remove('')
         self.dict['Sticky'][stigg] = stickylist
@@ -707,7 +707,7 @@ class Gopher(rje.RJE_Object):
         seq = gopherseq.seqFromFastaCmd(id=stigg,dbase=gopherblast.getStr('DBase'))
         if not seq:
             self.errorLog('Problem with %s - will try workaround.' % stigg)
-            acc = string.split(stigg,'_')[-1]
+            acc = rje.split(stigg,'_')[-1]
         else: acc = seq.info['AccNum']
         accdict[stigg] = acc
         seqfile = 'ORTH' + os.sep + '%s.orth.fas' % acc
@@ -745,8 +745,8 @@ class Gopher(rje.RJE_Object):
                                     if stick not in self.dict['StiGG'][stigg]:
                                         if stick != stigg and stick in self.dict['StiGG']:
                                             self.errorLog('%s [<< %s] already in StiGG dictionary?!' % (stick,stigg))
-                                            self.deBug('%s: %s' % (stigg,string.join(self.dict['StiGG'][stigg],', ')))
-                                            self.deBug('%s: %s' % (stick,string.join(self.dict['StiGG'][stick],', ')))
+                                            self.deBug('%s: %s' % (stigg,rje.join(self.dict['StiGG'][stigg],', ')))
+                                            self.deBug('%s: %s' % (stick,rje.join(self.dict['StiGG'][stick],', ')))
                                             self.list['StiGG'].remove(self.dict['StiGG'][stick])
                                             ox -= len(self.dict['StiGG'][stick]); gx -= 1
                                             for x in self.dict['StiGG'][stick]: self.dict['StiGG'][stigg].append(x)
@@ -767,8 +767,8 @@ class Gopher(rje.RJE_Object):
                     except: self.errorLog('Jeepers! %s not found in StiGG.accdict.' % stigg)
                 for orth in sgrp[0:]:
                     acc = accdict[orth]
-                    open('ORTH' + os.sep + '%s.stigg.id' % acc,'w').write(string.join(sgrp,'\n'))
-                    open('ORTH' + os.sep + '%s.stigg.acc' % acc,'w').write(string.join(agrp,'\n'))
+                    open('ORTH' + os.sep + '%s.stigg.id' % acc,'w').write(rje.join(sgrp,'\n'))
+                    open('ORTH' + os.sep + '%s.stigg.acc' % acc,'w').write(rje.join(agrp,'\n'))
                     seqfile = rje.makePath('ORTH/%s.orth.fas' % acc,wholepath=True)
                     if os.path.exists(seqfile): gopherseq.loadSeqs(seqfile=seqfile)
                     else: continue
@@ -979,7 +979,7 @@ class GopherFork(rje.RJE_Object):
         if not acc: acc = self.obj['Sequence'].info['AccNum']
         if 'ALN' in subdir and self.opt['Organise']: subdir = self.info['AlnProg'] + subdir
         if 'TREE' in subdir and self.opt['Organise']: subdir = self.info['AlnProg'] + subdir
-        #subdir = string.replace(rje.makePath(subdir),'ORTH',self.info['OrthID'].upper())
+        #subdir = rje.replace(rje.makePath(subdir),'ORTH',self.info['OrthID'].upper())
         subdir = rje.makePath(subdir)
         extension = rje.replace(extension,'orth',self.info['OrthID'].lower())
         return rje.makePath('%s%s%s.%s' % (self.info['OutPath'],subdir,acc,extension),wholepath=True)
@@ -1269,7 +1269,7 @@ class GopherFork(rje.RJE_Object):
                     return False
             ## ~ [2b] Read in proteins hit from original BLAST ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             idseq = rje_seq.SeqList(log=self.log,cmd_list=self.cmd_list+['seqin=None','accnr=T','unkspec=F','specnr=F','gnspacc=T'])
-            idlist = string.split(open(ifile,'r').read())
+            idlist = rje.split(open(ifile,'r').read())
             idseq.seq = idseq.seqFromBlastDBCmd(id=idlist,dbase=blast.getStr('DBase'),expect=False) #Qry might not be in OrthDB
             ## ~ [2c] Filter sequences ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             if idseq.opt['AutoFilter']: idseq.autoFilter(cmd_list=self.cmd_list+['filterout=None','seqout=None'])
@@ -1387,7 +1387,7 @@ class GopherFork(rje.RJE_Object):
                 gablamo_matrix.addDis(qseq,hseq,qvh)
                 gablamo_matrix.addDis(hseq,qseq,hvq)
                 best_qspec[hseq] = {'Sim':hvq,'Rec':qvh,'Seq':qseq}     # At this point, the Query is the best qspec sequence for hseq
-                if best_hspec.has_key(hspec) and (qvh < best_hspec[hspec]['Sim'] or (qvh == best_hspec[hspec]['Sim'] and hvq <= best_hspec[hspec]['Rec'] and best_hspec[hspec]['Seq'])):
+                if hspec in best_hspec and (qvh < best_hspec[hspec]['Sim'] or (qvh == best_hspec[hspec]['Sim'] and hvq <= best_hspec[hspec]['Rec'] and best_hspec[hspec]['Seq'])):
                     continue    # Equal or better already exists
                 # Best so far for that species...
                 best_hspec[hspec] = {'Sim':qvh,'Rec':hvq,'Seq':hseq}
@@ -1399,7 +1399,7 @@ class GopherFork(rje.RJE_Object):
                 hseq = hitdict[search][hit]
                 hspec = hseq.info['SpecCode']
                 if hspec == spec: continue  # Paralogue 
-                if best_hspec.has_key(hspec) and best_hspec[hspec]['Seq'] == hseq:    # Best of species
+                if hspec in best_hspec and best_hspec[hspec]['Seq'] == hseq:    # Best of species
                     orthseq.append(hseq)
                 else:   # Bye bye...!
                     stickhits.append(hseq.shortName())
@@ -1517,7 +1517,7 @@ class GopherFork(rje.RJE_Object):
                         else: baseacc.append(pacc)
                 ## ~ [6d] Output ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
                 cfile = self.gFile('PARA','closepara.id')   # Used by self._parAlign()
-                open(cfile,'w').write(string.join(rje_seq.seqInfoList(qry_paraseq),'\n'))
+                open(cfile,'w').write(rje.join(rje_seq.seqInfoList(qry_paraseq),'\n'))
                 self._parAlign(qseq,qry_paraseq)
 
             ### ~ [7] Orthologue assignments ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -1527,7 +1527,7 @@ class GopherFork(rje.RJE_Object):
             ## -2- HvQ must be > HvP
             ## -3- QvH must be > QvP
             ## ~ [7a] Establish Query's closest paralogue ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-            if best_hspec.has_key(spec):        # Paralogues to consider
+            if spec in best_hspec:        # Paralogues to consider
                 cseq = best_hspec[spec]['Seq']  # This is the Query's closest paralogue - used for PostDup option
             else: cseq = None
             ## ~ [7b] Work through each potential orthologue ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
@@ -1539,7 +1539,7 @@ class GopherFork(rje.RJE_Object):
                     hvq = gablamo_matrix.getDis(hseq,qseq)  # Hit vs Query similarity
                     hvp = -1        # Hit vs Paralogue Similarity
                     pseq = None
-                    if not best_qspec.has_key(hseq):  #!# Why not??!! Looking at all idseq sequences: should all be in best_qseq #!#
+                    if hseq not in best_qspec:  #!# Why not??!! Looking at all idseq sequences: should all be in best_qseq #!#
                         self.log.errorLog('Hit "%s" behaving strangely for %s: excluded.' % (hseq.shortName(),self.info['Name']),printerror=False,quitchoice=False)
                         best_hspec[hspec] = {'Seq':None}
                         stickhits.append(hseq.shortName())
@@ -1588,9 +1588,9 @@ class GopherFork(rje.RJE_Object):
             ## ~ [7e] OrthID List ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             orthid = []
             for seq in orths: orthid.append(seq.shortName())
-            open(afile,'w').write(string.join(rje.sortUnique(orthid),'\n'))
+            open(afile,'w').write(rje.join(rje.sortUnique(orthid),'\n'))
             ## ~ [7f] Optional Sticky list ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-            if self.opt['Sticky']: open(self.gFile('ORTH','sticky.id'),'w').write(string.join(rje.sortUnique(stickhits),'\n'))
+            if self.opt['Sticky']: open(self.gFile('ORTH','sticky.id'),'w').write(rje.join(rje.sortUnique(stickhits),'\n'))
 
             ### ~ [8] SaveSpace ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             if self.opt['DNA'] and os.path.exists(pfile): os.unlink(pfile)
@@ -1774,7 +1774,7 @@ class GopherFork(rje.RJE_Object):
                 gablamo_matrix.addDis(qseq,hseq,qvh)
                 gablamo_matrix.addDis(hseq,qseq,hvq)
                 best_qspec[hseq] = {'Sim':hvq,'Rec':qvh,'Seq':qseq}     # At this point, the Query is the best qspec sequence for hseq
-                if best_hspec.has_key(hspec) and (qvh < best_hspec[hspec]['Sim'] or (qvh == best_hspec[hspec]['Sim'] and hvq <= best_hspec[hspec]['Rec'] and best_hspec[hspec]['Seq'])):
+                if hspec in best_hspec and (qvh < best_hspec[hspec]['Sim'] or (qvh == best_hspec[hspec]['Sim'] and hvq <= best_hspec[hspec]['Rec'] and best_hspec[hspec]['Seq'])):
                     continue    # Equal or better already exists
                 # Best so far for that species...
                 best_hspec[hspec] = {'Sim':qvh,'Rec':hvq,'Seq':hseq}
@@ -1786,7 +1786,7 @@ class GopherFork(rje.RJE_Object):
                 hseq = hitdict[search][hit]
                 hspec = hseq.info['SpecCode']
                 if hspec == spec: continue  # Paralogue 
-                if best_hspec.has_key(hspec) and best_hspec[hspec]['Seq'] == hseq:    # Best of species
+                if hspec in best_hspec and best_hspec[hspec]['Seq'] == hseq:    # Best of species
                     orthseq.append(hseq)
                 else:   # Bye bye...!
                     stickhits.append(hseq.shortName())
@@ -1899,7 +1899,7 @@ class GopherFork(rje.RJE_Object):
                         else: baseacc.append(pacc)
                 ## ~ [6d] Output ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
                 cfile = self.gFile('PARA','closepara.id')   # Used by self._parAlign()
-                open(cfile,'w').write(string.join(rje_seq.seqInfoList(qry_paraseq),'\n'))
+                open(cfile,'w').write(rje.join(rje_seq.seqInfoList(qry_paraseq),'\n'))
                 self._parAlign(qseq,qry_paraseq)
 
             ### ~ [7] Orthologue assignments ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -1909,7 +1909,7 @@ class GopherFork(rje.RJE_Object):
             ## -2- HvQ must be > HvP
             ## -3- QvH must be > QvP
             ## ~ [7a] Establish Query's closest paralogue ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-            if best_hspec.has_key(spec):        # Paralogues to consider
+            if spec in best_hspec:        # Paralogues to consider
                 cseq = best_hspec[spec]['Seq']  # This is the Query's closest paralogue - used for PostDup option
             else: cseq = None
             ## ~ [7b] Work through each potential orthologue ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
@@ -1920,7 +1920,7 @@ class GopherFork(rje.RJE_Object):
                 hvq = gablamo_matrix.getDis(hseq,qseq)  # Hit vs Query similarity
                 hvp = -1        # Hit vs Paralogue Similarity
                 pseq = None
-                if not best_qspec.has_key(hseq):  #!# Why not??!! Looking at all idseq sequences: should all be in best_qseq #!#
+                if hseq not in best_qspec:  #!# Why not??!! Looking at all idseq sequences: should all be in best_qseq #!#
                     self.log.errorLog('Hit "%s" behaving strangely for %s: excluded.' % (hseq.shortName(),self.info['Name']),printerror=False,quitchoice=False)
                     best_hspec[hspec] = {'Seq':None}
                     stickhits.append(hseq.shortName())   
@@ -1968,9 +1968,9 @@ class GopherFork(rje.RJE_Object):
             ## ~ [7e] OrthID List ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             orthid = []
             for seq in orths: orthid.append(seq.shortName())
-            open(afile,'w').write(string.join(rje.sortUnique(orthid),'\n'))
+            open(afile,'w').write(rje.join(rje.sortUnique(orthid),'\n'))
             ## ~ [7f] Optional Sticky list ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-            if self.opt['Sticky']: open(self.gFile('ORTH','sticky.id'),'w').write(string.join(rje.sortUnique(stickhits),'\n'))
+            if self.opt['Sticky']: open(self.gFile('ORTH','sticky.id'),'w').write(rje.join(rje.sortUnique(stickhits),'\n'))
 
             ### ~ [8] SaveSpace ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             if self.opt['DNA'] and os.path.exists(pfile): os.unlink(pfile)
@@ -2157,14 +2157,14 @@ class GopherFork(rje.RJE_Object):
                 gfile = self.gFile('PARAFAM','parafam.grp','%s+%s' % (acc,pacc))
                 GROUPS = open(gfile, 'w')
                 GROUPS.write('Group 1: %s query orthologues\n' % acc)
-                GROUPS.write('%s\n' % string.join(qids,'\n'))
+                GROUPS.write('%s\n' % rje.join(qids,'\n'))
                 GROUPS.write('Group 2: Paralogue %s & orthologues\n' % pacc)
-                GROUPS.write('%s\n' % string.join(rje_seq.seqInfoList(pseqs),'\n'))
+                GROUPS.write('%s\n' % rje.join(rje_seq.seqInfoList(pseqs),'\n'))
                 GROUPS.close()
                 ## ~ [4h] Make Tree ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
                 ofile = self.gFile('PARAFAM','parafam.out','%s+%s' % (acc,pacc))
                 OUT = open(ofile,'w')
-                OUT.write(string.join(qids,'\n'))
+                OUT.write(rje.join(qids,'\n'))
                 OUT.close()
                 tfile = self.gFile('PARAFAM','parafam.nwk','%s+%s' % (acc,pacc))
                 tcmd = self.cmd_list + ['autoload=F','savetree=%s' % tfile,'root=%s' % ofile,'group=%s' % gfile]

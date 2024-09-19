@@ -138,7 +138,7 @@ def gapSpan(self): ### Performs assembly gap read check and spanning analysis.
             reassemble = False
         if reassemble:
             try:
-                vcheck = string.split(os.popen('{0} --version'.format(assembler)).read())[0]
+                vcheck = rje.split(os.popen('{0} --version'.format(assembler)).read())[0]
                 self.printLog('#PROG','{0} version: {1}'.format(assembler,vcheck))
             except:
                 raise ValueError('Assembler check error - failed to run: {0} --version'.format(assembler))
@@ -596,7 +596,7 @@ def regionSpan(self,regfile): ### Modified version of gapspan analysis, that dea
             reassemble = False
         if reassemble:
             try:
-                vcheck = string.split(os.popen('{0} --version'.format(assembler)).read())[0]
+                vcheck = rje.split(os.popen('{0} --version'.format(assembler)).read())[0]
                 self.printLog('#PROG','{0} version: {1}'.format(assembler,vcheck))
             except:
                 raise ValueError('Assembler check error - failed to run: {0} --version'.format(assembler))
@@ -972,10 +972,8 @@ def regionSpan(self,regfile): ### Modified version of gapspan analysis, that dea
 ### SECTION III: 'MAIN' PROGRAM                                                                                         #
 #########################################################################################################################
 if __name__ == "__main__":  ### Print message to screen if called from commandline.
-    try:
-        print __doc__
-    except:
-        print 'Cataclysmic run error:', sys.exc_info()[0]
+    try: print( __doc__)
+    except: rje.printf('Cataclysmic run error: {0}'.format(sys.exc_info()[0]))
     sys.exit()
 #########################################################################################################################
 ### END OF SECTION III                                                                                                  #

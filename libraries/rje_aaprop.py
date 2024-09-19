@@ -217,7 +217,7 @@ class AAPropMatrix(rje.RJE_Object):
                     while re.search('^\s+\S.*',line):
                         (aa,line) = rje.matchExp('^\s+(\S)(.*)',line)
                         self.alphabet.append(aa)
-                    readtxt += ' ...%s' % string.join(self.alphabet)
+                    readtxt += ' ...%s' % rje.join(self.alphabet)
                     self.progLog('\r#AAPROP',readtxt)
                 elif re.search('^\S',line) and self.alphabet:   # Property line
                     (aaproperty,line) = rje.matchExp('^(\S+)(\s.+)',line)

@@ -155,47 +155,46 @@ def makeInfo():     ### Makes Info object
 #########################################################################################################################
 def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for more sys.argv commands
     '''Prints *.__doc__ and asks for more sys.argv commands.'''
-    try:
+    try:### ~ [1] ~ Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         if not info: info = makeInfo()
         if not out: out = rje.Out()
-        help = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
-        if help > 0:
-            print '\n\nHelp for %s %s: %s\n' % (info.program, info.version, time.asctime(time.localtime(info.start_time)))
+        ### ~ [2] ~ Look for help commands and print options if found ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+        cmd_help = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
+        if cmd_help > 0:
+            rje.printf('\n\nHelp for {0} {1}: {2}\n'.format(info.program, info.version, time.asctime(time.localtime(info.start_time))))
             out.verbose(-1,4,text=__doc__)
-            if rje.yesNo('Show general commandline options?'): out.verbose(-1,4,text=rje.__doc__)
-            if rje.yesNo('Quit?'): sys.exit()
-            cmd_list += rje.inputCmds(out,cmd_list)
+            if rje.yesNo('Show general commandline options?',default='N'): out.verbose(-1,4,text=rje.__doc__)
+            if rje.yesNo('Quit?'): sys.exit()           # Option to quit after help
+            cmd_list += rje.inputCmds(out,cmd_list)     # Add extra commands interactively.
         elif out.stat['Interactive'] > 1: cmd_list += rje.inputCmds(out,cmd_list)    # Ask for more commands
+        ### ~ [3] ~ Return commands ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         return cmd_list
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Major Problem with cmdHelp()'
+    except: rje.printf('Major Problem with cmdHelp()')
 #########################################################################################################################
-def setupProgram(): ### Basic Setup of Program
+def setupProgram(): ### Basic Setup of Program when called from commandline.
     '''
-    Basic setup of Program:
+    Basic Setup of Program when called from commandline:
     - Reads sys.argv and augments if appropriate
     - Makes Info, Out and Log objects
     - Returns [info,out,log,cmd_list]
     '''
-    try:
-        ### Initial Command Setup & Info ###
-        info = makeInfo()
-        cmd_list = rje.getCmdList(sys.argv[1:],info=info)      ### Load defaults from program.ini
-        ### Out object ###
-        out = rje.Out(cmd_list=cmd_list)
-        out.verbose(2,2,cmd_list,1)
-        out.printIntro(info)
-        ### Additional commands ###
-        cmd_list = cmdHelp(info,out,cmd_list)
-        ### Log ###
-        log = rje.setLog(info=info,out=out,cmd_list=cmd_list)
-        return [info,out,log,cmd_list]
+    try:### ~ [1] ~ Initial Command Setup & Info ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+        info = makeInfo()                                   # Sets up Info object with program details
+        if len(sys.argv) == 2 and sys.argv[1] in ['version','-version','--version']: rje.printf(info.version); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: rje.printf('%s v%s' % (info.program,info.version)); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['description','-description','--description']: rje.printf('%s: %s' % (info.program,info.description)); sys.exit(0)
+        cmd_list = rje.getCmdList(sys.argv[1:],info=info)   # Reads arguments and load defaults from program.ini
+        out = rje.Out(cmd_list=cmd_list)                    # Sets up Out object for controlling output to screen
+        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2
+        out.printIntro(info)                                # Prints intro text using details from Info object
+        cmd_list = cmdHelp(info,out,cmd_list)               # Shows commands (help) and/or adds commands from user
+        log = rje.setLog(info,out,cmd_list)                 # Sets up Log object for controlling log file output
+        return (info,out,log,cmd_list)                      # Returns objects for use in program
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except:
-        print 'Problem during initial setup.'
-        raise
+    except: rje.printf('Problem during initial setup.'); raise
 #########################################################################################################################
 ### END OF SECTION I                                                                                                    #
 #########################################################################################################################
@@ -443,12 +442,12 @@ Obselete:
                     details['FilePath'] = gfile #os.path.abspath(file)                         # Full path to file
                     details['Path'] = os.path.dirname(details['FilePath'])              # Full path to folder (no file)
                     if folderfirst: details['Parent'] = details['Folder'] = ''; folderfirst = False
-                    else: details['Folder'] = string.split(details['Path'])[-1]               # Immediate folder containing file
+                    else: details['Folder'] = rje.split(details['Path'])[-1]               # Immediate folder containing file
                     if details['Type'] != 'DIR': details['File'] = '%s.%s' % (os.path.splitext(details['File'])[0],details['Type'])
                     try:    # File details - size and age
                         #size = os.path.getsize(file)
                         details['Age'] = os.path.getmtime(gfile)
-                        details['Date'] = string.split(rje.dateTime(time.localtime(details['Age'])))[0]
+                        details['Date'] = rje.split(rje.dateTime(time.localtime(details['Age'])))[0]
                         details['Size'] = int(os.path.getsize(gfile))
                         details['CTime'] = time.ctime(os.path.getctime(gfile))
                         details['MTime'] = time.ctime(os.path.getmtime(gfile))
@@ -593,7 +592,7 @@ Obselete:
         try:### ~ [1] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             noday = self.getStr('Organise').lower() == 'month'
             #Wed Dec 19 00:00:00 2012
-            fdata = string.split(ftime)
+            fdata = rje.split(ftime)
             year = fdata[-1]
             month = rje.preZero(months.index(fdata[1])+1,12)
             day = rje.preZero(int(fdata[2]),31)
@@ -622,7 +621,7 @@ Obselete:
                     if '.picasaoriginals/' not in entry['FilePath']: continue
                     entry['NewPath'] = '%s%s%s/.picasaoriginals/%s' % (self.getStr('OutDir'),self.getStr('OrgPrefix'),self.makeDate(entry[orgmethod]),entry['File'])
                     #self.deBug('%s (%s) -> %s' % (entry['FilePath'],entry[orgmethod],entry['NewPath']))
-                    editpath = self.getFilePath(string.replace(entry['FilePath'],'.picasaoriginals/',''))
+                    editpath = self.getFilePath(rje.replace(entry['FilePath'],'.picasaoriginals/',''))
                     if editpath:
                         editentry = fdb.data(editpath)
                         editentry['NewPath'] = '%s%s%s/%s' % (self.getStr('OutDir'),self.getStr('OrgPrefix'),self.makeDate(entry[orgmethod]),editentry['File'])
@@ -639,7 +638,7 @@ Obselete:
                     if '.picasaoriginals/' not in entry['FilePath']: continue
                     entry['NewPath'] = '%s.picasaoriginals/%s' % (self.getStr('OutDir'),entry['File'])
                     #self.deBug('%s (%s) -> %s' % (entry['FilePath'],entry[orgmethod],entry['NewPath']))
-                    editpath = self.getFilePath(string.replace(entry['FilePath'],'.picasaoriginals/',''))
+                    editpath = self.getFilePath(rje.replace(entry['FilePath'],'.picasaoriginals/',''))
                     if editpath:
                         editentry = fdb.data(editpath)
                         editentry['NewPath'] = '%s%s' % (self.getStr('OutDir'),editentry['File'])
@@ -851,9 +850,9 @@ Obselete:
                                     while choice not in ['0','1','2','Q','S']:
                                         choice = rje.choice(choicetxt,default).upper()
                                         while choice == 'G':    # Add GoodDir
-                                            print '\nAdd directory as "Good":\n<0> Cancel'
-                                            print '<1>', os.path.dirname(self.reducedPath(details['FilePath']))
-                                            print '<2>', os.path.dirname(self.reducedPath(prevfile))
+                                            print( '\nAdd directory as "Good":\n<0> Cancel')
+                                            print( '<1>', os.path.dirname(self.reducedPath(details['FilePath'])))
+                                            print( '<2>', os.path.dirname(self.reducedPath(prevfile)))
                                             choice = rje.choice('Select dir [0/1/2]','0')
                                             if choice == '0':
                                                 choice = 'X'    # Exit this but not full choice
@@ -872,9 +871,9 @@ Obselete:
                                             else:
                                                 choice == 'G'   # Unallowed choice!
                                         while choice == 'B':    # Add BadDir
-                                            print '\nAdd directory as "Bad":\n<0> Cancel'
-                                            print '<1>', os.path.dirname(self.reducedPath(details['FilePath']))
-                                            print '<2>', os.path.dirname(self.reducedPath(prevfile))
+                                            print( '\nAdd directory as "Bad":\n<0> Cancel')
+                                            print( '<1>', os.path.dirname(self.reducedPath(details['FilePath'])))
+                                            print( '<2>', os.path.dirname(self.reducedPath(prevfile)))
                                             choice = rje.choice('Select dir [0/1/2]','0')
                                             if choice == '0':
                                                 choice = 'X'    # Exit this but not full choice
@@ -935,7 +934,7 @@ Obselete:
     def fixEnding(self,file):    ### Fixes Mac -> UNIX line endings for file
         '''Fixes Mac -> UNIX line endings for file.'''
         try:
-            fixed = string.replace(open(file,'r').read(),'\r','\n')
+            fixed = rje.replace(open(file,'r').read(),'\r','\n')
             rje.backup(self,file)
             open(file,'w').write(fixed)
             return True
@@ -1115,7 +1114,7 @@ class FileScout(rje.RJE_Object):    ### Searches for files
                 filename = details['File']
                 details['FilePath'] = os.path.abspath(file)                         # Full path to file
                 details['Path'] = os.path.dirname(details['FilePath'])              # Full path to folder (no file)
-                details['Folder'] = string.split(details['Path'])[-1]               # Immediate folder containing file
+                details['Folder'] = rje.split(details['Path'])[-1]               # Immediate folder containing file
                 details['Type'] = os.path.splitext(file)[1]                         # File type (extension)
                 try:    # File details - size and age
                     size = os.path.getsize(file)
@@ -1186,9 +1185,9 @@ class FileScout(rje.RJE_Object):    ### Searches for files
                                     while choice not in ['0','1','2','Q','S']:
                                         choice = rje.choice(choicetxt,default).upper()
                                         while choice == 'G':    # Add GoodDir
-                                            print '\nAdd directory as "Good":\n<0> Cancel'
-                                            print '<1>', os.path.dirname(self.reducedPath(details['FilePath']))
-                                            print '<2>', os.path.dirname(self.reducedPath(prevfile))
+                                            print( '\nAdd directory as "Good":\n<0> Cancel')
+                                            print( '<1>', os.path.dirname(self.reducedPath(details['FilePath'])))
+                                            print( '<2>', os.path.dirname(self.reducedPath(prevfile)))
                                             choice = rje.choice('Select dir [0/1/2]','0')
                                             if choice == '0':
                                                 choice = 'X'    # Exit this but not full choice
@@ -1205,11 +1204,11 @@ class FileScout(rje.RJE_Object):    ### Searches for files
                                                 default = self.moveDefault(good,prevgood,details['Redundant'])
                                                 choice = 'X'
                                             else:
-                                                choice == 'G'   # Unallowed choice!
+                                                choice = 'G'   # Unallowed choice!
                                         while choice == 'B':    # Add BadDir
-                                            print '\nAdd directory as "Bad":\n<0> Cancel'
-                                            print '<1>', os.path.dirname(self.reducedPath(details['FilePath']))
-                                            print '<2>', os.path.dirname(self.reducedPath(prevfile))
+                                            print( '\nAdd directory as "Bad":\n<0> Cancel')
+                                            print( '<1>', os.path.dirname(self.reducedPath(details['FilePath'])))
+                                            print( '<2>', os.path.dirname(self.reducedPath(prevfile)))
                                             choice = rje.choice('Select dir [0/1/2]','0')
                                             if choice == '0':
                                                 choice = 'X'    # Exit this but not full choice
@@ -1224,7 +1223,7 @@ class FileScout(rje.RJE_Object):    ### Searches for files
                                                     default = '2'
                                                     choice = 'X'
                                             else:
-                                                choice == 'B'   # Unallowed choice!
+                                                choice = 'B'   # Unallowed choice!
                                         if choice == 'P':
                                             if self.purgeList(filename):
                                                 choice = '0'
@@ -1322,9 +1321,9 @@ class FileScout(rje.RJE_Object):    ### Searches for files
                 default = 0
                 choice = ''
                 while choice != 'Purge':
-                    print '\nAdd file(s) to "PurgeList":'
+                    print( '\nAdd file(s) to "PurgeList":')
                     for i in range(len(addlist)):
-                        print '<%d> %s' % (i, addlist[i])
+                        print( '<%d> %s' % (i, addlist[i]))
                     x = rje.getInt('Choice?',default=default)
                     if x < len(addlist):
                         choice = addlist[i]
@@ -1367,32 +1366,32 @@ class FileScout(rje.RJE_Object):    ### Searches for files
 #########################################################################################################################
     def addBadDir(self,path):   ### Adds path to BadDir
         '''Adds path to BadDir.'''
-        el = string.split(path, os.sep)
+        el = rje.split(path, os.sep)
         i = len(el)
         while el:
-            print 'Add BadDir: %s' % rje.makePath(string.join(el[:i],'/'))
+            print( 'Add BadDir: %s' % rje.makePath(rje.join(el[:i],'/')))
             choice = rje.choice('<> to lengthen/shorten or Enter to accept?',default='')
             if choice == '>' and i < len(el):
                 i += 1
             elif choice == '<' and i > 1:
                 i -= 1
             elif choice == '':
-                self.list['BadDir'].append(rje.makePath(string.join(el[:i],'/')))
+                self.list['BadDir'].append(rje.makePath(rje.join(el[:i],'/')))
                 return
 #########################################################################################################################
     def addGoodDir(self,path):   ### Adds path to GoodDir
         '''Adds path to GoodDir.'''
-        el = string.split(path, os.sep)
+        el = rje.split(path, os.sep)
         i = len(el)
         while el:
-            print 'Add GoodDir: %s' % rje.makePath(string.join(el[:i],'/'))
+            print( 'Add GoodDir: %s' % rje.makePath(rje.join(el[:i],'/')))
             choice = rje.choice('<> to lengthen/shorten or Enter to accept?',default='')
             if choice == '>' and i < len(el):
                 i += 1
             elif choice == '<' and i > 1:
                 i -= 1
             elif choice == '':
-                self.list['GoodDir'].append(rje.makePath(string.join(el[:i],'/')))
+                self.list['GoodDir'].append(rje.makePath(rje.join(el[:i],'/')))
                 return
 #########################################################################################################################
     def goodStatus(self,filepath):      ### Returns good/bad/neutral
@@ -1408,18 +1407,18 @@ class FileScout(rje.RJE_Object):    ### Searches for files
     def reducedPath(self,filepath):     ### Returns a reduced filepath on basis of self.list['DirList']
         '''Returns a reduced filepath on basis of self.list['DirList']'''
         try:
-            filedirs = string.split(filepath,os.sep)
+            filedirs = rje.split(filepath,os.sep)
             for folder in self.list['DirList']:
-                fulldirs = string.split(os.path.abspath(rje.makePath(folder)),os.sep)
+                fulldirs = rje.split(os.path.abspath(rje.makePath(folder)),os.sep)
                 dirmatch = True
                 for dir in fulldirs:
                     if dir not in filedirs:
                         dirmatch = False
                 #X#print fulldirs, filedirs, dirmatch
                 if dirmatch:
-                    filedirs = string.split(folder,'/') + filedirs[len(fulldirs):]
+                    filedirs = rje.split(folder,'/') + filedirs[len(fulldirs):]
                     break
-            return rje.makePath(string.join(filedirs,'/'),wholepath=True)
+            return rje.makePath(rje.join(filedirs,'/'),wholepath=True)
         except:
             self.log.errorLog('Error with reducedPath()')
             return filepath
@@ -1498,7 +1497,7 @@ class FileScout(rje.RJE_Object):    ### Searches for files
             for folder in self.list['DirList']:
                 folder = rje.makePath(folder,wholepath=True,return_blank=False)
                 self.verbose(0,3,'\nScavenging "%s" files:' % folder,1)
-                print folder,self.list['FileList'],self.opt['SubFolders']
+                print('%s %s %s' % (folder,self.list['FileList'],self.opt['SubFolders']))
                 filelist += rje.getFileList(self,folder,self.list['FileList'],self.opt['SubFolders'])
             self.log.printLog('\n#FILES','%s files scavenged from %d top level directories.' % (rje.integerString(len(filelist)),len(self.list['DirList'])))
             filelist.sort()
@@ -1541,7 +1540,7 @@ class FileScout(rje.RJE_Object):    ### Searches for files
                     file = outfiles[prefix][f]
                     ext = os.path.splitext(file)[-1]
                     newfile = '%s%s_%s%s' % (self.info['OutDir'],prefix,rje.preZero(f+1,prex),ext)
-                    print '%s -> %s' % (file,newfile)
+                    print( '%s -> %s' % (file,newfile))
                     os.rename(file,newfile)
                 self.log.printLog('#FILE','%s %s files renamed to %s' % (rje.integerString(prex),prefix,self.info['OutDir']))
 
@@ -1569,8 +1568,8 @@ def runMain():
     ### ~ [1] ~ Basic Setup of Program  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try: (info,out,mainlog,cmd_list) = setupProgram()
     except SystemExit: return  
-    except: print 'Unexpected error during program setup:', sys.exc_info()[0]; return
-    
+    except: rje.printf('Unexpected error during program setup:', sys.exc_info()[0]); return
+
     ### ~ [2] ~ Rest of Functionality... ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try: FileMonster(mainlog,cmd_list).run()
 
@@ -1578,11 +1577,11 @@ def runMain():
     except SystemExit: return  # Fork exit etc.
     except KeyboardInterrupt: mainlog.errorLog('User terminated.')
     except: mainlog.errorLog('Fatal error in main %s run.' % info.program)
-    mainlog.printLog('#LOG', '%s V:%s End: %s\n' % (info.program,info.version,time.asctime(time.localtime(time.time()))))
+    mainlog.endLog(info)
 #########################################################################################################################
-if __name__ == "__main__":      ### Call runMain 
+if __name__ == "__main__":      ### Call runMain
     try: runMain()
-    except: print 'Cataclysmic run error:', sys.exc_info()[0]
+    except: rje.printf('Cataclysmic run error: {0}'.format(sys.exc_info()[0]))
     sys.exit()
 #########################################################################################################################
 ### END OF SECTION IV                                                                                                   #

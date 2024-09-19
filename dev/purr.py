@@ -19,8 +19,8 @@
 """
 Module:       PURR
 Description:  Pairwise unique region retrieval
-Version:      1.0.0
-Last Edit:    26/01/21
+Version:      1.0.1
+Last Edit:    15/05/22
 Copyright (C) 2021  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -78,6 +78,7 @@ import rje, rje_obj
 def history():  ### Program History - only a method for PythonWin collapsing! ###
     '''
     # 0.0.0 - Initial Compilation.
+    # 1.0.1 - Py3 upgrades.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -92,8 +93,8 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copy_right) = ('GENERIC', '0.0.0', 'January 2021', '2021')
-    description = 'Generic RJE Module'
+    (program, version, last_edit, copy_right) = ('PURR', '1.0.1', 'May 2022', '2021')
+    description = 'Pairwise unique region retrieval'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_obj.zen()]
     return rje.Info(program,version,last_edit,description,author,time.time(),copy_right,comments)
@@ -147,11 +148,11 @@ def setupProgram(): ### Basic Setup of Program when called from commandline.
                                                     ### ~ ### ~ ###
 
 #########################################################################################################################
-### SECTION II: New Class                                                                                               #
+### SECTION II: PURR Class                                                                                              #
 #########################################################################################################################
-class NewClass(rje_obj.RJE_Object):     
+class PURR(rje_obj.RJE_Object):
     '''
-    Class. Author: Rich Edwards (2021).
+    PURR Class. Author: Rich Edwards (2021).
 
     Str:str
     

@@ -55,7 +55,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def patternFromCode(slim): return rje_slim.patternFromCode(slim)  ### Returns pattern with wildcard for iXj formatted SLiM (e.g. A-3-T-0-G becomes A...TG)
 #########################################################################################################################
-def slimPos(slim): return (string.count(slim,'-') / 2) + 1  ### Returns the number of positions in a slim
+def slimPos(slim): return (rje.count(slim,'-') / 2) + 1  ### Returns the number of positions in a slim
 #########################################################################################################################
 def slimLen(slim): return len(patternFromCode(slim))    ### Returns length of slim
 #########################################################################################################################
@@ -186,7 +186,7 @@ class rankByDistribution:
                         try:
                             Sigv = rje.poisson(1,e,callobj=self.slimFinderObj)
                         except:
-                            print "[]",e
+                            print(e)
                             Sigv = 1
                             
                         
@@ -205,7 +205,7 @@ class rankByDistribution:
             wildlist = []   # List of wildcard lengths in SLiM
             wild = False    # Whether next part is a wildcard length
             mult = 1        # Variable-length multiplier
-            for part in string.split(slim,'-'):      # Split SLiM code in components
+            for part in rje.split(slim,'-'):      # Split SLiM code in components
                 ## Update lists ##
                 if wild: wildlist.append(part)
                 else: poslist.append(part)
@@ -743,7 +743,7 @@ class Distribution_creator:
                             else:
                                 sorter.insert(index ,new_p)
                         except:
-                            print temp
+                            print( temp)
                             SLiMFinderObject.errorLog('Problem during calculateSigDistributions()')
     
                     self.walltime()
@@ -866,8 +866,8 @@ class Distribution_creator:
 ### SECTION VI: 'MAIN' PROGRAM                                                                                          #
 #########################################################################################################################
 if __name__ == "__main__":  ### Print message to screen if called from commandline.
-    try: print __doc__
-    except: print 'Cataclysmic run error:', sys.exc_info()[0]
+    try: print( __doc__)
+    except: rje.printf('Cataclysmic run error: {0}'.format(sys.exc_info()[0]))
     sys.exit()
 #########################################################################################################################
 ### END OF SECTION VI                                                                                                   #

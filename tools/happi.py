@@ -138,7 +138,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
     # [Y] : Add class fluff (singletons) to MCODE complexes?
     # [Y] : Read in MCODE tables if pre-existing.
     # [Y] : Add xgmml=T option for XGMML output into PNG directories (allows easy remaking of key images).
-    # [X] : Handle genes in multiple classes. (string.split | ?)    # No need - indata removes
+    # [X] : Handle genes in multiple classes. (rje.split | ?)    # No need - indata removes
     # [Y] : Add XRefTab option for a database cross-reference tab on the front page.
     # [Y] : Add colourkey to front page.
     # [ ] : Add optional reading in of formats for data fields.
@@ -165,7 +165,7 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         ### ~ [2] ~ Look for help commands and print options if found ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         help = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
         if help > 0:
-            print '\n\nHelp for %s %s: %s\n' % (info.program, info.version, time.asctime(time.localtime(info.start_time)))
+            rje.printf('\n\nHelp for {0} {1}: {2}\n'.format(info.program, info.version, time.asctime(time.localtime(info.start_time))))
             out.verbose(-1,4,text=__doc__)
             if rje.yesNo('Show RJE_PPI options?'): out.verbose(-1,4,text=rje_ppi.__doc__)
             if rje.yesNo('Show RJE_GO options?'): out.verbose(-1,4,text=rje_go.__doc__)
@@ -177,7 +177,7 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         return cmd_list
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Major Problem with cmdHelp()'
+    except: rje.printf('Major Problem with cmdHelp()')
 #########################################################################################################################
 def setupProgram(): ### Basic Setup of Program when called from commandline.
     '''
@@ -189,18 +189,18 @@ def setupProgram(): ### Basic Setup of Program when called from commandline.
     try:### ~ [1] ~ Initial Command Setup & Info ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         info = makeInfo()                                   # Sets up Info object with program details
         if len(sys.argv) == 2 and sys.argv[1] in ['version','-version','--version']: rje.printf(info.version); sys.exit(0)
-        if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: rje.printf('{0} v{1}'.format(info.program,info.version)); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: rje.printf('%s v%s' % (info.program,info.version)); sys.exit(0)
         if len(sys.argv) == 2 and sys.argv[1] in ['description','-description','--description']: rje.printf('%s: %s' % (info.program,info.description)); sys.exit(0)
         cmd_list = rje.getCmdList(sys.argv[1:],info=info)   # Reads arguments and load defaults from program.ini
         out = rje.Out(cmd_list=cmd_list)                    # Sets up Out object for controlling output to screen
-        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2 
+        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2
         out.printIntro(info)                                # Prints intro text using details from Info object
         cmd_list = cmdHelp(info,out,cmd_list)               # Shows commands (help) and/or adds commands from user
         log = rje.setLog(info,out,cmd_list)                 # Sets up Log object for controlling log file output
         return (info,out,log,cmd_list)                      # Returns objects for use in program
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Problem during initial setup.'; raise
+    except: rje.printf('Problem during initial setup.'); raise
 #########################################################################################################################
 ### END OF SECTION I                                                                                                    #
 #########################################################################################################################
@@ -298,8 +298,8 @@ class HAPPI(rje.RJE_Object):
         self.setOpt({'FakeHTML':True,'MakePNG':True,'MultiClass':True,'Iridis':False,'XRefTab':True,'SVG':True,
                      'FillCol':True,'PPExtra':False,'UsePos':True,'UpdatePos':False,'AddClass':False})
         self.list['StyleSheets'] = ['../example.css','../slimhtml.css']
-        self.list['MakePages'] = string.split('front,gene,go,mcode,class,interactome,expand',',')
-        self.list['UniReal'] = string.split('AC,GN,RC,RX,CC,DR,PE,KW,FT',',')
+        self.list['MakePages'] = rje.split('front,gene,go,mcode,class,interactome,expand',',')
+        self.list['UniReal'] = rje.split('AC,GN,RC,RX,CC,DR,PE,KW,FT',',')
         self.list['MakeClass'] = ['keyword']
         self.list['PPComplex'] = ['Complex']
         self.list['DropFields'] = ['EntrezCheck']
@@ -501,7 +501,7 @@ class HAPPI(rje.RJE_Object):
         '''Returns classes in order.'''
         main = self.db('Main')
         if not classes: classes = rje.sortKeys(main.index(self.info['GeneClass']))
-        if self.opt['MultiClass']: classes = string.split(string.join(classes,'-'),'-')
+        if self.opt['MultiClass']: classes = rje.split(rje.join(classes,'-'),'-')
         order = []
         for gclass in self.list['ClassOrder']:
             if gclass in classes: order.append(gclass)
@@ -514,7 +514,7 @@ class HAPPI(rje.RJE_Object):
         main = self.db('Main')
         self.dict['ClassGenes'] = {}
         for iclass in rje.sortKeys(main.index(self.info['GeneClass'])):
-            if self.opt['MultiClass']: gclasses = string.split(iclass,'-')
+            if self.opt['MultiClass']: gclasses = rje.split(iclass,'-')
             else: gclasses = [iclass]
             igenes = main.indexDataList(self.info['GeneClass'],iclass,self.info['GeneField'])
             for gclass in gclasses:
@@ -539,7 +539,7 @@ class HAPPI(rje.RJE_Object):
             indata.index(self.info['GeneClass'])
             dbxref = self.db('DBXRef'); tdb = self.db('TitleText')
             newclass = []
-            self.list['MakeClass'] = rje.sortUnique(string.split(string.join(self.list['MakeClass']).lower()))
+            self.list['MakeClass'] = rje.sortUnique(rje.split(rje.join(self.list['MakeClass']).lower()))
             explanations = {'keyword':'keyword in gene description and/or associated GO terms',
                             'desc':'keyword in gene description',
                             'gene':'gene identifier plus known interactors',
@@ -591,9 +591,9 @@ class HAPPI(rje.RJE_Object):
                         if self.opt['MultiClass'] or 'add' in self.list['MakeClass']: main.data()[gene][self.info['GeneClass']] += '-%s' % gclass
                         else: cgenes.remove(gene)
                     else: main.data()[gene][self.info['GeneClass']] = gclass
-                if not cgenes: self.printLog('#CLASS','No genes added for %s (%s)' % (gclass,string.join(self.list['MakeClass'],',')))
+                if not cgenes: self.printLog('#CLASS','No genes added for %s (%s)' % (gclass,rje.join(self.list['MakeClass'],',')))
                 else:
-                    self.printLog('#CLASS','%s genes added for %s (%s)' % (rje.integerString(len(cgenes)),gclass,string.join(csource,',')))
+                    self.printLog('#CLASS','%s genes added for %s (%s)' % (rje.integerString(len(cgenes)),gclass,rje.join(csource,',')))
                     newclass.append(gclass)
                     tkey = 'class\t%s' % gclass
                     if tkey not in tdb.data():
@@ -601,7 +601,7 @@ class HAPPI(rje.RJE_Object):
                         for ctype in csource[1:]: tdb.data()[tkey]['Title'] += ' or %s' % explanations[ctype]
                     continue
             if newclass:
-                self.printLog('#CLASS','%d new classes: %s' % (len(newclass),string.join(newclass,', ')))
+                self.printLog('#CLASS','%d new classes: %s' % (len(newclass),rje.join(newclass,', ')))
                 main.fillBlanks()
                 main.index(self.info['GeneClass'],force=True)
             for gclass in self.list['ClassOrder']:
@@ -619,7 +619,7 @@ class HAPPI(rje.RJE_Object):
             for gclass in main.index(self.info['GeneClass']):
                 if gclass in self.dict['ClassCol']: continue
                 gcol = []
-                for cclass in self.classOrder(string.split(gclass,'-')):
+                for cclass in self.classOrder(rje.split(gclass,'-')):
                     if cclass in self.dict['ClassCol']: gcol.append(self.dict['ClassCol'][cclass])
                 if not gcol: continue
                 self.dict['ClassCol'][gclass] = gcol[0]
@@ -646,7 +646,7 @@ class HAPPI(rje.RJE_Object):
         for mtype in self.list['MTypes']: pobj.db(mtype).index(mtype)
         for dfile in self.list['GeneData']:
             try:
-                name = string.split(dfile,'.')[-2]
+                name = rje.split(dfile,'.')[-2]
                 rawdb = self.db(name)
                 if self.info['GeneField'] in rawdb.fields(): rawdb.index(self.info['GeneField'])
                 elif 'Gene' in rawdb.fields(): rawdb.index('Gene')
@@ -728,8 +728,8 @@ class HAPPI(rje.RJE_Object):
                              'xreftab	Symbol	Gene symbol',
                              'xreftab	UniProt	Cross-reference to UniProt database',
                              'xreftab	Species	Species of gene sequence']:
-                title = string.split(standard)
-                page = title[0]; id = title[1]; title = string.join(title[2:])
+                title = rje.split(standard)
+                page = title[0]; id = title[1]; title = rje.join(title[2:])
                 tkey = '%s\t%s' % (page,id)
                 if tkey not in tdb.data(): tdb.data()[tkey] = {'Page':page,'ID':id,'Title':title}
         except: self.errorLog('%s.setupTitleText error' % self)
@@ -752,14 +752,14 @@ class HAPPI(rje.RJE_Object):
             if dfile.lower() not in ['none','']: dbxref = db.addTable(dfile,['Gene'],'All',name='DBXRef')
             #Gene    Entrez  HPRD    OMIM    UniProt EnsEMBL EnsLoci EnsDesc 
             #A1BG    1       00726   138670  P04217  ENSG00000121410 A1BG_HUMAN__ENSP00000263100     Alpha-1B-glycoprotein Precursor (Alpha-1-B glycoprotein)
-            #x#for xref in string.split('A1BG    P04217  ENSG00000121410 A1BG_HUMAN__ENSP00000263100'): self.deBug(self.gene(xref))
+            #x#for xref in rje.split('A1BG    P04217  ENSG00000121410 A1BG_HUMAN__ENSP00000263100'): self.deBug(self.gene(xref))
             ## ~ [1c] GO Data and Table ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             go = self.obj['GO'] = rje_go.GO(self.log,self.cmd_list)
             go.readGO()#; go.mapEnsGO()
             if not rje.exists(self.info['GOData']): self.makeGOData()
             #Gene    GO_ID   GO_Type GO_Desc
             if 'slim' in self.list['Special']:
-                gdb = db.addTable(self.info['GOData'],['Pattern','GO_ID'],headers=string.split('Pattern GO_ID   Count   GO_Type GO_Desc'),name='GO')
+                gdb = db.addTable(self.info['GOData'],['Pattern','GO_ID'],headers=rje.split('Pattern GO_ID   Count   GO_Type GO_Desc'),name='GO')
                 gdb.renameField('Pattern','Gene')
             else: gdb = db.addTable(self.info['GOData'],['Gene','GO_ID'],'All',name='GO')
             ## ~ [1d] Classes Data ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
@@ -776,7 +776,7 @@ class HAPPI(rje.RJE_Object):
                     for entry in indata.entries():
                         gene = entry[self.info['GeneField']]
                         gclass = entry[self.info['GeneClass']]
-                        if gene in main.dataKeys(): main.data()[gene][self.info['GeneClass']] = string.join(rje.sortUnique(string.split(main.data()[gene][self.info['GeneClass']],'-')+[gclass]),'-')
+                        if gene in main.dataKeys(): main.data()[gene][self.info['GeneClass']] = rje.join(rje.sortUnique(rje.split(main.data()[gene][self.info['GeneClass']],'-')+[gclass]),'-')
                         else: main.addEntry({self.info['GeneField']:gene,self.info['GeneClass']:gclass})
                         #x#self.deBug(main.data())
                     self.printLog('#MAIN','%s Gene entries from %s InData entries' % (rje.iStr(main.entryNum()),rje.iStr(indata.entryNum())))
@@ -800,7 +800,7 @@ class HAPPI(rje.RJE_Object):
             # Add classes to PPI? (e.g. Host-Pathogen PPI)
             if self.opt['AddClass']:
                 for entry in main.entries():
-                    for gclass in string.split(entry[self.info['GeneClass']],'-'):
+                    for gclass in rje.split(entry[self.info['GeneClass']],'-'):
                         ppi.addPPI(gclass,entry[self.info['GeneField']],self.info['InData'])
                     if gclass not in genelist: genelist.append(gclass)
                 genelist.sort()
@@ -834,7 +834,7 @@ class HAPPI(rje.RJE_Object):
             ppi.addCol(default=12,coldict=self.dict['ClassCol'],ckey=self.info['GeneClass'],edb=main,addcol=48)
             ## ~ [1f] Additional Data ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             for dfile in self.list['GeneData']:
-                name = string.split(dfile,'.')[-2]
+                name = rje.split(dfile,'.')[-2]
                 try:
                     for field in db.addTable(dfile,'All','All',name=name).fields(): self.titleText('raw',field)
                 except: self.errorLog('Probelm with %s gene data' % name)
@@ -842,8 +842,8 @@ class HAPPI(rje.RJE_Object):
 
             ### ~ [2] MCODE ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             reformat = {}
-            for f in string.split('Nodes Edges Rank'): reformat[f] = 'int'
-            for f in string.split('Density Score'): reformat[f] = 'num'
+            for f in rje.split('Nodes Edges Rank'): reformat[f] = 'int'
+            for f in rje.split('Density Score'): reformat[f] = 'num'
             ## ~ [2a] MCODE clusters ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             for mtype in self.list['MTypes']:   #['MCODE','Complex','Expanded']:
                 mfile = '%s.%s.tdt' % (self.info['Basefile'],mtype.lower())
@@ -853,8 +853,8 @@ class HAPPI(rje.RJE_Object):
                     cdb.dataFormat(reformat)
                     ppi.dict[mtype] = {}
                     for entry in cdb.entries():
-                        try: ppi.dict[mtype][entry['Seed']] = string.split(entry['Members'],'|')
-                        except: ppi.dict[mtype][entry['Seed']] = string.split(entry['Complex'],'|')
+                        try: ppi.dict[mtype][entry['Seed']] = rje.split(entry['Members'],'|')
+                        except: ppi.dict[mtype][entry['Seed']] = rje.split(entry['Complex'],'|')
                 else:
                     G = rje_ppi.subGraph(ppi.ppi(),self.geneList())
                     #if 'slim' in self.list['Special']: comtext = 'cloud'
@@ -923,7 +923,7 @@ class HAPPI(rje.RJE_Object):
             if 'hm' in self.list['Special']: subdirlist += ['avfnet','avfnet_png']
             if 'slim' in self.list['Special']: subdirlist[0] = 'slim'
             for subdir in subdirlist:
-                if self.opt['SVG']: rje.mkDir(self,rje.makePath(self.info['HTMLPath']+string.replace(subdir,'_png','_svg')))
+                if self.opt['SVG']: rje.mkDir(self,rje.makePath(self.info['HTMLPath']+rje.replace(subdir,'_png','_svg')))
                 else: rje.mkDir(self,rje.makePath(self.info['HTMLPath']+subdir))
             self.printLog('#SETUP','HAPPI setup complete.'); return True
         except: self.errorLog('Problem during %s setup.' % self); return False  # Setup failed
@@ -932,7 +932,7 @@ class HAPPI(rje.RJE_Object):
         '''Generates delimited GO File.'''
         try:### ~ [0] ~ Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             gfile = self.info['GOData']
-            ghead = string.split('Gene    GO_ID   GO_Type GO_Desc')
+            ghead = rje.split('Gene    GO_ID   GO_Type GO_Desc')
             rje.delimitedFileOutput(self,gfile,ghead,rje_backup=True)
             godata = {}
             go = self.obj['GO']
@@ -979,9 +979,9 @@ class HAPPI(rje.RJE_Object):
                 try: self.dict['GeneMap'][xref] = xdb.indexDataList(xfield,xref,'Node')[0]; break
                 except: pass
         if xref not in self.dict['GeneMap']:
-            details = string.split(xref,'_')
+            details = rje.split(xref,'_')
             if details[0] != details[0].upper(): self.dict['GeneMap'][xref] = details[-1]
-            else: self.dict['GeneMap'][xref] = string.join(details[:2],'_')
+            else: self.dict['GeneMap'][xref] = rje.join(details[:2],'_')
         if self.dict['GeneMap'][xref] in ['-','']: self.dict['GeneMap'][xref] = xref
         return self.dict['GeneMap'][xref]
 #########################################################################################################################
@@ -989,7 +989,7 @@ class HAPPI(rje.RJE_Object):
         '''Returns Class for Given Gene.'''
         try:
             if split:
-                if self.opt['MultiClass']: return string.split(self.db('Main').data()[gene][self.info['GeneClass']],'-')
+                if self.opt['MultiClass']: return rje.split(self.db('Main').data()[gene][self.info['GeneClass']],'-')
                 else: return [self.db('Main').data()[gene][self.info['GeneClass']]]
             return self.db('Main').data()[gene][self.info['GeneClass']]
         except: return missing
@@ -1023,18 +1023,19 @@ class HAPPI(rje.RJE_Object):
                 else:
                     tdb = self.db().addEmptyTable('TitleText',['Page','ID','Title'])
                     tdb.info['Source'] = self.info['TitleText']
-                    open(self.info['TitleText'],'w').write('%s\n' % string.join(['Page','ID','Title'],'\t'))
+                    open(self.info['TitleText'],'w').write('%s\n' % rje.join(['Page','ID','Title'],'\t'))
             tkey = '%s\t%s' % (page,id)
             ### ~ [1] ~ Easy case ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if tkey in tdb.data(): return tdb.data()[tkey]['Title']
             ### ~ [2] ~ Add new case ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            rawres = 'results\t%s' % id
             if page == 'gosig' and id in self.classOrder(): title = self.classDef(id) 
             elif page == 'mcode' and id in self.classOrder(): title = 'No. of "%s"' % self.classDef(id)
-            elif page == 'raw' and tdb.data().has_key('results\t%s' % id): title = tdb.data()['results\t%s' % id]['Title']
+            elif page == 'raw' and rawres in tdb.data(): title = tdb.data()['results\t%s' % id]['Title']
             elif self.opt['Test']: title = '%s|%s' % (page,id)
             else: title = rje.choice('New mouseover (title) text for %s|%s title?' % (page,id),confirm=True)
             tdb.data()[tkey] = {'Page':page,'ID':id,'Title':title}
-            open(self.info['TitleText'],'a').write('%s\n' % string.join([page,id,title],'\t'))
+            open(self.info['TitleText'],'a').write('%s\n' % rje.join([page,id,title],'\t'))
             return title
         except: self.errorLog('TitleText problem (%s|%s)' % (page,id)); return ''
 #########################################################################################################################
@@ -1063,7 +1064,7 @@ class HAPPI(rje.RJE_Object):
             ### ~ [2] ~ Classes Tab ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             classdata = []
             for c in self.classOrder(): classdata.append({'Tab':c,'Description':self.classDef(c)})
-            if self.list['Combine']: classdata.append({'Tab':'Combined','Description':'Combined %s PPI' % string.join(self.list['Combine'],' + ')})
+            if self.list['Combine']: classdata.append({'Tab':'Combined','Description':'Combined %s PPI' % rje.join(self.list['Combine'],' + ')})
             for mtype in self.list['MTypes']:
                 if mtype == 'MCODE': classdata.append({'Tab':mtype,'Description':'MCODE clusters'})
                 else: classdata.append({'Tab':mtype,'Description':'%s MCODE clusters' % mtype})
@@ -1087,9 +1088,9 @@ class HAPPI(rje.RJE_Object):
                     if dbxref and gene in dbxref.data(): xref.append(dbxref.data()[gene])
                     for entry in indb.indexEntries(self.info['GeneField'],gene):
                         if entry[self.info['GeneClass']] == c: cdata.append(entry)
-                tablist.append(('Genes',string.join(genehtml,jtxt),'%s Genes' % c))
-                if dbxref and self.opt['XRefTab']: tablist.append(('XRef',string.replace(self.resultTableHTML(dbxref.fields(),xref,asdict=False,ttype='xreftab'),'href="../','target="_blank" href="./'),'%s database cross-references' % c))
-                tablist.append(('Data',string.replace(self.resultTableHTML(indb.fields(),cdata,asdict=False),'href="../','target="_blank" href="./'),'%s Summary' % c))
+                tablist.append(('Genes',rje.join(genehtml,jtxt),'%s Genes' % c))
+                if dbxref and self.opt['XRefTab']: tablist.append(('XRef',rje.replace(self.resultTableHTML(dbxref.fields(),xref,asdict=False,ttype='xreftab'),'href="../','target="_blank" href="./'),'%s database cross-references' % c))
+                tablist.append(('Data',rje.replace(self.resultTableHTML(indb.fields(),cdata,asdict=False),'href="../','target="_blank" href="./'),'%s Summary' % c))
                 ## ~ [2b] ~ Interactome ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
                 intpng = './geneclass_%s/%s.geneclass.png' % (self.png(),c)
                 if self.opt['SVG']:
@@ -1106,7 +1107,7 @@ class HAPPI(rje.RJE_Object):
                 ## ~ [2c] ~ Finish Tab ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
                 fronttab.append((c,'%s%s' % (chtml,tabberHTML('%s-tabs' % c,tablist,level=1)),self.classDef(c)))
             if self.list['Combine']:
-                chtml = '<H2>Combined %s PPI</H2>\n' % string.join(self.list['Combine'],' + ')
+                chtml = '<H2>Combined %s PPI</H2>\n' % rje.join(self.list['Combine'],' + ')
                 intpng = './geneclass_%s/combined.geneclass.png' % self.png()
                 if self.opt['XGMML']: chtml += '<p>Download XGMML <a href="%s.xgmml.gz">here</a>.</p>\n' % intpng[:-4]
                 if self.opt['SVG']:
@@ -1127,14 +1128,14 @@ class HAPPI(rje.RJE_Object):
                 if mtype == 'MCODE': mtxt = 'MCODE predicted clusters'
                 else: mtxt = '%s MCODE predicted clusters' % mtype
                 chtml = '<H2>%s</H2>\n' % mtxt
-                chtml += string.replace(self.resultTableHTML(cdb.fields(),cdata,ttype='mcode'),'href="../','target="_blank" href="./')
+                chtml += rje.replace(self.resultTableHTML(cdb.fields(),cdata,ttype='mcode'),'href="../','target="_blank" href="./')
                 fronttab.append((mtype,chtml,mtxt))
             if 'hm' in self.list['Special']:
                 cdb = self.obj['PPI'].db('AvFnet')
                 cdata = {}
                 for entry in cdb.entries(): cdata[entry['AvFnet']] = entry
                 chtml = '<H2>AvF subnetworks</H2>\n'
-                chtml += string.replace(self.resultTableHTML(cdb.fields(),cdata,ttype='mcode'),'href="../','target="_blank" href="./')
+                chtml += rje.replace(self.resultTableHTML(cdb.fields(),cdata,ttype='mcode'),'href="../','target="_blank" href="./')
                 fronttab.append(('AvFnet',chtml,'Subnetworks of AApep or FFpep binders.'))
             ### ~ [5] ~ Front page ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             html += tabberHTML('Main',fronttab,level=0)
@@ -1167,8 +1168,8 @@ class HAPPI(rje.RJE_Object):
             ### ~ [3] ~ Make Tabs ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             for x in '%s_' % string.ascii_uppercase:
                 if len(genedict[x]) > 1: 
-                    if x == '_': genetab.append(('*','%s\n</p>' % string.join(genedict[x],jtxt),genetitle[x]))
-                    else: genetab.append((x,'%s\n</p>' % string.join(genedict[x],jtxt),genetitle[x]))
+                    if x == '_': genetab.append(('*','%s\n</p>' % rje.join(genedict[x],jtxt),genetitle[x]))
+                    else: genetab.append((x,'%s\n</p>' % rje.join(genedict[x],jtxt),genetitle[x]))
             return genetab
         except: self.errorLog('geneTabs Error')
 #########################################################################################################################
@@ -1208,8 +1209,8 @@ class HAPPI(rje.RJE_Object):
                 gohtml = []
                 for x in string.ascii_uppercase:
                     gosub[x].sort()
-                    if len(gosub[x]) > 1: gohtml.append((x,string.join(gosub[x],'\n ~ '),'%s GO terms starting %s' % (got[type],x)))
-                #gotab.append(('GO_%s' % type.upper(),string.join(gohtml,'\n ~ ')))
+                    if len(gosub[x]) > 1: gohtml.append((x,rje.join(gosub[x],'\n ~ '),'%s GO terms starting %s' % (got[type],x)))
+                #gotab.append(('GO_%s' % type.upper(),rje.join(gohtml,'\n ~ ')))
                 if gohtml: gotab.append(('GO_%s' % type.upper(),tabberHTML('GO_%s' % type.upper(),gohtml,level=1),'%s GO terms' % got[type]))
             ### ~ [2] ~ Main code ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             fulltab = [('Genes',tabberHTML('Gene',genetab,level=1),self.titleText('front','gene'))] + gotab
@@ -1234,7 +1235,7 @@ class HAPPI(rje.RJE_Object):
         if 'hm' in self.list['Special'] and name == 'raw':
             rawdata = {}
             if gene in self.db('Main').data():
-                for ensp in string.split(self.db('Main').data()[gene]['Source'],'; '):
+                for ensp in rje.split(self.db('Main').data()[gene]['Source'],'; '):
                     esub = rawdb.subset('Identifier',ensp)
                     for dkey in esub: rawdata[dkey] = esub[dkey]
         else:
@@ -1257,9 +1258,9 @@ class HAPPI(rje.RJE_Object):
                 html = [self.resultTableHTML(main.fields(),main.subset('NRID',gene),drop=droplist,width=fwidth),'<br>']
                 ## ~ [3b] ~ Data summaries ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
                 summary = []
-                summary.append(string.split('Rep|AA	Int|AA AA.v.AL pi.AA.v.AL || Rep|RA Int|RA RA.v.RL pi.RA.v.RL'))
-                summary.append(string.split('Rep|AF	Int|AF AF.v.AL pi.AF.v.AL || Rep|RF	Int|RF RF.v.RL pi.RF.v.RL'))
-                summary.append(string.split('Rep|AL	Int|AL	Rep|RL	Int|RL'))
+                summary.append(rje.split('Rep|AA	Int|AA AA.v.AL pi.AA.v.AL || Rep|RA Int|RA RA.v.RL pi.RA.v.RL'))
+                summary.append(rje.split('Rep|AF	Int|AF AF.v.AL pi.AF.v.AL || Rep|RF	Int|RF RF.v.RL pi.RF.v.RL'))
+                summary.append(rje.split('Rep|AL	Int|AL	Rep|RL	Int|RL'))
                 for thead in summary:
                     droplist = []; fwidth = {}
                     for field in main.fields():
@@ -1280,15 +1281,15 @@ class HAPPI(rje.RJE_Object):
                 genelist.sort(); domlist.sort()
                 dfont = '<FONT SIZE=4 COLOR=#014359>'
                 html = ['<table width="100%">']
-                if genelist: html += ['<tr><td><p>%sGene Hubs (%d): </FONT>%s</p></td></tr>' % (dfont,len(genelist),string.join(genelist,' ~ '))]
+                if genelist: html += ['<tr><td><p>%sGene Hubs (%d): </FONT>%s</p></td></tr>' % (dfont,len(genelist),rje.join(genelist,' ~ '))]
                 else: html += ['<tr><td><p>%sGene Hubs: </FONT><i>None.</i></p></td></tr>' % (dfont)]
-                if domlist: html += ['<tr><td><p>%sDomain Hubs (%d): </FONT>%s</p></td></tr>' % (dfont,len(domlist),string.join(domlist,' ~ '))]
+                if domlist: html += ['<tr><td><p>%sDomain Hubs (%d): </FONT>%s</p></td></tr>' % (dfont,len(domlist),rje.join(domlist,' ~ '))]
                 else: html += ['<tr><td><p>%sDomain Hubs: </FONT><i>None.</i></p></td></tr>' % (dfont)]
-                if randlist: html += ['<tr><td><p>%sRandom Datasets (%d): </FONT>%s</p></td></tr>' % (dfont,len(randlist),string.join(randlist,' ~ '))]
+                if randlist: html += ['<tr><td><p>%sRandom Datasets (%d): </FONT>%s</p></td></tr>' % (dfont,len(randlist),rje.join(randlist,' ~ '))]
                 else: html += ['<tr><td><p>%sRandom Datasets: </FONT><i>None.</i></p></td></tr>' % (dfont)]
                 html += ['</table>','<!-- ~~~~ End %s SLiM Summary details table ~~~~ -->' % slim,'']
 
-            return string.join(html, '\n')
+            return rje.join(html, '\n')
         except: self.errorLog('specialGeneSummary() error'); return '<p><i>HAPPI code error!</i></p>'
 #########################################################################################################################
     def specialDrop(self,drop=[],ttype='results'):  ### Modify dropped columns based on special analysis codes
@@ -1297,14 +1298,14 @@ class HAPPI(rje.RJE_Object):
             if 'hm' in self.list['Special']:
                 if ttype == 'results':
                     drop += ['Identifier','HGNC','Entrez','EnsG','Sample']
-                    drop += string.split('Rep|AA	Int|AA	PepNorm|AA	Rep|AF	Int|AF	PepNorm|AF	Rep|AL	Int|AL	PepNorm|AL')
-                    drop += string.split('Rep|RA	Int|RA	PepNorm|RA	Rep|RF	Int|RF	PepNorm|RF	Rep|RL	Int|RL	PepNorm|RL')
-                    drop += string.split('Rep|XL	Int|XL	PepNorm|XL	AA.v.AL	AF.v.AL	RF.v.RL	RA.v.RL	pj.AA.v.AL	pj.AF.v.AL')
-                    drop += string.split('pj.RF.v.RL	pj.RA.v.RL	pi.AA.v.AL	pi.AF.v.AL	pi.RF.v.RL	pi.RA.v.RL')
+                    drop += rje.split('Rep|AA	Int|AA	PepNorm|AA	Rep|AF	Int|AF	PepNorm|AF	Rep|AL	Int|AL	PepNorm|AL')
+                    drop += rje.split('Rep|RA	Int|RA	PepNorm|RA	Rep|RF	Int|RF	PepNorm|RF	Rep|RL	Int|RL	PepNorm|RL')
+                    drop += rje.split('Rep|XL	Int|XL	PepNorm|XL	AA.v.AL	AF.v.AL	RF.v.RL	RA.v.RL	pj.AA.v.AL	pj.AF.v.AL')
+                    drop += rje.split('pj.RF.v.RL	pj.RA.v.RL	pi.AA.v.AL	pi.AF.v.AL	pi.RF.v.RL	pi.RA.v.RL')
                 #if ttype == 'class':
                 if ttype == 'xreftab': drop += ['Alias','Species','EntrezCheck','EnsDesc']
                 #if ttype == 'mcode':
-                if ttype == 'raw': drop += string.split('Identifier      HGNC    EnsG    Desc #')
+                if ttype == 'raw': drop += rje.split('Identifier      HGNC    EnsG    Desc #')
             return self.list['DropFields'] + drop
         except: self.errorLog('specialDrop() Error')
 #########################################################################################################################
@@ -1327,7 +1328,7 @@ class HAPPI(rje.RJE_Object):
                 if h in width: hcode += '<th width=%s title="%s">%s</th>\n' % (width[h],self.titleText(ttype,h),h)
                 else: hcode += '<th title="%s">%s</th>\n' % (self.titleText(ttype,h),h)
             rows = [hcode]
-            #rows = ['<TD><B>%s</B></TD>' % string.join(headers,'</B></TD><TD><B>')]
+            #rows = ['<TD><B>%s</B></TD>' % rje.join(headers,'</B></TD><TD><B>')]
             ## ~ [2b] ~ Body ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             for dat in datalist:
                 rdata = []
@@ -1335,8 +1336,8 @@ class HAPPI(rje.RJE_Object):
                     if h in dat:
                         if h in ['Members']:
                             hdat = []
-                            for gene in string.split(dat[h],'|'): hdat.append(self.geneLink(gene,frontpage=False))
-                            rdata.append(string.join(hdat,'| '))
+                            for gene in rje.split(dat[h],'|'): hdat.append(self.geneLink(gene,frontpage=False))
+                            rdata.append(rje.join(hdat,'| '))
                         elif h in ['NRID','Hub','HGNC','Spoke','Gene',self.info['GeneField']]:
                             gene = self.gene(str(dat[h]))
                             rdata.append(self.geneLink(gene,frontpage=False,altgene=dat[h]))
@@ -1379,13 +1380,13 @@ class HAPPI(rje.RJE_Object):
                     else: rdata.append('')
                     if h in width: rdata[-1] = '<TD WIDTH=%s>%s</TD>' % (width[h],rdata[-1])
                     else: rdata[-1] = '<TD>%s</TD>' % (rdata[-1])
-                rows.append(string.join(rdata,''))
+                rows.append(rje.join(rdata,''))
         except:
             self.errorLog('resultTableHTML error')
             self.deBug(headers)
             self.deBug(datalist)
             self.deBug(rdata)
-        return '<TABLE BORDER=%d><TR VALIGN="top">\n%s\n</TR></TABLE>\n' % (self.stat['Border'],string.join(rows,'\n</TR><TR VALIGN="top">\n'))
+        return '<TABLE BORDER=%d><TR VALIGN="top">\n%s\n</TR></TABLE>\n' % (self.stat['Border'],rje.join(rows,'\n</TR><TR VALIGN="top">\n'))
 #########################################################################################################################
     def interactorTableHTML(self,gene,full=False): ### Table of interactors with evidence & SLiMs returned for 4 datasets types
         '''
@@ -1411,7 +1412,7 @@ class HAPPI(rje.RJE_Object):
                 if i not in self.list['Genes'] and not full: continue
                 html += ['<tr valign="top"><td width=100>%s</td>' % self.geneLink(i)]
                 hkey = '%s\t%s' % (gene,i)
-                html += ['<td width=400>%s</td>' % string.join(string.split(ppi[gene][i],'|'),';<br>')]
+                html += ['<td width=400>%s</td>' % rje.join(rje.split(ppi[gene][i],'|'),';<br>')]
                 html += ['<td width=400>%s</td>' % self.geneDesc(i)]
                 html += ['<td width=100>%s</td>' % self.geneClass(i)]
                 html += ['</tr>','']
@@ -1420,7 +1421,7 @@ class HAPPI(rje.RJE_Object):
         except: self.errorLog('interactorTableHTML Error')
         ### ~ [3] Finish ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         html += ['</table>','']
-        return string.join(html,'\n')
+        return rje.join(html,'\n')
 #########################################################################################################################
     ### <5> ### Gene pages & general HTML code                                                                          #
 #########################################################################################################################
@@ -1519,15 +1520,15 @@ class HAPPI(rje.RJE_Object):
                         ghtml = []
                         for g in rje.sortKeys(gdict): ghtml.append(gdict[g])
                         gotit = '%s Gene Ontology categories' % {'CC':'Cellular Component','BP':'Biological Process','MF':'Molecular Function'}[gtype]
-                        gtab.append(('GO_%s' % gtype,string.join(ghtml,' ~ '),gotit))
+                        gtab.append(('GO_%s' % gtype,rje.join(ghtml,' ~ '),gotit))
             if gtab:
                 gtab.insert(0,('^','Click on GO tabs for Biological Process (BP), Cellular Component (CC), or Molecular Function (MF) GO terms associated with %s' % gene,'Compress GO tabs'))
                 html += ['','<!-- ~~~~ %s GO tabs ~~~~ -->' % gene,tabberHTML('GO',gtab),
                          '<!-- ~~~~ End %s GO tabs ~~~~ -->' % gene,'']
         except: self.errorLog('seqDetailsHTML Error')
         ### ~ [2] ~ Finish ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-        #print string.join(html,'\n')
-        return string.join(html,'\n')
+        #print rje.join(html,'\n')
+        return rje.join(html,'\n')
 #########################################################################################################################
     def geneDesc(self,gene):    ### Returns gene description
         '''Returns gene description.'''
@@ -1564,7 +1565,7 @@ class HAPPI(rje.RJE_Object):
             ## ~ [1b] ~ Raw Data tabs ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             if gene in self.geneList():
                 for dfile in self.list['GeneData']:
-                    name = string.split(dfile,'.')[-2]
+                    name = rje.split(dfile,'.')[-2]
                     rawdb = self.db(name)
                     rawdata = self.specialGeneData(name,gene)
                     if rawdata: tablist.append((name,self.resultTableHTML(rawdb.fields(),rawdata,drop=[self.info['GeneField'],'Gene'],ttype='raw'),'%s data for %s' % (name,gene)))
@@ -1576,7 +1577,7 @@ class HAPPI(rje.RJE_Object):
             if len(ilist) > 2 or (gene not in ilist and len(ilist) > 1):
                 if 'slim' in self.list['Special']: intpng = '../interactome_%s/%s.interactome.png' % (self.png(),rje_slim.slimFromPattern(gene))
                 else: intpng = '../interactome_%s/%s.interactome.png' % (self.png(),gene)
-                svglink = string.replace(intpng,'png','svg')
+                svglink = rje.replace(intpng,'png','svg')
                 alt = '%s interactome image not yet made' % gene
                 title = 'Graphical representation of %s interactome (returned proteins only). Click to open in new window. Larger interactomes may not be clear. See tables for details.' % gene
                 if self.opt['SVG']:
@@ -1667,14 +1668,14 @@ class HAPPI(rje.RJE_Object):
             eseq = entry.obj['Sequence']
             ## Standard info ##
             for key in ['ID','AC','DT','DE','GN','OS']:
-                if entry.dict['Data'].has_key(key):
+                if key in entry.dict['Data']:
                     for rest in entry.dict['Data'][key]:
                         if key == 'ID':
-                            id = string.split(rest)
-                            rest = string.join(['<a href="http://www.uniprot.org/uniprot/%s" title="Link to UniProt entry">%s</a>' % (id[0],id[0])] + id[1:])
+                            id = rje.split(rest)
+                            rest = rje.join(['<a href="http://www.uniprot.org/uniprot/%s" title="Link to UniProt entry">%s</a>' % (id[0],id[0])] + id[1:])
                         #if key == 'GN':
                         #    id = rje.matchExp('^(GN\s+Name=)(\S+)(;.*)',rest)
-                        #    if id: rest = string.join([id[0],self.geneLink(id[1]),id[2]],'')
+                        #    if id: rest = rje.join([id[0],self.geneLink(id[1]),id[2]],'')
                         uhtml.append('%s   %s\n' % (key,rje.chomp(rest)))
             ## Other data, except Features and sequence ##
             for key in rje.sortKeys(entry.dict['Data']):
@@ -1691,19 +1692,19 @@ class HAPPI(rje.RJE_Object):
                 ftxt += '%7s' % ('%d' % p2)
                 while len(ftxt) > 27 and ftxt[-(len('%d' % p2)+2):-len('%d' % p2)] == '  ': ftxt = ftxt[:-(len('%d' % p2)+1)] + ftxt[-len('%d' % p2):]
                 if 'PosLink' in ftdict:
-                    fsplit = string.split(ftxt)
+                    fsplit = rje.split(ftxt)
                     for i in range(1,len(fsplit)): fsplit[i] = '%s%s</a>' % (ftdict['PosLink'],ftsplit[i])
-                    ftxt = string.join(fsplit)
+                    ftxt = rje.join(fsplit)
                 ftxt += ' %s\n' % ftdict['Desc']
                 uhtml.append(ftxt)
             ## Sequence/End ##
             uhtml.append('SQ   SEQUENCE%s%d AA;  %d MW;  000000000000000 RJE06;\n' % (' ' * (7 - len('%d' % eseq.aaLen())),eseq.aaLen(),rje_sequence.MWt(eseq.info['Sequence'])))
             uniseq = eseq.info['Sequence'][0:]
             while len(uniseq) > 0:
-                uhtml.append('     %s\n' % string.join([uniseq[0:10],uniseq[10:20],uniseq[20:30],uniseq[30:40],uniseq[40:50],uniseq[50:60]],' '))
+                uhtml.append('     %s\n' % rje.join([uniseq[0:10],uniseq[10:20],uniseq[20:30],uniseq[30:40],uniseq[40:50],uniseq[50:60]],' '))
                 uniseq = uniseq[60:]
             uhtml.append('//\n</PRE>\n')
-            html += string.join(uhtml,'') + htmlTail()
+            html += rje.join(uhtml,'') + htmlTail()
             open(hfile,'w').write(html)
             return html
         except: self.errorLog('UniFake problem')
@@ -1744,7 +1745,7 @@ class HAPPI(rje.RJE_Object):
                     except: pass
             if tabhtml:
                 tabhtml = ['<H2>GO Relationships</H2>','<ul>'] + tabhtml + ['</ul>']
-                tablist.append(('GO',string.join(tabhtml,'\n'),'GO Term relationships for %s' % go))
+                tablist.append(('GO',rje.join(tabhtml,'\n'),'GO Term relationships for %s' % go))
             ## ~ [2b] ~ Gene List ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             tabhtml = []; jtxt = ' ~ '
             genes = self.dict['GOPages'][goid]
@@ -1756,7 +1757,7 @@ class HAPPI(rje.RJE_Object):
                 tabhtml.append(gtxt)
             if tabhtml: tabhtml[0] = '<h2>%s Genes</h2><p>\n%s' % (go,tabhtml[0])
             else: tabhtml = ['<i>No genes in analysis mapped to %s</i>' % go]
-            tablist.append(('Genes',string.join(tabhtml,jtxt),'Genes mapped to %s' % go))
+            tablist.append(('Genes',rje.join(tabhtml,jtxt),'Genes mapped to %s' % go))
             if len(genes) <= self.stat['MaxGO']:
                 title = 'Input data for %s genes' % go
                 datlist = []; main = self.db('Main')
@@ -1820,7 +1821,7 @@ class HAPPI(rje.RJE_Object):
                     title = 'Graphical representation of %s. Click to open in new window. Larger interactomes may not be clear.' % ctitle
                     tablist.append((complex,'%s\n<a href="%s" target="_blank"><img src="%s" alt="%s" title="%s" width=1000></a>\n' % (chtml,intpng,intpng,alt,title),title))
             ### ~ [3] ~ Generate HTML page ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            html = string.join(html,'\n') + tabberHTML(goid,tablist)
+            html = rje.join(html,'\n') + tabberHTML(goid,tablist)
             html += htmlTail()
             open(hfile,'w').write(html)
         except: self.errorLog('goPage(%s:%s) Error' % (goid,go))
@@ -1836,7 +1837,7 @@ class HAPPI(rje.RJE_Object):
             #self.deBug(seed)
             cdata = cdb.data()[seed]
             #self.deBug(cdata)
-            cgenes = string.split(cdata['Members'],'|')
+            cgenes = rje.split(cdata['Members'],'|')
             html = [htmlHead('%s_%s' % (mtype.upper(),id),self.list['StyleSheets'],nobots=self.opt['NoBots'])]
             tablist = []
             mname = '%s %s' % (mtype,id)
@@ -1891,13 +1892,13 @@ class HAPPI(rje.RJE_Object):
                                 gosig[gtype][sig][-1][gclass].sort()
                                 gtxt = []
                                 for gene in gosig[gtype][sig][-1][gclass]: gtxt.append(self.geneLink(gene,False))
-                                gosig[gtype][sig][-1][gclass] = string.join(gtxt,'; ')
+                                gosig[gtype][sig][-1][gclass] = rje.join(gtxt,'; ')
                             gobonf[gotup[0]] = sig
                         else: gdict[gotup[1]] = '%s (%d)' % (self.goLink(gotup[1],gotup[0]),gox[gotup[0]])
                     if gdict:
                         ghtml = []
                         for g in rje.sortKeys(gdict): ghtml.append(gdict[g])
-                        gtab.append(('GO_%s' % gtype,string.join(ghtml,' ~ '),self.titleText('tab','go')))
+                        gtab.append(('GO_%s' % gtype,rje.join(ghtml,' ~ '),self.titleText('tab','go')))
                 ## ~ Reduce if more sig parents or single children ~ ##
                 subsig = []
                 for goid in rje.sortKeys(gobonf):
@@ -1950,7 +1951,7 @@ class HAPPI(rje.RJE_Object):
             tablist.append(('Interactome',img,title))
             ### ~ [3] ~ Generate HTML page ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             hfile = '%s%s.html' % (rje.makePath(self.info['HTMLPath'] + '%s/' % mtype.lower()),id)
-            html = string.join(html,'\n') + tabberHTML(mname,tablist)
+            html = rje.join(html,'\n') + tabberHTML(mname,tablist)
             html += htmlTail()
             open(hfile,'w').write(html)
         except: self.errorLog('%s %s page error' % (mtype,id))
@@ -2039,7 +2040,7 @@ class HAPPI(rje.RJE_Object):
             pobj = self.obj['PPI']
             main = self.db().getTable('Main')
             dis = self.obj['Dis']
-            mtypes = string.split(string.join(self.list['MTypes']).lower())
+            mtypes = rje.split(rje.join(self.list['MTypes']).lower())
             ## ~ [1a] ~ Type-specific code ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             if type == 'interactome':
                 gene = id
@@ -2162,7 +2163,7 @@ class HAPPI(rje.RJE_Object):
     def svgCode(self,svglink,title):    ### Returns HTML Code for SVG file embedding.
         '''Returns HTML Code for SVG file embedding.'''
         try:
-            svgfile = self.info['HTMLPath'] + string.join(string.split(svglink,'/')[1:],'/')
+            svgfile = self.info['HTMLPath'] + rje.join(rje.split(svglink,'/')[1:],'/')
             svghtm = '<p title="%s">\n' % (title)
             try: (width,height) = rje.matchExp('<svg width="(\d+)" height="(\d+)" version="1.1"',open(svgfile,'r').read())
             except: (width,height) = (1600,1600)
@@ -2195,16 +2196,16 @@ class HAPPI(rje.RJE_Object):
             ### ~ [1] Add AvF Subnetworks ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             mfile = '%s.avfnet.tdt' % self.info['Basefile']
             reformat = {}
-            for f in string.split('Nodes Edges Rank'): reformat[f] = 'int'
-            for f in string.split('Density Score AvF'): reformat[f] = 'num'
+            for f in rje.split('Nodes Edges Rank'): reformat[f] = 'int'
+            for f in rje.split('Density Score AvF'): reformat[f] = 'num'
             if os.path.exists(mfile) and self.opt['Force'] and self.yesNo('Remake %s?' % mfile): rje.backup(self,mfile,unlink=True,appendable=False)
             if os.path.exists(mfile):
                 cdb = ppi.db().addTable(mfile,mainkeys=['Seed'],datakeys='All',name='AvFnet')
                 cdb.dataFormat(reformat)
                 ppi.dict['AvFnet'] = {}
                 for entry in cdb.entries():
-                    try: ppi.dict['AvFnet'][entry['Seed']] = string.split(entry['Members'],'|')
-                    except: ppi.dict['AvFnet'][entry['Seed']] = string.split(entry['AvFnet'],'|')
+                    try: ppi.dict['AvFnet'][entry['Seed']] = rje.split(entry['Members'],'|')
+                    except: ppi.dict['AvFnet'][entry['Seed']] = rje.split(entry['AvFnet'],'|')
             else:
                 G = rje_ppi.subGraph(ppi.ppi(),self.geneList())
                 if self.stat['PPExpand']: G = ppi.expandPPI(G,self.stat['PPExpand'],ppcomplex=self.opt['PPComplex'])
@@ -2240,7 +2241,7 @@ class HAPPI(rje.RJE_Object):
             for mtype in self.list['MTypes']:
                 mdb  = ppi.db(mtype)
                 for entry in mdb.entries():
-                    mgenes = string.split(entry['Members'],'|')
+                    mgenes = rje.split(entry['Members'],'|')
                     for field in ['AvF','pAvF','MeanEnr','pMeanEnr']: entry[field] = 0.0
                     meanenr = []
                     for gene in mgenes:
@@ -2265,7 +2266,7 @@ class HAPPI(rje.RJE_Object):
                         rval = {}
                         for field in ['AvF','MeanEnr']: rval[field] = 0.0
                         meanenr = []
-                        mgenes = string.split(entry['Members'],'|')
+                        mgenes = rje.split(entry['Members'],'|')
                         for gene in mgenes:
                             if gene not in rdata: meanenr.append(1.0); continue
                             rval['AvF'] += float(rdata[gene]['AvF']) / len(mgenes)
@@ -2306,7 +2307,7 @@ def htmlHead(title,stylesheets=['../example.css','../redwards.css'],tabber=True,
             '<title>%s</title>' % title,'']
     if nobots: html.insert(6,'<meta name="robots" content="index,nofollow">')
     for stylesheet in stylesheets:
-        if frontpage: html.append('<link rel="stylesheet" href="%s" TYPE="text/css" MEDIA="screen">' % string.replace(stylesheet,'../','./'))
+        if frontpage: html.append('<link rel="stylesheet" href="%s" TYPE="text/css" MEDIA="screen">' % rje.replace(stylesheet,'../','./'))
         else: html.append('<link rel="stylesheet" href="%s" TYPE="text/css" MEDIA="screen">' % stylesheet)
     if tabber:
         html += ['','<!-- ~~~~~~~~~~~ Tabber Javascript ~~~~~~~~~~~ -->','<script type="text/javascript">',
@@ -2316,8 +2317,8 @@ def htmlHead(title,stylesheets=['../example.css','../redwards.css'],tabber=True,
         if frontpage: html += ['<script type="text/javascript" src="./javascript/tabber.js"></script>','']
         else: html += ['<script type="text/javascript" src="../javascript/tabber.js"></script>','']
     html += ['</head>','<!-- ~~~~~~~~~~~~~~~ End of HTML head data ~~~~~~~~~~~~~~~~~ -->','','<body>','']
-    #print string.join(html,'\n')
-    return string.join(html,'\n')
+    #print rje.join(html,'\n')
+    return rje.join(html,'\n')
 #########################################################################################################################
 def htmlTail(copyright='RJ Edwards 2010',tabber=True):  ### Returns text for bottom of HTML
     '''
@@ -2325,15 +2326,15 @@ def htmlTail(copyright='RJ Edwards 2010',tabber=True):  ### Returns text for bot
     >> copyright:str = copyright text'
     >> tabber:bool = whether page has tabber tabs
     '''
-    t = string.split(time.asctime(time.localtime(time.time())))
+    t = rje.split(time.asctime(time.localtime(time.time())))
     datetime = '%s %s %s' % (t[2],t[1],t[-1])
     html = ['','<!-- ~~~~~~~~~~~~~~ HTML tail data ~~~~~~~~~~~~~~~~~ -->',
             '<HR><FONT COLOR=#979E45 SIZE=2>&copy; %s. Last modified %s.</FONT></P>' % (copyright,datetime),'',
             '<script type="text/javascript">','/* manualStartup=true so need to run it now */',
             'tabberAutomatic(tabberOptions);','</script>','','</body>','</html>',
             '<!-- ~~~~~~~~~~~~~~ End of HTML tail data ~~~~~~~~~~~~~~~~~ -->']
-    #print string.join(html,'\n')
-    return string.join(html,'\n')
+    #print rje.join(html,'\n')
+    return rje.join(html,'\n')
 #########################################################################################################################
 def tabberHTML(id,tablist,level=0):     ### Returns text for Tabber HTML
     '''
@@ -2349,11 +2350,11 @@ def tabberHTML(id,tablist,level=0):     ### Returns text for Tabber HTML
         #print tab
         #print tab[0],tab[1]
         #print tabberTabHTML(tab[0],tab[1])
-        if len(tab) > 2: html += string.split(tabberTabHTML(tab[0],tab[1],tab[2]),'\n')
-        else: html += string.split(tabberTabHTML(tab[0],tab[1]),'\n')
+        if len(tab) > 2: html += rje.split(tabberTabHTML(tab[0],tab[1],tab[2]),'\n')
+        else: html += rje.split(tabberTabHTML(tab[0],tab[1]),'\n')
     html += ['</div>','<!-- ~~~~~~~~~~~~~~~ End of %s Tabber Div ~~~~~~~~~~~~~~~ -->' % id,]
-    #print string.join(html,jointxt)
-    return string.join(html,jointxt)
+    #print rje.join(html,jointxt)
+    return rje.join(html,jointxt)
 #########################################################################################################################
 def tabberTabHTML(id,text,title=''):          ### Returns text for TabberTab HTML
     '''
@@ -2363,11 +2364,11 @@ def tabberTabHTML(id,text,title=''):          ### Returns text for TabberTab HTM
     '''
     if not title: title = id
     html = ['','<!-- ~~~ %s TabberTab div ~~~ -->' % id,'<div class="tabbertab" title="%s" id="%s">' % (title,id),'']
-    html += string.split(text,'\n')
+    html += rje.split(text,'\n')
     html += ['','</div>','<!-- ~~~ %s TabberTab end ~~~ -->' % id]
-    #print string.join(html,'\n  ')
-    if string.join(html).upper().find('<PRE>') >= 0: return string.join(html,'\n')       
-    else: return string.join(html,'\n  ')
+    #print rje.join(html,'\n  ')
+    if rje.join(html).upper().find('<PRE>') >= 0: return rje.join(html,'\n')
+    else: return rje.join(html,'\n  ')
 #########################################################################################################################
 def geneLink(gene,frontpage=False):     ### Returns gene link text
     '''Returns gene link text.'''
@@ -2407,8 +2408,8 @@ def runMain():
     ### ~ [1] ~ Basic Setup of Program  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try: (info,out,mainlog,cmd_list) = setupProgram()
     except SystemExit: return  
-    except: print 'Unexpected error during program setup:', sys.exc_info()[0]; return
-    
+    except: rje.printf('Unexpected error during program setup:', sys.exc_info()[0]); return
+
     ### ~ [2] ~ Rest of Functionality... ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try: HAPPI(mainlog,cmd_list).run()
 
@@ -2416,11 +2417,11 @@ def runMain():
     except SystemExit: return  # Fork exit etc.
     except KeyboardInterrupt: mainlog.errorLog('User terminated.')
     except: mainlog.errorLog('Fatal error in main %s run.' % info.program)
-    mainlog.printLog('#LOG', '%s V:%s End: %s\n' % (info.program,info.version,time.asctime(time.localtime(time.time()))))
+    mainlog.endLog(info)
 #########################################################################################################################
 if __name__ == "__main__":      ### Call runMain
     try: runMain()
-    except: print 'Cataclysmic run error:', sys.exc_info()[0]
+    except: rje.printf('Cataclysmic run error: {0}'.format(sys.exc_info()[0]))
     sys.exit()
 #########################################################################################################################
 ### END OF SECTION IV                                                                                                   #

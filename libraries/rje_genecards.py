@@ -70,7 +70,9 @@ Other modules needed: None
 #########################################################################################################################
 ### SECTION I: GENERAL SETUP & PROGRAM DETAILS                                                                          #
 #########################################################################################################################
-import copy, glob, os, string, sys, time, urllib2
+import copy, glob, os, string, sys, time
+try: import urllib2 as urllib2
+except: import urllib.request as urllib2
 sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)),'../libraries/'))
 sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)),'../tools/'))
 ### User modules - remember to add *.__doc__ to cmdHelp() below ###
@@ -103,47 +105,46 @@ def makeInfo():     ### Makes Info object
 #########################################################################################################################
 def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for more sys.argv commands
     '''Prints *.__doc__ and asks for more sys.argv commands.'''
-    try:
+    try:### ~ [1] ~ Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         if not info: info = makeInfo()
         if not out: out = rje.Out()
-        help = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
-        if help > 0:
-            print '\n\nHelp for %s %s: %s\n' % (info.program, info.version, time.asctime(time.localtime(info.start_time)))
+        ### ~ [2] ~ Look for help commands and print options if found ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+        cmd_help = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
+        if cmd_help > 0:
+            rje.printf('\n\nHelp for {0} {1}: {2}\n'.format(info.program, info.version, time.asctime(time.localtime(info.start_time))))
             out.verbose(-1,4,text=__doc__)
-            if rje.yesNo('Show general commandline options?'): out.verbose(-1,4,text=rje.__doc__)
-            if rje.yesNo('Quit?'): sys.exit()
-            cmd_list += rje.inputCmds(out,cmd_list)
-        elif out.stat['Interactive'] > 1: cmd_list += rje.inputCmds(out,cmd_list)
+            if rje.yesNo('Show general commandline options?',default='N'): out.verbose(-1,4,text=rje.__doc__)
+            if rje.yesNo('Quit?'): sys.exit()           # Option to quit after help
+            cmd_list += rje.inputCmds(out,cmd_list)     # Add extra commands interactively.
+        elif out.stat['Interactive'] > 1: cmd_list += rje.inputCmds(out,cmd_list)    # Ask for more commands
+        ### ~ [3] ~ Return commands ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         return cmd_list
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Major Problem with cmdHelp()'
+    except: rje.printf('Major Problem with cmdHelp()')
 #########################################################################################################################
-def setupProgram(): ### Basic Setup of Program
+def setupProgram(): ### Basic Setup of Program when called from commandline.
     '''
-    Basic setup of Program:
+    Basic Setup of Program when called from commandline:
     - Reads sys.argv and augments if appropriate
     - Makes Info, Out and Log objects
     - Returns [info,out,log,cmd_list]
     '''
-    try:
-        ### Initial Command Setup & Info ###
-        info = makeInfo()
-        cmd_list = rje.getCmdList(sys.argv[1:],info=info)      ### Load defaults from program.ini
-        ### Out object ###
-        out = rje.Out(cmd_list=cmd_list)
-        out.verbose(2,2,cmd_list,1)
-        out.printIntro(info)
-        ### Additional commands ###
-        cmd_list = cmdHelp(info,out,cmd_list)
-        ### Log ###
-        log = rje.setLog(info=info,out=out,cmd_list=cmd_list)
-        return [info,out,log,cmd_list]
+    try:### ~ [1] ~ Initial Command Setup & Info ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+        info = makeInfo()                                   # Sets up Info object with program details
+        if len(sys.argv) == 2 and sys.argv[1] in ['version','-version','--version']: rje.printf(info.version); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: rje.printf('%s v%s' % (info.program,info.version)); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['description','-description','--description']: rje.printf('%s: %s' % (info.program,info.description)); sys.exit(0)
+        cmd_list = rje.getCmdList(sys.argv[1:],info=info)   # Reads arguments and load defaults from program.ini
+        out = rje.Out(cmd_list=cmd_list)                    # Sets up Out object for controlling output to screen
+        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2
+        out.printIntro(info)                                # Prints intro text using details from Info object
+        cmd_list = cmdHelp(info,out,cmd_list)               # Shows commands (help) and/or adds commands from user
+        log = rje.setLog(info,out,cmd_list)                 # Sets up Log object for controlling log file output
+        return (info,out,log,cmd_list)                      # Returns objects for use in program
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except:
-        print 'Problem during initial setup.'
-        raise
+    except: rje.printf('Problem during initial setup.'); raise
 #########################################################################################################################
 ### Constants ###
 gc_headers = ['Symbol','HGNC','Entrez','UniProt','EnsEMBL','HPRD','OMIM']
@@ -207,7 +208,7 @@ class GeneCards(rje.RJE_Object):
         self.setInfo({'CardOut':'genecards.tdt','Species':'Human',
                       'EnsLoci':rje.makePath('/home/richard/Databases/EnsEMBL/ens_HUMAN.loci.fas',True)})
         self.setOpt({'FullEns':False,'Purify':False,'Restrict':False})
-        #x#self.list['SkipList'] = string.split('XP_*,NP_*,IPI00*',',')
+        #x#self.list['SkipList'] = rje.split('XP_*,NP_*,IPI00*',',')
 #########################################################################################################################
     def _cmdList(self):     ### Sets Attributes from commandline
         '''
@@ -261,8 +262,8 @@ class GeneCards(rje.RJE_Object):
                     else: self.dict['GeneCard'][gene] = update[gene]
                     ## ~ Temp Debugging ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
                     if gene in self.list['TestGenes']:
-                        print gene
-                        print update[gene]
+                        print( gene)
+                        print( update[gene])
                         self.deBug(self.dict['GeneCard'][gene])
                     ## ~ Check Aliases etc. ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
                     if 'Symbol' in self.dict['GeneCard'][gene]: self.dict['GeneCard'][gene]['Symbol'] = self.dict['GeneCard'][gene]['Symbol'].upper()
@@ -271,7 +272,8 @@ class GeneCards(rje.RJE_Object):
                         if symbol in self.dict['GeneCard']: rje.combineDict(self.dict['GeneCard'][symbol],update[gene],overwrite=False,replaceblanks=True)
                         else: self.dict['GeneCard'][symbol] = update[gene]
                     self.log.printLog('\r#CARD','Extracted GeneCards data for %d genes.' % (len(self.dict['GeneCard'])),newline=False,log=False)
-                    if len(string.split(gene)) > 1: print '!!!', gene, '!!!'
+                    if len(gene.split()) > 1:
+                        self.warnLog(gene)
             ### ~ Finish ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             self.log.printLog('\r#CARD','Extracted GeneCards data for %d genes.' % (len(self.dict['GeneCard'])))
             self.list['Headers'] = headers[0:]
@@ -345,14 +347,14 @@ class GeneCards(rje.RJE_Object):
                     try:
                         gene = gene[:gene.find('~WITHDRAWN')]
                         alias = rje.matchExp(', see (\S+)',gdict['Desc'])[0]
-                        if len(string.split(alias)) > 1: continue   # Ambiguous
+                        if len(rje.split(alias)) > 1: continue   # Ambiguous
                         if gene in aliaii and aliaii[gene] != alias: aliaii[gene] = 'AMBIGUOUS'
                         else: aliaii[gene] = alias
                     except: pass
                     continue
                 ## ~ [2d] Add additional aliases ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
                 if 'Synonyms' in data and 'Aliases' not in data: data['Aliases'] = data.pop('Synonyms')
-                for alias in string.split(data['Previous Symbols'].upper(),', ') + string.split(data['Aliases'].upper(),', '):
+                for alias in rje.split(data['Previous Symbols'].upper(),', ') + rje.split(data['Aliases'].upper(),', '):
                     #x# if alias.upper() != alias: continue     # Not really a symbol
                     if alias in self.dict['GeneCard']: aliaii[alias] = 'AMBIGUOUS'
                     if alias in aliaii and aliaii[alias] != gene: aliaii[alias] = 'AMBIGUOUS'
@@ -363,7 +365,7 @@ class GeneCards(rje.RJE_Object):
                 gdict['OMIM'] = data['OMIM ID (mapped data)']
                 gdict['UniProt'] = data['UniProt ID (mapped data)']
                 gdict['EnsEMBL'] = ensgene = data['Ensembl ID (mapped data)']
-                gdict['HGNC'] = string.replace(hgnc,'HGNC:','')
+                gdict['HGNC'] = rje.replace(hgnc,'HGNC:','')
                 if not gene: gene = ensgene
                 if not gene:
                     self.log.errorLog('HGNC has no gene for %s: %s' % (gdict['HGNC'],data),printerror=False)
@@ -395,7 +397,7 @@ class GeneCards(rje.RJE_Object):
             self.log.printLog('\r#HGNC','Processed HGNC: %s genes & aliases' % (rje.integerString(len(self.dict['GeneCard']))))
             if ambig:
                 self.log.printLog('#AMB','%s ambiguous aliases were not mapped' % rje.integerString(len(ambig)))
-                open('hgnc.ambiguities.txt','w').write(string.join(ambig,'\n'))
+                open('hgnc.ambiguities.txt','w').write(rje.join(ambig,'\n'))
         except: self.log.errorLog(rje_zen.Zen().wisdom())
 #########################################################################################################################
     def ensLoci(self):  ### Reads from EnsLoci file if it exists and parses into dictionaries.
@@ -418,7 +420,7 @@ class GeneCards(rje.RJE_Object):
                 except: acc = ''
                 if acc: self.dict['UniEns'][acc] = gene
                 self.dict['EnsLoci'][gene] = name
-                self.dict['EnsDesc'][gene] = string.join(string.split(string.split(line,' [acc:')[0][1:])[1:])
+                self.dict['EnsDesc'][gene] = rje.join(rje.split(rje.split(line,' [acc:')[0][1:])[1:])
                 if self.opt['FullEns'] and gene not in self.list['Genes']:
                     self.list['Genes'].append(gene)
                 if self.opt['FullEns'] and gene not in self.dict['GeneCard']:
@@ -431,15 +433,14 @@ class GeneCards(rje.RJE_Object):
         if not self.dict['EnsLoci']: return
         ex = 0
         for gene in rje.sortKeys(self.dict['GeneCard']):
-            if not self.dict['GeneCard'][gene].has_key('EnsEMBL') or not self.dict['GeneCard'][gene]['EnsEMBL']:
-                if self.dict['GeneCard'][gene].has_key('UniProt') and self.dict['GeneCard'][gene]['UniProt'] in self.dict['UniEns']:
+            if 'EnsEMBL' not in self.dict['GeneCard'][gene] or not self.dict['GeneCard'][gene]['EnsEMBL']:
+                if 'UniProt' in self.dict['GeneCard'][gene] and self.dict['GeneCard'][gene]['UniProt'] in self.dict['UniEns']:
                     self.dict['GeneCard'][gene]['EnsEMBL'] = self.dict['UniEns'][self.dict['GeneCard'][gene]['UniProt']]
-            if self.dict['GeneCard'][gene].has_key('EnsEMBL') and self.dict['GeneCard'][gene]['EnsEMBL'] in self.dict['EnsLoci']:
+            if 'EnsEMBL' in self.dict['GeneCard'][gene] and self.dict['GeneCard'][gene]['EnsEMBL'] in self.dict['EnsLoci']:
                 ex += 1
                 self.dict['GeneCard'][gene]['EnsLoci'] = self.dict['EnsLoci'][self.dict['GeneCard'][gene]['EnsEMBL']]
                 self.dict['GeneCard'][gene]['EnsDesc'] = self.dict['EnsDesc'][self.dict['GeneCard'][gene]['EnsEMBL']]
             # EnsEMBL genes might be missing as they might be pseudogenes etc.
-            #x#elif self.dict['GeneCard'][gene].has_key('EnsEMBL'): self.log.errorLog('EnsEMBL Gene "%s" missing from EnsLoci dictionary!' % self.dict['GeneCard'][gene]['EnsEMBL'],printerror=False)
             self.log.printLog('\r#ENS','Adding EnsLoci data: %d of %d genes' % (ex,len(self.dict['GeneCard'])),newline=False,log=False)
         self.log.printLog('\r#ENS','Added EnsLoci data for %d of %d genes' % (ex,len(self.dict['GeneCard'])))
 #########################################################################################################################
@@ -467,7 +468,6 @@ class GeneCards(rje.RJE_Object):
                 alias = newalias
             try: symbol = self.dict['GeneCard'][alias]['Symbol']
             except:
-                #x#print 'Fuck >> ', alias, self.dict['GeneCard'][alias], '<< Fuck!!'
                 self.log.errorLog('Problem with alias "%s"' % alias)
                 continue
             if symbol in self.dict['GeneCard'] and self.dict['GeneCard'][symbol]['Symbol'] == '!FAILED!':
@@ -482,7 +482,7 @@ class GeneCards(rje.RJE_Object):
         '''
         try:
             ### Setup ###
-            if self.dict['GeneCard'].has_key(alias) and self.dict['GeneCard'][alias]['Symbol'] != '!FAILED!':
+            if alias in self.dict['GeneCard'] and self.dict['GeneCard'][alias]['Symbol'] != '!FAILED!':
                 done = True
                 for h in ['Symbol','HGNC','EnsEMBL']:
                     if h not in self.dict['GeneCard'][alias] or not self.dict['GeneCard'][alias][h]: done = False
@@ -498,7 +498,7 @@ class GeneCards(rje.RJE_Object):
             else: self.dict['GeneCard'][alias] = {'Symbol':symbol}
             skip = not self.opt['UseWeb']
             for skipper in self.list['SkipList']:
-                if rje.matchExp('(%s)' % string.replace(skipper,'*','\S+'),alias): skip = True
+                if rje.matchExp('(%s)' % rje.replace(skipper,'*','\S+'),alias): skip = True
 
             ### Download GeneCard ###
             try:
@@ -513,42 +513,42 @@ class GeneCards(rje.RJE_Object):
                 #x#if html.find(alias) > 0: self.deBug(html)
                 if rje.matchExp('<title>GeneCard for (\S+)<\/title>',html):
                     symbol = rje.matchExp('<title>GeneCard for (\S+)<\/title>',html)[0]
-                    if self.dict['GeneCard'].has_key(symbol) and self.dict['GeneCard'][symbol]['Symbol'] == symbol:
+                    if symbol in self.dict['GeneCard'] and self.dict['GeneCard'][symbol]['Symbol'] == symbol:
                         self.dict['GeneCard'][alias] = self.dict['GeneCard'][symbol]
                         return True
                     self.dict['GeneCard'][alias]['Symbol'] = symbol
                 if rje.matchExp('<title>(\S+) GeneCard<\/title>',html):
                     symbol = rje.matchExp('<title>(\S+) GeneCard<\/title>',html)[0]
-                    if self.dict['GeneCard'].has_key(symbol) and self.dict['GeneCard'][symbol]['Symbol'] == symbol:
+                    if symbol in self.dict['GeneCard'] and self.dict['GeneCard'][symbol]['Symbol'] == symbol:
                         self.dict['GeneCard'][alias] = self.dict['GeneCard'][symbol]
                         return True
                     self.dict['GeneCard'][alias]['Symbol'] = symbol
                 elif rje.matchExp('<title>(\S+) Gene.+<\/title>',html):
                     symbol = rje.matchExp('<title>(\S+) Gene.+<\/title>',html)[0]
-                    if self.dict['GeneCard'].has_key(symbol) and self.dict['GeneCard'][symbol]['Symbol'] == symbol:
+                    if symbol in self.dict['GeneCard'] and self.dict['GeneCard'][symbol]['Symbol'] == symbol:
                         self.dict['GeneCard'][alias] = self.dict['GeneCard'][symbol]
                         return True
                     self.dict['GeneCard'][alias]['Symbol'] = symbol
                 ## HGNC Number ##
-                if not self.dict['GeneCard'][alias].has_key('HGNC') and rje.matchExp('href="http:\/\/www.gene.ucl.ac.uk\/cgi-bin\/nomenclature\/get_data.pl\?hgnc_id=(\d+)"',html):
+                if 'HGNC' not in self.dict['GeneCard'][alias] and rje.matchExp('href="http:\/\/www.gene.ucl.ac.uk\/cgi-bin\/nomenclature\/get_data.pl\?hgnc_id=(\d+)"',html):
                     self.dict['GeneCard'][alias]['HGNC'] = rje.matchExp('href="http:\/\/www.gene.ucl.ac.uk\/cgi-bin\/nomenclature\/get_data.pl\?hgnc_id=(\d+)"',html)[0]
-                if not self.dict['GeneCard'][alias].has_key('HGNC') and rje.matchExp('href="http:\/\/www.genenames.org\/data\/hgnc_data.php\?hgnc_id=(\d+)"',html):
+                if 'HGNC' not in self.dict['GeneCard'][alias] and rje.matchExp('href="http:\/\/www.genenames.org\/data\/hgnc_data.php\?hgnc_id=(\d+)"',html):
                     self.dict['GeneCard'][alias]['HGNC'] = rje.matchExp('href="http:\/\/www.genenames.org\/data\/hgnc_data.php\?hgnc_id=(\d+)"',html)[0]
                 ## Entrez Gene ##                    
-                if not self.dict['GeneCard'][alias].has_key('Entrez') and rje.matchExp('href="http:\/\/www.ncbi.nlm.nih.gov\/entrez\/query.fcgi.+list_uids=(\S+)"',html):
+                if 'Entrez' not in self.dict['GeneCard'][alias] and rje.matchExp('href="http:\/\/www.ncbi.nlm.nih.gov\/entrez\/query.fcgi.+list_uids=(\S+)"',html):
                     self.dict['GeneCard'][alias]['Entrez'] = rje.matchExp('href="http:\/\/www.ncbi.nlm.nih.gov\/entrez\/query.fcgi.+list_uids=(\S+)"',html)[0]
                 ## UniProt ##
-                if not self.dict['GeneCard'][alias].has_key('UniProt') and rje.matchExp('href="http:\/\/www\.uniprot\.org\/uniprot\/(\S+)"',html):
+                if 'UniProt' not in self.dict['GeneCard'][alias] and rje.matchExp('href="http:\/\/www\.uniprot\.org\/uniprot\/(\S+)"',html):
                     self.dict['GeneCard'][alias]['UniProt'] = rje.matchExp('href="http\:\/\/www\.uniprot\.org\/uniprot\/(\S+)"',html)[0]
                 ## EnsEMBL ##
-                if not self.dict['GeneCard'][alias].has_key('EnsEMBL') and rje.matchExp('href="http\:\/\/www.ensembl.org\/Homo_sapiens\/geneview\?gene=(\S+)"',html):
+                if 'EnsEMBL' not in self.dict['GeneCard'][alias] and rje.matchExp('href="http\:\/\/www.ensembl.org\/Homo_sapiens\/geneview\?gene=(\S+)"',html):
                     self.dict['GeneCard'][alias]['EnsEMBL'] = rje.matchExp('href="http\:\/\/www.ensembl.org\/Homo_sapiens\/geneview\?gene=(\S+)"',html)[0]
-                    if self.dict['GeneCard'][alias]['Symbol'] != '!FAILED!' and self.dict['GeneCard'][alias].has_key('UniProt'):
+                    if self.dict['GeneCard'][alias]['Symbol'] != '!FAILED!' and 'UniProt' in self.dict['GeneCard'][alias]:
                         break
             
             ### Finishing ###
-            if self.dict['GeneCard'][alias]['Symbol'] != '!FAILED!' and self.dict['GeneCard'][alias].has_key('UniProt') and self.dict['GeneCard'][alias].has_key('EnsEMBL'):
-                if not self.dict['GeneCard'].has_key(symbol): self.dict['GeneCard'][symbol] = self.dict['GeneCard'][alias]
+            if self.dict['GeneCard'][alias]['Symbol'] != '!FAILED!' and 'UniProt' in self.dict['GeneCard'][alias] and 'EnsEMBL' in self.dict['GeneCard'][alias]:
+                if symbol not in self.dict['GeneCard']: self.dict['GeneCard'][symbol] = self.dict['GeneCard'][alias]
                 self.deBug('%s: %s' % (alias,self.dict['GeneCard'][alias]))
                 self.deBug('%s: %s' % (symbol,self.dict['GeneCard'][symbol]))
                 return True
@@ -667,14 +667,12 @@ class GeneCards(rje.RJE_Object):
 ### SECTION IV: MAIN PROGRAM                                                                                            #
 #########################################################################################################################
 def runMain():
-    ### Basic Setup of Program ###
-    try: [info,out,mainlog,cmd_list] = setupProgram()
-    except SystemExit: return  
-    except:
-        print 'Unexpected error during program setup:', sys.exc_info()[0]
-        return
-        
-    ### Rest of Functionality... ###
+    ### ~ [1] ~ Basic Setup of Program  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+    try: (info,out,mainlog,cmd_list) = setupProgram()
+    except SystemExit: return
+    except: rje.printf('Unexpected error during program setup:', sys.exc_info()[0]); return
+
+    ### ~ [2] ~ Rest of Functionality... ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try: GeneCards(mainlog,cmd_list).run()
         
     ### End ###
@@ -685,7 +683,7 @@ def runMain():
 #########################################################################################################################
 if __name__ == "__main__":      ### Call runMain 
     try: runMain()
-    except: print 'Cataclysmic run error:', sys.exc_info()[0]
+    except: rje.printf('Cataclysmic run error: {0}'.format(sys.exc_info()[0]))
     sys.exit()
 #########################################################################################################################
 ### END OF SECTION IV                                                                                                   #

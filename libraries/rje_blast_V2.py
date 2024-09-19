@@ -409,13 +409,13 @@ class BLASTRun(rje_obj.RJE_Object):
         if self.getBool('FormatDB'):
             if self.getStr('Type') in ['blastn','tblastn','tblastx']: self.formatDB(protein=False,force=self.force())
             else: self.formatDB(force=self.force())
-        restab = string.split(string.join(self.list['ResTab']).lower())
+        restab = rje.split(rje.join(self.list['ResTab']).lower())
         self.list['ResTab'] = []
         for tabtype in ['Run','Search','Hit','Local','GABLAM']:
             if tabtype.lower() in restab: self.list['ResTab'].append(tabtype)
         if self.getBool('Force') and not self.force(): self.warnLog('force=T blastforce=F. BLAST results will not be regenerated.',warntype='blastforce',suppress=True)
         if self.getNum('LocalIDCut') < 1.0: self.num['LocalIDCut'] *= 100.0
-        if self.debugging(): self.printLog('#CMD','BLAST Commandlist: %s' % string.join(self.cmd_list))
+        if self.debugging(): self.printLog('#CMD','BLAST Commandlist: %s' % rje.join(self.cmd_list))
 #########################################################################################################################
     def nt(self):   ### Returns whether BLAST result alignments are nucleotide
         '''Returns whether BLAST result alignments are nucleotide.'''
@@ -619,7 +619,7 @@ class BLASTRun(rje_obj.RJE_Object):
         outlist += ['blasti','blastd']
         for outfmt in rje.sortKeys(self.dict['Output']):
             if outfmt not in outlist: outlist.append(outfmt)
-        if self.dev(): self.printLog('#REST',string.join(outlist,'; '))
+        if self.dev(): self.printLog('#REST',rje.join(outlist,'; '))
         return outlist
 #########################################################################################################################
     ### <3> ### General Class Data Methods                                                                              #
@@ -717,7 +717,7 @@ class BLASTRun(rje_obj.RJE_Object):
             if not idlist and noempty: return -1
             if backups: rje.backup(self,outfile)
             elif os.path.exists(outfile): os.unlink(outfile)
-            open(outfile, 'a').write('%s\n' % string.join(idlist,'\n'))
+            open(outfile, 'a').write('%s\n' % rje.join(idlist,'\n'))
             self.dict['Output']['id'] = outfile
             return len(idlist)
         except: self.errorLog('Major error during BLASTRun.saveHitIDs().'); return -1
@@ -854,13 +854,13 @@ class BLASTRun(rje_obj.RJE_Object):
                         if logcheck: self.errorLog('%s check: Found "Query=" in wrong place!' % self.str['Name'],printerror=False)
                         return None
                     last = line
-                elif line.find('Effective length') >= 0 or line.find('Effective search space') >= 0 or line.find('Gap Penalties:') >= 0 or line[:5] in ['BLAST','Matri'] or 'BLAST' in string.join(string.split(line)[:1]):
+                elif line.find('Effective length') >= 0 or line.find('Effective search space') >= 0 or line.find('Gap Penalties:') >= 0 or line[:5] in ['BLAST','Matri'] or 'BLAST' in rje.join(rje.split(line)[:1]):
                     if not last: pass
                     elif last.find('Sequences producing significant alignments:') >= 0: last = None     # One-line hits
                     elif last.find('***** No hits found *****') >= 0: last = None                      # No Hits
                     #else: self.deBug('\n%s\n>>\n%s\n' % (last,line))
                 elif checkeval and line.find('Number of sequences better than') >= 0:
-                    search_eval = string.atof(rje.matchExp('Number of sequences better than\s+(\S+):', line)[0])
+                    search_eval = rje.atof(rje.matchExp('Number of sequences better than\s+(\S+):', line)[0])
                     if self.num['E-Value'] > search_eval:   # Existing BLAST used a more stringent e-value
                         if self.i() < 0 or rje.yesNo('%s used blaste=%s. Current setting is less stringent blaste=%s. Reject BLAST results?' % (self.str['Name'],search_eval,self.num['E-Value'])):
                             last = 'Eval'; break
@@ -934,7 +934,7 @@ class BLASTRun(rje_obj.RJE_Object):
             presx = self.searchNum(); prehx = self.hitNum()
             RESFILE.seek(0); fpos = 0
             ## ~ [1a] Check BLAST Type ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-            newtype = string.split(RESFILE.readline())[0].lower()
+            newtype = rje.split(RESFILE.readline())[0].lower()
             if newtype != self.str['Type'].lower():
                 if newtype in ['blastn','blastp','blastx','tblastn','tblastx','rpsblast','rpstblastn']:
                     self.str['Type'] = newtype
@@ -948,10 +948,10 @@ class BLASTRun(rje_obj.RJE_Object):
             while not rje.matchExp('^Database:\s+(\S.+)$',line): line = RESFILE.readline()
             rentry['DBase'] = rje.matchExp('^Database:\s+(\S.+)$',line)[0]
             line = RESFILE.readline()
-            while not rje.matchExp('^\s+(\d+) sequences; (\d+) total',string.replace(line,',','')):
+            while not rje.matchExp('^\s+(\d+) sequences; (\d+) total',rje.replace(line,',','')):
                 rentry['DBase'] += rje.chomp(line)
                 line = RESFILE.readline()
-            (rentry['DBNum'],rentry['DBLen']) = rje.matchExp('^\s+(\d+) sequences; (\d+) total',string.replace(line,',',''))
+            (rentry['DBNum'],rentry['DBLen']) = rje.matchExp('^\s+(\d+) sequences; (\d+) total',rje.replace(line,',',''))
             ## ~ [1c] Update Search Table for QAssemble=T ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             if self.getBool('QAssemble'):
                 for field in ['Coverage','Identity','Positives']:
@@ -1016,41 +1016,41 @@ class BLASTRun(rje_obj.RJE_Object):
                     if search: break            # Read one whole search, so stop and return
                     search = self.db('Search').addEntry({'Query':rje.matchExp('^Query=\s+(\S+)', line)[0],'Length':0,'Hits':0,'MaxScore':0.0,'TopE':self.getNum('E-Value')})
                 elif rje.matchExp('^\s+\((\S+) letters\)',line):
-                    len_match = string.replace(rje.matchExp('^\s+\((\S+) letters\)',line)[0],',','')
-                    search['Length'] = string.atoi(len_match)
+                    len_match = rje.replace(rje.matchExp('^\s+\((\S+) letters\)',line)[0],',','')
+                    search['Length'] = rje.atoi(len_match)
                 elif rje.matchExp('^Length=(\S+)',line) and not eval_hitnum:
-                    len_match = string.replace(rje.matchExp('^Length=(\d+)',line)[0],',','')
-                    search['Length'] = string.atoi(len_match)
+                    len_match = rje.replace(rje.matchExp('^Length=(\d+)',line)[0],',','')
+                    search['Length'] = rje.atoi(len_match)
                 elif line.find('Number of letters in database:') >= 0:
                     dblen = rje.matchExp('Number of letters in database:\s+(\d\S*)', line)[0]
                     dblen = re.sub('\D','',dblen)
-                    self.int['DBLen'] = string.atoi(dblen)
+                    self.int['DBLen'] = rje.atoi(dblen)
                 elif line.find('Number of sequences in database:') >= 0:
                     dbnum = rje.matchExp('Number of sequences in database:\s+(\d\S*)', line)[0]
                     dbnum = re.sub('\D','',dbnum)
-                    self.int['DBNum'] = string.atoi(dbnum)
+                    self.int['DBNum'] = rje.atoi(dbnum)
                 elif rje.matchExp('(\S+) sequences; (\S+) total letters',line):
                     (dbnum,dblen) = rje.matchExp('(\S+) sequences; (\S+) total letters',line)
-                    self.int['DBNum'] = string.atoi(re.sub('\D','',dbnum))
-                    self.int['DBLen'] = string.atoi(re.sub('\D','',dblen))
+                    self.int['DBNum'] = rje.atoi(re.sub('\D','',dbnum))
+                    self.int['DBLen'] = rje.atoi(re.sub('\D','',dblen))
                 elif line.find('Number of sequences better than') >= 0:
-                    search_eval = string.atof(rje.matchExp('Number of sequences better than\s+(\S+):', line)[0])
+                    search_eval = rje.atof(rje.matchExp('Number of sequences better than\s+(\S+):', line)[0])
                     self.num['E-Value'] = min(self.num['E-Value'],search_eval)
                 ## ~ [2b] ~ One-line hit data (BLASTHit) ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
                 elif line.find('Sequences producing significant alignments:') >= 0: # One-line hits
-                    if string.split(line)[-1] == 'N': (si,ei) = (-3,-2)
+                    if rje.split(line)[-1] == 'N': (si,ei) = (-3,-2)
                     else: (si,ei) = (-2,-1)
                     rankx = 0
                     RESFILE.readline(); fpos = RESFILE.tell(); line = RESFILE.readline()   # Skip blank line
                     while rje.matchExp('^(\S+)\s.*\s(\S*\d)\s+(\S*\d)\s*$',line):
                         rankx += 1
-                        match = string.split(string.replace(line,'lcl|',''))
+                        match = rje.split(rje.replace(line,'lcl|',''))
                         #self.bugPrint(match[0])
                         evalue = match[ei]
                         if evalue.find('e') == 0: evalue = '1' + evalue
                         hite = float(evalue)
                         if hite <= self.num['E-Value']:     # Hit is OK
-                            hit = {'Query':search['Query'],'Rank':rankx,'Hit':match[0],'Description':string.join(string.split(line)[1:si]),'BitScore':string.atof(match[si]),'E-Value':hite,'Length':0,'Aln':0}
+                            hit = {'Query':search['Query'],'Rank':rankx,'Hit':match[0],'Description':rje.join(rje.split(line)[1:si]),'BitScore':rje.atof(match[si]),'E-Value':hite,'Length':0,'Aln':0}
                             if rankx == 1: search['TopE'] = hit['E-Value']; search['MaxScore'] = hit['BitScore']
                             hitkey = hdb.makeKey(hit)
                             if hitkey in hdb.data(): self.errorLog('Sequence "%s" hit by %s multiple times! Check that sequence names are unique in database.' % (match[0],search['Query']),printerror=False)
@@ -1066,7 +1066,7 @@ class BLASTRun(rje_obj.RJE_Object):
                 ## ~ [2c] ~ Aln Hit data (PWAln) ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
                 elif line.find('>') == 0:
                     if not readhits: i += 1; continue   # '>' Character within name happened to occur at start of line
-                    hitname = rje.matchExp('^>(\S+)\s*',string.replace(line,'lcl|',''))[0]
+                    hitname = rje.matchExp('^>(\S+)\s*',rje.replace(line,'lcl|',''))[0]
                     #try: self.bugPrint('%s: %d (%d)' % (hitname,hitnames.index(hitname),hitalnx))
                     #except: self.deBug('%s: %s' % (hitname,hitname in hitnames))
                     if hitalnx >= len(hits) and hitalnx >= eval_hitnum:
@@ -1080,7 +1080,7 @@ class BLASTRun(rje_obj.RJE_Object):
                         aln = None
                         i += 1; continue
                     hit = hits[hitalnx]
-                    hit['Description'] = string.join(string.split(line)[1:])
+                    hit['Description'] = rje.join(rje.split(line)[1:])
                     hitalnx += 1
                     aln = None
                     while line:
@@ -1089,7 +1089,7 @@ class BLASTRun(rje_obj.RJE_Object):
                         ## Hit Length ##
                         #self.bugPrint('%s >> %s' % (rje.chomp(line),rje.matchExp('^\s*Score\s+=\s+(\S+)\s.+Expect.+=\s+(\S+\d)\D*\s*',line)))
                         if rje.matchExp('^\s*Length\s*=\s*(\d+)',line):
-                            hit['Length'] = string.atoi(rje.matchExp('^\s*Length\s*=\s*(\d+)',line)[0])
+                            hit['Length'] = rje.atoi(rje.matchExp('^\s*Length\s*=\s*(\d+)',line)[0])
                         ## New Aln Block ##
                         elif hit['Length'] and rje.matchExp('^\s*Score\s+=\s+(\S+)\sbits\s(\S+).+Expect.+=\s+(\S+\d)\D*\s*',line):
                             #self.deBug('%s' % aln)
@@ -1099,16 +1099,16 @@ class BLASTRun(rje_obj.RJE_Object):
                             scores = rje.matchExp('^\s*Score\s+=\s+(\S+)\sbits\s\((\S+)\).+Expect.+=\s+(\S+\d)\D*\s*',line)
                             evalue = scores[2]
                             if evalue.find('e') == 0: evalue = '1' + evalue
-                            aln = {'Query':search['Query'],'Hit':hit['Hit'],'AlnID':hit['Aln']+1,'BitScore':string.atof(scores[0]),'Score':string.atof(scores[1]),'Expect':string.atof(evalue),
+                            aln = {'Query':search['Query'],'Hit':hit['Hit'],'AlnID':hit['Aln']+1,'BitScore':rje.atof(scores[0]),'Score':rje.atof(scores[1]),'Expect':rje.atof(evalue),
                                    'Length':0,'Identity':0,'Positives':0,'QryStart':-1,'QryEnd':-1,'SbjStart':-1,'SbjEnd':-1,'QrySeq':'','SbjSeq':'','AlnSeq':''}
                             fpos = RESFILE.tell(); line = RESFILE.readline()
                             if re.search('Identities\s+=\s+(\d+)/(\d+)\s?.+Positives = (\d+)/(\d+)\s?',line):
                                 sim = rje.matchExp('Identities\s+=\s+(\d+)/(\d+)\s?.+Positives\s+=\s+(\d+)/(\d+)\s?',line)
-                                aln['Positives'] = string.atoi(sim[2])
+                                aln['Positives'] = rje.atoi(sim[2])
                             else: sim = rje.matchExp('Identities\s+=\s+(\d+)/(\d+)\s?',line)
                             try:
-                                aln['Length'] = string.atoi(sim[1])
-                                aln['Identity'] = string.atoi(sim[0])
+                                aln['Length'] = rje.atoi(sim[1])
+                                aln['Identity'] = rje.atoi(sim[0])
                             except: self.errorLog('Problem reading line "%s"' % line)
                             fpos = RESFILE.tell(); line = RESFILE.readline()
                             if line.find('Frame') < 0: RESFILE.seek(fpos)    # Not BLASTX or TBLASTN
@@ -1123,9 +1123,9 @@ class BLASTRun(rje_obj.RJE_Object):
                                 break
                             leader = len(alnstructure[0])
                             aln['QrySeq'] += alnstructure[1]
-                            aln['QryEnd'] = string.atoi(alnstructure[2])
+                            aln['QryEnd'] = rje.atoi(alnstructure[2])
                             if aln['QryStart'] <= 0:
-                                aln['QryStart'] = string.atoi(rje.matchExp('^Query:*\s+(\d+)\s',alnstructure[0])[0])
+                                aln['QryStart'] = rje.atoi(rje.matchExp('^Query:*\s+(\d+)\s',alnstructure[0])[0])
                             # Alignment Line
                             fpos = RESFILE.tell(); line = RESFILE.readline(); aln['AlnSeq'] += line[leader:(leader+len(alnstructure[1]))]
                             # Subject Line
@@ -1136,8 +1136,8 @@ class BLASTRun(rje_obj.RJE_Object):
                                 rje.combineDict(aln,{'QryStart':-1,'QryEnd':-1,'SbjStart':-1,'SbjEnd':-1,'QrySeq':'','SbjSeq':'','AlnSeq':''},copyblanks=True)
                                 break
                             aln['SbjSeq'] += subject[1]
-                            aln['SbjEnd'] = string.atoi(subject[2])
-                            if aln['SbjStart'] <= 0: aln['SbjStart'] = string.atoi(subject[0])
+                            aln['SbjEnd'] = rje.atoi(subject[2])
+                            if aln['SbjStart'] <= 0: aln['SbjStart'] = rje.atoi(subject[0])
                         ## End of Aln ##
                         elif line.find('>') == 0:
                             RESFILE.seek(fpos)  # Return to beginning of this line
@@ -1147,7 +1147,7 @@ class BLASTRun(rje_obj.RJE_Object):
                         elif line.find('Effective') >= 0 and hit['Length']: break   # hit.alnNum() to avoid matching 'Database:' in hit description
                         elif line.find('BLAST') == 0: break
                         elif line.find('TBLASTN') == 0: break
-                        elif not hit['Length']: hit['Description'] = string.join([hit['Description']]+string.split(line)[0:])
+                        elif not hit['Length']: hit['Description'] = rje.join([hit['Description']]+rje.split(line)[0:])
                     if aln: 
                         hitaln[hit['Hit']].append(aln); hit['Aln'] += 1
                         if local: self.db('Local').addEntry(aln)
@@ -1176,9 +1176,9 @@ class BLASTRun(rje_obj.RJE_Object):
                         try:
                             qgablam = self.dict['QAssemble'].pop(search['Query'])
                             # Update search (entry) dictionary
-                            search['Coverage'] = qrylen - string.count(qgablam,'-')
-                            search['Identity'] = string.count(qgablam,'|')
-                            search['Positives'] = search['Identity'] + string.count(qgablam,'+')
+                            search['Coverage'] = qrylen - rje.count(qgablam,'-')
+                            search['Identity'] = rje.count(qgablam,'|')
+                            search['Positives'] = search['Identity'] + rje.count(qgablam,'+')
                         except: self.debug(self.dict['QAssemble'])
             return (search,fpos)
         except:
@@ -1237,8 +1237,8 @@ class BLASTRun(rje_obj.RJE_Object):
             if not self.getBool('QAssemble'): qassemble = []
             elif not self.getBool('SelfSum') and qrylen == int(hit['Length']):  # Check for self matches
                 if query == hit['Hit']: qassemble = []
-                elif string.split(hit['Hit'],'__')[-1] == query: qassemble = []
-                elif string.split(query,'__')[-1] == hit['Hit']: qassemble = []
+                elif rje.split(hit['Hit'],'__')[-1] == query: qassemble = []
+                elif rje.split(query,'__')[-1] == hit['Hit']: qassemble = []
             ### ~ [2] Compile alignments ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             #self.deBug('GABLAMO for Hit %s: %d alignments' % (self.info['Name'],self.alnNum()))
             lcutx = 0; lidx = 0; coredirn = None
@@ -1345,23 +1345,23 @@ class BLASTRun(rje_obj.RJE_Object):
             self.verbose(2,4,'\n*** Hit: %s ***' % hit['Hit'],1)
             if coredirn != gablam['HitDirnO']: gablam['HitDirnO'] = '%s.%s' % (coredirn,gablam['HitDirnO'])
             for aln in ['Qry','Hit','QryO','HitO']:  # O = ordered
-                gablam[aln] = string.join(gablam[aln],'')
+                gablam[aln] = rje.join(gablam[aln],'')
                 #self.verbose(2,4,'%s: %s' % (aln, gablam[aln]),1)
                 #self.bugPrint('%s: %s' % (aln, gablam[aln]))
-                #self.deBug('%s: Len = %d; Unaln = %d' % (aln,len(gablam[aln]),string.count(gablam[aln],'-')))
+                #self.deBug('%s: Len = %d; Unaln = %d' % (aln,len(gablam[aln]),rje.count(gablam[aln],'-')))
             gdict = { 'Query':{}, 'Hit':{} }
-            gdict['Query']['GABLAM Len'] = qrylen - string.count(gablam['Qry'],'-')
-            gdict['Query']['GABLAM ID'] = string.count(gablam['Qry'],'|')
-            gdict['Query']['GABLAM Sim'] = gdict['Query']['GABLAM ID'] + string.count(gablam['Qry'],'+')
-            gdict['Query']['GABLAMO Len'] = qrylen - string.count(gablam['QryO'],'-')
-            gdict['Query']['GABLAMO ID'] = string.count(gablam['QryO'],'|')
-            gdict['Query']['GABLAMO Sim'] = gdict['Query']['GABLAMO ID'] + string.count(gablam['QryO'],'+')
-            gdict['Hit']['GABLAM Len'] = hit['Length'] - string.count(gablam['Hit'],'-')
-            gdict['Hit']['GABLAM ID'] = string.count(gablam['Hit'],'|')
-            gdict['Hit']['GABLAM Sim'] = gdict['Hit']['GABLAM ID'] + string.count(gablam['Hit'],'+')
-            gdict['Hit']['GABLAMO Len'] = hit['Length'] - string.count(gablam['HitO'],'-')
-            gdict['Hit']['GABLAMO ID'] = string.count(gablam['HitO'],'|')
-            gdict['Hit']['GABLAMO Sim'] = gdict['Hit']['GABLAMO ID'] + string.count(gablam['HitO'],'+')
+            gdict['Query']['GABLAM Len'] = qrylen - rje.count(gablam['Qry'],'-')
+            gdict['Query']['GABLAM ID'] = rje.count(gablam['Qry'],'|')
+            gdict['Query']['GABLAM Sim'] = gdict['Query']['GABLAM ID'] + rje.count(gablam['Qry'],'+')
+            gdict['Query']['GABLAMO Len'] = qrylen - rje.count(gablam['QryO'],'-')
+            gdict['Query']['GABLAMO ID'] = rje.count(gablam['QryO'],'|')
+            gdict['Query']['GABLAMO Sim'] = gdict['Query']['GABLAMO ID'] + rje.count(gablam['QryO'],'+')
+            gdict['Hit']['GABLAM Len'] = hit['Length'] - rje.count(gablam['Hit'],'-')
+            gdict['Hit']['GABLAM ID'] = rje.count(gablam['Hit'],'|')
+            gdict['Hit']['GABLAM Sim'] = gdict['Hit']['GABLAM ID'] + rje.count(gablam['Hit'],'+')
+            gdict['Hit']['GABLAMO Len'] = hit['Length'] - rje.count(gablam['HitO'],'-')
+            gdict['Hit']['GABLAMO ID'] = rje.count(gablam['HitO'],'|')
+            gdict['Hit']['GABLAMO Sim'] = gdict['Hit']['GABLAMO ID'] + rje.count(gablam['HitO'],'+')
             for gscore in ['Start','End','Dirn']:
                 gdict['Query']['GABLAM %s' % gscore] = gablam['Qry%s' % gscore]
                 gdict['Query']['GABLAMO %s' % gscore] = gablam['Qry%sO' % gscore]
@@ -1373,7 +1373,7 @@ class BLASTRun(rje_obj.RJE_Object):
                 i = 0
                 #self.deBug('HIT SEQUENCE: %s' % gablam['Hit%s' % gab])
                 #self.bugPrint('GABLAM%s: %s' % (gab,min(max(-1,gablam['Hit%s' % gab].find('|',i)),max(-1,gablam['Hit'].find('+',i)))))
-                #self.deBug('Hit%s: Len = %d; Unaln = %d' % (gab,len(gablam['Hit%s' % gab]),string.count(gablam['Hit%s' % gab],'-')))
+                #self.deBug('Hit%s: Len = %d; Unaln = %d' % (gab,len(gablam['Hit%s' % gab]),rje.count(gablam['Hit%s' % gab],'-')))
                 while i > -1 and i < len(gablam['Hit%s' % gab]):
                     if log: self.progLog('\r#FRAG','GABLAM%s Fragging: %.2f%%' % (gab,i*100.0/len(gablam['Hit%s' % gab])))
                     i1 = max(-1,gablam['Hit%s' % gab].find('|',i))
@@ -1457,7 +1457,7 @@ class BLASTRun(rje_obj.RJE_Object):
             if not hitlist: hitlist = self.queryHits(query)
             for hit in hitlist:
                 hitseq[hit] = None
-                if seqdic.has_key(hit):
+                if hit in seqdic:
                     self.bugPrint('From dict: {0}'.format(hit))
                     hitseq[hit] = seqdic[hit]; hitseqlist.append(seqdic[hit])
                     hx += 1
@@ -1468,7 +1468,7 @@ class BLASTRun(rje_obj.RJE_Object):
                         hitseq[hit] = newseq; hx += 1
                         if newseqlist:
                             hitseqlist.append(newseq)
-                            sname = string.split(newseq[0])[0]
+                            sname = rje.split(newseq[0])[0]
                             self.verbose(2,4,'Seq %d retrieved from %s: %s.' % (len(hitseqlist),self.getStr('DBase'),sname),1)
                         else: self.verbose(2,4,'Seq %d retrieved from %s: %s.' % (seqlist.seqNum(),self.getStr('DBase'),newseq.shortName()),1)
                     else: self.errorLog('No Seq retrieval for %s using BLASTRun.hitToSeq().' % hit,printerror=False)
@@ -1580,23 +1580,23 @@ class BLASTRun(rje_obj.RJE_Object):
                             fragstart = max(1,fragstart)
                             fragend = min(fragend,seqlen)
                             fraqseq = sequence[fragstart-1:fragend]
-                            fragname = string.split(seqname)
+                            fragname = rje.split(seqname)
                             fragname[0] += '.%s-%s' % (rje.preZero(fragstart,seqlen),rje.preZero(fragend,seqlen))
                             if len(fragname) == 1: fragname.append('No description')
                             fragname[-1] += '|(Pos:%s..%s)' % (rje.iStr(fragstart),rje.iStr(fragend))
                             #fragname.insert(1,'%s GABLAM Hit:' % qry)
-                            fragname = string.join(fragname)
+                            fragname = rje.join(fragname)
                             qseq.append((fragname,fraqseq))
                         for (fragstart,fragend) in qryfrag[qry][hit]['Bwd']:
                             fragstart = max(1,fragstart)
                             fragend = min(fragend,seqlen)
                             fraqseq = rje_sequence.reverseComplement(sequence[fragstart-1:fragend])
-                            fragname = string.split(seqname)
+                            fragname = rje.split(seqname)
                             fragname[0] += '.%s-%s' % (rje.preZero(fragend,seqlen),rje.preZero(fragstart,seqlen))
                             fragname.insert(1,'RevComp')
                             fragname[-1] += '|(Pos:%s..%s)' % (rje.iStr(fragstart),rje.iStr(fragend))
                             #fragname.insert(1,'%s GABLAM Hit:' % qry)
-                            fragname = string.join(fragname)
+                            fragname = rje.join(fragname)
                             qseq.append((fragname,fraqseq))
                     if qseq:
                         hitseqlist.saveSeq(qseq,qfile,append=append,seqtuples=True)
@@ -1613,21 +1613,21 @@ class BLASTRun(rje_obj.RJE_Object):
                         fragstart = max(1,fragstart)
                         fragend = min(fragend,seqlen)
                         fraqseq = sequence[fragstart-1:fragend]
-                        fragname = string.split(seqname)
+                        fragname = rje.split(seqname)
                         fragname[0] += '.%s-%s' % (rje.preZero(fragstart,seqlen),rje.preZero(fragend,seqlen))
                         if len(fragname) == 1: fragname.append('No description')
                         fragname[-1] += '|(Pos:%s..%s)' % (rje.iStr(fragstart),rje.iStr(fragend))
-                        fragname = string.join(fragname)
+                        fragname = rje.join(fragname)
                         hseq.append((fragname,fraqseq))
                     for (fragstart,fragend) in hitfrag[hit]['Bwd']:
                         fragstart = max(1,fragstart)
                         fragend = min(fragend,seqlen)
                         fraqseq = rje_sequence.reverseComplement(sequence[fragstart-1:fragend])
-                        fragname = string.split(seqname)
+                        fragname = rje.split(seqname)
                         fragname[0] += '.%s-%s' % (rje.preZero(fragend,seqlen),rje.preZero(fragstart,seqlen))
                         fragname.insert(1,'RevComp')
                         fragname[-1] += '|(Pos:%s..%s)' % (rje.iStr(fragstart),rje.iStr(fragend))
-                        fragname = string.join(fragname)
+                        fragname = rje.join(fragname)
                         hseq.append((fragname,fraqseq))
                 hitseqlist.saveSeq(hseq,hfile,append=append,seqtuples=True)
                 self.dict['Output']['fragfas'] = hfile    # Hit fragments in Fasta format
@@ -1693,7 +1693,7 @@ class BLASTRun(rje_obj.RJE_Object):
                 qlen = self.db('Search').indexDataList('Query',entry['Query'],'Length')[0]
                 seq = seqdict[entry['Query']]
                 hit = entry['Hit']
-                if seqdict.has_key(hit):
+                if hit in seqdict:
                     if seqdict[hit] != seq:     # Has not hit itself
                         dismatrix.addDis(seq,seqdict[hit],1 - (entry['GABLAM ID'] / float(qlen)))
                 else: self.errorLog('No sequence for hit "%s"!' % hit,printerror=False)
@@ -1758,13 +1758,13 @@ class BLASTRun(rje_obj.RJE_Object):
             readhits = False    # Whether expecting BLAST hit information
             ASS = open(blastres,'r')
             bline = ASS.readline()
-            blastp = string.split(bline)[0]
+            blastp = rje.split(bline)[0]
             if 'BLAST' not in blastp.upper(): raise ValueError('%s does not appear to be a BLAST results file!' % blastres)
             self.printLog('#ALN','Generating alignments for %s assembly %s' % (blastp,blastres))
             while 1:
                 bline = ASS.readline()
                 if not bline: break
-                bdata = string.split(bline)
+                bdata = rje.split(bline)
                 if bline.startswith('Query='):                                      # New query
                     query = bdata[1]; alnseq = {'Query':''}; hits = []; resx +=1
                     if query not in qseqdict: raise ValueError('Query %s not found in query sequence file!' % query)
@@ -1772,7 +1772,7 @@ class BLASTRun(rje_obj.RJE_Object):
                 elif bline.startswith('Sequences producing significant alignments'):# One-line hit info
                     while query:
                         bline = rje.chomp(ASS.readline())
-                        bdata = string.split(bline)
+                        bdata = rje.split(bline)
                         if readhits and not bline: readhits = False; break
                         if bline:
                             hit = bdata[0]
@@ -1792,7 +1792,7 @@ class BLASTRun(rje_obj.RJE_Object):
                     while not bline.startswith('Lambda'):
                         bline = rje.chomp(ASS.readline())
                         if not bline or bline.startswith('Lambda'): continue
-                        bdata = string.split(bline)
+                        bdata = rje.split(bline)
                         self.bugPrint(bdata)
                         self.bugPrint(alnseq)
                         self.debug(alnpos)
@@ -1806,18 +1806,18 @@ class BLASTRun(rje_obj.RJE_Object):
                         else:   # Hit alnseq data will be a list of [hit,startpos,endpos,sequence] lists
                             hit = bdata[0]
                             if len(bdata) == 2:     # No sequence data, just gaps
-                                asshits[assx][3] += string.replace(bline[alnstart:alnend],' ','-')
+                                asshits[assx][3] += rje.replace(bline[alnstart:alnend],' ','-')
                                 assx += 1
                                 continue
                             self.bugPrint(asshits)
                             if assx >= len(asshits) or hit != asshits[assx][0] or rje.modulus(int(bdata[1])-asshits[assx][2]) != 1: # New alignment
-                                asshits.insert(assx,[hit,int(bdata[1]),int(bdata[3]),string.replace(bline[alnstart:alnend],' ','-')])
+                                asshits.insert(assx,[hit,int(bdata[1]),int(bdata[3]),rje.replace(bline[alnstart:alnend],' ','-')])
                                 if len(asshits[assx][3]) < len(alnseq['Query']):
                                     asshits[assx][3] = '-' * (len(alnseq['Query']) - len(asshits[assx][3])) + asshits[assx][3]
                             else:   # Continue
                                 asshits[assx][2] = int(bdata[3])
-                                asshits[assx][3] += string.replace(bline[alnstart:alnend],' ','-')
-                            if not string.split(bline[alnend-1:alnend]):    # End of sequence
+                                asshits[assx][3] += rje.replace(bline[alnstart:alnend],' ','-')
+                            if not rje.split(bline[alnend-1:alnend]):    # End of sequence
                                 alnseq[hit].append(asshits.pop(assx))
                             else: assx += 1
                             self.deBug(asshits)
@@ -1832,7 +1832,7 @@ class BLASTRun(rje_obj.RJE_Object):
                         alndict[query] = [(qname,qseq[:alnpos['Query'][0]-1]+alnseq['Query']+qseq[alnpos['Query'][1]:])]
                         alnext = ('-' * (alnpos['Query'][0]-1), '-' * (len(qseq) - alnpos['Query'][1]))
                     else:
-                        qname = '%s (Region %s..%s) %s' % (query,rje.iStr(alnpos['Query'][0]),rje.iStr(alnpos['Query'][1]),string.join(string.split(qname)[1:]))
+                        qname = '%s (Region %s..%s) %s' % (query,rje.iStr(alnpos['Query'][0]),rje.iStr(alnpos['Query'][1]),rje.join(rje.split(qname)[1:]))
                         alndict[query] = [(qname,alnseq['Query'])]
                     ## ~ Make sequence tuples ~~~~~~~~~~~~~~~ ##
                     qacc = query
@@ -1844,7 +1844,7 @@ class BLASTRun(rje_obj.RJE_Object):
                         if len(alnseq[hit]) == 1 and self.getStrLC('QConsensus') != 'full':   # Old code
                             alnpos[hit] = alnseq[hit][0][1:3]
                             alnseq[hit] = alnseq[hit][0][3]
-                            hitname = '%s.%s (QAssemble Region %s..%s) %s' % (hit,qacc,rje.iStr(alnpos[hit][0]),rje.iStr(alnpos[hit][1]),string.join(string.split(hitname)[1:]))
+                            hitname = '%s.%s (QAssemble Region %s..%s) %s' % (hit,qacc,rje.iStr(alnpos[hit][0]),rje.iStr(alnpos[hit][1]),rje.join(rje.split(hitname)[1:]))
                             alnseq[hit] += '-' * (len(alnseq['Query']) - len(alnseq[hit]))
                             if fullquery: alndict[query].append((hitname,alnext[0]+alnseq[hit]+alnext[1]))
                             else: alndict[query].append((hitname,alnseq[hit]))
@@ -1854,7 +1854,7 @@ class BLASTRun(rje_obj.RJE_Object):
                             for [hcheck,spos,epos,hseq] in alnseq[hit]:
                                 if hcheck != hit: raise ValueError
                                 hx += 1
-                                newname = '%s.%s.%d (QAssemble Region %s..%s) %s' % (hit,qacc,hx,rje.iStr(spos),rje.iStr(epos),string.join(string.split(hitname)[1:]))
+                                newname = '%s.%s.%d (QAssemble Region %s..%s) %s' % (hit,qacc,hx,rje.iStr(spos),rje.iStr(epos),rje.join(rje.split(hitname)[1:]))
                                 hseq += '-' * (len(alnseq['Query']) - len(hseq))
                                 # Add flanks if fullquery=T
                                 if fullquery: hseq = alnext[0]+hseq+alnext[1]
@@ -1863,19 +1863,19 @@ class BLASTRun(rje_obj.RJE_Object):
                                     hconsensus.append(hseq)
                                 elif self.getStrLC('QConsensus') == 'full': fconsensus.append(hseq)
                                 else: alndict[query].append((newname,hseq))
-                            hconsname = '%s) %s' % (hconsname[:-1], string.join(string.split(hitname)[1:]))
+                            hconsname = '%s) %s' % (hconsname[:-1], rje.join(rje.split(hitname)[1:]))
                             if hconsensus:
                                 hseq = self.makeConsensus(alndict[query][0][1],hconsensus)
                                 alndict[query].append((hconsname, hseq))
 
                         #>>> OLD >>>#
-                        #hitname = '%s (Region %s..%s) %s' % (hit,rje.iStr(alnpos[hit][0]),rje.iStr(alnpos[hit][1]),string.join(string.split(hitname)[1:]))
+                        #hitname = '%s (Region %s..%s) %s' % (hit,rje.iStr(alnpos[hit][0]),rje.iStr(alnpos[hit][1]),rje.join(rje.split(hitname)[1:]))
                         #alnseq[hit] += '-' * (len(alnseq['Query']) - len(alnseq[hit]))
                         #if fullquery: alndict[query].append((hitname,alnext[0]+alnseq[hit]+alnext[1]))
                         #else: alndict[query].append((hitname,alnseq[hit]))
                     if self.getStrLC('QConsensus') == 'full':
                         hseq = self.makeConsensus(alndict[query][0][1], fconsensus)
-                        hconsname = '%s.%s (%s)' % (qname,qacc,string.join(hits,'; '))
+                        hconsname = '%s.%s (%s)' % (qname,qacc,rje.join(hits,'; '))
                         alndict[query].append((hconsname, hseq))
                 elif bline.startswith('***** No hits found *****'): query = None    # No hits
                 elif bline.startswith('Effective search space used') and query:     # Process
@@ -1887,7 +1887,7 @@ class BLASTRun(rje_obj.RJE_Object):
                     OUTFAS.close(); outx += 1
                     self.printLog('#OUT','%s sequence alignment out to %s' % (rje.iLen(alndict[query]),fasfile))
                     if outx < 2: self.dict['Output']['qassembly'] = fasfile
-                    accnum = string.split(query,'__',maxsplit=1)[-1]
+                    accnum = rje.split(query,'__',maxsplit=1)[-1]
                     self.dict['Output'][accnum] = fasfile
                     if not returndict: alndict = {}
             ASS.close()
@@ -2017,7 +2017,7 @@ class BLASTRun(rje_obj.RJE_Object):
             ## ~ [0b] Setup local hit reduction ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             self.printLog('#~~#','## ~~~~~ BLAST Local Alignment Reduction ~~~~~ ##')
             if sortfield not in locdb.fields():
-                raise ValueError('"%s" is not a valid Local hit table field (%s)' % (sortfield,string.join(locdb.fields(),'|')))
+                raise ValueError('"%s" is not a valid Local hit table field (%s)' % (sortfield,rje.join(locdb.fields(),'|')))
             # Create a copy to protect initial data
             bdb = self.db().copyTable(locdb,'%s.reduced' % locdb.name())
             # ['Query','Hit','AlnID','BitScore','Expect','Length','Identity','Positives','QryStart','QryEnd','SbjStart','SbjEnd','QrySeq','SbjSeq','AlnSeq'],
@@ -2462,7 +2462,7 @@ class BLASTRun(rje_obj.RJE_Object):
             gffdb.renameField('Expect','score')
 
             # Tidy fields
-            gfields = string.split('seqid source type start end score strand phase attributes')
+            gfields = rje.split('seqid source type start end score strand phase attributes')
             gffdb.newKey(['seqid','start','AlnID','end','type','source','attributes'])
             gffdb.keepFields(gfields+['AlnID'])
             ### ~ [2] Output GFF File ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -2569,7 +2569,7 @@ class BLASTRun(rje_obj.RJE_Object):
                 #!# Or do it for reftype=Hit because the SEQ *should* be the revcomp sequence versus the reference!
                 if seqfields and revhit and reftype == 'Hit':
                     entry['HitSeq'] = rje_sequence.reverseComplement(entry['HitSeq'])
-                if seqfields and sequence: entry['SEQ'] = string.replace(entry['%sSeq' % qrytype],'-','')
+                if seqfields and sequence: entry['SEQ'] = rje.replace(entry['%sSeq' % qrytype],'-','')
                 # Add notes
                 for field in ['BitScore','Expect','Length','Identity']:
                     entry['NOTES'] += '%s=%s;' % (field,entry[field])
@@ -2625,7 +2625,7 @@ class BLASTRun(rje_obj.RJE_Object):
             cigel = [0,'']  # [Element,count] of current CIGAR element to be considered.
             cigar = ''
             ### ~ [1] Generate ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            for i in xrange(len(qryseq)):
+            for i in range(len(qryseq)):
                 qi = qryseq[i].upper()
                 ti = trgseq[i].upper()
                 if qi == ti: ci = '='
@@ -2660,7 +2660,7 @@ class BLASTRun(rje_obj.RJE_Object):
             if resfile != None: self.info['Name'] = resfile
             resline = self.loadFromFile(filename=self.info['Name'],v=1,checkpath=False,chomplines=True)
             try:
-                newtype = string.split(resline[0])[0].lower()
+                newtype = rje.split(resline[0])[0].lower()
                 if newtype in ['blastn','blastp','blastx','tblastn','tblastx','rpsblast','rpstblastn']: self.info['Type'] = newtype
             except:
                 if not resline: self.errorLog('No lines read in from %s.' % self.info['Name'],printerror=False)
@@ -2681,36 +2681,36 @@ class BLASTRun(rje_obj.RJE_Object):
                     search.info['Name'] = rje.matchExp('^Query=\s+(\S+)', line)[0]
                     sx += 1
                 elif re.search('^\s+\(\S+ letters\)',line):
-                    len_match = string.replace(rje.matchExp('^\s+\((\S+) letters\)',line)[0],',','')
-                    search.stat['Length'] = string.atoi(len_match)
+                    len_match = rje.replace(rje.matchExp('^\s+\((\S+) letters\)',line)[0],',','')
+                    search.stat['Length'] = rje.atoi(len_match)
                 elif line.find('Number of letters in database:') >= 0:
                     dblen = rje.matchExp('Number of letters in database:\s+(\d\S*)', line)[0]
                     dblen = re.sub('\D','',dblen)
-                    self.stat['DBLen'] = string.atoi(dblen)
+                    self.stat['DBLen'] = rje.atoi(dblen)
                 elif line.find('Number of sequences in database:') >= 0:
                     dbnum = rje.matchExp('Number of sequences in database:\s+(\d\S*)', line)[0]
                     dbnum = re.sub('\D','',dbnum)
-                    self.stat['DBNum'] = string.atoi(dbnum)
+                    self.stat['DBNum'] = rje.atoi(dbnum)
                 elif rje.matchExp('(\S+) sequences; (\S+) total letters',line):
                     (dbnum,dblen) = rje.matchExp('(\S+) sequences; (\S+) total letters',line)
-                    self.stat['DBNum'] = string.atoi(re.sub('\D','',dbnum))
-                    self.stat['DBLen'] = string.atoi(re.sub('\D','',dblen))
+                    self.stat['DBNum'] = rje.atoi(re.sub('\D','',dbnum))
+                    self.stat['DBLen'] = rje.atoi(re.sub('\D','',dblen))
                 elif line.find('Number of sequences better than') >= 0:
-                    self.stat['E-Value'] = string.atof(rje.matchExp('Number of sequences better than\s+(\S+):', line)[0])
+                    self.stat['E-Value'] = rje.atof(rje.matchExp('Number of sequences better than\s+(\S+):', line)[0])
                 ## ~ [2b] ~ One-line hit data (BLASTHit) ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
                 elif line.find('Sequences producing significant alignments:') >= 0: # One-line hits
-                    if string.split(line)[-1] == 'N': (si,ei) = (-3,-2)
+                    if rje.split(line)[-1] == 'N': (si,ei) = (-3,-2)
                     else: (si,ei) = (-2,-1)
                     i += 2  # Skip blank line
                     while rje.matchExp('^(\S+)\s.*\s(\S*\d)\s+(\S*\d)\s*$',resline[i]):
                         #match = rje.matchExp('^(\S+)\s.*\s(\d\S*)\s+(\S+\d)\s*$',resline[i])
-                        match = string.split(resline[i])
+                        match = rje.split(resline[i])
                         hit = search._addHit()
                         hit.setInfo({'Name':match[0],'Type':self.info['Type']})
-                        hit.stat['BitScore'] = string.atof(match[si])
+                        hit.stat['BitScore'] = rje.atof(match[si])
                         eval = match[ei]
                         if eval.find('e') == 0: eval = '1' + eval
-                        hit.stat['E-Value'] = string.atof(eval)
+                        hit.stat['E-Value'] = rje.atof(eval)
                         i += 1
                         hx += 1
                     line = resline[i]   # End of one-lines (blank line)
@@ -2745,24 +2745,24 @@ class BLASTRun(rje_obj.RJE_Object):
                         line = resline[i]
                         ## Hit Length ##
                         if re.search('^\s+Length\s+=\s+(\d+)',line):
-                            hit.stat['Length'] = string.atoi(rje.matchExp('^\s+Length = (\d+)',line)[0])
+                            hit.stat['Length'] = rje.atoi(rje.matchExp('^\s+Length = (\d+)',line)[0])
                         ## New Aln Block ##
                         elif hit.stat['Length'] and rje.matchExp('^\s*Score\s+=\s+(\S+)\sbits\s\((\S+)\).+Expect.+=\s+(\S+\d)\D*\s*',line):
                             aln = hit._addAln()
                             scores = rje.matchExp('^\s*Score\s+=\s+(\S+)\sbits\s\((\S+)\).+Expect.+=\s+(\S+\d)\D*\s*',line)
-                            aln.stat['BitScore'] = string.atof(scores[0])
-                            aln.stat['Score'] = string.atof(scores[1])
+                            aln.stat['BitScore'] = rje.atof(scores[0])
+                            aln.stat['Score'] = rje.atof(scores[1])
                             eval = scores[2]
                             if eval.find('e') == 0: eval = '1' + eval
-                            aln.stat['Expect'] = string.atof(eval)
+                            aln.stat['Expect'] = rje.atof(eval)
                             i += 1
                             if re.search('Identities\s+=\s+(\d+)/(\d+)\s?.+Positives = (\d+)/(\d+)\s?',resline[i]):
                                 sim = rje.matchExp('Identities\s+=\s+(\d+)/(\d+)\s?.+Positives\s+=\s+(\d+)/(\d+)\s?',resline[i])
-                                aln.stat['Positives'] = string.atoi(sim[2])
+                                aln.stat['Positives'] = rje.atoi(sim[2])
                             else: sim = rje.matchExp('Identities\s+=\s+(\d+)/(\d+)\s?',resline[i])
                             try:
-                                aln.stat['Length'] = string.atoi(sim[1])
-                                aln.stat['Identity'] = string.atoi(sim[0])
+                                aln.stat['Length'] = rje.atoi(sim[1])
+                                aln.stat['Identity'] = rje.atoi(sim[0])
                             except: self.errorLog('Problem reading line "%s"' % resline[i])
                             if resline[i+1].find('Frame') >= 0: i += 1    # BLASTX or TBLASTN
                         ## Alignment ##
@@ -2775,9 +2775,9 @@ class BLASTRun(rje_obj.RJE_Object):
                                 break
                             leader = len(alnstructure[0])
                             aln.info['QrySeq'] += alnstructure[1]
-                            aln.stat['QryEnd'] = string.atoi(alnstructure[2])
+                            aln.stat['QryEnd'] = rje.atoi(alnstructure[2])
                             if aln.stat['QryStart'] == 0:
-                                aln.stat['QryStart'] = string.atoi(rje.matchExp('^Query:\s+(\d+)\s',alnstructure[0])[0])
+                                aln.stat['QryStart'] = rje.atoi(rje.matchExp('^Query:\s+(\d+)\s',alnstructure[0])[0])
                             # Alignment Line
                             i += 1; aln.info['AlnSeq'] += resline[i][leader:(leader+len(alnstructure[1]))]
                             # Subject Line
@@ -2787,8 +2787,8 @@ class BLASTRun(rje_obj.RJE_Object):
                                 aln._clear()
                                 break
                             aln.info['SbjSeq'] += subject[1]
-                            aln.stat['SbjEnd'] = string.atoi(subject[2])
-                            if aln.stat['SbjStart'] == 0: aln.stat['SbjStart'] = string.atoi(subject[0])
+                            aln.stat['SbjEnd'] = rje.atoi(subject[2])
+                            if aln.stat['SbjStart'] == 0: aln.stat['SbjStart'] = rje.atoi(subject[0])
                         ## End of Aln ##
                         elif line.find('>') == 0:
                             i -= 1  # i Advanced anyway, so subtract 1
@@ -2883,7 +2883,7 @@ class BLASTRun(rje_obj.RJE_Object):
                     if proglog:
                         ltxt = 'Mapping %s searches onto %s sequences' % (self.info['Name'],seqlist.info['Name'])
                         self.printLog('\r#SEARCH','%s: %.2f%%' % (ltxt,(hx/self.searchNum())),newline=False,log=False)
-                    if seqdic.has_key(search.info['Name']):
+                    if search.info['Name'] in seqdic:
                         searchdic[search] = seqdic[search.info['Name']]
                         mx += 1
                     else:
@@ -2930,7 +2930,7 @@ class BLASTRun(rje_obj.RJE_Object):
                 for hit in self.hit:
                     hx += 100.0
                     if proglog: self.progLog('\r#HIT','%s: %.2f%%' % (ltxt,(hx/self.hitNum())))
-                    if seqdic.has_key(hit.info['Name']):
+                    if hit.info['Name'] in seqdic:
                         hitdic[hit] = seqdic[hit.info['Name']]
                         mx += 1
                     else:
@@ -3023,7 +3023,7 @@ def checkForDB(dbfile=None,checkage=True,log=None,protein=True,oldblast=False): 
                     return False
             else: missing.append(suf)
         if missing:
-            if log and len(missing) < 4: log.errorLog('%s.%s missing' % (dbfile,string.join(missing,'/')),False,False)
+            if log and len(missing) < 4: log.errorLog('%s.%s missing' % (dbfile,rje.join(missing,'/')),False,False)
             return False
         return True
     except:

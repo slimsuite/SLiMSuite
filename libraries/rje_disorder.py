@@ -289,9 +289,9 @@ class Disorder(rje.RJE_Object):
         >> name:str = (optional) name for sequence - goes in self.info['Name']
         '''
         try:### ~ [1] ~ Setup sequence and name ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            if sequence: self.info['Sequence'] = string.join(string.split(sequence,'-'),'')
+            if sequence: self.info['Sequence'] = rje.join(rje.split(sequence,'-'),'')
             if name: self.info['Name'] = name
-            sname = string.split(self.info['Name'])[0]
+            sname = rje.split(self.info['Name'])[0]
             if not self.info['Sequence']:
                 self.log.errorLog('Cannot calculate disorder: no AAs given in sequence!',printerror=False)
                 return False
@@ -323,11 +323,11 @@ class Disorder(rje.RJE_Object):
     def loadDisorder(self): ### Looks for existing disorder prediction results and loads if found.
         '''Looks for existing disorder prediction results and loads if found.'''
         try:### ~ [1] ~ Setup sequence and name ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            sname = string.split(self.getStr('Name'))[0]
+            sname = rje.split(self.getStr('Name'))[0]
             if not self.getStrLC('IUScoreDir'): return False
             sequence = self.getStrUC('Sequence')
             if self.getBool('MD5Acc'): acc = self.md5hash(sequence)
-            else: acc = string.split(sname,'__',maxsplit=1)[-1]
+            else: acc = rje.split(sname,'__',maxsplit=1)[-1]
             ### ~ [2] ~ Look for file ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             ifile = '%s%s.%s.txt' % (self.getStr('IUScoreDir'),acc,self.getStrLC('Disorder'))
             #self.debug(ifile)
@@ -335,7 +335,7 @@ class Disorder(rje.RJE_Object):
             ### ~ [3] ~ Parse file ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             self.list['ResidueDisorder'] = []
             fline = open(ifile,'r').readline()
-            for dstr in string.split(fline)[1:]: self.list['ResidueDisorder'].append(string.atof(dstr))
+            for dstr in rje.split(fline)[1:]: self.list['ResidueDisorder'].append(rje.atof(dstr))
             if len(self.list['ResidueDisorder']) != len(sequence):
                 self.errorLog('%s Disorder score length mismatch (%d score vs %d pos)' % (sname,len(self.list['ResidueDisorder']),len(sequence)),printerror=False)
                 self.list['ResidueDisorder'] = []; return False
@@ -347,13 +347,13 @@ class Disorder(rje.RJE_Object):
     def saveDisorder(self): ### Saves disorder prediction results to file.
         '''Saves disorder prediction results to file.'''
         try:### ~ [1] ~ Setup sequence and name ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            sname = string.split(self.getStr('Name'))[0]
+            sname = rje.split(self.getStr('Name'))[0]
             if not self.getStrLC('IUScoreDir'): return False
             sequence = self.getStrUC('Sequence')
             if self.getBool('MD5Acc'):
                 acc = self.md5hash(sequence)
                 sname = sequence
-            else: acc = string.split(sname,'__',maxsplit=1)[-1]
+            else: acc = rje.split(sname,'__',maxsplit=1)[-1]
             ### ~ [2] ~ Set up file ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             ifile = '%s%s.%s.txt' % (self.getStr('IUScoreDir'),acc,self.getStrLC('Disorder'))
             ### ~ [3] ~ Save to File ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -362,7 +362,7 @@ class Disorder(rje.RJE_Object):
                 for x in self.list['ResidueDisorder']:
                     dlist.append('%f' % x)
                 rje.mkDir(self,ifile)
-                open(ifile,'w').write('%s\t%s\n' % (sname,string.join(dlist)))
+                open(ifile,'w').write('%s\t%s\n' % (sname,rje.join(dlist)))
         except:
             self.log.errorLog('Error in Disorder.saveDisorder(%s)' % sname,quitchoice=True)
             return False
@@ -382,8 +382,8 @@ class Disorder(rje.RJE_Object):
             sequence = self.info['Sequence'].upper()
             name = self.info['Name'][:4] + rje.randomString(8)
             tmp = name + '.tmp'
-            sname = string.split(self.getStr('Name'))[0]
-            acc = string.split(sname,'__',maxsplit=1)[-1]
+            sname = rje.split(self.getStr('Name'))[0]
+            acc = rje.split(sname,'__',maxsplit=1)[-1]
 
             #!# Temp shunt to old method #!#
             if retry < 2 and disorder.endswith('2'): disorder = disorder[:-1]
@@ -395,6 +395,7 @@ class Disorder(rje.RJE_Object):
                 url = 'https://iupred2a.elte.hu/iupred2a/%s/%s' % (iumethod,acc)
                 try:
                     dlines = urllib2.urlopen(url).readlines()
+                    dlines = rje.decodeList(dlines)
                     if 'not found' in dlines[0]: raise ValueError(dlines[0])
                 except:
                     self.errorLog(url)
@@ -404,9 +405,9 @@ class Disorder(rje.RJE_Object):
             ## ~ [2b] Run IUPred2 on the commandline ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             #?# Add an option to try online then switch to local?
             if not disorder.endswith('2'):
-                iupath = string.join(string.split(self.info['IUPath'],os.sep)[:-1],os.sep)
-                iupred = string.split(self.info['IUPath'],os.sep)[-1]
-                if self.opt['IUChDir']: os.chdir(string.join(string.split(self.info['IUPath'],os.sep)[:-1],os.sep))
+                iupath = rje.join(rje.split(self.info['IUPath'],os.sep)[:-1],os.sep)
+                iupred = rje.split(self.info['IUPath'],os.sep)[-1]
+                if self.opt['IUChDir']: os.chdir(rje.join(rje.split(self.info['IUPath'],os.sep)[:-1],os.sep))
                 open(tmp,'w').write('>%s\n%s\n' % (name,sequence))
                 if self.opt['IUChDir'] and self.opt['Win32']: iucmd = '%s %s %s' % (iupred,tmp,iumethod)
                 elif self.opt['IUChDir']: iucmd = './%s %s %s' % (iupred,tmp,iumethod)
@@ -422,15 +423,16 @@ class Disorder(rje.RJE_Object):
             iuregex = '^\s*(\d+)\s+(\S)\s+(\S+)'
             if iumethod in ['anchor','redox']: iuregex = '^\s*(\d+)\s+(\S)\s+\S+\s+(\S+)'
             for d in dlines:
+                self.bugPrint(d)
                 if rje.matchExp(iuregex,d):
                     dm = rje.matchExp(iuregex,d)
-                    pos = string.atoi(dm[0])
+                    pos = rje.atoi(dm[0])
                     aa = dm[1]
-                    score = string.atof(dm[2])
+                    score = rje.atof(dm[2])
                     i = len(self.list['ResidueDisorder'])
                     if sequence[i] != aa:
-                        self.log.errorLog('%s: Position %d is %s in sequence but %s in IUPred output!' % (name,pos,sequence[i],aa),printerror=False)
-                        raise ValueError
+                        self.warnLog('%s: Position %d is %s in sequence but %s in IUPred output!' % (name,pos,sequence[i],aa))
+                        #raise ValueError
                     if pos != (i + 1):
                         self.log.errorLog('%s: Position %d reached in IUPred output but previous results missing!' % (name,pos),printerror=False)
                         raise ValueError
@@ -469,6 +471,8 @@ class Disorder(rje.RJE_Object):
             if self.opt['PrintLog']: self.log.printLog('\r#DIS','IUPred (%s) Disorder prediction complete: %d disorder regions, %d disordered aa' % (self.info['IUMethod'].lower(),len(self.list['RegionDisorder']),dx))
             return True
         except:
+            if self.debugging():
+                self.errorLog('Disorder error')
             if self.opt['IUChDir']: os.chdir(mydir)            
             if retry:
                 self.printLog('#RETRY','Trying %s again...' % name)
@@ -542,9 +546,9 @@ class Disorder(rje.RJE_Object):
                 if d[:1] == '#': continue
                 if rje.matchExp('^(\d+)\s+(\S)\s+(\S+)',d):
                     dm = rje.matchExp('^(\d+)\s+(\S)\s+(\S+)',d)
-                    pos = string.atoi(dm[0])
+                    pos = rje.atoi(dm[0])
                     aa = dm[1]
-                    score = string.atof(dm[2])
+                    score = rje.atof(dm[2])
                     i = len(self.list['ResidueDisorder'])
                     if sequence[i] != aa:
                         self.log.errorLog('%s: Position %d is %s in sequence but %s in ANCHOR output!' % (name,pos,sequence[i],aa),printerror=False)
@@ -645,8 +649,8 @@ class Disorder(rje.RJE_Object):
             for f in flines:
                 if rje.matchExp('<segment start="(\d+)" end="(\d+)" len="(\d+)"',f):
                     fm = rje.matchExp('<segment start="(\d+)" end="(\d+)" len="(\d+)"',f)
-                    self.list['RegionDisorder'].append((string.atoi(fm[0]),string.atoi(fm[1])))
-                    for i in range(string.atoi(fm[0])-1,string.atoi(fm[1])):
+                    self.list['RegionDisorder'].append((rje.atoi(fm[0]),rje.atoi(fm[1])))
+                    for i in range(rje.atoi(fm[0])-1,rje.atoi(fm[1])):
                         self.list['ResidueDisorder'][i] = 1.0
             ### Update Regions
             self.updateRegions()
@@ -676,7 +680,7 @@ class Disorder(rje.RJE_Object):
 
             ### Set background
             disreg = False; ordreg = False
-            for region in string.split(name)[1:]:
+            for region in rje.split(name)[1:]:
                 if rje.matchExp('^[#&](\d+)-(\d+)',region):
                     if rje.matchExp('^([#&])(\d+)-(\d+)',region)[0] == '#': disreg = True
                     elif rje.matchExp('^([#&])(\d+)-(\d+)',region)[0] == '&': outreg = True
@@ -686,12 +690,12 @@ class Disorder(rje.RJE_Object):
             self.list['ResidueDisorder'] = [bgscore] * len(sequence)
 
             ### Process ###
-            for region in string.split(name)[1:]:
+            for region in rje.split(name)[1:]:
                 if rje.matchExp('^[#&](\d+)-(\d+)',region):
                     (i,x,y) = rje.matchExp('^([#&])(\d+)-(\d+)',region)
                     score = scoredict[i]
-                    start = string.atoi(x)
-                    end = string.atoi(y)
+                    start = rje.atoi(x)
+                    end = rje.atoi(y)
                     for r in range(start,end): self.list['ResidueDisorder'][r] = score
                     if i == '#': self.list['RegionDisorder'].append((start,end))
                     elif i == '&': self.list['RegionFold'].append((start,end))

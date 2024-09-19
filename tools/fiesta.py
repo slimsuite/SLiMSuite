@@ -95,7 +95,7 @@ Commandline:
     ### ~ ANNOTATION ~ ###
     est2rf=T/F      : Execute BLAST-based EST to RF translation/annotation only, on seqin [False]
     est2haq=T/F     : Execute BLAST-based EST to RF translation/annotation on seqin followed by HAQESAC analysis [False]
-    blastann=T/F    : Execute BLAST-based annotation of conensus translations only, on seqin [False]
+    blastann=T/F    : Execute BLAST-based annotation of consensus translations only, on seqin [False]
     truncnt=T/F     : Whether to truncate N-terminal to Met in final BLAST annotation (if hit) [False]
     searchdb=FILE   : Fasta file for GABLAM search of EST translations [None]
 
@@ -189,7 +189,7 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         if not out: out = rje.Out()
         help = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
         if help > 0:
-            print '\n\nHelp for %s %s: %s\n' % (info.program, info.version, time.asctime(time.localtime(info.start_time)))
+            rje.printf('\n\nHelp for {0} {1}: {2}\n'.format(info.program, info.version, time.asctime(time.localtime(info.start_time))))
             out.verbose(-1,4,text=__doc__)
             if rje.yesNo('Show general commandline options?'): out.verbose(-1,4,text=rje.__doc__)
             if rje.yesNo('Quit?'): sys.exit()
@@ -198,36 +198,30 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         return cmd_list
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Major Problem with cmdHelp()'
+    except: rje.printf('Major Problem with cmdHelp()')
 #########################################################################################################################
-def setupProgram(): ### Basic Setup of Program
+def setupProgram(): ### Basic Setup of Program when called from commandline.
     '''
-    Basic setup of Program:
+    Basic Setup of Program when called from commandline:
     - Reads sys.argv and augments if appropriate
     - Makes Info, Out and Log objects
     - Returns [info,out,log,cmd_list]
     '''
-    try:
-        ### Initial Command Setup & Info ###
-        info = makeInfo()
+    try:### ~ [1] ~ Initial Command Setup & Info ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+        info = makeInfo()                                   # Sets up Info object with program details
         if len(sys.argv) == 2 and sys.argv[1] in ['version','-version','--version']: rje.printf(info.version); sys.exit(0)
-        if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: rje.printf('{0} v{1}'.format(info.program,info.version)); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: rje.printf('%s v%s' % (info.program,info.version)); sys.exit(0)
         if len(sys.argv) == 2 and sys.argv[1] in ['description','-description','--description']: rje.printf('%s: %s' % (info.program,info.description)); sys.exit(0)
-        cmd_list = rje.getCmdList(sys.argv[1:],info=info)      ### Load defaults from program.ini
-        ### Out object ###
-        out = rje.Out(cmd_list=cmd_list)
-        out.verbose(2,2,cmd_list,1)
-        out.printIntro(info)
-        ### Additional commands ###
-        cmd_list = cmdHelp(info,out,cmd_list)
-        ### Log ###
-        log = rje.setLog(info=info,out=out,cmd_list=cmd_list)
-        return [info,out,log,cmd_list]
+        cmd_list = rje.getCmdList(sys.argv[1:],info=info)   # Reads arguments and load defaults from program.ini
+        out = rje.Out(cmd_list=cmd_list)                    # Sets up Out object for controlling output to screen
+        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2
+        out.printIntro(info)                                # Prints intro text using details from Info object
+        cmd_list = cmdHelp(info,out,cmd_list)               # Shows commands (help) and/or adds commands from user
+        log = rje.setLog(info,out,cmd_list)                 # Sets up Log object for controlling log file output
+        return (info,out,log,cmd_list)                      # Returns objects for use in program
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except:
-        print 'Problem during initial setup.'
-        raise
+    except: rje.printf('Problem during initial setup.'); raise
 #########################################################################################################################
 ### END OF SECTION I                                                                                                    #
 #########################################################################################################################
@@ -360,8 +354,8 @@ class FIESTA(rje.RJE_Object):
             if not self.info['Species'] and self.info['SpCode']: self.info['Species'] = self.info['SpCode']
             ### ~ [2] ~ NewAcc ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if not self.info['NewAcc']: 
-                if len(string.split(self.info['Species'])) > 1:
-                    [genus,species] = string.split(self.info['Species'].upper())[:2]
+                if len(rje.split(self.info['Species'])) > 1:
+                    [genus,species] = rje.split(self.info['Species'].upper())[:2]
                     self.info['NewAcc'] = '%s%s' % (genus[:1],species[:3])
                 elif self.info['SpCode']: self.info['NewAcc'] = self.info['SpCode']
                 else: self.info['Species'] = 'Unknown'; self.info['SpCode'] = 'UNK'
@@ -505,7 +499,7 @@ class FIESTA(rje.RJE_Object):
             seqlist._checkForDup(True)
             seqlist.saveFasta()
             mini = mhaq.cmd_list + ['seqin=%s' % seqlist.name(),'blast2fas=','haqdir=%s' % mhaq.info['HaqDir']]
-            open('%s.multihaq.ini' % self.baseFile(),'w').write(string.join(mini,'\n'))
+            open('%s.multihaq.ini' % self.baseFile(),'w').write(rje.join(mini,'\n'))
             self.printLog('#INI','MultiHAQ INI File %s.multihaq.ini generated (for manual re-run w/o blast2fas).' % self.baseFile())
             if rje.checkForFile(searchdb): batchres.append(searchdb)
             batchres += self.list['HAQDB']
@@ -648,7 +642,7 @@ class FIESTA(rje.RJE_Object):
             myrfs.info['Name'] = '%s.%s.tmp.fas' % (est,rje.randomString(6))
             myrfs.opt['ReplaceChar'] = False
             if len(seq.getSequence()) < (3 * self.stat['MinORF']):
-                open(fiestatdt,'a').write('%s\n' % string.join([est,'0','-','-','-'],'\t'))
+                open(fiestatdt,'a').write('%s\n' % rje.join([est,'0','-','-','-'],'\t'))
                 return 0
             rftrans = rje_sequence.estTranslation(seq.getSequence(),self.stat['MinPolyAT'],self.opt['FwdOnly'])
             for rf in rje.sortKeys(rftrans):
@@ -657,7 +651,7 @@ class FIESTA(rje.RJE_Object):
                 myrfs._addSeq('%s_RF%s' % (seq.shortName(),rf),trans)
             ## ~ [1b] ~ BLAST sequence against search database ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             if not myrfs.seq:
-                open(fiestatdt,'a').write('%s\n' % string.join([est,'%d' % myrfs.seqNum(),'-','-','-'],'\t'))
+                open(fiestatdt,'a').write('%s\n' % rje.join([est,'%d' % myrfs.seqNum(),'-','-','-'],'\t'))
                 return 0
             myrfs.saveFasta(log=False)
             rfblast.setInfo({'InFile':myrfs.info['Name'],'Name':'%s.blast' % rje.baseFile(myrfs.info['Name']),'Type':'blastp'})
@@ -693,8 +687,8 @@ class FIESTA(rje.RJE_Object):
                         qend = max(qend,ldict['QryEnd'])
                         #!# Add code (an option) to catch an unmatched ORF in the middle: 2+ hits in same RF?!
                     if qend < qstart: raise ValueError('Failed to map local hit data for %s vs %s!' % (query,hit))
-                    prevorf = string.split(orfseq[:qstart],'*')[-1]
-                    postorf = string.split(orfseq[qend:],'*')[0]
+                    prevorf = rje.split(orfseq[:qstart],'*')[-1]
+                    postorf = rje.split(orfseq[qend:],'*')[0]
                     #self.debug(qstart); self.debug(qend)
                     rfseq.info['Sequence'] = prevorf + orfseq[qstart:qend] + postorf
                     #self.deBug(orfseq)
@@ -706,10 +700,10 @@ class FIESTA(rje.RJE_Object):
                 if bestrf and hitx:     # Best RF has BLAST hit
                     query = bestrf.shortName()
                     hdict = rfblast.hitData(rfblast.queryHits(query)[0],query)
-                    open(fiestatdt,'a').write('%s\n' % string.join([est,'%d' % myrfs.seqNum(),query,hdict['Hit'],rje.expectString(hdict['E-Value'])],'\t'))
+                    open(fiestatdt,'a').write('%s\n' % rje.join([est,'%d' % myrfs.seqNum(),query,hdict['Hit'],rje.expectString(hdict['E-Value'])],'\t'))
                 else:
                     for rfseq in myrfs.seqs():
-                        open(fiestatdt,'a').write('%s\n' % string.join([est,'%d' % myrfs.seqNum(),rfseq.shortName(),'-','-'],'\t'))
+                        open(fiestatdt,'a').write('%s\n' % rje.join([est,'%d' % myrfs.seqNum(),rfseq.shortName(),'-','-'],'\t'))
 
             else:
                 seqlist = rje_seq.SeqList(self.log,self.cmd_list+['seqin=None','autoload=F','autofilter=F','dna=F'])
@@ -720,7 +714,7 @@ class FIESTA(rje.RJE_Object):
                 for rfseq in myrfs.seqs():
                     try: search = searchdict[rfseq]
                     except:
-                        print searchdict
+                        self.bugPrint(searchdict)
                         rfseq.info['Name'] = '%s (BLAST error)' % rfseq.shortName()
                         self.errorLog('BLAST search for %s missing!' % rfseq.shortName(),printerror=False)
                         search = None
@@ -742,10 +736,10 @@ class FIESTA(rje.RJE_Object):
                     rfseq.info['Name'] = '%s Similar (e=%s) to %s' % (rfseq.shortName(),rje.expectString(hit.stat['E-Value']),hitname)
                     if not bestrf or hit.stat['E-Value'] < beste: (bestrf,beste) = (rfseq,hit.stat['E-Value'])
                     galn = hit.dict['GABLAM']['Aln']['Qry']    # Replace with '|', '+' or 'X'
-                    rfseq.info['GAln'] = string.join(galn,'')
+                    rfseq.info['GAln'] = rje.join(galn,'')
                     #self.deBug(rfseq.info['GAln'])
                     ## ~ [2c] ~ Identify ORFs with some coverage and reduce sequences to covered ORFs ~ ##
-                    orfs = string.split(rfseq.getSequence(),'*')
+                    orfs = rje.split(rfseq.getSequence(),'*')
                     (start,end) = (0,0)
                     (firstcov,lastcov) = (-1,-1)
                     for i in range(len(orfs)):
@@ -753,13 +747,13 @@ class FIESTA(rje.RJE_Object):
                         end += len(orf)
                         orfgaln = rfseq.info['GAln'][start:end]
                         #self.deBug('%d: %s' % (i,orfgaln))
-                        if string.count(orfgaln,'-') != len(orfgaln):   # At least partial coverage by 1+ hits
+                        if rje.count(orfgaln,'-') != len(orfgaln):   # At least partial coverage by 1+ hits
                             if firstcov < 0: firstcov = i
                             lastcov = i
                         #!# else: # Add code (an option) to catch an unmatched ORF in the middle: 2+ hits in same RF?!
                         start = end = (end + 1)
                     lastcov += 1
-                    rfseq.info['Sequence'] = string.join(orfs[firstcov:lastcov],'*')
+                    rfseq.info['Sequence'] = rje.join(orfs[firstcov:lastcov],'*')
                     #self.deBug('%s' % orfs)
                     #self.deBug(rfseq.info['Sequence'])
                     
@@ -768,10 +762,10 @@ class FIESTA(rje.RJE_Object):
                 for rfseq in myrfs.seqs(): open(fiestafas,'a').write('>%s\n%s\n' % (rfseq.info['Name'],rfseq.getSequence()))
                 if bestrf and hitx:     # Best RF has BLAST hit
                     hit = searchdict[bestrf].hit[0]
-                    open(fiestatdt,'a').write('%s\n' % string.join([est,'%d' % myrfs.seqNum(),bestrf.shortName(),hit.info['Name'],rje.expectString(hit.stat['E-Value'])],'\t'))
+                    open(fiestatdt,'a').write('%s\n' % rje.join([est,'%d' % myrfs.seqNum(),bestrf.shortName(),hit.info['Name'],rje.expectString(hit.stat['E-Value'])],'\t'))
                 else:
                     for rfseq in myrfs.seqs():
-                        open(fiestatdt,'a').write('%s\n' % string.join([est,'%d' % myrfs.seqNum(),rfseq.shortName(),'-','-'],'\t'))
+                        open(fiestatdt,'a').write('%s\n' % rje.join([est,'%d' % myrfs.seqNum(),rfseq.shortName(),'-','-'],'\t'))
 
             return myrfs.seqNum()
 
@@ -800,7 +794,7 @@ class FIESTA(rje.RJE_Object):
             self.progLog('#HITS','Compiling BLAST hit data...')
             self.loadMapping('Trans')
             clusters = rje.dataDict(self,fiestatdt,['TopHit'],['EST','Trans'],lists=True)
-            if clusters.has_key('-'): nohits = clusters.pop('-')
+            if '-' in clusters: nohits = clusters.pop('-')
             else: nohits = {'EST':[],'Trans':[]}
             nohits['EST'] = rje.sortUnique(nohits['EST'],xreplace=False)
             self.printLog('\r#HITS','%s different BLAST hits. %s ESTs (%s Trans) w/o hits.' % (rje.integerString(len(clusters)),rje.integerString(len(nohits['EST'])),rje.integerString(len(nohits['Trans']))))
@@ -942,8 +936,8 @@ class FIESTA(rje.RJE_Object):
                         open(fiestafas,'a').write('>%s\n%s\n' % (nextseq.info['Name'],nextseq.getSequence()))
                         if hit:
                             hdict = rfblast.hitData(hit=hit,query=query)
-                            open(fiestatdt,'a').write('%s\n' % string.join([nextseq.shortName(),hit,rje_blast.expectString(hdict['E-Value'])],'\t')); bx += 1
-                        else: open(fiestatdt,'a').write('%s\n' % string.join([nextseq.shortName(),'-','-'],'\t'))
+                            open(fiestatdt,'a').write('%s\n' % rje.join([nextseq.shortName(),hit,rje_blast.expectString(hdict['E-Value'])],'\t')); bx += 1
+                        else: open(fiestatdt,'a').write('%s\n' % rje.join([nextseq.shortName(),'-','-'],'\t'))
                     else:
                         hit = None
                         try:
@@ -970,8 +964,8 @@ class FIESTA(rje.RJE_Object):
                         except: nextseq.info['Name'] = '%s (BLAST error)' % nextseq.shortName()
                         ## ~ [2d] ~ Select/Output the best (if there is one) or all if no best ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
                         open(fiestafas,'a').write('>%s\n%s\n' % (nextseq.info['Name'],nextseq.getSequence()))
-                        if hit: open(fiestatdt,'a').write('%s\n' % string.join([nextseq.shortName(),hit.info['Name'],rje_blast.expectString(hit.stat['E-Value'])],'\t')); bx += 1
-                        else: open(fiestatdt,'a').write('%s\n' % string.join([nextseq.shortName(),'-','-'],'\t'))
+                        if hit: open(fiestatdt,'a').write('%s\n' % rje.join([nextseq.shortName(),hit.info['Name'],rje_blast.expectString(hit.stat['E-Value'])],'\t')); bx += 1
+                        else: open(fiestatdt,'a').write('%s\n' % rje.join([nextseq.shortName(),'-','-'],'\t'))
                 SEQFILE.close()
                 self.printLog('\r#SEQ','Processed sequences: %s with BLAST hits >> %s' % (rje.integerString(bx),fiestafas))
         except: self.errorLog('Problem during fiesta.annotateTrans(%s)' % stype); return False
@@ -1468,11 +1462,10 @@ class FIESTA(rje.RJE_Object):
 #########################################################################################################################
 def runMain():
     ### ~ [1] ~ Basic Setup of Program  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-    try: [info,out,mainlog,cmd_list] = setupProgram()
-    except SystemExit: return  
-    except:
-        print 'Unexpected error during program setup:', sys.exc_info()[0]
-        return 
+    try: (info,out,mainlog,cmd_list) = setupProgram()
+    except SystemExit: return
+    except: rje.printf('Unexpected error during program setup:', sys.exc_info()[0]); return
+
     ### ~ [2] ~ Rest of Functionality... ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try: FIESTA(mainlog,['oldblast=F']+cmd_list).run()
     ### ~ [3] ~ End ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -1483,7 +1476,7 @@ def runMain():
 #########################################################################################################################
 if __name__ == "__main__":      ### Call runMain 
     try: runMain()
-    except: print 'Cataclysmic run error:', sys.exc_info()[0]
+    except: rje.printf('Cataclysmic run error: {0}'.format(sys.exc_info()[0]))
     sys.exit()
 #########################################################################################################################
 ### END OF SECTION IV                                                                                                   #

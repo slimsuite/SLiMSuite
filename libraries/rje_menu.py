@@ -91,17 +91,17 @@ def menu(callobj,headtext='',menulist=[],choicetext='Please select:',changecase=
             else: choicedict[code] = (vtype,key)
         ## ~ [0c] Setup Header Text ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
         maxlen = 0
-        for line in string.split(headtext,'\n'):
+        for line in rje.split(headtext,'\n'):
             if len(line) > maxlen: maxlen = len(line)
         headlist = ['#' * (maxlen + 10)]
-        for line in string.split(headtext,'\n')[0:]:
+        for line in rje.split(headtext,'\n')[0:]:
             while len(line) < maxlen: line += ' '
             headlist.append('# #> %s <# #' % line)
         headlist.append(headlist[0])
         ### ~ [1] Main Menu Loop ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         while menulist:
             ## ~ [1a] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-            mtxt = '\n%s' % string.join(headlist,'\n')
+            mtxt = '\n%s' % rje.join(headlist,'\n')
             while mtxt[-2:] != '\n\n': mtxt += '\n'
             for (code,desc,vtype,key) in menulist:
                 if vtype and (code or desc):
@@ -119,13 +119,13 @@ def menu(callobj,headtext='',menulist=[],choicetext='Please select:',changecase=
                     choice = rje.choice(choicetext,default=default,confirm=confirm)
                     if changecase: choice = choice.upper()
                     ## ~ Process user choice ~ ##
-                    if choicedict.has_key(choice):
+                    if choice in choicedict:
                         (vtype,key) = choicedict[choice]
                         if vtype in ['str','info']: callobj.setInfo({key:callobj._editChoice(key,callobj.getStr(key))})
                         if vtype in ['num','stat']: callobj.setStat({key:callobj._editChoice(key,callobj.getNum(key),numeric=True)})
                         if vtype == 'int': callobj.setStat({key:int(callobj._editChoice(key,callobj.getInt(key),numeric=True))})
                         if vtype in ['bool','opt']: callobj.setOpt({key: not callobj.getBool(key)})
-                        if vtype == 'list': callobj.list[key] = string.split(callobj._editChoice(key,callobj.list[key]))
+                        if vtype == 'list': callobj.list[key] = rje.split(callobj._editChoice(key,callobj.list[key]))
                         if vtype == 'infile': callobj.setInfo({key: rje.getFileName('%s File Name?' % key,callobj.getStr(key))})
                         if vtype == 'outfile': callobj.setInfo({key: rje.getFileName('%s File Name?' % key,callobj.getStr(key),mustexist=False,confirm=True)})
                         if vtype == 'showtext': callobj.verbose(-1,-1,key); break

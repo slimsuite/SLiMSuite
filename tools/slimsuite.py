@@ -20,8 +20,8 @@
 """
 Module:       SLiMSuite
 Description:  Short Linear Motif analysis Suite
-Version:      1.11.0
-Last Edit:    06/04/21
+Version:      1.12.0
+Last Edit:    19/09/24
 Citation:     Edwards et al. (2020), Methods Mol Biol. 2141:37-72. [PMID: 32696352]
 Old citation: Edwards RJ & Palopoli N (2015): Methods Mol Biol. 1268:89-141. [PMID: 25555723]
 Copyright (C) 2014  Richard J. Edwards - See source code for GNU License Notice
@@ -114,6 +114,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 1.9.1 - Added SLiMParser and SLiMMutant to wrapped tools to match documentation.
     # 1.10.0- Various program updates: see release_notes.txt.
     # 1.11.0- SeqSuite added DepthSizer and DepthKopy.
+    # 1.12.0- Broad Python3 compatibility. Updates to numerous genomics tools. (See individual github repos for details.)
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -128,7 +129,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copy_right) = ('SLiMSuite', '1.11.0', 'January 2022', '2014')
+    (program, version, last_edit, copy_right) = ('SLiMSuite', '1.12.0', 'September 2024', '2014')
     description = 'Short Linear Motif analysis Suite'
     author = 'Dr Richard J. Edwards.'
     comments = ['NOTE: Some tools are still in development and have not been published.',
@@ -236,7 +237,7 @@ class SLiMSuite(rje_obj.RJE_Object):
         ### ~ Defaults ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         self._setDefaults(str='None',bool=False,int=0,num=0.0,obj=None,setlist=True,setdict=True)
         #self.setStr({'Name':'slimcore'})
-        if sys.argv[1:] and sys.argv[1] in mod.keys() + seqsuite.mod.keys() + ['test']: self.setStr({'Name':sys.argv[1]})
+        if sys.argv[1:] and sys.argv[1] in list(mod.keys()) + list(seqsuite.mod.keys()) + ['test']: self.setStr({'Name':sys.argv[1]})
         self.setBool({})
         self.setInt({})
         self.setNum({})
@@ -272,7 +273,7 @@ class SLiMSuite(rje_obj.RJE_Object):
                 #self._cmdReadList(cmd,'cdictlist',['Att']) # As cdict but also enters keys into list
             except: self.errorLog('Problem with cmd:%s' % cmd)
         if not self.getStrLC('Name'):
-            if sys.argv[1:] and sys.argv[1] not in mod.keys() + seqsuite.mod.keys() + ['help','-h','help=T']:
+            if sys.argv[1:] and sys.argv[1] not in list(mod.keys()) + list(seqsuite.mod.keys()) + ['help','-h','help=T']:
                 self.printLog('#CORE','Argument "%s" not recognised as SLiMSuite program.' % sys.argv[1])
             #else: self.printLog('#CORE','No SLiMSuite program given: default to SLiMCore.')
             self.setStr({'Name':'help'})

@@ -80,9 +80,9 @@ def occStats(callobj,occlist,logtext=()):     ### Calculates general occurrence 
         seq_dis = {}    # Dictionary of lists of scores for different disorder predictions
         seq_dom = {}    # Dictionary of lists of scores for different domain filters
         ## Disorder ##
-        if callobj.opt.has_key('SlimIUP') and callobj.opt['SlimIUP']:
+        if 'SlimIUP' in callobj.opt and callobj.opt['SlimIUP']:
             callobj.opt['IUPred'] = True
-        if callobj.opt.has_key('SlimFold') and callobj.opt['SlimFold']:
+        if 'SlimFold' in callobj.opt and callobj.opt['SlimFold']:
             callobj.opt['FoldIndex'] = True
         for o in ['IUPred','FoldIndex']:
             if callobj.opt[o]:
@@ -119,7 +119,7 @@ def occStats(callobj,occlist,logtext=()):     ### Calculates general occurrence 
                 if w < 0:
                     w = 0
                 ## Get appropriate Data region ##
-                if fundict.has_key(fun):
+                if fun in fundict:
                     if win >= 0:
                         winreg = fundict[fun][w:r+len(match)+win]     # Region includes occurrence
                     else:   
@@ -177,25 +177,25 @@ def seqDom(callobj,seq,seq_dis):  ### Returns dictionary of lists of scores for 
     try:
         ### Setup ###
         seq_dom = {'MASK':[0.0] * seq.aaLen(),'DIS':[1.0] * seq.aaLen()}
-        if seq_dis.has_key('IUPred'):
+        if 'IUPred' in seq_dis:
             seq_dom['COMB'] = seq_dis['IUPred'][0:]
         else:
             seq_dom['COMB'] = [0.0] * seq.aaLen()
         
         ### Domain Filter ###
-        if not callobj.dict.has_key('DomFilter'):
+        if 'DomFilter' not in callobj.dict:
             try:
                 callobj.setupDomFilter()
             except:
                 return seq_dom
-        if callobj.dict.has_key('DomFilter') and callobj.dict['DomFilter'].has_key(seq.shortName()):
+        if 'DomFilter' in callobj.dict and seq.shortName() in callobj.dict['DomFilter']:
             ## MASK ##
             for dom in callobj.dict['DomFilter'][seq.shortName()]:
                 (start,end) = dom
                 for i in range(start-1,end):
                     seq_dom['MASK'][i] = float(end - start + 1)
                 ## DIS ##
-                if seq_dis.has_key('IUPred'):
+                if 'IUPred' in seq_dis:
                     (mean,se) = rje.meanse(seq_dis['IUPred'][start-1:end])
                     for i in range(start-1,end):
                         seq_dom['DIS'][i] = mean
@@ -306,7 +306,7 @@ def hitAlnCon(callobj,occlist,logtext=()):    ### Looks for alignment and, if ap
                 locid[seq] = float(igedic['ID'][0]) / igedic['Len'][0]
                 alnfrag[seq] = seq.info['Sequence'][start:end]
                 seqfrag[seq] = rje_seq.deGap(seq.info['Sequence'][start:end])
-                if (len(seqfrag[seq]) >= 1 or callobj.opt['AlnGap']) and len(seqfrag[seq]) > string.count(seqfrag[seq].upper(),'X'):
+                if (len(seqfrag[seq]) >= 1 or callobj.opt['AlnGap']) and len(seqfrag[seq]) > rje.count(seqfrag[seq].upper(),'X'):
                     for taxa in conseqs.keys():
                         if seq in conseqs[taxa]:
                             hithom[taxa].append(seq)
@@ -376,7 +376,7 @@ def absCons(callobj,Occ,hithom,seqfrag,seqwt):    ### Absolute conservation scor
             else:                       # Search with matched variant
                 vlist = [Occ.getData('Variant')]
             for variant in vlist:
-                searchvar = '(%s)' % string.replace(variant,'X','[A-Z]')
+                searchvar = '(%s)' % rje.replace(variant,'X','[A-Z]')
                 if rje.matchExp(searchvar,seqfrag[seq]):
                     hitcon[seq] = 1.0
                     break
@@ -433,7 +433,7 @@ def posCons(callobj,Occ,hithom,red_aln,seqwt,posmatrix):    ### Positional conse
                 el = searchvar[:1]
                 searchvar = searchvar[1:]
             if el not in ['(',')']:
-                if callobj.dict['ElementIC'].has_key(el):
+                if el in callobj.dict['ElementIC']:
                     infowt.append(callobj.dict['ElementIC'][el])
                 else:
                     infowt.append(rje_motif_V3.elementIC(el))
@@ -499,9 +499,9 @@ def bestScore(aa,aalist,posmatrix):  ### Best score for compared AAs.
         return 1.0
     best = 0.0
     for a in aalist:
-        if posmatrix.has_key('%s%s' % (aa,a)) and posmatrix['%s%s' % (aa,a)] > best:
+        if '%s%s' % (aa,a) in posmatrix and posmatrix['%s%s' % (aa,a)] > best:
             best = posmatrix['%s%s' % (aa,a)]
-        elif posmatrix.has_key('%s%s' % (a,aa)) and posmatrix['%s%s' % (a,aa)] > best:
+        elif '%s%s' % (a,aa) in posmatrix and posmatrix['%s%s' % (a,aa)] > best:
             best = posmatrix['%s%s' % (a,aa)]
     return best
 #########################################################################################################################
@@ -633,7 +633,7 @@ def findOccPos(callobj,Occ,qry,fudge=0):     ### Finds Motif Occurence in alignm
                 break
 
         ### Assess whether hit is right! ###
-        amatch = string.replace(qry.info['Sequence'][start:end],'-','')
+        amatch = rje.replace(qry.info['Sequence'][start:end],'-','')
         if amatch == qmatch:     # Everything is OK!
             return (start,end)
         ## Check whether already fudging! ##
@@ -642,12 +642,12 @@ def findOccPos(callobj,Occ,qry,fudge=0):     ### Finds Motif Occurence in alignm
 
         ### Something is wrong! Try to find real match! ###
         etxt = 'Alignment sequence (%s) does not match occurence (%s)' % (amatch,qmatch)
-        #X#if string.replace(qry.info['Sequence'],'-','') == Occ.obj['Seq'].info['Sequence']:  # But sequence matches!
+        #X#if rje.replace(qry.info['Sequence'],'-','') == Occ.obj['Seq'].info['Sequence']:  # But sequence matches!
         #X#callobj.log.errorLog('Problem with %s pos %d. Sequences match but %s.' % (qry.shortName(),Occ.stat['Pos'],etxt),printerror=False)
         #X#return (-1,-1)
         ## Try to find match by moving start (using fudge) ##
         if callobj.stat['Interactive'] < 1 or rje.yesNo('%s. Try to find closest correct match?' % etxt):
-            fudge = findFudge(string.replace(qry.info['Sequence'],'-',''),qmatch,Occ.stat['Pos']-1)
+            fudge = findFudge(rje.replace(qry.info['Sequence'],'-',''),qmatch,Occ.stat['Pos']-1)
             if fudge:
                 if callobj.stat['Interactive'] > 0: callobj.log.errorLog('%s in alignment differs from input: Fudged %s by %d aa!' % (qry.shortName(),qmatch,fudge),printerror=False)
                 else: callobj.log.printLog('#ERR','%s in alignment differs from input: Fudged %s by %d aa!' % (qry.shortName(),qmatch,fudge),screen=False)
@@ -689,9 +689,8 @@ def findFudge(qryseq,match,pos):    ### Returns fudge to closest match
 #########################################################################################################################
 if __name__ == "__main__":      ### Call runMain 
     try:
-        print 'This module is not for standalone running.'
-    except:
-        print 'Cataclysmic run error:', sys.exc_info()[0]
+        print( 'This module is not for standalone running.')
+    except: rje.printf('Cataclysmic run error: {0}'.format(sys.exc_info()[0]))
     sys.exit()
 #########################################################################################################################
 ### END OF SECTION III                                                                                                  #

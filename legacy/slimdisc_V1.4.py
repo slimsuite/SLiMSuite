@@ -771,7 +771,7 @@ class fileManipulationFull:
 							
 						proteinMask = proteinMaskInclusive 
 						
-					maskedString = string.join(proteinMask,"") 
+					maskedString = rje.join(proteinMask,"")
 					pattern = re.compile("[^x]+")
 
 					maskingString +=  "\n>" + entry_name + '\n'
@@ -1312,8 +1312,8 @@ class Teiresias:
 			if options['overwrite'] == 'T':
 				printLevel(1,options, "Running TEIRESIAS")
 				sys.stderr.write("Running TEIRESIAS\n")
-				#print options["TEIRESIAS_path"] + "teiresias_char " + string.join(args[1:],' ')
-				#info = os.popen(options["TEIRESIAS_path"] + "teiresias_char " + string.join(args[1:],' '))
+				#print options["TEIRESIAS_path"] + "teiresias_char " + rje.join(args[1:],' ')
+				#info = os.popen(options["TEIRESIAS_path"] + "teiresias_char " + rje.join(args[1:],' '))
 				processId = os.spawnv(os.P_NOWAIT,args[0],args)
 				self.pid  = processId
 				#print self.pid
@@ -1344,7 +1344,7 @@ class Teiresias:
 					self.pid  = processId
 					os.waitpid(processId,0)
 	
-					print options["TEIRESIAS_path"] + "teiresias_char " + string.join(args[1:],' ')
+					print options["TEIRESIAS_path"] + "teiresias_char " + rje.join(args[1:],' ')
 	
 					if options['TEIRESIAS_local(IBM_path_length_bug_fix)']  == 'T':
 						print tempFile,options["TEIRESIAS_output"]
@@ -1439,8 +1439,8 @@ class TeiresiasThread(Thread):
 			if self.options['overwrite'] == 'T':
 				printLevel(1,self.options, "Running TEIRESIAS")
 				sys.stderr.write("Running TEIRESIAS\n")
-				print self.options["TEIRESIAS_path"] + "teiresias_char " + string.join(args[1:],' ')
-				#info = os.popen(self.options["TEIRESIAS_path"] + "teiresias_char " + string.join(args[1:],' '))
+				print self.options["TEIRESIAS_path"] + "teiresias_char " + rje.join(args[1:],' ')
+				#info = os.popen(self.options["TEIRESIAS_path"] + "teiresias_char " + rje.join(args[1:],' '))
 				processId = os.spawnv(os.P_NOWAIT,args[0],args)
 				self.pid  = processId
 				#print self.pid
@@ -1471,7 +1471,7 @@ class TeiresiasThread(Thread):
 					self.pid  = processId
 					os.waitpid(processId,0)
 	
-					print self.options["TEIRESIAS_path"] + "teiresias_char " + string.join(args[1:],' ')
+					print self.options["TEIRESIAS_path"] + "teiresias_char " + rje.join(args[1:],' ')
 	
 					if self.options['TEIRESIAS_local(IBM_path_length_bug_fix)']  == 'T':
 						print tempFile,self.options["TEIRESIAS_output"]
@@ -2719,10 +2719,10 @@ class rje_Score:
 		'''
 		### Setup ###
 		terminal_constraint = False
-		expvar = string.replace(pattern,')',') ')   # String to analyses
-		expvar = string.replace(expvar,'[A-Z]','X')
-		expvar = string.replace(expvar,'.','X')
-		expvar = string.replace(expvar,']','] ')
+		expvar = rje.replace(pattern,')',') ')   # String to analyses
+		expvar = rje.replace(expvar,'[A-Z]','X')
+		expvar = rje.replace(expvar,'.','X')
+		expvar = rje.replace(expvar,']','] ')
 		if expvar[0] == '^' or expvar[-1] == '$':
 			terminal_constraint = True
 		patlen = 0          # Length of pattern for calculating possible number of positions
@@ -2751,24 +2751,24 @@ class rje_Score:
 				patlen += 1
 			elif expvar[0] == '(' and expvar.find(')') > 0: # Complex choice!
 		    		csum = 0.0      # Sum prob of whole choice
-		    		cvar = string.split(expvar[1:expvar.find(')')],'|')     # List of different options
+		    		cvar = rje.split(expvar[1:expvar.find(')')],'|')     # List of different options
 		    		for cv in cvar:
 					cvexp = 1.0 # Probability of just one portion of choice
 					while rje.matchExp('(\[(\S+)\])',cv):
 			   		 	msum = 0.0  # sum for choice within portion!
 			   			cvm = rje.matchExp('(\[(\S+)\])',cv)
-			   			cv = string.replace(cv,cvm[0],'',maxsplit=1)
+			   			cv = rje.replace(cv,cvm[0],'',maxsplit=1)
 			    			for m in cvm[1]:
 							msum += aafreq[m]   # Prob = sum of all choices
 			    			cvexp *= msum
-					cv = string.replace(cv,' ','')
+					cv = rje.replace(cv,' ','')
 					for c in cv:
 			    			cvexp *= aafreq[c]
 					csum += cvexp
 		   		if csum < 1.0:
 					prob_per_site *= csum
 		    		expvar = expvar[expvar.find(')')+1:]
-		   		patlen += float(len(string.join(cvar,'')))/len(cvar)    # Add mean length of options
+		   		patlen += float(len(rje.join(cvar,'')))/len(cvar)    # Add mean length of options
 			elif expvar[0] not in aafreq.keys():    # Problem!
 		    		print '! aafreq missing <%s> for pattern %s!' % (expvar[0],pattern)
 		    		expvar = expvar[1:]
@@ -3643,13 +3643,13 @@ class FileWriter:
 				outstring +="\n"
 		
 					
-				outHnd.write(outstring.replace("SEQUENCE","\t%-20s "%str(topRanking[scores][0])) )
-				sys.stderr.write(outstring.replace("SEQUENCE","\t%-20s "%str(topRanking[scores][0])) )
+				outHnd.write(outrje.replace("SEQUENCE","\t%-20s "%str(topRanking[scores][0])) )
+				sys.stderr.write(outrje.replace("SEQUENCE","\t%-20s "%str(topRanking[scores][0])) )
 				
 				if len(str(topRanking[scores][0])) > 20:
-					printLevel(1,options, outstring.replace("SEQUENCE","\t%-20s"%(str(topRanking[scores][0])[0:17])  + "...  ")[:-1])
+					printLevel(1,options, outrje.replace("SEQUENCE","\t%-20s"%(str(topRanking[scores][0])[0:17])  + "...  ")[:-1])
 				else:
-					printLevel(1,options, outstring.replace("SEQUENCE","\t%-20s"%str(topRanking[scores][0]))[:-1])
+					printLevel(1,options, outrje.replace("SEQUENCE","\t%-20s"%str(topRanking[scores][0]))[:-1])
 			
 			except Exception,e:
 				#print e

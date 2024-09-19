@@ -19,8 +19,8 @@
 """
 Module:       SLiMParser
 Description:  SLiMSuite REST output parsing tool.
-Version:      0.6.0
-Last Edit:    22/05/19
+Version:      0.6.1
+Last Edit:    13/05/22
 Citation:     Edwards et al. (2020), Methods Mol Biol. 2141:37-72. [PMID: 32696352]
 Copyright (C) 2014  Richard J. Edwards - See source code for GNU License Notice
 
@@ -54,7 +54,9 @@ See also rje.py generic commandline options.
 #########################################################################################################################
 ### SECTION I: GENERAL SETUP & PROGRAM DETAILS                                                                          #
 #########################################################################################################################
-import json, os, string, sys, time, urllib2
+import json, os, string, sys, time
+try: import urllib2 as urllib2
+except: import urllib.request as urllib2
 slimsuitepath = os.path.abspath(os.path.join(os.path.dirname(os.path.realpath(__file__)),'../')) + os.path.sep
 sys.path.append(os.path.join(slimsuitepath,'libraries/'))
 sys.path.append(os.path.join(slimsuitepath,'tools/'))
@@ -77,6 +79,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 0.5.0 - Added restkeys/outputs output of REST output keys.
     # 0.5.1 - Minor docs and bug fixes.
     # 0.6.0 - Improved functionality as replacement pureapi with rest=jobid and rest=check functions.
+    # 0.6.1 - Py3 updates
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -92,7 +95,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copy_right) = ('SLiMParser', '0.6.0', 'May 2019', '2014')
+    (program, version, last_edit, copy_right) = ('SLiMParser', '0.6.1', 'May 2022', '2014')
     description = 'SLiMSuite REST output parsing tool'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_obj.zen()]
@@ -106,7 +109,7 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         ### ~ [2] ~ Look for help commands and print options if found ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         cmd_help = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
         if cmd_help > 0:
-            print '\n\nHelp for %s %s: %s\n' % (info.program, info.version, time.asctime(time.localtime(info.start_time)))
+            rje.printf('\n\nHelp for {0} {1}: {2}\n'.format(info.program, info.version, time.asctime(time.localtime(info.start_time))))
             out.verbose(-1,4,text=__doc__)
             if rje.yesNo('Show general commandline options?',default='N'): out.verbose(-1,4,text=rje.__doc__)
             if rje.yesNo('Quit?'): sys.exit()           # Option to quit after help
@@ -116,7 +119,7 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         return cmd_list
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Major Problem with cmdHelp()'
+    except: rje.printf('Major Problem with cmdHelp()')
 #########################################################################################################################
 def setupProgram(): ### Basic Setup of Program when called from commandline.
     '''
@@ -128,18 +131,18 @@ def setupProgram(): ### Basic Setup of Program when called from commandline.
     try:### ~ [1] ~ Initial Command Setup & Info ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         info = makeInfo()                                   # Sets up Info object with program details
         if len(sys.argv) == 2 and sys.argv[1] in ['version','-version','--version']: rje.printf(info.version); sys.exit(0)
-        if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: rje.printf('{0} v{1}'.format(info.program,info.version)); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: rje.printf('%s v%s' % (info.program,info.version)); sys.exit(0)
         if len(sys.argv) == 2 and sys.argv[1] in ['description','-description','--description']: rje.printf('%s: %s' % (info.program,info.description)); sys.exit(0)
         cmd_list = rje.getCmdList(sys.argv[1:],info=info)   # Reads arguments and load defaults from program.ini
         out = rje.Out(cmd_list=cmd_list)                    # Sets up Out object for controlling output to screen
-        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2 
+        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2
         out.printIntro(info)                                # Prints intro text using details from Info object
         cmd_list = cmdHelp(info,out,cmd_list)               # Shows commands (help) and/or adds commands from user
         log = rje.setLog(info,out,cmd_list)                 # Sets up Log object for controlling log file output
         return (info,out,log,cmd_list)                      # Returns objects for use in program
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Problem during initial setup.'; raise
+    except: rje.printf('Problem during initial setup.'); raise
 #########################################################################################################################
 ### END OF SECTION I                                                                                                    #
 #########################################################################################################################
@@ -254,20 +257,20 @@ class SLiMParser(rje_obj.RJE_Object):
             if self.getStr('RestIn').startswith('http:'):
                 #!# Check for rest URL and add if missing
                 #!# Split on &
-                restcmd = string.split(self.getStr('RestIn'),'&')
+                restcmd = rje.split(self.getStr('RestIn'),'&')
                 for i in range(len(restcmd)):
                     if '=' not in restcmd[i]: continue
-                    (opt,value) = string.split(restcmd[i],'=',1)
+                    (opt,value) = rje.split(restcmd[i],'=',1)
                     if value.startswith('file:'):   # Conversion of cmd=file:FILE into cmd=CONTENT
-                        rfile = string.split(value,':',1)[1]
+                        rfile = rje.split(value,':',1)[1]
                         #!# Consider adding max size constraint. Probably a URL size limit.
                         if rje.exists(rfile):
-                            restcmd[i] = '%s=%s' % (opt,rje.chomp(string.join(open(rfile,'r').readlines(),'\\n')))
+                            restcmd[i] = '%s=%s' % (opt,rje.chomp(rje.join(open(rfile,'r').readlines(),'\\n')))
                             if '&' in restcmd[i]:
                                 self.warnLog('%s "&" => "+" conversions for %s.' % (rje.iStr(restcmd[i].count('&')),rfile))
-                                restcmd[i] = string.replace(restcmd[i],'&','+')
+                                restcmd[i] = rje.replace(restcmd[i],'&','+')
                         else: self.warnLog('File "%s" not found.' % rfile,quitchoice=True)
-                self.setStr({'RestIn':string.join(restcmd,'&')})
+                self.setStr({'RestIn':rje.join(restcmd,'&')})
             ## ~ [1b] Direct Parsing of output file ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             else:   # Convert to file
                 self.setStr({'RestIn':rje.makePath(self.getStr('RestIn'),True)})
@@ -298,7 +301,7 @@ class SLiMParser(rje_obj.RJE_Object):
             else: raise IOError('%s not found!' % self.getStr('RestIn'))
             jobid = None
             ### ~ [2] Parse ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            for restdata in string.split(restin,'###~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~###\n'):
+            for restdata in rje.split(restin,'###~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~###\n'):
                 if not jobid:
                     self.dict['Output']['intro'] = restdata
                     prog = rje.matchExp('Output for (\S+)',restdata)[0]
@@ -308,17 +311,17 @@ class SLiMParser(rje_obj.RJE_Object):
                     if not self.getStrLC('RestBase'): rbase = '%s%s' % (self.getStr('RestOutDir'),jobid)
                     self.dict['Outfile']['jobid'] =  '%s.jobid' % (rbase)
                     continue
-                restlines = string.split(restdata,'\n')
-                rparse = string.split(restlines.pop(0))
-                if rparse[0] != '#': self.errorLog('REST output format error: %s' % string.join(rparse),printerror=False); continue
-                if rparse[1][-1] != ':': self.errorLog('REST output format error: %s' % string.join(rparse),printerror=False); continue
+                restlines = rje.split(restdata,'\n')
+                rparse = rje.split(restlines.pop(0))
+                if rparse[0] != '#': self.errorLog('REST output format error: %s' % rje.join(rparse),printerror=False); continue
+                if rparse[1][-1] != ':': self.errorLog('REST output format error: %s' % rje.join(rparse),printerror=False); continue
                 rkey = rparse[1][:-1]
                 try:
                     rfile = '%s.%s' % (rbase,rje.baseFile(rparse[2],strip_path=True,keepext=True))
                 except: rfile = ''
                 if not rfile: rfile = '%s.%s' % (rbase,rkey)
-                rfile = string.replace(rfile,'%s.%s.' % (jobid,jobid),'%s.' % jobid)
-                self.dict['Output'][rkey] = string.join(restlines,'\n')
+                rfile = rje.replace(rfile,'%s.%s.' % (jobid,jobid),'%s.' % jobid)
+                self.dict['Output'][rkey] = rje.join(restlines,'\n')
                 self.dict['Outfile'][rkey] = rfile
                 self.list['RestKeys'].append(rkey)
             self.printLog('#PARSE','Parsed %s: %d REST outputs.' % (self.getStr('RestIn'),len(self.dict['Output'])))
@@ -363,9 +366,9 @@ class SLiMParser(rje_obj.RJE_Object):
         if not outfmt: outfmt = self.getStrLC('Rest')
         if not outfmt: self.jsonText('No REST output',asjson)
         if outfmt in self.dict['Output']:
-            rfile = string.split(self.dict['Output'][outfmt],'\n')[0]
+            rfile = rje.split(self.dict['Output'][outfmt],'\n')[0]
             if rje.exists(rfile):
-                fext = string.split(rfile,'.')[-1]
+                fext = rje.split(rfile,'.')[-1]
                 if fext in ['png']:
                     self.debug(rfile)
                     self.jsonText(rfile,asjson)
@@ -383,7 +386,7 @@ class SLiMParser(rje_obj.RJE_Object):
                         jtext = []
                         for rline in open(rfile,'r').readlines():
                             jtext.append(json.dumps(rje.readDelimit(rline,delimit)))
-                        return '[%s]' % string.join(jtext,',\n        ')
+                        return '[%s]' % rje.join(jtext,',\n        ')
                     #!# Add json parsing of fasta files?
                     else:
                         outtxt = open(rfile,'r').read()
@@ -396,7 +399,7 @@ class SLiMParser(rje_obj.RJE_Object):
             intro = '<pre>%s</pre>\n\n' % self.restOutput('intro')
             return self.jsonText(intro,asjson)
         elif outfmt in ['default','full']: return self.jsonText(self.restFullOutput(maxparsesize),asjson)
-        elif outfmt in ['restkeys','outputs']: return string.join(self.list['RestKeys']+[''],'\n')
+        elif outfmt in ['restkeys','outputs']: return rje.join(self.list['RestKeys']+[''],'\n')
         return self.jsonText('No %s output generated.' % outfmt,asjson)
 #########################################################################################################################
     def restFullOutput(self,maxparsesize=0):   ### Returns full REST output from file
@@ -409,9 +412,9 @@ class SLiMParser(rje_obj.RJE_Object):
             rtxt += '###~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~###\n'
             rtxt += '# %s: %s\n' % (rkey,self.dict['Outfile'][rkey])
             #?# Q. Why only if jobid? Is it not always good to replace with content?
-            if jobid and rje.exists(string.split(self.dict['Output'][rkey],'\n')[0]): ### File given instead of content
-                rfile = string.split(self.dict['Output'][rkey],'\n')[0]
-                fext = string.split(rfile,'.')[-1]
+            if jobid and rje.exists(rje.split(self.dict['Output'][rkey],'\n')[0]): ### File given instead of content
+                rfile = rje.split(self.dict['Output'][rkey],'\n')[0]
+                fext = rje.split(rfile,'.')[-1]
                 nbytes = os.path.getsize(rfile)
                 if nbytes > maxparsesize > 0:   # Too large to parse
                     otext = '%s is too large to return (%s > %s)' % (os.path.basename(rfile),rje.humanByteSize(nbytes),rje.humanByteSize(maxparsesize))
@@ -502,7 +505,7 @@ def runMain():
     ### ~ [1] ~ Basic Setup of Program  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try: (info,out,mainlog,cmd_list) = setupProgram()
     except SystemExit: return  
-    except: print 'Unexpected error during program setup:', sys.exc_info()[0]; return
+    except: rje.printf('Unexpected error during program setup:', sys.exc_info()[0]); return
     
     ### ~ [2] ~ Rest of Functionality... ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try:
@@ -510,7 +513,7 @@ def runMain():
         restparse = slimparser.run()
         if slimparser.getBool('PureAPI'):
             mainlog.endLog(info)
-            print restparse
+            rje.printf(restparse)
             return
 
     ### ~ [3] ~ End ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -521,7 +524,7 @@ def runMain():
 #########################################################################################################################
 if __name__ == "__main__":      ### Call runMain 
     try: runMain()
-    except: print 'Cataclysmic run error:', sys.exc_info()[0]
+    except: rje.printf('Cataclysmic run error: {0}'.format(sys.exc_info()[0]))
     sys.exit()
 #########################################################################################################################
 ### END OF SECTION IV                                                                                                   #

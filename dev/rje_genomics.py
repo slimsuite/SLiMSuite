@@ -19,8 +19,8 @@
 """
 Module:       rje_genomics
 Description:  Genomics data reformatting module
-Version:      0.8.1
-Last Edit:    07/08/20
+Version:      0.9.0
+Last Edit:    01/03/22
 Copyright (C) 2018  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -30,10 +30,11 @@ Function:
     ncbi: combine NCBI accession numbers and annotation with local data
     gffmap: convert GFF files from one ID set to another
     samfilt: filter read alignments from SAM file
+    mapbam: map a set of IDs from a BAM file and output an updated SAM file
 
 Commandline:
     ### ~ General Options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-    runmode=X       : Run mode (reformat/ftgff/ncbi/makemap/gffmap/diphap/fqreads/fas2bed/ncbinr/gapgff/locgff/samfilt) [reformat]
+    runmode=X       : Run mode (reformat/ftgff/ncbi/makemap/gffmap/diphap/fqreads/fas2bed/ncbinr/gapgff/locgff/samfilt/mapbam) [reformat]
     basefile=X      : Base for output files, including log
     ### ~ Reformat Input/Output Options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     tdtfile=FILE    : Input delimited text file with data to convert [None]
@@ -65,6 +66,10 @@ Commandline:
     sam=FILE        : Input SAM file to filter []
     minmaplen=INT   : Minimum number of matching template positions to keep SAM hit [0]
     outsam=FILE     : Output SAM file [$BASEFILE.filtered.sam]
+    ### ~ BAM Mapping Options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+    bam=FILE        : Input SAM file to filter []
+    mapping=FILE    : File of seqname, newseqname, start, end, shift
+    outsam=FILE     : Output SAM file [$BASEFILE.mapped.sam]
     ### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
 """
 #########################################################################################################################
@@ -91,6 +96,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 0.7.0 - Added loc2gff mode for converting local hits table to GFF3 output.
     # 0.8.0 - Added samfilt: filter read alignments from SAM file
     # 0.8.1 - Fixed gapgff bug that had first gap in header.
+    # 0.9.0 - Added mapbam: map a set of IDs from a BAM file and output an updated SAM file
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -106,7 +112,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copy_right) = ('RJE_GENOMICS', '0.8.1', 'August 2020', '2016')
+    (program, version, last_edit, copy_right) = ('RJE_GENOMICS', '0.9.0', 'March 2022', '2016')
     description = 'Misc genomics module'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_obj.zen()]
@@ -120,9 +126,9 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         ### ~ [2] ~ Look for help commands and print options if found ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         cmd_help = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
         if cmd_help > 0:
-            print '\n\nHelp for %s %s: %s\n' % (info.program, info.version, time.asctime(time.localtime(info.start_time)))
+            rje.printf('\n\nHelp for {0} {1}: {2}\n'.format(info.program, info.version, time.asctime(time.localtime(info.start_time))))
             out.verbose(-1,4,text=__doc__)
-            if rje.yesNo('Show general commandline options?'): out.verbose(-1,4,text=rje.__doc__)
+            if rje.yesNo('Show general commandline options?',default='N'): out.verbose(-1,4,text=rje.__doc__)
             if rje.yesNo('Quit?'): sys.exit()           # Option to quit after help
             cmd_list += rje.inputCmds(out,cmd_list)     # Add extra commands interactively.
         elif out.stat['Interactive'] > 1: cmd_list += rje.inputCmds(out,cmd_list)    # Ask for more commands
@@ -130,7 +136,7 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         return cmd_list
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Major Problem with cmdHelp()'
+    except: rje.printf('Major Problem with cmdHelp()')
 #########################################################################################################################
 def setupProgram(): ### Basic Setup of Program when called from commandline.
     '''
@@ -141,16 +147,19 @@ def setupProgram(): ### Basic Setup of Program when called from commandline.
     '''
     try:### ~ [1] ~ Initial Command Setup & Info ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         info = makeInfo()                                   # Sets up Info object with program details
+        if len(sys.argv) == 2 and sys.argv[1] in ['version','-version','--version']: rje.printf(info.version); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: rje.printf('%s v%s' % (info.program,info.version)); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['description','-description','--description']: rje.printf('%s: %s' % (info.program,info.description)); sys.exit(0)
         cmd_list = rje.getCmdList(sys.argv[1:],info=info)   # Reads arguments and load defaults from program.ini
         out = rje.Out(cmd_list=cmd_list)                    # Sets up Out object for controlling output to screen
-        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2 
+        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2
         out.printIntro(info)                                # Prints intro text using details from Info object
         cmd_list = cmdHelp(info,out,cmd_list)               # Shows commands (help) and/or adds commands from user
         log = rje.setLog(info,out,cmd_list)                 # Sets up Log object for controlling log file output
         return (info,out,log,cmd_list)                      # Returns objects for use in program
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Problem during initial setup.'; raise
+    except: rje.printf('Problem during initial setup.'); raise
 #########################################################################################################################
 ### END OF SECTION I                                                                                                    #
 #########################################################################################################################
@@ -165,6 +174,7 @@ class Genomics(rje_obj.RJE_Object):
     Genomics Class. Author: Rich Edwards (2016).
 
     Str:str
+    - BAM=FILE        : Input BAM for mapping
     - BegField=X      : Field for beginning position [QryStart]
     - EndField=X      : Field for end position [HitStart]
     - MapFas=FASFILE  : Alternative fasta file for GFF ID mapping []
@@ -208,7 +218,7 @@ class Genomics(rje_obj.RJE_Object):
     def _setAttributes(self):   ### Sets Attributes of Object
         '''Sets Attributes of Object.'''
         ### ~ Basics ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-        self.strlist = ['BegField','EndField','MapFas','Mapping','NCBIFas','NCBIGFF','QueryField','Reformat','RunMode',
+        self.strlist = ['BAM','BegField','EndField','MapFas','Mapping','NCBIFas','NCBIGFF','QueryField','Reformat','RunMode',
                         'SeqIn','SeqStyle','TargetField','TDTFile','SAM','OutSAM']
         self.boollist = []
         self.intlist = ['MinGap','MinMapLen']
@@ -247,7 +257,7 @@ class Genomics(rje_obj.RJE_Object):
                 self._forkCmd(cmd)  # Delete if no forking
                 ### Class Options (No need for arg if arg = att.lower()) ### 
                 #self._cmdRead(cmd,type='str',att='Att',arg='Cmd')  # No need for arg if arg = att.lower()
-                self._cmdReadList(cmd,'str',['BegField','EndField','NCBIFas','NCBIGFF','QueryField','Reformat','RunMode',
+                self._cmdReadList(cmd,'str',['BAM','BegField','EndField','NCBIFas','NCBIGFF','QueryField','Reformat','RunMode',
                         'SeqIn','SeqStyle','TargetField','TDTFile'])   # Normal strings
                 #self._cmdReadList(cmd,'path',['Att'])  # String representing directory path 
                 self._cmdReadList(cmd,'file',['MapFas','Mapping','TDTFile','SAM','OutSAM'])  # String representing file path
@@ -294,6 +304,8 @@ class Genomics(rje_obj.RJE_Object):
                 self.gapGFF()
             if self.getStrLC('RunMode') == 'samfilt':
                 self.samFilt()
+            if self.getStrLC('RunMode') == 'mapbam':
+                self.mapBAM()
         except:
             self.errorLog(self.zen())
             raise   # Delete this if method error not terrible
@@ -352,7 +364,7 @@ class Genomics(rje_obj.RJE_Object):
             #YARCTy1-1	ctgIA_MBGISH__MBGISH002.01	1	10619	0.0	5858	5822	0	68	5925	166826	160969
 
             gffdb = self.db().copyTable(table,'%s.gff' % self.db(table).name())
-            gfields = string.split('seqid source type start end score strand phase attributes')
+            gfields = rje.split('seqid source type start end score strand phase attributes')
 
             gffdb.newKey(['seqid','start','AlnID','end','type','source','attributes'])
             gffdb.keepFields(gfields+['AlnID'])
@@ -382,7 +394,7 @@ class Genomics(rje_obj.RJE_Object):
             GFF = open(gff,'w')
             gcomments = ['##gff-version 3','#Generated by %s' % self.log.runDetails()]
             gcomments.append('#Full Command List: %s\n' % rje.argString(rje.tidyArgs(self.log.cmd_list)))
-            GFF.write(string.join(gcomments,'\n'))
+            GFF.write(rje.join(gcomments,'\n'))
 
             ### ~ [1] Process ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             sx = 0; gx = 0
@@ -391,17 +403,17 @@ class Genomics(rje_obj.RJE_Object):
                 (name,sequence) = seqlist.getSeq(format='tuple')
                 sname = seqlist.shortName()
                 # Generate gaps
-                sequence = string.replace(sequence.upper(),'N','|N|')
-                #sequence = string.replace(sequence,'N||N','NN')
-                sequence = string.join(string.split(sequence, '||'),'')
-                gapseq = string.split(sequence,'|')
+                sequence = rje.replace(sequence.upper(),'N','|N|')
+                #sequence = rje.replace(sequence,'N||N','NN')
+                sequence = rje.join(rje.split(sequence, '||'),'')
+                gapseq = rje.split(sequence,'|')
                 # Process gaps
                 pos = 0     # Position in sequence
                 for chunk in gapseq:
                     startx = pos + 1
                     pos += len(chunk)
                     if chunk.startswith('N') and len(chunk) >= mingap:  # Add a gap
-                        gstr = string.join([sname,'GapGFF','gap','%d' % startx,'%d' % pos,'.','+','.','ID=gap%d;Note=%sN gap' % (gx,rje.iStr(len(chunk)))],'\t')
+                        gstr = rje.join([sname,'GapGFF','gap','%d' % startx,'%d' % pos,'.','+','.','ID=gap%d;Note=%sN gap' % (gx,rje.iStr(len(chunk)))],'\t')
                         GFF.write('%s\n' % gstr)
                         gx += 1
             self.printLog('\r#SEQ','Processed %s sequences: %s gaps' % (rje.iStr(sx),rje.iStr(gx)))
@@ -430,13 +442,13 @@ class Genomics(rje_obj.RJE_Object):
                 nacc = ncbiseq.seqAcc()
                 bacc = babsseq.seqAcc()
                 bdesc = babsseq.seqDesc()
-                btype = string.split(bdesc)[0]
+                btype = rje.split(bdesc)[0]
                 bspec = babsseq.seqSpec()
                 if seqstyle in ['dipnr']:
                     hapid = rje.matchExp('HAP(\d+)$',babsseq.shortName())[0]
                     newname = 'pri%s_%s__%s %s %s %s' % (hapid,bspec,nacc,btype,bacc,ncbiseq.seqDesc())
                 else: raise ValueError('SeqStyle not recognised!')
-                mapping[nacc] = string.split(newname)[0]
+                mapping[nacc] = rje.split(newname)[0]
                 SEQOUT.write('>%s\n%s\n' % (newname,nseq[1]))
             SEQOUT.close()
             self.printLog('\r#FAS','Processed %s primary sequences -> %s' % (rje.iLen(mapping),seqout))
@@ -461,7 +473,7 @@ class Genomics(rje_obj.RJE_Object):
             while gline:
                 if gline.startswith('#'): headlines.append(gline)
                 else:
-                    gdata = string.split(gline,'\t')
+                    gdata = rje.split(gline,'\t')
                     if len(gdata) < 2: continue
                     gsource = gdata[1]
                     if gdata[0] in mapping: gdata[0] = mapping[gdata[0]]
@@ -469,7 +481,7 @@ class Genomics(rje_obj.RJE_Object):
                         gout[gsource] = open('%s.ncbi.%s.gff3' % (self.baseFile(),gsource),'w')
                         gout[gsource].writelines(headlines)
                         gx[gsource] = 0
-                    gout[gsource].write(string.join(gdata,'\t')); gx[gsource] += 1
+                    gout[gsource].write(rje.join(gdata,'\t')); gx[gsource] += 1
                     zx += 1
                 self.progLog('\r#GFF','Parsing %d GFF sources: %s lines' % (len(gx),rje.iStr(zx)),rand=0.01)
                 gline = GFF.readline()
@@ -511,15 +523,15 @@ class Genomics(rje_obj.RJE_Object):
         try:### ~ [0] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             mapping = {}    # Dictionary of GFF sequence ID mapping
             for mline in open(self.getStr('Mapping'),'r').readlines()[1:]:
-                mdata = string.split(rje.chomp(mline),',')
+                mdata = rje.split(rje.chomp(mline),',')
                 mapping[mdata[0]] = mdata[1]
             self.printLog('#MAP','%s mapping IDs' % rje.iLen(mapping))
             ### ~ [1] Update GFF files ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             for gff in self.list['GFFs']:
                 GFF = open(gff,'r')
-                newgff = string.split(rje.baseFile(gff,strip_path=True),'.')
+                newgff = rje.split(rje.baseFile(gff,strip_path=True),'.')
                 newgff[0] = self.baseFile()
-                newgff = '%s.gff3' % string.join(newgff,'.')
+                newgff = '%s.gff3' % rje.join(newgff,'.')
                 if newgff == gff:
                     try: raise ValueError(gff)
                     except: self.errorLog('New GFF file cannot have same name as original!')
@@ -531,11 +543,11 @@ class Genomics(rje_obj.RJE_Object):
                     gline = GFF.readline()
                     if gline.startswith('#'): NEWGFF.write(gline); gx += 1
                     else:
-                        gdata = string.split(gline,'\t')
+                        gdata = rje.split(gline,'\t')
                         if len(gdata) < 2: continue
                         if gdata[0] in mapping: gdata[0] = mapping[gdata[0]]
                         else: continue
-                        NEWGFF.write(string.join(gdata,'\t'))
+                        NEWGFF.write(rje.join(gdata,'\t'))
                         gx += 1
                     self.progLog('\r#GFF','Parsing %s: %s lines' % (gff,rje.iStr(gx)),rand=0.001)
                 NEWGFF.close()
@@ -556,13 +568,13 @@ class Genomics(rje_obj.RJE_Object):
                 if hap in diplist: haplist.append(hap)
                 else: diplist.append(hap)
             for seq in seqlist.seqs():
-                sname = string.split(seqlist.shortName(seq),'_')
+                sname = rje.split(seqlist.shortName(seq),'_')
                 hap = rje.matchExp('HAP(\d+)',seqlist.shortName(seq))
                 if hap in haplist:
                     if hap in diplist: haptxt = 'haploidA'; diplist.remove(hap); sname[0] = 'pri%s' % hap
                     else: haptxt = 'haploidB'; sname[0] = 'alt%s' % hap
                 else: haptxt = 'diploid'; sname[0] = 'pri%s' % hap
-                sname = string.join(sname,'_')
+                sname = rje.join(sname,'_')
                 SEQOUT.write('>%s %s %s\n%s\n' % (sname,haptxt,seqlist.seqDesc(seq),seqlist.seqSequence(seq)))
                 self.printLog('#DIP','%s: %s\n' % (sname,haptxt))
             SEQOUT.close()
@@ -588,7 +600,7 @@ class Genomics(rje_obj.RJE_Object):
             while gline:
                 gline = rje.chomp(GFF.readline())
                 if gline.startswith('#') or not gline: continue
-                gdata = string.split(gline, '\t')
+                gdata = rje.split(gline, '\t')
                 if len(gdata) < 9: continue
                 gtype = gdata[2]
                 if gtype not in ['gene','CDS']: continue
@@ -660,7 +672,7 @@ class Genomics(rje_obj.RJE_Object):
                 gline = GFF.readline()
                 if not gline: continue
                 if gline.startswith('#'): GFFOUT.write(gline)
-                gdata = string.split(gline, '\t')
+                gdata = rje.split(gline, '\t')
                 if len(gdata) < 9: continue
                 geneid = rje.matchExp('GeneID:(\d+)[,;]',gdata[8])[0]
                 if geneid not in gene2prot: continue
@@ -759,9 +771,9 @@ class Genomics(rje_obj.RJE_Object):
             for line in SAM:
                 ## ~ [2a] Parse pileup data into dictionary ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
                 if line.startswith('@'): OUT.write(line); continue
-                samdata = string.split(line)
+                samdata = rje.split(line)
                 if len(samdata) < 11: OUT.write(line); continue
-                self.progLog('\r#SAM','Parsing %s: %s reads (+ %s unmapped); %s filtered...' % (filename,rje.iStr(rid),rje.iStr(unmappedx),rje.iStr(filtx)),rand=0.1)
+                self.progLog('\r#SAM','Parsing %s: %s reads (+ %s unmapped); %s filtered...' % (filename,rje.iStr(rid),rje.iStr(unmappedx),rje.iStr(filtx)),rand=0.001)
                 cigstr = samdata[5]
                 if cigstr == '*': unmappedx += 1; continue
                 rid += 1
@@ -781,6 +793,71 @@ class Genomics(rje_obj.RJE_Object):
             OUT.close()
             return True
         except: self.errorLog('%s.parseSAM() error' % (self.prog())); return False
+#########################################################################################################################
+    def mapBAM(self):  ### Maps sequence IDs in BAM file and outputs SAM
+        '''
+        Filters SAM file into another SAM file.
+        >> filename:str = Pileup file name
+        '''
+        try:### ~ [1] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            if not self.getStrLC('BAM'): raise ValueError('Need to set bam=FILE for runmode=mapbam')
+            filename = self.getStr('BAM')
+            if not rje.exists(filename): raise IOError('bam={0} file missing'.format(filename))
+            if filename.endswith('.bam'): SAM = os.popen('samtools view -h %s' % filename)
+            else: SAM = open(filename,'r')
+            if self.getStrLC('OutSAM'): outfile = self.getStr('OutSAM')
+            else: outfile = '{0}.mapped.sam'.format(self.baseFile())
+            rje.backup(self,outfile,appendable=False)
+            OUT = open(outfile,'w')
+            rid = 0         # Read counter (ID counter)
+            remapx = 0        # Remapped read counter
+            unmappedx = 0
+            ## ~ [1a] Setup mapping ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            # Dictionary of seqname:{(start,end):(newseqname,shift)}
+            # If the full sequence, use (seqname, 1, -1)
+            map = {'SCAF_001':{(1,465328929):('SCAF_001A',0),
+                               (465362190,934426298): ('SCAF_001B', -465362189)},
+                   'SCAF_002':{(1,354619736):('SCAF_002A',0),
+                               (354653074,704850804):('SCAF_002B',-354653074)}}
+            #!# Will need to override headers if combining files
+
+            ### ~ [2] Process each entry ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            for line in SAM:
+                samdata = rje.split(line)
+                ## ~ [2a] Parse headers ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+                if line.startswith('@SQ'):
+                    seqname = samdata[1][3:]
+                    if seqname not in map: OUT.write(line); continue
+                    for (i,j) in map[seqname]:
+                        seqlen = j - i + 1
+                        newseq = map[seqname][(i,j)][0]
+                        OUT.write('@SQ\tSN:{0}\tLN:{1}\n'.format(newseq,seqlen))
+                    continue
+                elif line.startswith('@'):
+                    OUT.write(line); continue
+                ## ~ [2b] Parse non-read line ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+                if len(samdata) < 11: OUT.write(line); continue
+                ## ~ [2c] Parse read line
+                self.progLog('\r#SAM','Parsing %s: %s reads (+ %s unmapped?); %s re-mapped...' % (filename,rje.iStr(rid),rje.iStr(unmappedx),rje.iStr(remapx)),rand=0.0001)
+                cigstr = samdata[5]
+                if cigstr == '*': unmappedx += 1
+                rid += 1
+                seqname = samdata[2]
+                if seqname not in map: OUT.write(line); continue
+                seqpos = int(samdata[3])
+                for (i, j) in map[seqname]:
+                    if j < 0 or i <= seqpos <= j:
+                        newseq = map[seqname][(i, j)][0]
+                        newpos = seqpos + map[seqname][(i, j)][1]
+                        samdata[2] = newseq
+                        samdata[3] = str(newpos)
+                        OUT.write('\t'.join(samdata)+'\n')
+                        remapx += 1
+            self.printLog('#SAM','Parsed %s: %s reads (+ %s unmapped?) output to %s; %s re-mapped.' % (filename,rje.iStr(rid),outfile,rje.iStr(unmappedx),rje.iStr(remapx)))
+            SAM.close()
+            OUT.close()
+            return True
+        except: self.errorLog('%s.mapBAM() error' % (self.prog())); return False
 #########################################################################################################################
  ### End of SECTION II: Genomics Class                                                                                   #
 #########################################################################################################################
@@ -804,8 +881,8 @@ def runMain():
     ### ~ [1] ~ Basic Setup of Program  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try: (info,out,mainlog,cmd_list) = setupProgram()
     except SystemExit: return  
-    except: print 'Unexpected error during program setup:', sys.exc_info()[0]; return
-    
+    except: rje.printf('Unexpected error during program setup:', sys.exc_info()[0]); return
+
     ### ~ [2] ~ Rest of Functionality... ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try: Genomics(mainlog,cmd_list).run()
 
@@ -817,7 +894,7 @@ def runMain():
 #########################################################################################################################
 if __name__ == "__main__":      ### Call runMain 
     try: runMain()
-    except: print 'Cataclysmic run error:', sys.exc_info()[0]
+    except: rje.printf('Cataclysmic run error: {0}'.format(sys.exc_info()[0]))
     sys.exit()
 #########################################################################################################################
 ### END OF SECTION IV                                                                                                   #

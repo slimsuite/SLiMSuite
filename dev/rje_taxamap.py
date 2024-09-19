@@ -108,9 +108,9 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         ### ~ [2] ~ Look for help commands and print options if found ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         cmd_help = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
         if cmd_help > 0:
-            print '\n\nHelp for %s %s: %s\n' % (info.program, info.version, time.asctime(time.localtime(info.start_time)))
+            rje.printf('\n\nHelp for {0} {1}: {2}\n'.format(info.program, info.version, time.asctime(time.localtime(info.start_time))))
             out.verbose(-1,4,text=__doc__)
-            if rje.yesNo('Show general commandline options?'): out.verbose(-1,4,text=rje.__doc__)
+            if rje.yesNo('Show general commandline options?',default='N'): out.verbose(-1,4,text=rje.__doc__)
             if rje.yesNo('Quit?'): sys.exit()           # Option to quit after help
             cmd_list += rje.inputCmds(out,cmd_list)     # Add extra commands interactively.
         elif out.stat['Interactive'] > 1: cmd_list += rje.inputCmds(out,cmd_list)    # Ask for more commands
@@ -118,7 +118,7 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         return cmd_list
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Major Problem with cmdHelp()'
+    except: rje.printf('Major Problem with cmdHelp()')
 #########################################################################################################################
 def setupProgram(): ### Basic Setup of Program when called from commandline.
     '''
@@ -129,16 +129,19 @@ def setupProgram(): ### Basic Setup of Program when called from commandline.
     '''
     try:### ~ [1] ~ Initial Command Setup & Info ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         info = makeInfo()                                   # Sets up Info object with program details
+        if len(sys.argv) == 2 and sys.argv[1] in ['version','-version','--version']: rje.printf(info.version); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: rje.printf('%s v%s' % (info.program,info.version)); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['description','-description','--description']: rje.printf('%s: %s' % (info.program,info.description)); sys.exit(0)
         cmd_list = rje.getCmdList(sys.argv[1:],info=info)   # Reads arguments and load defaults from program.ini
         out = rje.Out(cmd_list=cmd_list)                    # Sets up Out object for controlling output to screen
-        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2 
+        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2
         out.printIntro(info)                                # Prints intro text using details from Info object
         cmd_list = cmdHelp(info,out,cmd_list)               # Shows commands (help) and/or adds commands from user
         log = rje.setLog(info,out,cmd_list)                 # Sets up Log object for controlling log file output
         return (info,out,log,cmd_list)                      # Returns objects for use in program
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Problem during initial setup.'; raise
+    except: rje.printf('Problem during initial setup.'); raise
 #########################################################################################################################
 ### END OF SECTION I                                                                                                    #
 #########################################################################################################################
@@ -261,7 +264,7 @@ class TaxMap(rje_obj.RJE_Object):
             self.dict['ProtDesc'] = {}
             if self.getStrLC('ProtDesc'):
                 for fline in open(self.getStr('ProtDesc'),'r').readlines():
-                    [prot,desc] = string.split(rje.chomp(fline),maxsplit=1)
+                    [prot,desc] = rje.split(rje.chomp(fline),maxsplit=1)
                     self.dict['ProtDesc'][prot] = desc
                 #self.db().addTable(self.getStr('ProtDesc'),mainkeys=['protein'],datakeys='All',headers=['protein','description'],ignore=['#'],name='protdesc',expect=True)
             ## ~ [0b] Look for previous run results ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
@@ -319,7 +322,7 @@ class TaxMap(rje_obj.RJE_Object):
                 seqnode = None
                 for node in tree.nodes():
                     try:
-                        if string.split(node.shortName(),'__')[1] == seqacc: seqnode = node
+                        if rje.split(node.shortName(),'__')[1] == seqacc: seqnode = node
                     except: pass    # Internal node or bad sequence format
                 if not seqnode:
                     self.warnLog('Could not find %s in %s nodes!' % (seqacc,nwkfile))
@@ -328,7 +331,7 @@ class TaxMap(rje_obj.RJE_Object):
                 seqspec = tree.cladeSpec(seqnode)
                 if len(seqspec) != 1: self.warnLog('Could not find species in %s node!' % (seqacc)); continue
                 seqspec = seqspec.keys()[0]
-                if seqspec != string.split(seqnode.shortName(),'_')[1]: raise ValueError('Species mismatch for %s & %s' % (seqacc,seqnode.shortName()))
+                if seqspec != rje.split(seqnode.shortName(),'_')[1]: raise ValueError('Species mismatch for %s & %s' % (seqacc,seqnode.shortName()))
                 # Find ancestor with closest orthologue outgroup
                 rootnode = tree._getRootNode()
                 if not rootnode: self.warnLog('Could not find root node in %s!' % (nwkfile)); continue
@@ -348,7 +351,7 @@ class TaxMap(rje_obj.RJE_Object):
                 sentry = {'protein':seqacc,'spcode':rje.sortUnique(ancspec.keys())}
                 sentry['boot'] = bootx
                 if not ancspec: sentry['spcode'] = ['None']; sentry['boot'] = self.getNum('NoneBoot')
-                sentry['spcode'] = string.join(sentry['spcode'],'|')
+                sentry['spcode'] = rje.join(sentry['spcode'],'|')
                 # Establish list of duplicate proteins
                 inpara = []     # List of in-paralogue nodes
                 inparacc = []   # List of in-paralogue accnum
@@ -356,13 +359,13 @@ class TaxMap(rje_obj.RJE_Object):
                 self.dict['Duplicates'][seqacc] = []
                 for node in tree._nodeClade(rootnode,internal=False):
                     if node == seqnode: continue
-                    if len(string.split(node.shortName(),'_')) < 2: continue
-                    if string.split(node.shortName(),'_')[1] == seqspec:
-                        paracc = string.split(node.shortName(),'__')[1]
+                    if len(rje.split(node.shortName(),'_')) < 2: continue
+                    if rje.split(node.shortName(),'_')[1] == seqspec:
+                        paracc = rje.split(node.shortName(),'__')[1]
                         if node in inpara: inparacc.append(paracc)
                         else: self.dict['Duplicates'][seqacc].append(paracc)
-                sentry['inpara'] = string.join(inparacc,'|')
-                sentry['paralogues'] = string.join(self.dict['Duplicates'][seqacc],'|')
+                sentry['inpara'] = rje.join(inparacc,'|')
+                sentry['paralogues'] = rje.join(self.dict['Duplicates'][seqacc],'|')
                 specdb.addEntry(sentry)
             ## Update specdb and save
             specdb.saveToFile()
@@ -403,7 +406,7 @@ class TaxMap(rje_obj.RJE_Object):
                     #try: entry['desc'] = descdb.data(descdb.makeKey(entry))['description']
                 try: entry['desc'] = self.dict['ProtDesc'][entry['protein']]
                 except: entry['desc'] = ''
-                for spcode in string.split(entry['spcode'],'|'):
+                for spcode in rje.split(entry['spcode'],'|'):
                     if spcode in rankmap['genus']: continue
                     tentry = {'spcode':spcode}
                     try:
@@ -434,18 +437,18 @@ class TaxMap(rje_obj.RJE_Object):
                 for nextrank in ranks:
                     taxa = []
                     unmapped = ''
-                    for spcode in string.split(entry['spcode'],'|'):
+                    for spcode in rje.split(entry['spcode'],'|'):
                         ranktax = rankmap[nextrank][spcode]
                         if 'unmapped' in ranktax.lower() and ranktax not in taxa:
                             if unmapped: self.warnLog('Two Unmapped %s taxa: %s & %s' % (nextrank,unmapped,ranktax))
                             unmapped = ranktax   #i# Should only be one
                         if ranktax not in taxa: taxa.append(ranktax)
                     if len(taxa) > 1 and 'None' in taxa:
-                        self.warnLog('None in: %s' % string.join(rje.sortUnique(taxa),'|'))
+                        self.warnLog('None in: %s' % rje.join(rje.sortUnique(taxa),'|'))
                         taxa.remove('None')
                     if len(taxa) > 1 and unmapped: taxa.remove(unmapped)
                     if len(taxa) > 1 and self.getBool('Monophyly'): rentry[nextrank] = 'Uncertain'
-                    else: rentry[nextrank] = string.join(rje.sortUnique(taxa),'|')
+                    else: rentry[nextrank] = rje.join(rje.sortUnique(taxa),'|')
                 rankdb.addEntry(rje.combineDict(rentry,entry))
             self.printLog('\r#SPEC','%s proteins with species codes processed.' % rje.iStr(stot))
             rankdb.saveToFile()
@@ -466,7 +469,7 @@ class TaxMap(rje_obj.RJE_Object):
                 taxwt = {}; wtsum = 0.0     # Bootstrap-weighted summed counts for taxa and rank total
                 bootsum = {}; bootx = {}    # Sum and count of bootstrap values for mean boot numbers
                 for entry in rankdb.entries():
-                    taxa = string.split(entry[rank],'|')
+                    taxa = rje.split(entry[rank],'|')
                     for taxon in taxa:
                         if taxon in self.list['TaxFilter']: continue
                         if taxon not in taxsum:
@@ -514,7 +517,7 @@ class TaxMap(rje_obj.RJE_Object):
                 clist = []
                 for fline in open(cfile,'r').readlines():
                     try:
-                        prot = string.split(rje.chomp(fline),maxsplit=1)[0]
+                        prot = rje.split(rje.chomp(fline),maxsplit=1)[0]
                         if prot: clist.append(prot)
                     except: pass
                 self.printLog('#CLASS','%s "%s" class proteins read from %s' % (rje.iLen(clist),pclass,cfile))
@@ -550,7 +553,7 @@ class TaxMap(rje_obj.RJE_Object):
                     entry['spcode'] = 'Uncertain'; bfx += 1
                     continue
                 #self.debug(entry)
-                spcodes = string.split(entry['spcode'],'|')
+                spcodes = rje.split(entry['spcode'],'|')
                 for spcode in spcodes[0:]:
                     if spcode not in parents:
                         parents[spcode] = []
@@ -572,7 +575,7 @@ class TaxMap(rje_obj.RJE_Object):
                     if self.getBool('BootWeight'): taxweight = entry['boot']
                     else: taxweight = 1.0
                     taxsum[taxon] += taxweight / len(spcodes)
-                entry['spcode'] = string.join(spcodes,'|')
+                entry['spcode'] = rje.join(spcodes,'|')
             self.printLog('#FILT','Filtered %s species codes with co-occurring child taxa' % rje.iStr(fx))
             self.printLog('#FILT','Filtered %s unmapped species codes with co-occurring mapped taxa' % rje.iStr(ufx))
             if self.getNum('BootFilter') > 0.0: self.printLog('#FILT','Filtered %s proteins with bootstrap < bootfilter=%s' % (rje.iStr(bfx),self.getNum('BootFilter')))
@@ -583,12 +586,12 @@ class TaxMap(rje_obj.RJE_Object):
                 entry = specdb.data(ekey)
                 if entry['spcode'] in ['None','Uncertain']: continue
                 #self.debug(entry)
-                spcodes = string.split(entry['spcode'],'|')
+                spcodes = rje.split(entry['spcode'],'|')
                 for spcode in spcodes[0:]:
                     if self.getNum('MinScore') > 0 and self.getNum('MinScore') > taxsum[spcode]:
                         self.printLog('#FILT','%s: filtered %s < minscore=%s.' % (entry['protein'],spcode,self.getNum('MinScore')))
                         spcodes.remove(spcode); fx += 1
-                if spcodes: entry['spcode'] = string.join(spcodes,'|')
+                if spcodes: entry['spcode'] = rje.join(spcodes,'|')
                 else: self.printLog('#FILT','%s filter aborted: no spcode left!' % (entry['protein']))
                 #self.debug(entry)
             self.printLog('#FILT','Filtered %s species codes failing to meet minscore=%s.' % (rje.iStr(fx),self.getNum('MinScore')))
@@ -631,8 +634,8 @@ def runMain():
     ### ~ [1] ~ Basic Setup of Program  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try: (info,out,mainlog,cmd_list) = setupProgram()
     except SystemExit: return  
-    except: print 'Unexpected error during program setup:', sys.exc_info()[0]; return
-    
+    except: rje.printf('Unexpected error during program setup:', sys.exc_info()[0]); return
+
     ### ~ [2] ~ Rest of Functionality... ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try: TaxMap(mainlog,cmd_list).run()
 
@@ -644,7 +647,7 @@ def runMain():
 #########################################################################################################################
 if __name__ == "__main__":      ### Call runMain 
     try: runMain()
-    except: print 'Cataclysmic run error:', sys.exc_info()[0]
+    except: rje.printf('Cataclysmic run error: {0}'.format(sys.exc_info()[0]))
     sys.exit()
 #########################################################################################################################
 ### END OF SECTION IV                                                                                                   #

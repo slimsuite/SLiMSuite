@@ -19,8 +19,8 @@
 """
 Module:       SeqSuite
 Description:  Genomics and biological sequence analysis toolkit
-Version:      1.27.0
-Last Edit:    10/12/21
+Version:      1.28.0
+Last Edit:    19/09/24
 Copyright (C) 2014  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -76,7 +76,7 @@ SeqSuite tools:
     - Zen - rje_zen.Zen. Random Zen wisdom generator and test code.
 
 Special run modes:
-    - summarise = run seqlist summarise on each file in `batchrun=FILELIST`
+    - summarise = run seqlist summarise on each file in `batchrun=FILELIST` [*.fasta]
 
 Commandline:
     ### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -99,27 +99,36 @@ See also rje.py generic commandline options.
 #########################################################################################################################
 ### SECTION I: GENERAL SETUP & PROGRAM DETAILS                                                                          #
 #########################################################################################################################
-import os, string, sys, time
+import os, string, sys, time, traceback
 slimsuitepath = os.path.abspath(os.path.join(os.path.dirname(os.path.realpath(__file__)),'../')) + os.path.sep
 sys.path.append(os.path.join(slimsuitepath,'libraries/'))
 sys.path.append(os.path.join(slimsuitepath,'tools/'))
 sys.path.append(os.path.join(slimsuitepath,'extras/'))
 ### User modules - remember to add *.__doc__ to cmdHelp() below ###
 import rje, rje_db, rje_obj, rje_zen
-import rje_dbase, rje_ensembl, rje_genbank, rje_gff, rje_mitab, rje_paf, rje_ppi, rje_pydocs, rje_seq, rje_seqlist, rje_taxonomy, rje_tree, rje_uniprot, rje_xref
+import rje_paf, rje_seq, rje_seqlist, rje_tree
+import rje_dbase, rje_ensembl, rje_genbank, rje_gff, rje_mitab, rje_ppi, rje_pydocs, rje_taxonomy, rje_uniprot, rje_xref
+# try:
+#     import rje_dbase
+# except:
+#     rje.printf('Import error (python3?): {0}'.format(sys.exc_info()[0]))
+#     rje.printf(traceback.extract_tb(sys.exc_info()[2]))
+#     rje.printf('WARNING: some functions may not work')
 import rje_blast_V2 as rje_blast
 import buscomp, fiesta, gablam, gasp, gopher, haqesac, multihaq, seqmapper
 import pingu_V4 as pingu
 import pagsat, smrtscape, snapper, snp_mapper, rje_samtools, rje_apollo
-import revert
 import saaga, diploidocus, synbad, samphaser
 import depthkopy, depthsizer
 #########################################################################################################################
 # Dev modules (not in main download):
 try:
+    extatic=None; revert=None; rje_genomics=None
     sys.path.append(os.path.join(slimsuitepath,'dev/'))
-    import extatic, rje_genomics
-except: print('Note: Failed to import dev modules etc. Some experimental features unavailable.\n|--------------------------------------|')
+    import extatic, revert, rje_genomics
+except:
+    if len(sys.argv) != 2 or sys.argv[1] not in ['version', '-version', '--version', 'details', '-details', '--details', 'description', '-description', '--description']:
+        print('Note: Failed to import dev modules etc. Some experimental features unavailable.\n|--------------------------------------|')
 #########################################################################################################################
 def history():  ### Program History - only a method for PythonWin collapsing! ###
     '''
@@ -163,6 +172,9 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 1.25.0 - Added SeqMapper and SAMPhaser.
     # 1.26.0 - Added DepthSizer. Added gzip support to batch summarise.
     # 1.27.0 - Added DepthKopy.
+    # 1.27.1 - Py3 fixes & fudges to get some programs working.
+    # 1.27.2 - Made batchrun=*.fasta the default for summarise.
+    # 1.28.0 - Multiple updates to genomics tools. See release notes and indiviudal GitHubs.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -175,11 +187,12 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
     # [ ] : Add menu-driven operation.
     # [ ] : Make sure that programs run use the appropriate log if read from default ini file.
     # [ ] : Add seqbatch=FILELIST and batchcmd="commands with basefile replacement"
+    # [ ] : Find all the dict.keys() usages that need list() for python3
     '''
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copy_right) = ('SeqSuite', '1.27.0', 'December 2021', '2014')
+    (program, version, last_edit, copy_right) = ('SeqSuite', '1.28.0', 'June 2024', '2014')
     description = 'Genomics and biological sequence analysis toolkit'
     author = 'Dr Richard J. Edwards.'
     comments = ['NOTE: Some tools are still in development and have not been published.',
@@ -490,8 +503,10 @@ class SeqSuite(rje_obj.RJE_Object):
         Batch run seqlist summarise on batchrun=LIST files and output table of results
         '''
         try:### ~ [1] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            if not self.list['BatchRun']: self._cmdReadList('batchrun=*.fasta','glist',['BatchRun'])
             if not self.list['BatchRun']: raise ValueError('Need to provide batchrun=LIST files for summarise mode.')
             db = rje_db.Database(self.log,self.cmd_list)
+            if not db.baseFile(): db.baseFile('seqsuite')
             self.printLog('#BASE',db.baseFile())
             sdb = None
             if not self.force():
@@ -516,7 +531,7 @@ class SeqSuite(rje_obj.RJE_Object):
                         seqdata['GCPC'] = '%.2f' % seqdata['GCPC']
                     if 'GapLength' in seqdata: seqdata['GapPC'] = '%.2f' % (100.0*seqdata['GapLength']/seqdata['TotLength'])
                     seqdata['MeanLength'] = '%.1f' % seqdata['MeanLength']
-                    for field in string.split('SeqNum, TotLength, MinLength, MaxLength, MeanLength, MedLength, N50Length, L50Count, NG50Length, LG50Count, N50Ctg, L50Ctg, GapLength, GapPC, GCPC',', '):
+                    for field in rje.split('SeqNum, TotLength, MinLength, MaxLength, MeanLength, MedLength, N50Length, L50Count, NG50Length, LG50Count, N50Ctg, L50Ctg, GapLength, GapPC, GCPC',', '):
                         if field in seqdata and field not in sdb.fields(): sdb.addField(field)
                     for field in seqdata.keys():
                         if field not in sdb.fields(): sdb.addField(field)

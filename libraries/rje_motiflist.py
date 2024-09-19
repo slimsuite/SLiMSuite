@@ -138,57 +138,46 @@ def makeInfo():     ### Makes Info object
 #########################################################################################################################
 def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for more sys.argv commands
     '''Prints *.__doc__ and asks for more sys.argv commands.'''
-    try:
-        if info == None:
-            info = makeInfo()
-        if out == None:
-            out = rje.Out()
-        help = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
-        if help > 0:
-            print '\n\nHelp for %s %s: %s\n' % (info.program,info.version,time.asctime(time.localtime(info.start_time)))
-            out.verbose(-1,-1,text=__doc__)
-            if rje.yesNo('Show general commandline options?'):
-                out.verbose(-1,4,text=rje.__doc__)
-            if rje.yesNo('Quit?'):
-                sys.exit()
-            cmd_list += rje.inputCmds(out,cmd_list)
-        elif out.stat['Interactive'] > 1:    # Ask for more commands
-            cmd_list += rje.inputCmds(out,cmd_list)
+    try:### ~ [1] ~ Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+        if not info: info = makeInfo()
+        if not out: out = rje.Out()
+        ### ~ [2] ~ Look for help commands and print options if found ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+        cmd_help = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
+        if cmd_help > 0:
+            rje.printf('\n\nHelp for {0} {1}: {2}\n'.format(info.program, info.version, time.asctime(time.localtime(info.start_time))))
+            out.verbose(-1,4,text=__doc__)
+            if rje.yesNo('Show general commandline options?',default='N'): out.verbose(-1,4,text=rje.__doc__)
+            if rje.yesNo('Quit?'): sys.exit()           # Option to quit after help
+            cmd_list += rje.inputCmds(out,cmd_list)     # Add extra commands interactively.
+        elif out.stat['Interactive'] > 1: cmd_list += rje.inputCmds(out,cmd_list)    # Ask for more commands
+        ### ~ [3] ~ Return commands ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         return cmd_list
-    except SystemExit:
-        sys.exit()
-    except KeyboardInterrupt:
-        sys.exit()
-    except:
-        print 'Major Problem with cmdHelp()'
+    except SystemExit: sys.exit()
+    except KeyboardInterrupt: sys.exit()
+    except: rje.printf('Major Problem with cmdHelp()')
 #########################################################################################################################
-def setupProgram(): ### Basic Setup of Program
+def setupProgram(): ### Basic Setup of Program when called from commandline.
     '''
-    Basic setup of Program:
+    Basic Setup of Program when called from commandline:
     - Reads sys.argv and augments if appropriate
     - Makes Info, Out and Log objects
     - Returns [info,out,log,cmd_list]
     '''
-    try:
-        ### Initial Command Setup & Info ###
-        info = makeInfo()
-        cmd_list = rje.getCmdList(sys.argv[1:],info=info)      ### Load defaults from program.ini
-        ### Out object ###
-        out = rje.Out(cmd_list=cmd_list)
-        out.verbose(2,2,cmd_list,1)
-        out.printIntro(info)
-        ### Additional commands ###
-        cmd_list = cmdHelp(info,out,cmd_list)
-        ### Log ###
-        log = rje.setLog(info=info,out=out,cmd_list=cmd_list)
-        return [info,out,log,cmd_list]
-    except SystemExit:
-        sys.exit()
-    except KeyboardInterrupt:
-        sys.exit()
-    except:
-        print 'Problem during initial setup.'
-        raise
+    try:### ~ [1] ~ Initial Command Setup & Info ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+        info = makeInfo()                                   # Sets up Info object with program details
+        if len(sys.argv) == 2 and sys.argv[1] in ['version','-version','--version']: rje.printf(info.version); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: rje.printf('%s v%s' % (info.program,info.version)); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['description','-description','--description']: rje.printf('%s: %s' % (info.program,info.description)); sys.exit(0)
+        cmd_list = rje.getCmdList(sys.argv[1:],info=info)   # Reads arguments and load defaults from program.ini
+        out = rje.Out(cmd_list=cmd_list)                    # Sets up Out object for controlling output to screen
+        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2
+        out.printIntro(info)                                # Prints intro text using details from Info object
+        cmd_list = cmdHelp(info,out,cmd_list)               # Shows commands (help) and/or adds commands from user
+        log = rje.setLog(info,out,cmd_list)                 # Sets up Log object for controlling log file output
+        return (info,out,log,cmd_list)                      # Returns objects for use in program
+    except SystemExit: sys.exit()
+    except KeyboardInterrupt: sys.exit()
+    except: rje.printf('Problem during initial setup.'); raise
 #########################################################################################################################
 ### END OF SECTION I                                                                                                    #
 #########################################################################################################################
@@ -290,7 +279,7 @@ class MotifList(rje.RJE_Object):
         self.setOpt({'Expect':True,'MatchIC':True,'MemSaver':True,'ConsAmb':True,'ConsInfo':True})
         self.setInfo({'AlnDir':'Gopher/ALN/','AlnExt':'orthaln.fas','ConScore':'pos',
                       'ProtAlnDir':rje.makePath('ProteinAln/'),'MotifAlnDir':''})
-        self.list['Alphabet'] = string.split('A,C,D,E,F,G,H,I,K,L,M,N,P,Q,R,S,T,V,W,Y',',')
+        self.list['Alphabet'] = rje.split('A,C,D,E,F,G,H,I,K,L,M,N,P,Q,R,S,T,V,W,Y',',')
 #########################################################################################################################
     def clear(self):    ### Clears objects and lists
         '''Clears objects and lists.'''
@@ -369,10 +358,10 @@ class MotifList(rje.RJE_Object):
                 if fastacmd and not Seq: Seq = occ.getData('FastaCmd')
                 if byseq: (key1,key2) = (Seq,Motif)
                 else: (key2,key1) = (Seq,Motif)
-                if not motifocc.has_key(key1):
+                if key1 not in motifocc:
                     if nested: motifocc[key1] = {}
                     else: motifocc[key1] = []
-                if nested and not motifocc[key1].has_key(key2): motifocc[key1][key2] = []
+                if nested and key2 not in motifocc[key1]: motifocc[key1][key2] = []
                 ## Update ##
                 if justdata: val = occ.getData(justdata)
                 else: val = occ
@@ -400,11 +389,11 @@ class MotifList(rje.RJE_Object):
                 Occ.obj['Motif'] = Motif
             ### Check for Motif ###
             mymotoccs = self.motifOcc()
-            if not mymotoccs.has_key(Motif):     ## No occs for this motif!
+            if Motif not in mymotoccs:     ## No occs for this motif!
                 return Occ
             ### MapSeq and generate possible occlist ###
             occlist = []
-            if Seq and mymotoccs[Motif].has_key(Seq):
+            if Seq and Seq in mymotoccs[Motif]:
                 occlist = mymotoccs[Motif][Seq]
             else:
                 for key in mymotoccs[Motif].keys():
@@ -510,7 +499,7 @@ class MotifList(rje.RJE_Object):
             if os.path.exists(file): mlines = self.loadFromFile(file)
             if not mlines:
                 if file.find(',') > 0:   # Motif List
-                    mlines = string.split(file,',')
+                    mlines = rje.split(file,',')
                 elif file.lower() not in ['','none'] and (self.stat['Interactive'] < 1 or rje.yesNo('No lines read from "%s". Use as motif?' % file)):
                     self.log.printLog('#MOT','No lines read from "%s": using as motif.' % file)
                     mlines = [file]
@@ -559,20 +548,20 @@ class MotifList(rje.RJE_Object):
                 for returned in rje.sortKeys(sfdata):
                     data = sfdata[returned]
                     if data['Pattern']:
-                        name = string.replace(string.join([data['Dataset'],data['RunID'],data['Rank'],data['Pattern']],'#'),' ','_')
+                        name = rje.replace(rje.join([data['Dataset'],data['RunID'],data['Rank'],data['Pattern']],'#'),' ','_')
                         mx += 1
                         self._addMotif(name=name,seq=data['Pattern'],reverse=self.opt['Reverse'],check=True)
                         if self.stat['Verbose'] < 2: self.log.printLog('\r#MOT','%d motifs read from %s (%d lines): %d retained.' % (mx,file,len(mlines),self.motifNum()-preloadx),log=False,newline=False)
             elif mlines[0].find('Dataset,SeqNum,TotalAA,Rank,Score,Pattern') == 0:      # SlimPickings (SlimDisc 1.3)
                 for line in mlines[1:]:
-                    motif = string.split(line,',')
+                    motif = rje.split(line,',')
                     if len(motif) > 5:
                         mx += 1
                         self._addMotif(name='%s#%s' % (motif[0],motif[3]),seq=motif[5],reverse=self.opt['Reverse'],check=True)
                         if self.stat['Verbose'] < 2: self.log.printLog('\r#MOT','%d motifs read from %s (%d lines): %d retained.' % (mx,file,len(mlines),self.motifNum()-preloadx),log=False,newline=False)
             elif mlines[0].find('Dataset,SeqNum,FullMST,TotalAA,Rank,Score,Pattern') == 0:      # SlimPickings (SlimDisc 1.4)
                 for line in mlines[1:]:
-                    motif = string.split(line,',')
+                    motif = rje.split(line,',')
                     if len(motif) > 6:
                         mx += 1
                         self._addMotif(name='%s#%s' % (motif[0],motif[4]),seq=motif[6],reverse=self.opt['Reverse'],check=True)
@@ -638,7 +627,7 @@ class MotifList(rje.RJE_Object):
                 newpat = rje_motif.defineMotif(self,patdict[name],profile=False,minfreq=0.05,minocc=1,ambcut=19)
                 add = adddict[name]
                 add.sort()
-                mname = name[:-1] + string.join(add,'')
+                mname = name[:-1] + rje.join(add,'')
                 self.log.printLog('#MOT','Motif "%s" => %s' % (mname,newpat))
                 if len(newpat) > 1:     ### Make several
                     ext = 'abcdefghijklmnopqrstuvwxyz'
@@ -663,8 +652,8 @@ class MotifList(rje.RJE_Object):
         '''
         try:
             ### Reverse ##
-            desc = string.join(string.split(name)[1:])
-            name = string.split(name)[0]
+            desc = rje.join(rje.split(name)[1:])
+            name = rje.split(name)[0]
             if reverse:
                 name = '%s_rev' % name
 
@@ -672,7 +661,7 @@ class MotifList(rje.RJE_Object):
             if self.list['GoodMotif']:
                 dump = True
                 for good in self.list['GoodMotif']:
-                    if rje.matchExp('^(%s)$' % string.replace(good,'*','\S*'),name):
+                    if rje.matchExp('^(%s)$' % rje.replace(good,'*','\S*'),name):
                         dump = False
                         break
                 if dump:
@@ -708,10 +697,10 @@ class MotifList(rje.RJE_Object):
             ### Check Redundancy ###
             if check and self.opt['NRMotif']:
                 for motif in self.list['Motifs'][0:]:
-                    if string.join(newmotif.list['PRESTO'],'-') == string.join(motif.list['PRESTO'],'-'):
+                    if rje.join(newmotif.list['PRESTO'],'-') == rje.join(motif.list['PRESTO'],'-'):
                         self.log.printLog('\r#REM','Motif %s is identical to %s and has been removed.' % (newmotif.info['Name'],motif.info['Name']),screen=logrem,log=logrem)
                         return None
-                    elif string.join(motif.list['PRESTO'],'-').find(string.join(newmotif.list['PRESTO'],'-')) >= 0:
+                    elif rje.join(motif.list['PRESTO'],'-').find(rje.join(newmotif.list['PRESTO'],'-')) >= 0:
                         self.log.printLog('\r#REM','Motif %s is a subsequence of %s and has been removed.' % (newmotif.info['Name'],motif.info['Name']),screen=logrem,log=logrem)
                         return None
 
@@ -772,9 +761,9 @@ class MotifList(rje.RJE_Object):
             newocc = rje_motifocc.MotifOcc(self.log,self.cmd_list)
             ### Add Data ###
             newocc.obj = {'Seq':Seq,'Motif':Motif}
-            if data.has_key('Info'): newocc.setInfo(data['Info'])
-            if data.has_key('Stat'): newocc.setStat(data['Stat'])
-            if data.has_key('Data'): newocc.dict['Data'] = data['Data']
+            if 'Info' in data: newocc.setInfo(data['Info'])
+            if 'Stat' in data: newocc.setStat(data['Stat'])
+            if 'Data' in data: newocc.dict['Data'] = data['Data']
             ### Add and Return ###
             if merge:
                 oldocc = self.checkForOcc(newocc,merge=True)
@@ -806,13 +795,13 @@ class MotifList(rje.RJE_Object):
                         MainOcc.dict['Data'][key] = Occ.dict['Data'][key]
                 else:
                     for key in Occ.info:
-                        if not MainOcc.info.has_key(key):
+                        if key not in MainOcc.info:
                             MainOcc.info[key] = Occ.info[key]
                     for key in Occ.stat:
-                        if not MainOcc.stat.has_key(key):
+                        if key not in MainOcc.stat:
                             MainOcc.stat[key] = Occ.stat[key]
                     for key in Occ.dict['Data']:
-                        if not MainOcc.dict['Data'].has_key(key):
+                        if key not in MainOcc.dict['Data']:
                             MainOcc.dict['Data'][key] = Occ.dict['Data'][key]
         except:
             self.log.errorLog('Problem with MotifList.mergeOcc()')
@@ -856,10 +845,10 @@ class MotifList(rje.RJE_Object):
             ### Process Stage 1 ###
             self.dict['DomFilter'] = {}
             for keyset in domdata.keys():
-                [name,start,end] = string.split(keyset,'\t')
-                if not self.dict['DomFilter'].has_key(name):
+                [name,start,end] = rje.split(keyset,'\t')
+                if name not in self.dict['DomFilter']:
                     self.dict['DomFilter'][name] = []
-                self.dict['DomFilter'][name].append((string.atoi(start),string.atoi(end)))
+                self.dict['DomFilter'][name].append((rje.atoi(start),rje.atoi(end)))
             ### Process Stage 2 ###
             for name in self.dict['DomFilter'].keys():
                 domlist = self.dict['DomFilter'][name][0:]
@@ -901,7 +890,7 @@ class MotifList(rje.RJE_Object):
             occlist = occdata.keys()[0:]
             occdata = rje_scoring.statFilter(self,occdata,statfilter)
             for Occ in occlist[0:]:
-                if Occ in self.list['MotifOcc'] and not occdata.has_key(Occ):
+                if Occ in self.list['MotifOcc'] and Occ not in occdata:
                     self.list['MotifOcc'].remove(Occ)
             return occdata
         except:
@@ -935,8 +924,8 @@ class MotifList(rje.RJE_Object):
                             try:
                                 occval.append(Occ.stat[stat])
                             except:
-                                print statlist
-                                print Occ.stat
+                                print( statlist)
+                                print( Occ.stat)
                                 raise
                     if not occval:
                         continue
@@ -944,7 +933,7 @@ class MotifList(rje.RJE_Object):
                     try:
                         Motif.stat['%s_mean' % stat] = float(sum(occval)) / len(occval)
                     except:
-                        print occval
+                        print( occval)
                         raise
                     ## Percentiles ##
                     if self.stat['Percentile'] <= 0:
@@ -988,33 +977,33 @@ class MotifList(rje.RJE_Object):
 
             ### Restricted and Exclusive Masking of Motifs ###
             motif = datadict['MOTIF']
-            vmotif = string.replace(string.replace(motif,'_fix',''),'_var','')
+            vmotif = rje.replace(rje.replace(motif,'_fix',''),'_var','')
             vmatch = '=%s' % datadict['MATCHSEQ']
             if presto.dict['Restrict']:
-                if presto.dict['Restrict'].has_key(vmotif):
+                if vmotif in presto.dict['Restrict']:
                     #X#presto.deBug('\n(%s,%s,%s)\n' % (datadict['HIT'],datadict['START_POS'],datadict['END_POS']))
                     #X#presto.deBug('%s: %s' % (motif,presto.dict['Restrict'][motif]))
                     if [datadict['HIT'],datadict['START_POS'],datadict['END_POS']] not in presto.dict['Restrict'][vmotif]:
                         return False
-                if presto.dict['Restrict'].has_key(vmatch):
+                if vmatch in presto.dict['Restrict']:
                     #X#presto.deBug('\n(%s,%s,%s)\n' % (datadict['HIT'],datadict['START_POS'],datadict['END_POS']))
                     #X#presto.deBug('%s: %s' % (motif,presto.dict['Restrict'][motif]))
                     if [datadict['HIT'],datadict['START_POS'],datadict['END_POS']] not in presto.dict['Restrict'][vmatch]:
                         return False
-                if not presto.dict['Restrict'].has_key(vmatch) and not presto.dict['Restrict'].has_key(vmotif):
+                if vmatch not in presto.dict['Restrict'] and vmotif not in presto.dict['Restrict']:
                     return False
             if presto.dict['Exclude']:
-                if presto.dict['Exclude'].has_key(vmotif):
+                if vmotif in presto.dict['Exclude']:
                     if [datadict['HIT'],datadict['START_POS'],datadict['END_POS']] in presto.dict['Exclude'][vmotif]:
                         return False            
-                if presto.dict['Exclude'].has_key(vmatch):
+                if vmatch in presto.dict['Exclude']:
                     if [datadict['HIT'],datadict['START_POS'],datadict['END_POS']] in presto.dict['Exclude'][vmatch]:
                         return False            
 
             ### Filter patterns ###
             #!# Add presto.list['StatFilter'] when adding NewScore=X commands #!#
             filtdata = statFilter(self,data={motif:datadict},statfilter=presto.dict['StatFilter'])
-            if filtdata.has_key(motif):
+            if motif in filtdata:
                 return True
 
             ### Finish ###
@@ -1031,18 +1020,18 @@ class MotifList(rje.RJE_Object):
             if not self.opt['Gopher']:
                 return
             self.opt['UseAln'] = True
-            if not self.info.has_key('GopherDir'):
-                #X#self.deBug(string.split(self.info['AlnDir'],os.sep))
-                #X#self.deBug(string.split(self.info['AlnDir'],os.sep)[:1])
-                #X#self.deBug(string.split(self.info['AlnDir'],os.sep)[-2:-1])
-                if self.info['AlnDir'][:3] == 'ALN' or string.split(self.info['AlnDir'],os.sep)[:1] == ['ALN']:   # Current Directory
+            if 'GopherDir' not in self.info:
+                #X#self.deBug(rje.split(self.info['AlnDir'],os.sep))
+                #X#self.deBug(rje.split(self.info['AlnDir'],os.sep)[:1])
+                #X#self.deBug(rje.split(self.info['AlnDir'],os.sep)[-2:-1])
+                if self.info['AlnDir'][:3] == 'ALN' or rje.split(self.info['AlnDir'],os.sep)[:1] == ['ALN']:   # Current Directory
                     self.info['GopherDir'] = rje.makePath('./',return_blank=False)
                     self.deBug('1. GopherDir = %s; AlnDir = %s' % (self.info['GopherDir'],self.info['AlnDir']))
-                elif string.split(self.info['AlnDir'],os.sep)[-1] == 'ALN':   # Gopher is one directory up
-                    self.info['GopherDir'] = rje.makePath(string.join(string.split(self.info['AlnDir'],os.sep)[:-1],os.sep),return_blank=False)
+                elif rje.split(self.info['AlnDir'],os.sep)[-1] == 'ALN':   # Gopher is one directory up
+                    self.info['GopherDir'] = rje.makePath(rje.join(rje.split(self.info['AlnDir'],os.sep)[:-1],os.sep),return_blank=False)
                     self.deBug('2. GopherDir = %s; AlnDir = %s' % (self.info['GopherDir'],self.info['AlnDir']))
-                elif string.split(self.info['AlnDir'],os.sep)[-2:-1] == ['ALN']:
-                    self.info['GopherDir'] = rje.makePath(string.join(string.split(self.info['AlnDir'],os.sep)[:-2],os.sep),return_blank=False)
+                elif rje.split(self.info['AlnDir'],os.sep)[-2:-1] == ['ALN']:
+                    self.info['GopherDir'] = rje.makePath(rje.join(rje.split(self.info['AlnDir'],os.sep)[:-2],os.sep),return_blank=False)
                     self.deBug('3. GopherDir = %s; AlnDir = %s' % (self.info['GopherDir'],self.info['AlnDir']))
                 else:
                     self.info['GopherDir'] = self.info['AlnDir']
@@ -1209,10 +1198,10 @@ class MotifList(rje.RJE_Object):
                         continue
                     motifseq[start+i] = Occ.info['Variant'][i]
                     i += 1
-            aln._addSeq('Motifs',string.join(motifseq,''))
+            aln._addSeq('Motifs',rje.join(motifseq,''))
             aln.seq = aln.seq[-1:] + aln.seq[:-1]
             if savefasta:
-                if qry.info.has_key(hitname):
+                if hitname in qry.info:
                     aln.saveFasta(seqfile='%s%s.proteinaln.fas' % (alndir,qry.info[hitname]),log=False)
                 else:
                     aln.saveFasta(seqfile='%s%s.proteinaln.fas' % (alndir,qry.shortName()),log=False)
@@ -1285,7 +1274,7 @@ class MotifList(rje.RJE_Object):
                 pattern = motif.info['Sequence']
                 self.log.printLog('\r#ALN','%s: %.f%%.' % (ltxt,100.0*self.list['Motifs'].index(motif)/len(self.list['Motifs'])),log=False,newline=False)
                 ## Pattern info ##
-                patseq = '-%s-' % string.split(motif.info['Name'])[0]   # Name of motif
+                patseq = '-%s-' % rje.split(motif.info['Name'])[0]   # Name of motif
                 while len(patseq) < (len(rje.preZero(max_pos,max_pos)) + 2):
                     patseq += '-'
                 namelen = len(patseq)
@@ -1297,7 +1286,7 @@ class MotifList(rje.RJE_Object):
                 occ_seq['Motif'][motif].append(patseq[0:])
                 ## Occurrences ##
                 for seq in motif_occ.keys():
-                    if not motif_occ[seq].has_key(motif):
+                    if motif not in motif_occ[seq]:
                         motif_occ[seq][motif] = {}
                     for x in range(max_occ[seq]):  # Need an entry for each potential occurrence
                         if x < len(motif_occ[seq][motif]):  # Actual entry
@@ -1324,7 +1313,7 @@ class MotifList(rje.RJE_Object):
             for motif in motiflist:
                 pattern = motif.info['Sequence']
                 outlist.append(occ_seq['Motif'][motif][0])
-            extract_seq._addSeq(name,string.join(outlist,sep='X' * self.stat['XDivide']))
+            extract_seq._addSeq(name,rje.join(outlist,sep='X' * self.stat['XDivide']))
             ## Occurrences ##
             for seq in motif_occ.keys():
                 name = seq.info['Name']
@@ -1333,7 +1322,7 @@ class MotifList(rje.RJE_Object):
                     for motif in motiflist:
                         pattern = motif.info['Sequence']
                         outlist.append(occ_seq[seq][motif][x])
-                    extract_seq._addSeq(name,string.join(outlist,sep='X' * self.stat['XDivide']))
+                    extract_seq._addSeq(name,rje.join(outlist,sep='X' * self.stat['XDivide']))
             ### Output ###
             extract_seq.info['Name'] = resfile
             extract_seq.saveFasta()
@@ -1428,7 +1417,7 @@ class MotifList(rje.RJE_Object):
             my_entries += uniprot.list['Entry'][0:]
             unipaths = []
             if self.info['UniPaths'] not in ['','None']:
-                unipaths = string.split(self.info['UniPaths'],',')
+                unipaths = rje.split(self.info['UniPaths'],',')
             for path in unipaths:
                 uniprot.opt['Append'] = True
                 uniprot.info['UniPath'] = rje.makePath(path,return_blank=False)
@@ -1441,7 +1430,7 @@ class MotifList(rje.RJE_Object):
             accout = []
             for entry in my_entries:
                 acc = entry.obj['Sequence'].info['AccNum']
-                if slim_ft.has_key(acc):
+                if acc in slim_ft:
                     entry.list['Feature'] += slim_ft[acc]
                 accout.append(acc)
             for acc in slim_ft.keys():
@@ -1477,9 +1466,9 @@ class MotifList(rje.RJE_Object):
             headers = ['Motif','Pattern','Description','MaxLength','MinLength','FixLength','FullLength']
             if self.opt['Expect'] and not self.opt['Compare']:
                 headers.append('Expect')
-            if not self.opt.has_key('MotifIC') or self.opt['MotifIC']:
+            if 'MotifIC' not in self.opt or self.opt['MotifIC']:
                 headers.append('IC')
-            if self.opt.has_key('Searched') and self.opt['Searched']:
+            if 'Searched' in self.opt and self.opt['Searched']:
                 headers += ['OccNum','OccSeq']
             headers += statlist
             rje.delimitedFileOutput(self,outfile,headers,delimit,datadict={})   # Output headers
@@ -1556,34 +1545,25 @@ class MotifList(rje.RJE_Object):
 ### SECTION III: MAIN PROGRAM                                                                                           #
 #########################################################################################################################
 def runMain():
-    ### Basic Setup of Program ###
-    try:
-        [info,out,mainlog,cmd_list] = setupProgram()
-    except SystemExit:
-        return  
-    except:
-        print 'Unexpected error during program setup:', sys.exc_info()[0]
-        return
-        
-    ### Rest of Functionality... ###
+    ### ~ [1] ~ Basic Setup of Program  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+    try: (info,out,mainlog,cmd_list) = setupProgram()
+    except SystemExit: return
+    except: rje.printf('Unexpected error during program setup:', sys.exc_info()[0]); return
+
+    ### ~ [2] ~ Rest of Functionality... ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try:        
         presto = Presto(log=mainlog,cmd_list=cmd_list)
         presto.run()
 
-    ### End ###
-    except SystemExit:
-        return  # Fork exit etc.
-    except KeyboardInterrupt:
-        mainlog.errorLog('User terminated.')
-    except:
-        mainlog.errorLog('Fatal error in main %s run.' % info.program)
-    mainlog.printLog('#LOG', '%s V:%s End: %s\n' % (info.program, info.version, time.asctime(time.localtime(time.time()))))
+    ### ~ [3] ~ End ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+    except SystemExit: return  # Fork exit etc.
+    except KeyboardInterrupt: mainlog.errorLog('User terminated.')
+    except: mainlog.errorLog('Fatal error in main %s run.' % info.program)
+    mainlog.endLog(info)
 #########################################################################################################################
-if __name__ == "__main__":      ### Call runMain 
-    try:
-        runMain()
-    except:
-        print 'Cataclysmic run error:', sys.exc_info()[0]
+if __name__ == "__main__":      ### Call runMain
+    try: runMain()
+    except: rje.printf('Cataclysmic run error: {0}'.format(sys.exc_info()[0]))
     sys.exit()
 #########################################################################################################################
 ### END OF SECTION III                                                                                                  #

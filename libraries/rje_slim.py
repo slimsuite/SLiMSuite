@@ -194,7 +194,7 @@ class SLiM(rje.RJE_Object):
         >> aafreq:dict = AA frequency dictionary
         '''
         self.stat['IC'] = 0.0
-        for el in string.split(self.info['Slim'],'-'): self.stat['IC'] += weightedElementIC(el,aafreq)
+        for el in rje.split(self.info['Slim'],'-'): self.stat['IC'] += weightedElementIC(el,aafreq)
         return self.stat['IC']
 #########################################################################################################################
     def occNum(self):   ### Returns total number of occurrences
@@ -213,10 +213,10 @@ class SLiM(rje.RJE_Object):
         '''Returns actual variant used for match in Occ.'''
         try:
             pattern = ''
-            slist = string.split(slimFromPattern(Occ['Variant']),'-')
+            slist = rje.split(slimFromPattern(Occ['Variant']),'-')
             for i in range(0,len(slist),2):
                 ## ~ Deal with defined position first ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-                a = string.replace(slist[i].upper(),'X','.')
+                a = rje.replace(slist[i].upper(),'X','.')
                 if len(a) == 1: pattern += a
                 elif pattern[:1] == '^': pattern += Occ['Match'][len(pattern)-1]
                 else: pattern += Occ['Match'][len(pattern)]
@@ -251,7 +251,7 @@ class SLiM(rje.RJE_Object):
             if reverse: self.info['Sequence'] = patternFromCode(self.info['Slim'])
             ### ~ [3] Information Content & End ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             self.stat['IC'] = 0.0
-            for el in string.split(self.info['Slim'],'-'): self.stat['IC'] += elementIC(el)
+            for el in rje.split(self.info['Slim'],'-'): self.stat['IC'] += elementIC(el)
             return True
         except:
             self.log.errorLog('Error in %s format(%s)' % (self.info['Name'],self.info['Sequence']))     
@@ -263,12 +263,12 @@ class SLiM(rje.RJE_Object):
             wild = False
             slim = []
             ### ~ [2] Reformat sequence ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            for el in string.split(self.info['Slim'],'-'):
+            for el in rje.split(self.info['Slim'],'-'):
                 if wild and el == '0': el = '1'
                 elif wild: el = '0'
                 slim.append(el)
                 wild = not wild
-            self.info['Slim'] = string.join(slim,'-')
+            self.info['Slim'] = rje.join(slim,'-')
             self.info['Sequence'] = patternFromCode(self.info['Slim'])
         except: self.log.errorLog('Error in %s wildscram(%s)' % (self.info['Name'],self.info['Sequence']))     
 #########################################################################################################################
@@ -278,7 +278,7 @@ class SLiM(rje.RJE_Object):
         >> mismatch:dictionary of {mm 'X':Y aa}
         '''
         try:### ~ [1] No mismatches - expand %XORs ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            slim = string.split(self.info['Slim'],'-')
+            slim = rje.split(self.info['Slim'],'-')
             mm = [slim] # List of lists used to make basic SLiMs
             ## ~ [1a] Generate XOR dictionary ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             xor = {}    # Dictionary of {ID number:list of indices}
@@ -300,7 +300,7 @@ class SLiM(rje.RJE_Object):
             ## ~ [1c] Convert mm list ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             self.dict['MM'] = {0:[]}
             for newvar in mm:
-                newslim = slimFromPattern(patternFromCode(string.join(newvar,'-')))
+                newslim = slimFromPattern(patternFromCode(rje.join(newvar,'-')))
                 if newslim not in self.dict['MM'][0]: self.dict['MM'][0].append(newslim)
                 
             ### ~ [2] Add mismatches according to mismatch dictionary ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -309,7 +309,7 @@ class SLiM(rje.RJE_Object):
                 self.dict['MM'][mx] = []
                 mvar = []   # List of slim lists
                 for prevar in self.dict['MM'][mx-1]:    # Take each previous variant and add one more mismatch
-                    slim = string.split(prevar,'-')
+                    slim = rje.split(prevar,'-')
                     for i in range(0,len(slim),2):      # Take each defined position in turn
                         if slim[i] == 'X': continue     # Mismatched in previous round
                         newvar = slim[0:]
@@ -320,7 +320,7 @@ class SLiM(rje.RJE_Object):
                         if nofm: newvar[i] = '<%s:%d:%s>' % (nofm[0],max(0,int(nofm[1])- 1),nofm[2])
                         elif nofmorb: newvar[i] = '<%s:%d:%s:%s>' % (nofmorb[0],max(0,int(nofmorb[1])- 1),nofmorb[2],nofmorb[3])
                         else: newvar[i] = 'X'
-                        newslim = slimFromPattern(patternFromCode(string.join(newvar,'-')))
+                        newslim = slimFromPattern(patternFromCode(rje.join(newvar,'-')))
                         if newslim not in self.dict['MM'][mx]: self.dict['MM'][mx].append(newslim)
                 mx += 1
         except: self.log.errorLog('Major problem during %s mismatch (%s)' % (self.info['Name'],mismatch))
@@ -334,7 +334,7 @@ class SLiM(rje.RJE_Object):
             for mx in rje.sortKeys(self.dict['MM']):
                 self.dict['Search'][mx] = []
                 for mslim in self.dict['MM'][mx]:
-                    slim = string.split(mslim,'-')
+                    slim = rje.split(mslim,'-')
                     bases = [[]]
                     for i in range(0,len(slim),2):
                         ## ~ [2a] Defined position ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
@@ -350,9 +350,9 @@ class SLiM(rje.RJE_Object):
                             for nvar in rje.listRearrange(vlist):
                                 for base in bases: newvar.append(base+nvar)                            
                         elif len(slim[i]) > 1:
-                            for base in bases: newvar.append(base+['[%s]' % string.replace(slim[i],'X','.')])
+                            for base in bases: newvar.append(base+['[%s]' % rje.replace(slim[i],'X','.')])
                         else:
-                            for base in bases: newvar.append(base+[string.replace(slim[i],'X','.')])
+                            for base in bases: newvar.append(base+[rje.replace(slim[i],'X','.')])
                         bases = newvar[0:]
                         ## ~ [2b] Wildcards ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
                         if (i+1) < len(slim):
@@ -362,7 +362,7 @@ class SLiM(rje.RJE_Object):
                             bases = newvar[0:]
                     ## ~ [2c] Convert to proper RegExp and add ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
                     for var in bases:
-                        newre = string.join(var,'')
+                        newre = rje.join(var,'')
                         if newre not in self.dict['Search'][mx]: self.dict['Search'][mx].append(newre)
                         #self.deBug('%s >> %s' % (self.info['Name'],self.dict['Search'][mx]))
         except: self.log.errorLog('Major problem during %s searchDict' % (self.info['Name']))
@@ -382,7 +382,7 @@ class SLiM(rje.RJE_Object):
                     else:
                         el = searchvar[:1]
                         searchvar = searchvar[1:]
-                    if not var_ic.has_key(el):
+                    if el not in var_ic:
                         var_ic[el] = weightedElementIC(el,aafreq)    ### Can add aafreq and wild_pen etc. here if desired.
                     addvar.append(el)
                 varlist.append(addvar[0:])
@@ -416,7 +416,7 @@ class SLiM(rje.RJE_Object):
                 # ... occurrence of motvar in the sequence given each time, allowing one to "walk along" the sequence
                 for motvar in self.dict['Search'][mm]:
                     ## ~ [2a] Setup search regexp string for this search variant ~~~~~~~~~~~~~~~~~~ ##
-                    searchvar = string.replace(motvar,'X','.')
+                    searchvar = rje.replace(motvar,'X','.')
                     if searchvar[0] == '^': searchvar = '^(' + searchvar[1:]
                     else: searchvar = '(' + searchvar[0:]
                     if searchvar[-1] == '$': searchvar = searchvar[:-1] + ')$' 
@@ -487,9 +487,9 @@ def expectString(_expect):  ### Returns formatted string for _expect value
 #########################################################################################################################
 def checkSlimFormat(sequence):  ### Checks whether given sequence is in correct "Slim" format
     '''Checks whether given sequence is in correct "Slim" format.'''
-    if len(string.split(sequence,'-')) < 3: return False
+    if len(rje.split(sequence,'-')) < 3: return False
     wild = False
-    for el in string.split(sequence,'-'):
+    for el in rje.split(sequence,'-'):
         if wild and rje.matchExp('(\D)',el): return False       # Should be numbers only
         elif not wild and not rje.matchExp('(\D)',el): return False       # Should have non-numbers
         wild = not wild
@@ -503,7 +503,7 @@ def slimIC(slim,aafreq={}): ### Returns (weighted) IC given aafreq.
     '''
     if not checkSlimFormat(slim): slim = slimFromPattern(slim)
     ic = 0.0
-    for el in string.split(slim,'-'):
+    for el in rje.split(slim,'-'):
         if aafreq: ic += weightedElementIC(el,aafreq)
         else: ic += elementIC(el)
     return ic
@@ -520,13 +520,13 @@ def elementIC(element=''):     ### Calculates simplified IC for a given pattern 
     ### ~ [2] NofM ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     if rje.matchExp('^<(\D+):(\d+):(\d+)>',element):    # "n of m" format
         nofm = rje.matchExp('^<(\D+):(\d+):(\d+)>',element)
-        m = string.atoi(nofm[1])
-        n = string.atoi(nofm[2])
+        m = rje.atoi(nofm[1])
+        n = rje.atoi(nofm[2])
         return elementIC(nofm[0]) * m
     if rje.matchExp('^<(\D+):(\d+):(\d+):(\D+)>',element):    # "n of m" format
         nofm = rje.matchExp('^<(\D+):(\d+):(\d+):(\D+)>',element)
-        m = string.atoi(nofm[1])
-        n = string.atoi(nofm[2])
+        m = rje.atoi(nofm[1])
+        n = rje.atoi(nofm[2])
         return elementIC(nofm[0]) * m + elementIC(nofm[3]) * (n-m)
     ### ~ [3] Defined positions ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     return ((math.log(0.05,2) - math.log(1.0/len(element),2)) / math.log(0.05,2))
@@ -544,14 +544,14 @@ def weightedElementIC(element,aafreq):     ### Calculates simplified IC for a gi
     ### ~ [2] NofM ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     if rje.matchExp('^<(\D+):(\d+):(\d+)>',element):    # "n of m" format
         nofm = rje.matchExp('^<(\D+):(\d+):(\d+)>',element)
-        m = string.atoi(nofm[1])
-        n = string.atoi(nofm[2])
+        m = rje.atoi(nofm[1])
+        n = rje.atoi(nofm[2])
         return weightedElementIC(nofm[0],aafreq) * m
     ## ~ [2a] NofMorB ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
     if rje.matchExp('^<(\D+):(\d+):(\d+):(\D+)>',element):    # "n of m or b" format
         nofm = rje.matchExp('^<(\D+):(\d+):(\d+):(\D+)>',element)
-        m = string.atoi(nofm[1])
-        n = string.atoi(nofm[2])
+        m = rje.atoi(nofm[1])
+        n = rje.atoi(nofm[2])
         return weightedElementIC(nofm[0],aafreq) * m + weightedElementIC(nofm[3],aafreq) * (n-m)
     ### ~ [3] Defined positions ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     evenfreq = 1.0 / len(aafreq)
@@ -567,10 +567,10 @@ def patternFromCode(slim,ambcut=20,dna=False):  ### Returns pattern with wildcar
         defaults = {False:default_aas,True:default_nts}[dna]
         pattern = ''
         if not slim: return pattern
-        slist = string.split(slim,'-')
+        slist = rje.split(slim,'-')
         for i in range(0,len(slist),2):
             ## ~ Deal with defined position first ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-            a = string.replace(slist[i].upper(),'X','.')
+            a = rje.replace(slist[i].upper(),'X','.')
             if a[0] == '%':
                 pattern += a[:2]
                 a = a[2:]
@@ -588,7 +588,7 @@ def patternFromCode(slim,ambcut=20,dna=False):  ### Returns pattern with wildcar
             #elif len(a) > (len(defaults)+1) / 2:                # Inverse
             #    newaa = defaults[0:]
             #    for aa in a: newaa.remove(aa)
-            #    pattern += '[^%s]' % string.join(newaa,'')
+            #    pattern += '[^%s]' % rje.join(newaa,'')
             #else: pattern += '[%s]' % a
             ## ~ Deal with wildcard spacer ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             x = '0'
@@ -604,11 +604,11 @@ def prestoFromCode(slim):   ### Returns old PRESTO list from new SLiM code
     '''Returns old PRESTO list from new SLiM code. (Cannot have variable wildcard - will use longer.'''
     try:### ~ [1] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         presto = []
-        slist = string.split(slim,'-')
+        slist = rje.split(slim,'-')
         ### ~ [2] Extend PRESTO list ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         while slist:
             presto.append(slist.pop(0))
-            if slist: presto += ['X'] * string.atoi(slist.pop(0)[-1])
+            if slist: presto += ['X'] * rje.atoi(slist.pop(0)[-1])
         return presto
     except:
         print(slim, presto)
@@ -617,10 +617,10 @@ def prestoFromCode(slim):   ### Returns old PRESTO list from new SLiM code
 def convertDNA(slimcode):   ### Splits, converts to DNA and recombines
     '''Splits, converts to DNA and recombines.'''
     slim = []
-    for s in string.split(slimcode,'-'):
+    for s in rje.split(slimcode,'-'):
         if s in dna_ambig: s = dna_ambig[s]
         slim.append(s)
-    return string.join(slim,'-')
+    return rje.join(slim,'-')
 #########################################################################################################################
 def needToSplitPattern(inseq):  ### Checks whether splitting needed to reformat motif to slim code
     '''
@@ -629,9 +629,9 @@ def needToSplitPattern(inseq):  ### Checks whether splitting needed to reformat 
     << returns True if split looks necessary.
     '''
     ### ~ [1] Setup sequence for reformatting ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-    inseq = string.replace(inseq.upper(),'X','.')   # For clarity, all wildcards are . (and all upper case)
-    inseq = string.replace(inseq,'[A-Z]','.')       # Keep all wildcards as .s
-    inseq = string.join(string.split(inseq,'-'),'') # Join prosite-format
+    inseq = rje.replace(inseq.upper(),'X','.')   # For clarity, all wildcards are . (and all upper case)
+    inseq = rje.replace(inseq,'[A-Z]','.')       # Keep all wildcards as .s
+    inseq = rje.join(rje.split(inseq,'-'),'') # Join prosite-format
     if inseq.find('|') > 0: return True
     inseq = stripMotifBrackets(inseq)
     if rje.matchExp('([\[A-Za-z\^\]]+)\{(\d+),(\d+)\}',inseq): return True
@@ -652,20 +652,20 @@ def slimFromPattern(inseq,reverse=False,trimx=False,motif=None,dna=False):     #
     ## ~ [1a] Check whether the format is correct already ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
     if checkSlimFormat(inseq):  # Already formatted! Check aa ordering only.
         slim = []
-        for el in string.split(inseq,'-'): slim.append(rje.strSort(el))
-        if dna: return convertDNA(string.join(slim,'-'))
-        else: return string.join(slim,'-')
+        for el in rje.split(inseq,'-'): slim.append(rje.strSort(el))
+        if dna: return convertDNA(rje.join(slim,'-'))
+        else: return rje.join(slim,'-')
 
     ## ~ [1b] Setup sequence string for reformatting ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-    inseq = string.replace(inseq.upper(),'X','.')   # For clarity, all wildcards are . (and all upper case)
+    inseq = rje.replace(inseq.upper(),'X','.')   # For clarity, all wildcards are . (and all upper case)
     if dna:
         for n in dna_ambig:     # Keep all wildcards as .s, Convert RNA to DNA, Convert DNA ambiguities
             a = dna_ambig[n]
-            if len(a) == 1: inseq = string.replace(inseq,n,a)   # Convert RNA & wildcards
-            else: inseq = string.replace(inseq,n,'[%s]' % a)   # Convert DNA ambiguities 
-    inseq = string.replace(inseq,'[A-Z]','.')       # Keep all wildcards as .s
-    #x#for unwelcome in ')(': inseq = string.replace(inseq,unwelcome,'')   # Get rid of these
-    inseq = string.join(string.split(inseq,'-'),'') # Join prosite-format
+            if len(a) == 1: inseq = rje.replace(inseq,n,a)   # Convert RNA & wildcards
+            else: inseq = rje.replace(inseq,n,'[%s]' % a)   # Convert DNA ambiguities 
+    inseq = rje.replace(inseq,'[A-Z]','.')       # Keep all wildcards as .s
+    #x#for unwelcome in ')(': inseq = rje.replace(inseq,unwelcome,'')   # Get rid of these
+    inseq = rje.join(rje.split(inseq,'-'),'') # Join prosite-format
     inseq = stripMotifBrackets(inseq)
     
     ### ~ [2] Reformat sequence ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -678,8 +678,8 @@ def slimFromPattern(inseq,reverse=False,trimx=False,motif=None,dna=False):     #
             if rje.matchExp('^((\[[A-Z]+\])\{(\d+),(\d+)\})',inseq[0:]):
                 (full,aa,mn,mx) = rje.matchExp('^((\[[A-Z]+\])\{(\d+),(\d+)\})',inseq[0:])
             else: (full,aa,mn,mx) = rje.matchExp('^(([A-Z])\{(\d+),(\d+)\})',inseq[0:])
-            mn = string.atoi(mn)
-            mx = string.atoi(mx)
+            mn = rje.atoi(mn)
+            mx = rje.atoi(mx)
             if mn == mx: newfull = aa * mx
             elif mn < 1: newfull = '.{%d,%d}' % (mn,mx)
             else: newfull = '%s.{%d,%d}' % (aa,mn-1,mx-1)
@@ -720,7 +720,7 @@ def slimFromPattern(inseq,reverse=False,trimx=False,motif=None,dna=False):     #
             inseq = inseq[2:]
             xor = True
         ## ~ [2c] Fixed amino acid position ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-        elif inseq[0] in '^$' + string.uppercase:
+        elif inseq[0] in '^$' + string.ascii_uppercase:
             if xor: slim[-1] = slim[-1] + inseq[0]
             else: slim.append(inseq[0])
             inseq = inseq[1:]
@@ -731,7 +731,7 @@ def slimFromPattern(inseq,reverse=False,trimx=False,motif=None,dna=False):     #
             if aa[0] == '^':    # Inverse
                 newaa = defaults[0:]
                 for a in aa[1:]: newaa.remove(a)
-                aa = string.join(newaa,'')
+                aa = rje.join(newaa,'')
             if xor: slim[-1] = slim[-1] + aa
             else: slim.append(aa)
             inseq = inseq[inseq.find(']')+1:]
@@ -777,9 +777,9 @@ def slimFromPattern(inseq,reverse=False,trimx=False,motif=None,dna=False):     #
         slim.reverse()
         if slim[-1] == '^': slim[-1] = '$'
         if slim[0] == '$': slim[0] = '^'
-    #x#raw_input(string.join(slim,'-'))
-    if dna: return convertDNA(string.join(slim,'-'))
-    else: return string.join(slim,'-')
+    #x#raw_input(rje.join(slim,'-'))
+    if dna: return convertDNA(rje.join(slim,'-'))
+    else: return rje.join(slim,'-')
 #########################################################################################################################
 def stripMotifBrackets(pattern):    ### Strips unneccessary brackets from motifs
     '''Strips unneccessary brackets from motifs.'''
@@ -807,10 +807,10 @@ def stripMotifBrackets(pattern):    ### Strips unneccessary brackets from motifs
         ## ~ [1b] Replace swap region with variants ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
         #self.bugPrint('%s >> %s & %s' % (base,base[x+1:i],base[i+1:y]))
         varlist = []
-        for var in string.split(base[x+1:y],'|'):
+        for var in rje.split(base[x+1:y],'|'):
             if var[0] == '(' and var[-1] == ')': var = var[1:-1]
             varlist.append(var)
-        stripped += '%s(%s)' % (rje.stringStrip(base[:x+1],'()'),string.join(varlist,'|'))
+        stripped += '%s(%s)' % (rje.stringStrip(base[:x+1],'()'),rje.join(varlist,'|'))
         base = base[y+1:]
         #var1 = base[x+1:i]; var2 = base[i+1:y]
         #if var1[0] == '(' and var1[-1] == ')': var1 = var1[1:-1]
@@ -832,7 +832,7 @@ def ambigPos(ambig,defaults,ambcut=20):   ### Returns formatted ambiguities.
         for x in ambig[0:]: alist.append(x)
     alist.sort()
     if len(alist) > ambcut: return 'X'
-    return '[%s]' % string.join(alist,'')
+    return '[%s]' % rje.join(alist,'')
 #########################################################################################################################
 def ambigPrint(ambig,defaults,ambcut=20):   ### Returns formatted ambiguities.
     '''Returns formatted ambiguities.'''
@@ -843,14 +843,14 @@ def ambigPrint(ambig,defaults,ambcut=20):   ### Returns formatted ambiguities.
         if len(a) > (len(defaults)+1) / 2:                # Inverse
             newaa = defaults[0:]
             for aa in a: newaa.remove(aa)
-            return '[^%s]' % string.join(newaa,'')
+            return '[^%s]' % rje.join(newaa,'')
     except: pass    #!# Odd alphabet mucking things up. Might need more robust fix!
     return '[%s]' % a
 #########################################################################################################################
 def slimPosFromCode(slim):  ### Returns the number of defined positions in a slim
     '''Returns the number of positions in a slim.'''
     px = 0
-    for el in string.split(slim,'-'):
+    for el in rje.split(slim,'-'):
         if not rje.matchExp('(\D)',el): continue    # Wildcard
         elif rje.matchExp('<\D+:(\d+):\d+>',el): px += int(rje.matchExp('<\D+:(\d+):\d+>',el)[0])   # N of M
         elif rje.matchExp('<\D+:(\d+):(\d+):\D+>',el): px += int(rje.matchExp('<\D+:\d+:(\d+):\D+>',el)[0])   # N of M or B
@@ -863,7 +863,7 @@ def slimPos(slim):  ### Returns the number of defined positions in a SLiM of any
 def slimLenFromCode(slim): ### Returns maximum length of SLiM in slimcode format
     '''Returns maximum length of SLiM in slimcode format.'''
     px = 0
-    for el in string.split(slim,'-'):
+    for el in rje.split(slim,'-'):
         if not rje.matchExp('(\D)',el): px += int(el[-1])    # Wildcard
         elif rje.matchExp('<\D+:(\d+):\d+>',el): px += int(rje.matchExp('<\D+:\d+:(\d+)>',el)[0])   # N of M
         elif rje.matchExp('<\D+:(\d+):\d+:\D+>',el): px += int(rje.matchExp('<\D+:\d+:(\d+):\D+>',el)[0])   # N of M or B
@@ -873,7 +873,7 @@ def slimLenFromCode(slim): ### Returns maximum length of SLiM in slimcode format
 def slimMinLenFromCode(slim): ### Returns maximum length of SLiM in slimcode format
     '''Returns maximum length of SLiM in slimcode format.'''
     px = 0
-    for el in string.split(slim,'-'):
+    for el in rje.split(slim,'-'):
         if not rje.matchExp('(\D)',el): px += int(el[0])    # Wildcard
         elif rje.matchExp('<\D+:(\d+):\d+>',el): px += int(rje.matchExp('<\D+:\d+:(\d+)>',el)[0])   # N of M
         elif rje.matchExp('<\D+:(\d+):\d+:\D+>',el): px += int(rje.matchExp('<\D+:\d+:(\d+):\D+>',el)[0])   # N of M or B
@@ -887,7 +887,7 @@ def slimLen(slim):  ### Returns length of SLiM of any format
 def slimFixFromCode(slim):  ### Returns the number of fixed positions in a slim
     '''Returns the number of positions in a slim.'''
     px = 0
-    for el in string.split(slim,'-'):
+    for el in rje.split(slim,'-'):
         if not rje.matchExp('(\D)',el): continue    # Wildcard
         elif rje.matchExp('<(\D+):(\d+):\d+>',el):  # N of M
             if len(rje.matchExp('<(\D+):(\d+):\d+>',el)[0]) == 1: px += int(rje.matchExp('<\D+:(\d+):\d+>',el)[0])
@@ -955,7 +955,7 @@ def makeSlim(peptides,minseq=3,minfreq=0.75,maxaa=5,callobj=None,ignore='X-',var
             if aasum < mincount: motif += '.'
             elif len(aadict) > maxaa: motif += '.'
             elif len(aadict) == 1: motif += rje.sortKeys(aadict)[0]
-            elif aadict: motif += '[%s]' % string.join(rje.sortKeys(aadict),'')
+            elif aadict: motif += '[%s]' % rje.join(rje.sortKeys(aadict),'')
             if varlength and gapped:
                 if '^' in aadict:
                     if callobj: callobj.warnLog('Gapped positions (-) aligned with sequence start (^). Replace gap with X or re-align!')
@@ -992,7 +992,7 @@ def makeSlim(peptides,minseq=3,minfreq=0.75,maxaa=5,callobj=None,ignore='X-',var
                 else: i += 1
             if len(mpos) > 1 and mpos[1].startswith('{') and mpos[0] == '.': mpos = mpos[2:]
             if mpos and mpos[-1].startswith('{') and mpos[-2] == '.': mpos = mpos[:-2]
-            motif = string.join(mpos,'')
+            motif = rje.join(mpos,'')
         ### ~ [4] Trim end of motifs ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         while motif[:1] == '.': motif = motif[1:]
         if motif[:1] == '{': motif = motif[motif.find('}')+1:]
@@ -1015,7 +1015,7 @@ def slimDefPos(slim,pos,seqcheck=None,callobj=None):     ### Returns the list of
     ### ~ [0] ~ Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     slimpos = []
     slimvar = []
-    slimel = string.split(slim,'-')
+    slimel = rje.split(slim,'-')
     slimvar.append(slimel.pop(0))
     while slimel:
         wild = slimel.pop(0)
@@ -1039,7 +1039,7 @@ def slimDefPos(slim,pos,seqcheck=None,callobj=None):     ### Returns the list of
             if not slimmatch: continue
         ## ~ [1b] ~ Identify positions ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
         px = 0
-        slimel = string.split(slim,'-')[1:]
+        slimel = rje.split(slim,'-')[1:]
         slimpos.append(pos)
         while slimel:
             px += int(slimel.pop(0)) + 1
@@ -1050,7 +1050,7 @@ def slimDefPos(slim,pos,seqcheck=None,callobj=None):     ### Returns the list of
 #########################################################################################################################
 def varWild(slim):  ### Whether the SLiM has variable-length wildcards
     '''Whether the SLiM has variable-length wildcards.'''
-    slimel = string.split(slim,'-')[1:]
+    slimel = rje.split(slim,'-')[1:]
     while slimel:
         if len(slimel.pop(0)) > 1: return True
         slimel.pop(0)
@@ -1076,11 +1076,11 @@ def splitPattern(regex):     ### Splits complex motifs on "|" and returns list
                     (nonwild,m,n) = vardef
                     m = int(m)
                     n = int(n)
-                    if nonwild[-1] == ']': nonwild = '[%s' % string.split(nonwild,'[')[-1]
+                    if nonwild[-1] == ']': nonwild = '[%s' % rje.split(nonwild,'[')[-1]
                     else: nonwild = nonwild[-1]
-                    if m == n: newmotifs.append(string.replace(base,'%s{%d,%d}' % (nonwild,m,n),nonwild*m))
+                    if m == n: newmotifs.append(rje.replace(base,'%s{%d,%d}' % (nonwild,m,n),nonwild*m))
                     else:
-                        for x in range(m,n+1): newmotifs.append(string.replace(base,'%s{%d,%d}' % (nonwild,m,n),nonwild*x))
+                        for x in range(m,n+1): newmotifs.append(rje.replace(base,'%s{%d,%d}' % (nonwild,m,n),nonwild*x))
                     continue
                 splitting = True
                 pre = 0 # Number of pre parentheses - check X|Y split has surrounding parentheses (or add)

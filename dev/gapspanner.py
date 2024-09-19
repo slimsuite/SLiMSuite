@@ -168,6 +168,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     '''
     # 0.0.0 - Initial Compilation. Wrapper for Diploidocus v0.14.0 gapspan modes.
     # 0.1.0 - Modified sequence summary output.
+    # 0.1.1 - Updated code for Py3 running. (Not tested for GapSpanner yet.)
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###

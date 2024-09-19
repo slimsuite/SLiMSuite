@@ -144,11 +144,11 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         if not info: info = makeInfo()
         if not out: out = rje.Out()
         ### ~ [2] ~ Look for help commands and print options if found ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-        helpx = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
-        if helpx > 0:
-            print '\n\nHelp for %s %s: %s\n' % (info.program, info.version, time.asctime(time.localtime(info.start_time)))
+        cmd_help = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
+        if cmd_help > 0:
+            rje.printf('\n\nHelp for {0} {1}: {2}\n'.format(info.program, info.version, time.asctime(time.localtime(info.start_time))))
             out.verbose(-1,4,text=__doc__)
-            if rje.yesNo('Show general commandline options?'): out.verbose(-1,4,text=rje.__doc__)
+            if rje.yesNo('Show general commandline options?',default='N'): out.verbose(-1,4,text=rje.__doc__)
             if rje.yesNo('Quit?'): sys.exit()           # Option to quit after help
             cmd_list += rje.inputCmds(out,cmd_list)     # Add extra commands interactively.
         elif out.stat['Interactive'] > 1: cmd_list += rje.inputCmds(out,cmd_list)    # Ask for more commands
@@ -156,7 +156,7 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         return cmd_list
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Major Problem with cmdHelp()'
+    except: rje.printf('Major Problem with cmdHelp()')
 #########################################################################################################################
 def setupProgram(): ### Basic Setup of Program when called from commandline.
     '''
@@ -168,18 +168,18 @@ def setupProgram(): ### Basic Setup of Program when called from commandline.
     try:### ~ [1] ~ Initial Command Setup & Info ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         info = makeInfo()                                   # Sets up Info object with program details
         if len(sys.argv) == 2 and sys.argv[1] in ['version','-version','--version']: rje.printf(info.version); sys.exit(0)
-        if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: rje.printf('{0} v{1}'.format(info.program,info.version)); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: rje.printf('%s v%s' % (info.program,info.version)); sys.exit(0)
         if len(sys.argv) == 2 and sys.argv[1] in ['description','-description','--description']: rje.printf('%s: %s' % (info.program,info.description)); sys.exit(0)
         cmd_list = rje.getCmdList(sys.argv[1:],info=info)   # Reads arguments and load defaults from program.ini
         out = rje.Out(cmd_list=cmd_list)                    # Sets up Out object for controlling output to screen
-        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2 
+        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2
         out.printIntro(info)                                # Prints intro text using details from Info object
         cmd_list = cmdHelp(info,out,cmd_list)               # Shows commands (help) and/or adds commands from user
         log = rje.setLog(info,out,cmd_list)                 # Sets up Log object for controlling log file output
         return (info,out,log,cmd_list)                      # Returns objects for use in program
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Problem during initial setup.'; raise
+    except: rje.printf('Problem during initial setup.'); raise
 #########################################################################################################################
 ### END OF SECTION I                                                                                                    #
 #########################################################################################################################
@@ -240,7 +240,7 @@ class SLiMMaker(rje_obj.RJE_Object):
         self.setBool({'VarLength':True})
         self.setInt({'MinSeq':3,'MaxAA':5,'MaxLen':50})
         self.setNum({'MinFreq':0.75})
-        self.list['Equiv'] = string.split('AGS,ILMVF,FYW,KRH,DE,ST',',')
+        self.list['Equiv'] = rje.split('AGS,ILMVF,FYW,KRH,DE,ST',',')
         ### ~ Other Attributes ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         self._setForkAttributes()   # Delete if no forking
         self.obj['PeptCluster'] = peptcluster.PeptCluster(self.log,['peptdis=None']+self.cmd_list)
@@ -270,7 +270,7 @@ class SLiMMaker(rje_obj.RJE_Object):
                 #self._cmdReadList(cmd,'cdict',['Att']) # Splits comma separated X:Y pairs into dictionary
                 #self._cmdReadList(cmd,'cdictlist',['Att']) # As cdict but also enters keys into list
             except: self.errorLog('Problem with cmd:%s' % cmd)
-        if self.getBool('DNA'): self.str['Ignore'] = string.replace(self.str['Ignore'].upper(),'X','N')
+        if self.getBool('DNA'): self.str['Ignore'] = rje.replace(self.str['Ignore'].upper(),'X','N')
         if self.getStrUC('PeptAlign') in ['F','FALSE']: self.setStr({'PeptAlign':''})
 #########################################################################################################################
     ### <2> ### Main Class Backbone                                                                                     #
@@ -286,7 +286,7 @@ class SLiMMaker(rje_obj.RJE_Object):
             equiv = []
             if self.getBool('ExtendAA'):
                 #self.warnLog('Equivalence mode (extendaa=T) not yet implemented! Please contact author.')
-                self.printLog('#EQUIV','[%s]' % string.join(self.list['Equiv'],'] ['))
+                self.printLog('#EQUIV','[%s]' % rje.join(self.list['Equiv'],'] ['))
                 equiv = self.list['Equiv'][0:]
             ### ~ [2] ~ Add main run code here ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             slim = rje_slim.makeSlim(self.list['Peptides'],self.getInt('MinSeq'),self.getNum('MinFreq'),self.getInt('MaxAA'),self,self.getStr('Ignore'),self.getBool('VarLength'),equiv)
@@ -295,12 +295,12 @@ class SLiMMaker(rje_obj.RJE_Object):
             if not slim: return (slim,'Unable to make a SLiM with these settings and peptides')
             ## ~ [2a] ~ Assess matches ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             matched = []
-            if self.getBool('DNA'): regexp = string.replace(slim,'N','.')
-            else: regexp = string.replace(slim,'X','.')
+            if self.getBool('DNA'): regexp = rje.replace(slim,'N','.')
+            else: regexp = rje.replace(slim,'X','.')
             for peptide in self.list['Peptides']:
-                searchpep = string.replace('X%sX' % peptide,'$X','')
-                searchpep = string.replace(searchpep,'X^','')
-                searchpep = string.replace(searchpep,'-','')
+                searchpep = rje.replace('X%sX' % peptide,'$X','')
+                searchpep = rje.replace(searchpep,'X^','')
+                searchpep = rje.replace(searchpep,'-','')
                 try:
                     if rje.matchExp('(%s)' % regexp,searchpep): matched.append(peptide)
                 except: self.errorLog('Error with SLiM/peptide match, %s vs %s' % (regexp,searchpep))
@@ -309,11 +309,11 @@ class SLiMMaker(rje_obj.RJE_Object):
             if log: self.printLog('#FREQ',matchstr)
             if iterate:
                 self.dict['Output']['iterate'] += '%s: %s\n' % (slim,matchstr)
-                self.dict['Output']['iterate'] += '-> %s\n' % string.join(matched,',')
+                self.dict['Output']['iterate'] += '-> %s\n' % rje.join(matched,',')
             if iterate and (len(matched) != len(self.list['Peptides'])):
                 if not matched: return (slim,'Unable to make an interative SLiM with these settings and peptides')
                 if self.getStrLC('PeptAlign'):
-                    self.list['Peptides'] = string.split(string.replace(string.join(matched),'-',''))
+                    self.list['Peptides'] = rje.split(rje.replace(rje.join(matched),'-',''))
                 else: self.list['Peptides'] = matched
                 return self.run(iterate=True)
             ### ~ [3] REST Output ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -321,11 +321,11 @@ class SLiMMaker(rje_obj.RJE_Object):
                 (matchstr,matched) = self.inputMatches(regexp)
                 if log: self.printLog('#FREQ',matchstr)
             self.dict['Output']['match'] = matchstr
-            self.dict['Output']['matches'] = string.join(matched,'\n')
+            self.dict['Output']['matches'] = rje.join(matched,'\n')
             try:
                 unmatched = self.list['Input'][0:]
                 for pep in matched: unmatched.remove(pep)
-                self.dict['Output']['unmatched'] = string.join(unmatched,'\n')
+                self.dict['Output']['unmatched'] = rje.join(unmatched,'\n')
             except: self.dict['Output']['unmatched'] = self.errorLog('SLiMMaker Umatched Error')
             return (slim,matchstr)
         except: return (slim,self.errorLog('SLiMMaker Error'))
@@ -335,9 +335,9 @@ class SLiMMaker(rje_obj.RJE_Object):
         try:### ~ [1] ~ Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             matched = []
             for peptide in self.list['Input']:
-                searchpep = string.replace('X%sX' % peptide,'$X','')
-                searchpep = string.replace(searchpep,'X^','')
-                searchpep = string.replace(searchpep,'-','')
+                searchpep = rje.replace('X%sX' % peptide,'$X','')
+                searchpep = rje.replace(searchpep,'X^','')
+                searchpep = rje.replace(searchpep,'-','')
                 try:
                     if rje.matchExp('(%s)' % regexp,searchpep): matched.append(peptide)
                 except: self.errorLog('Error with SLiM/peptide match, %s vs %s' % (regexp,searchpep))
@@ -352,9 +352,9 @@ class SLiMMaker(rje_obj.RJE_Object):
             self.list['Peptides'] = rje.listUpper(self.list['Peptides'])
             mypep = []; peplen = 0; pepaln = True
             for inpep in self.list['Peptides']:
-                pep = string.split(inpep,'>')[0]
-                pep = string.split(pep,'#')[0]
-                for pep in string.split(pep):
+                pep = rje.split(inpep,'>')[0]
+                pep = rje.split(pep,'#')[0]
+                for pep in rje.split(pep):
                     if len(pep) > self.getInt('MaxLen'):
                         if log: self.warnLog('Peptide ignored - exceeds maxlen (%d): %s' % (self.getInt('MaxLen'),pep))
                     elif pep:
@@ -363,7 +363,7 @@ class SLiMMaker(rje_obj.RJE_Object):
                         else: peplen = len(pep)
             inx = len(self.list['Peptides'])
             self.list['Peptides'] = mypep
-            if 'peptides' not in self.dict['Output']: self.dict['Output']['peptides'] = string.join(self.list['Peptides'],'\n')
+            if 'peptides' not in self.dict['Output']: self.dict['Output']['peptides'] = rje.join(self.list['Peptides'],'\n')
             peptxt = {True:'fragments',False:'peptides'}[self.getBool('DNA')]
             if log: self.printLog('#PEP','%s %s read from %s input %s' % (len(mypep),peptxt,inx,peptxt))
             self.setInt({'MinSeq':max(1,self.getInt('MinSeq'))})
@@ -374,7 +374,7 @@ class SLiMMaker(rje_obj.RJE_Object):
                 if log: self.printLog('#ALN','Unaligned peptides: aligning with PeptCluster')
                 pclust = self.obj['PeptCluster']
                 self.list['Peptides'] = pclust.peptAlign(self.getStrUC('PeptAlign'),self.list['Peptides'])
-                self.dict['Output']['aligned'] = string.join(self.list['Peptides'],'\n')
+                self.dict['Output']['aligned'] = rje.join(self.list['Peptides'],'\n')
             elif not pepaln: self.printLog('#WARN','Warning: %s are not all same length!' % peptxt)
             self.restSetup()
             return True
@@ -425,7 +425,7 @@ def runMain():
     ### ~ [1] ~ Basic Setup of Program  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try: (info,out,mainlog,cmd_list) = setupProgram()
     except SystemExit: return  
-    except: print 'Unexpected error during program setup:', sys.exc_info()[0]; return
+    except: rje.printf('Unexpected error during program setup:', sys.exc_info()[0]); return
     
     ### ~ [2] ~ Rest of Functionality... ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try: SLiMMaker(mainlog,cmd_list).run()
@@ -439,7 +439,7 @@ def runMain():
 #########################################################################################################################
 if __name__ == "__main__":      ### Call runMain 
     try: runMain()
-    except: print 'Cataclysmic run error:', sys.exc_info()[0]
+    except: rje.printf('Cataclysmic run error: {0}'.format(sys.exc_info()[0]))
     sys.exit()
 #########################################################################################################################
 ### END OF SECTION IV                                                                                                   #

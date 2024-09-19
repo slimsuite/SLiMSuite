@@ -85,9 +85,9 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         ### ~ [2] ~ Look for help commands and print options if found ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         cmd_help = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
         if cmd_help > 0:
-            print '\n\nHelp for %s %s: %s\n' % (info.program, info.version, time.asctime(time.localtime(info.start_time)))
+            rje.printf('\n\nHelp for {0} {1}: {2}\n'.format(info.program, info.version, time.asctime(time.localtime(info.start_time))))
             out.verbose(-1,4,text=__doc__)
-            if rje.yesNo('Show general commandline options?'): out.verbose(-1,4,text=rje.__doc__)
+            if rje.yesNo('Show general commandline options?',default='N'): out.verbose(-1,4,text=rje.__doc__)
             if rje.yesNo('Quit?'): sys.exit()           # Option to quit after help
             cmd_list += rje.inputCmds(out,cmd_list)     # Add extra commands interactively.
         elif out.stat['Interactive'] > 1: cmd_list += rje.inputCmds(out,cmd_list)    # Ask for more commands
@@ -95,7 +95,7 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         return cmd_list
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Major Problem with cmdHelp()'
+    except: rje.printf('Major Problem with cmdHelp()')
 #########################################################################################################################
 def setupProgram(): ### Basic Setup of Program when called from commandline.
     '''
@@ -106,16 +106,19 @@ def setupProgram(): ### Basic Setup of Program when called from commandline.
     '''
     try:### ~ [1] ~ Initial Command Setup & Info ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         info = makeInfo()                                   # Sets up Info object with program details
+        if len(sys.argv) == 2 and sys.argv[1] in ['version','-version','--version']: rje.printf(info.version); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: rje.printf('%s v%s' % (info.program,info.version)); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['description','-description','--description']: rje.printf('%s: %s' % (info.program,info.description)); sys.exit(0)
         cmd_list = rje.getCmdList(sys.argv[1:],info=info)   # Reads arguments and load defaults from program.ini
         out = rje.Out(cmd_list=cmd_list)                    # Sets up Out object for controlling output to screen
-        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2 
+        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2
         out.printIntro(info)                                # Prints intro text using details from Info object
         cmd_list = cmdHelp(info,out,cmd_list)               # Shows commands (help) and/or adds commands from user
         log = rje.setLog(info,out,cmd_list)                 # Sets up Log object for controlling log file output
         return (info,out,log,cmd_list)                      # Returns objects for use in program
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Problem during initial setup.'; raise
+    except: rje.printf('Problem during initial setup.'); raise
 #########################################################################################################################
 ### END OF SECTION I                                                                                                    #
 #########################################################################################################################
@@ -258,8 +261,8 @@ class Exonerate(rje_obj.RJE_Object):
             excmd = [exonerate, qryfas, genome, '--showtargetgff', '--showcigar']
             if model: excmd += ['--model', model]
             if bestn: excmd += ['--bestn', '%d' % bestn]
-            if self.getStrLC('ExOpt'): excmd += string.split(self.getStr('ExOpt'))
-            self.printLog('#RUN',string.join(excmd))
+            if self.getStrLC('ExOpt'): excmd += rje.split(self.getStr('ExOpt'))
+            self.printLog('#RUN',rje.join(excmd))
             extext = []
             if self.getBool('MemSaver'):
                 gzfile = '%s.gz' % exfile
@@ -454,7 +457,7 @@ class Exonerate(rje_obj.RJE_Object):
                         # {XX} = phase 1, find = 3
                         elif codend == 3: ventry['QryStart'] += 1
                         else: raise ValueError('QrySeq {} bracket mismatch!: %s' % ventry)
-                    ventry['QryEnd'] = ventry['QryStart'] + len(ventry['QrySeq']) - string.count(ventry['QrySeq'],'-') - 1
+                    ventry['QryEnd'] = ventry['QryStart'] + len(ventry['QrySeq']) - rje.count(ventry['QrySeq'],'-') - 1
 
             vdb.newKey(['Qry','Rank','Hit','AlnID'])
             for vkey in vdb.dataKeys():
@@ -472,8 +475,8 @@ class Exonerate(rje_obj.RJE_Object):
                     ventry['HitStrand'] = '-'
                 else: ventry['HitStrand'] = '+'
                 for seq in ['HitSeq','QrySeq','AlnSeq']:
-                    ventry[seq] = string.replace(ventry[seq],'}','')
-                    ventry[seq] = string.replace(ventry[seq],'{','')
+                    ventry[seq] = rje.replace(ventry[seq],'}','')
+                    ventry[seq] = rje.replace(ventry[seq],'{','')
                 while rje.matchExp('(\s+>>>> Target Intron \d+ >>>>\s+)',ventry['QrySeq']):
                     intron = rje.matchExp('(\s+>>>> Target Intron \d+ >>>>\s+)',ventry['QrySeq'])[0]
                     x = ventry['QrySeq'].find(intron)
@@ -484,26 +487,26 @@ class Exonerate(rje_obj.RJE_Object):
                     for seq in ['HitSeq','QrySeq','AlnSeq']:
                         newentry[seq] = newentry[seq][:x]
                     newentry['AlnID'] = '%s.%d' % (ventry['AlnID'],alnx); alnx += 1
-                    newentry['QryEnd'] = newentry['QryStart'] + len(newentry['QrySeq']) - string.count(newentry['QrySeq'],'-') - 1
-                    newentry['HitEnd'] = newentry['HitStart'] + (len(newentry['HitSeq']) - string.count(newentry['HitSeq'],'-') - 1) * dirn
+                    newentry['QryEnd'] = newentry['QryStart'] + len(newentry['QrySeq']) - rje.count(newentry['QrySeq'],'-') - 1
+                    newentry['HitEnd'] = newentry['HitStart'] + (len(newentry['HitSeq']) - rje.count(newentry['HitSeq'],'-') - 1) * dirn
                     newentry['Length'] = x
-                    newentry['Identity'] = string.count(newentry['AlnSeq'],'|')
+                    newentry['Identity'] = rje.count(newentry['AlnSeq'],'|')
                     vkeyentries.append(vdb.addEntry(newentry))
                     hitseq += newentry['HitSeq']
                     #i# Update ventry to be the rest of the hit
                     for seq in ['HitSeq','QrySeq','AlnSeq']:
                         ventry[seq] = ventry[seq][y:]
                     ventry['QryStart'] = newentry['QryEnd'] + 1
-                    if protqry: ventry['QryEnd'] = ventry['QryStart'] + len(ventry['QrySeq']) - string.count(ventry['QrySeq'],'-') - 1
+                    if protqry: ventry['QryEnd'] = ventry['QryStart'] + len(ventry['QrySeq']) - rje.count(ventry['QrySeq'],'-') - 1
                     ventry['HitStart'] = newentry['HitEnd'] + intronlen * dirn
                 #i# Calculate length and identity of final exon
                 ventry['AlnID'] = '%s.%d' % (ventry['AlnID'],alnx)
                 ventry['Length'] = len(ventry['AlnSeq'])
-                ventry['Identity'] = string.count(ventry['AlnSeq'],'|')
+                ventry['Identity'] = rje.count(ventry['AlnSeq'],'|')
                 #i# Add sequence hits
                 hitname += ' (%d alignment blocks)' % alnx
                 hitseq += ventry['HitSeq']
-                hitseq = string.replace(hitseq,'-','')
+                hitseq = rje.replace(hitseq,'-','')
                 protseq = rje_sequence.dna2prot('%s%s' % ('N' * phase,hitseq))
                 self.obj['ProtHits']._addSeq(hitname,protseq)
                 if ventry['HitStart'] > ventry['HitEnd']: hitseq = rje_sequence.reverseComplement(hitseq)
@@ -511,7 +514,7 @@ class Exonerate(rje_obj.RJE_Object):
 
                 #i# Update AlnID for proper float sorting
                 for ventry in vkeyentries:
-                    (vcore,vx) = string.split(ventry['AlnID'],'.')
+                    (vcore,vx) = rje.split(ventry['AlnID'],'.')
                     ventry['AlnID'] = '%s.%s' % (vcore,rje.preZero(int(vx),alnx))
                     #self.debug(ventry)
             vdb.dataFormat({'AlnID':'string'})
@@ -634,7 +637,7 @@ class Exonerate(rje_obj.RJE_Object):
             gffdb.addField('attributes',evalue='')  #!# Add cds and gene types
 
             e2gfields = [('Hit','seqid'), ('HitStart','start'), ('HitEnd','end'), ('Phase','phase'), ('Score','score'), ('HitStrand','strand')]
-            gfields = string.split('seqid source type start end score strand phase attributes')
+            gfields = rje.split('seqid source type start end score strand phase attributes')
 
             # ID is unique
             # Name is not unique
@@ -712,11 +715,11 @@ def runMain():
     ### ~ [1] ~ Basic Setup of Program  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try: (info,out,mainlog,cmd_list) = setupProgram()
     except SystemExit: return  
-    except: print 'Unexpected error during program setup:', sys.exc_info()[0]; return
-    
+    except: rje.printf('Unexpected error during program setup:', sys.exc_info()[0]); return
+
     ### ~ [2] ~ Rest of Functionality... ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try:#NewClass(mainlog,cmd_list).run()
-        print rje_obj.zen(), '\n\n *** No standalone functionality! *** \n\n'
+        rje.printf('%s\n\n *** No standalone functionality! *** \n\n' % rje_obj.zen())
 
     ### ~ [3] ~ End ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     except SystemExit: return  # Fork exit etc.
@@ -726,7 +729,7 @@ def runMain():
 #########################################################################################################################
 if __name__ == "__main__":      ### Call runMain 
     try: runMain()
-    except: print 'Cataclysmic run error:', sys.exc_info()[0]
+    except: rje.printf('Cataclysmic run error: {0}'.format(sys.exc_info()[0]))
     sys.exit()
 #########################################################################################################################
 ### END OF SECTION IV                                                                                                   #

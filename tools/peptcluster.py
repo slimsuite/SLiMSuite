@@ -114,11 +114,11 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         if not info: info = makeInfo()
         if not out: out = rje.Out()
         ### ~ [2] ~ Look for help commands and print options if found ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-        helpx = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
-        if helpx > 0:
-            print '\n\nHelp for %s %s: %s\n' % (info.program, info.version, time.asctime(time.localtime(info.start_time)))
+        cmd_help = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
+        if cmd_help > 0:
+            rje.printf('\n\nHelp for {0} {1}: {2}\n'.format(info.program, info.version, time.asctime(time.localtime(info.start_time))))
             out.verbose(-1,4,text=__doc__)
-            if rje.yesNo('Show general commandline options?'): out.verbose(-1,4,text=rje.__doc__)
+            if rje.yesNo('Show general commandline options?',default='N'): out.verbose(-1,4,text=rje.__doc__)
             if rje.yesNo('Quit?'): sys.exit()           # Option to quit after help
             cmd_list += rje.inputCmds(out,cmd_list)     # Add extra commands interactively.
         elif out.stat['Interactive'] > 1: cmd_list += rje.inputCmds(out,cmd_list)    # Ask for more commands
@@ -126,7 +126,7 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         return cmd_list
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Major Problem with cmdHelp()'
+    except: rje.printf('Major Problem with cmdHelp()')
 #########################################################################################################################
 def setupProgram(): ### Basic Setup of Program when called from commandline.
     '''
@@ -138,18 +138,18 @@ def setupProgram(): ### Basic Setup of Program when called from commandline.
     try:### ~ [1] ~ Initial Command Setup & Info ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         info = makeInfo()                                   # Sets up Info object with program details
         if len(sys.argv) == 2 and sys.argv[1] in ['version','-version','--version']: rje.printf(info.version); sys.exit(0)
-        if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: rje.printf('{0} v{1}'.format(info.program,info.version)); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: rje.printf('%s v%s' % (info.program,info.version)); sys.exit(0)
         if len(sys.argv) == 2 and sys.argv[1] in ['description','-description','--description']: rje.printf('%s: %s' % (info.program,info.description)); sys.exit(0)
         cmd_list = rje.getCmdList(sys.argv[1:],info=info)   # Reads arguments and load defaults from program.ini
         out = rje.Out(cmd_list=cmd_list)                    # Sets up Out object for controlling output to screen
-        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2 
+        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2
         out.printIntro(info)                                # Prints intro text using details from Info object
         cmd_list = cmdHelp(info,out,cmd_list)               # Shows commands (help) and/or adds commands from user
         log = rje.setLog(info,out,cmd_list)                 # Sets up Log object for controlling log file output
         return (info,out,log,cmd_list)                      # Returns objects for use in program
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Problem during initial setup.'; raise
+    except: rje.printf('Problem during initial setup.'); raise
 #########################################################################################################################
 ### END OF SECTION I                                                                                                    #
 #########################################################################################################################
@@ -259,7 +259,7 @@ class PeptCluster(rje_obj.RJE_Object):
             ### ~ [2] ~ Generate Peptide Distances ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             ## ~ [2a] ~ Optional peptide alignment ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             self.list['Peptides'] = self.peptAlign(save=True)
-            self.dict['Output']['aligned'] = string.join(self.list['Peptides'],'\n')
+            self.dict['Output']['aligned'] = rje.join(self.list['Peptides'],'\n')
             if not self.getStrLC('PeptDis'):
                 self.printLog('#END','No peptide distance method: clustering cancelled.')
                 return
@@ -286,7 +286,7 @@ class PeptCluster(rje_obj.RJE_Object):
                 self.setStr({'SaveDis':'%s.%s.%s' % (base,self.getStr('PeptDis'),self.getStr('PeptCluster'))})
             if self.getStr('OutMatrix') in ['tdt','csv','png','phylip']: self.str['SaveDis'] += '.%s' % self.getStr('OutMatrix')[:3]
             else: self.str['SaveDis'] += '.txt'
-            self.dict['Output']['peptides'] = string.join(self.list['Peptides'],'\n')
+            self.dict['Output']['peptides'] = rje.join(self.list['Peptides'],'\n')
             ### ~ [1] Setup Distance Matrix ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             self.obj['AADis'] = rje_dismatrix.DisMatrix(self.log,['nsf2nwk=T']+self.cmd_list)
             self.obj['AADis'].info['Name'] = 'Pairwise AA distances'
@@ -306,11 +306,11 @@ class PeptCluster(rje_obj.RJE_Object):
         try:### ~ [1] Check Peptides ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             mypep = []; peplen = 0; pepaln = True
             for inpep in self.list['Peptides']:
-                pep = string.split(inpep,'>')[0]
-                pep = string.split(pep,'#')[0]
-                for pep in string.split(pep)[0:]:
-                    pep = string.replace(pep,'^','-')
-                    pep = string.replace(pep,'$','-')
+                pep = rje.split(inpep,'>')[0]
+                pep = rje.split(pep,'#')[0]
+                for pep in rje.split(pep)[0:]:
+                    pep = rje.replace(pep,'^','-')
+                    pep = rje.replace(pep,'$','-')
                     if pep:
                         if pep in mypep: self.warnLog('Redundant peptide "%s"' % pep); continue
                         mypep.append(pep)
@@ -371,7 +371,7 @@ class PeptCluster(rje_obj.RJE_Object):
                         self.errorLog('SLiM "%s" splitPattern failure' % regex)
                         self.warnLog('Will try SLiM-free alignment following splitPattern() error.')
                         return self.peptAlign('TRUE',peptides,peptdis,termini,save)
-                    self.printLog('#SPLIT','%s => %s' % (regex,string.join(splits,' | ')))
+                    self.printLog('#SPLIT','%s => %s' % (regex,rje.join(splits,' | ')))
                     newregex = ''; bestpep = []
                     for regsplit in splits:
                         regexpep = []
@@ -385,7 +385,7 @@ class PeptCluster(rje_obj.RJE_Object):
                         if pept not in bestpep: self.warnLog('%s does not match %s!' % (pept,regex)); peptides.remove(pept); failx += 1
                 slim = rje_slim.slimFromPattern(regex)
                 self.printLog('#GUIDE','SLiM Guide: %s' % slim)
-                slimpos = string.split(slim,'-')
+                slimpos = rje.split(slim,'-')
                 maxlen = rje_slim.slimLen(slim)
                 if regex.startswith('^'): maxlen -= 1
                 if regex.endswith('$'): maxlen -= 1
@@ -505,7 +505,7 @@ class PeptCluster(rje_obj.RJE_Object):
 
             ### ~ [4] Save and/or return peptides ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if save:
-                open('%s.aligned.txt' % self.baseFile(),'w').write(string.join(singletons,'\n'))
+                open('%s.aligned.txt' % self.baseFile(),'w').write(rje.join(singletons,'\n'))
                 self.printLog('#OUT','%s aligned peptides output to %s.aligned.txt' % (rje.iLen(singletons),self.baseFile()))
             return singletons
 
@@ -581,7 +581,7 @@ class PeptCluster(rje_obj.RJE_Object):
             else:
                 if self.getStr('PeptCluster') not in ['wpgma','upgma']:
                     self.errorLog('PeptCluster method "%s" not recognised. Will use UPGMA' % self.getStr('PeptCluster'),printerror=False)
-                    base = string.replace(base,self.getStr('PeptCluster'),'upgma')
+                    base = rje.replace(base,self.getStr('PeptCluster'),'upgma')
                     pretree += ['basefile=%s' % base]
                 if self.getStr('PeptCluster') == 'upgma': nsftree = self.obj['PeptDis'].upgma()
                 elif self.getStr('PeptCluster') == 'wpgma': nsftree = self.obj['PeptDis'].wpgma()
@@ -649,8 +649,8 @@ def runMain():
     ### ~ [1] ~ Basic Setup of Program  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try: (info,out,mainlog,cmd_list) = setupProgram()
     except SystemExit: return  
-    except: print 'Unexpected error during program setup:', sys.exc_info()[0]; return
-    
+    except: rje.printf('Unexpected error during program setup:', sys.exc_info()[0]); return
+
     ### ~ [2] ~ Rest of Functionality... ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try: PeptCluster(mainlog,cmd_list).run()
         #print rje_zen.Zen().wisdom(), '\n\n *** No standalone functionality! *** \n\n'
@@ -663,7 +663,7 @@ def runMain():
 #########################################################################################################################
 if __name__ == "__main__":      ### Call runMain 
     try: runMain()
-    except: print 'Cataclysmic run error:', sys.exc_info()[0]
+    except: rje.printf('Cataclysmic run error: {0}'.format(sys.exc_info()[0]))
     sys.exit()
 #########################################################################################################################
 ### END OF SECTION IV                                                                                                   #

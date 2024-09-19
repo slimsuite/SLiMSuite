@@ -139,7 +139,7 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         ### ~ [2] ~ Look for help commands and print options if found ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         help = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
         if help > 0:
-            print '\n\nHelp for %s %s: %s\n' % (info.program, info.version, time.asctime(time.localtime(info.start_time)))
+            rje.printf('\n\nHelp for {0} {1}: {2}\n'.format(info.program, info.version, time.asctime(time.localtime(info.start_time))))
             out.verbose(-1,4,text=__doc__)
             if rje.yesNo('Show general commandline options?'): out.verbose(-1,4,text=rje.__doc__)
             if rje.yesNo('Quit?'): sys.exit()           # Option to quit after help
@@ -149,7 +149,7 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         return cmd_list
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Major Problem with cmdHelp()'
+    except: rje.printf('Major Problem with cmdHelp()')
 #########################################################################################################################
 def setupProgram(): ### Basic Setup of Program when called from commandline.
     '''
@@ -165,14 +165,14 @@ def setupProgram(): ### Basic Setup of Program when called from commandline.
         if len(sys.argv) == 2 and sys.argv[1] in ['description','-description','--description']: rje.printf('%s: %s' % (info.program,info.description)); sys.exit(0)
         cmd_list = rje.getCmdList(sys.argv[1:],info=info)   # Reads arguments and load defaults from program.ini
         out = rje.Out(cmd_list=cmd_list)                    # Sets up Out object for controlling output to screen
-        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2 
+        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2
         out.printIntro(info)                                # Prints intro text using details from Info object
         cmd_list = cmdHelp(info,out,cmd_list)               # Shows commands (help) and/or adds commands from user
         log = rje.setLog(info,out,cmd_list)                 # Sets up Log object for controlling log file output
         return (info,out,log,cmd_list)                      # Returns objects for use in program
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Problem during initial setup.'; raise
+    except: rje.printf('Problem during initial setup.'); raise
 #########################################################################################################################
 mapping_methods = ['name', 'accnum', 'sequence', 'id', 'descacc', 'gablam','grep']
 method_info = {'name':'Name', 'accnum':'AccNum', 'sequence':'Sequence', 'id':'ID', 'descacc':'Description', 'gablam':'',
@@ -254,7 +254,7 @@ class SeqMapper(rje_obj.RJE_Object):
         self.setInt({})
         self.setNum({'MinMap':90.0,'AutoMap':99.5})
         self.list['Mapping'] = mapping_methods[0:]
-        self.list['SkipGene'] = string.split('ens,nvl,ref,p,hyp,frag',',')
+        self.list['SkipGene'] = rje.split('ens,nvl,ref,p,hyp,frag',',')
         ### ~ Other Attributes ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         self._setForkAttributes()   # Delete if no forking
 #########################################################################################################################
@@ -363,7 +363,7 @@ class SeqMapper(rje_obj.RJE_Object):
             if not self.list['Mapping']:
                 self.errorLog('No mapping methods selected!' % method,printerror=False)
                 raise ValueError
-            self.printLog('#MAP','Mapping: %s' % string.join(self.list['Mapping'],', '))
+            self.printLog('#MAP','Mapping: %s' % rje.join(self.list['Mapping'],', '))
             self.checkInputFiles(['SeqIn','MapDB'],imenu)   ## Sequence Files ##
             return True
         except: self.errorLog('Problem during %s setup.' % self); return False  # Setup failed
@@ -487,7 +487,7 @@ class SeqMapper(rje_obj.RJE_Object):
             if resdict['Hit']:  #hitdict[hit]['Data']['ShortName']
                 hit = resdict['Hit']['Hit']     # resdict['Hit'] is the BLAST table entry for Hit
                 shortname = hitdict[hit]['Data']['ShortName']   # This is just hit!
-                self.printLog('#MAP','%s mapped to %s (by %s)' % (string.split(seq[0])[0],shortname,resdict['Method']))
+                self.printLog('#MAP','%s mapped to %s (by %s)' % (rje.split(seq[0])[0],shortname,resdict['Method']))
                 ## Update Stats ##
                 self.debug('')
                 resdict['BlastRank'] = hitdata[hit]['Rank']
@@ -506,7 +506,7 @@ class SeqMapper(rje_obj.RJE_Object):
                     greplist = []; hitseq = ''
                     if self.v() > 1: self.printLog('#GREP','grep %s %s -B 1 -i' % (seq[1],blast.str['DBase']),log=False)
                     for line in os.popen('grep %s %s -B 1 -i' % (seq[1],blast.str['DBase'])).readlines():
-                        if line[:1] == '>': greplist.append(string.split(line[1:])[0])
+                        if line[:1] == '>': greplist.append(rje.split(line[1:])[0])
                         elif not hitseq: hitseq = rje.chomp(line)
                     if greplist:
                         shortname = greplist.pop(0)
@@ -516,18 +516,18 @@ class SeqMapper(rje_obj.RJE_Object):
                         resdict['Qry_Len'] = len(seq[1])
                         resdict['Hit_Len'] = len(hitseq)
                         resdict['Hit_ID'] = 100.0 * len(hitseq) / len(seq[1])
-                        try: resdict['Hit_Species'] = string.split(shortname,'_')[1]
+                        try: resdict['Hit_Species'] = rje.split(shortname,'_')[1]
                         except: pass
-                        self.printLog('#MAP','%s mapped to %s (by %s)' % (string.split(seq[0])[0],shortname,resdict['Method']))
+                        self.printLog('#MAP','%s mapped to %s (by %s)' % (rje.split(seq[0])[0],shortname,resdict['Method']))
                         if shortname in self.list['Mapped']:
                             self.printLog('#MAP','%s already mapped before - not duplicating in %s' % (shortname,self.str['MapFas']))
                         else:
                             self.list['Mapped'].append(shortname)
                             if outputmap: open(self.str['MapFas'],'a').write('>%s\n%s\n' % (shortname,hitseq))
-                    for extra in greplist: self.printLog('#GREP','Warning! Query "%s" also hit "%s" with grep!' % (string.split(seq[0])[0],extra))
+                    for extra in greplist: self.printLog('#GREP','Warning! Query "%s" also hit "%s" with grep!' % (rje.split(seq[0])[0],extra))
                 if not resdict['Hit'] and self.bool['Combine']:
                     ## Fasta and Redundancy ##
-                    shortname = string.split(seq[0])[0]
+                    shortname = rje.split(seq[0])[0]
                     if shortname in self.list['Mapped']:
                         self.printLog('#FAS','%s already in output - not duplicating in %s' % (shortname,self.str['MapFas']))
                     else:
@@ -610,7 +610,7 @@ class SeqMapper(rje_obj.RJE_Object):
                 hitname = hit['Hit']
                 r = ranks[h]
                 hitdict[hitname]['HitRank'] = r
-                if rankdict.has_key(r): rankdict[r].append(hit)
+                if r in rankdict: rankdict[r].append(hit)
                 else: rankdict[r] = [hit]
             newlist = []
             for r in rje.sortKeys(rankdict): newlist += rankdict[r]
@@ -629,11 +629,11 @@ class SeqMapper(rje_obj.RJE_Object):
             (name,sequence) = seq
             data = rje_sequence.extractNameDetails(name,self)
             data['Sequence'] = seq[1]
-            data['ShortName'] = string.split(seq[0])[0]
+            data['ShortName'] = rje.split(seq[0])[0]
             for hit in hitdict:
                 hitdict[hit]['Data'] = rje_sequence.extractNameDetails(hitdict[hit]['Seq'][0],self)
                 hitdict[hit]['Data']['Sequence'] = hitdict[hit]['Seq'][1]
-                hitdict[hit]['Data']['ShortName'] = string.split(hitdict[hit]['Seq'][0])[0]
+                hitdict[hit]['Data']['ShortName'] = rje.split(hitdict[hit]['Seq'][0])[0]
             ### SkipGene ###
             if method == 'id' and rje.matchExp('^(\S+)_\S+',data['ID']):
                 gene = rje.matchExp('^(\S+)_\S+',data['ID'])
@@ -669,17 +669,17 @@ class SeqMapper(rje_obj.RJE_Object):
             ### Manual GABLAM Choice ###
             if self.i() < 0 or not possibles: return None
             possibles.reverse()
-            print '\nMapping options for %s:\n' % data['ShortName']
+            print('\nMapping options for %s:\n' % data['ShortName'])
             for p in range(len(possibles)):
                 hit = possibles[p]
                 hitname = hit['Hit']
                 hitdata = hitdict[hit['Hit']]['Data']
-                print '<%d> %s (%d aa) =\t' % (len(possibles)-p,hitdata['Name'],hit['Length']),
-                print '%.1f%% Qry Len,' % (100.0 * hit['Length'] / len(seq[1])),
-                print '%.1f%% ID (%.1f%% Sim, %.1f%% Cov.)' % (hitdict[hitname]['Hit_ID'],hitdict[hitname]['Hit_Sim'],hitdict[hitname]['Hit_Len']),
-                print '(Qry: %.1f%% ID (%.1f%% Sim, %.1f%% Cov.)' % (hitdict[hitname]['Query_ID'],hitdict[hitname]['Query_Sim'],hitdict[hitname]['Query_Len'])
+                print('<%d> %s (%d aa) =\t' % (len(possibles)-p,hitdata['Name'],hit['Length']))
+                print( '%.1f%% Qry Len,' % (100.0 * hit['Length'] / len(seq[1])))
+                print('%.1f%% ID (%.1f%% Sim, %.1f%% Cov.)' % (hitdict[hitname]['Hit_ID'],hitdict[hitname]['Hit_Sim'],hitdict[hitname]['Hit_Len']))
+                print('(Qry: %.1f%% ID (%.1f%% Sim, %.1f%% Cov.)' % (hitdict[hitname]['Query_ID'],hitdict[hitname]['Query_Sim'],hitdict[hitname]['Query_Len']))
             choice = -1
-            print '<0> No mapping.\n'
+            print('<0> No mapping.\n')
             ## Choice ##
             while 1:
                 choice = rje.getInt('Select sequence to replace %s?' % data['ShortName'],default=1,confirm=True)
@@ -716,7 +716,7 @@ def runMain():
     ### ~ [1] ~ Basic Setup of Program  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try: (info,out,mainlog,cmd_list) = setupProgram()
     except SystemExit: return  
-    except: print 'Unexpected error during program setup:', sys.exc_info()[0]; return
+    except: rje.printf('Unexpected error during program setup:', sys.exc_info()[0]); return
     
     ### ~ [2] ~ Rest of Functionality... ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try: SeqMapper(mainlog,['i=1','v=1']+cmd_list).run(imenu=True)
@@ -729,7 +729,7 @@ def runMain():
 #########################################################################################################################
 if __name__ == "__main__":      ### Call runMain 
     try: runMain()
-    except: print 'Cataclysmic run error:', sys.exc_info()[0]
+    except: rje.printf('Cataclysmic run error: {0}'.format(sys.exc_info()[0]))
     sys.exit()
 #########################################################################################################################
 ### END OF SECTION IV                                                                                                   #

@@ -178,48 +178,46 @@ def makeInfo():     ### Makes Info object
 #########################################################################################################################
 def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for more sys.argv commands
     '''Prints *.__doc__ and asks for more sys.argv commands.'''
-    try:
+    try:### ~ [1] ~ Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         if not info: info = makeInfo()
         if not out: out = rje.Out()
-        helpx = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
-        print cmd_list, help
-        if helpx > 0:
-            print '\n\nHelp for %s %s: %s\n' % (info.program, info.version, time.asctime(time.localtime(info.start_time)))
+        ### ~ [2] ~ Look for help commands and print options if found ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+        cmd_help = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
+        if cmd_help > 0:
+            rje.printf('\n\nHelp for {0} {1}: {2}\n'.format(info.program, info.version, time.asctime(time.localtime(info.start_time))))
             out.verbose(-1,4,text=__doc__)
-            if rje.yesNo('Show general commandline options?','N'): out.verbose(-1,4,text=rje.__doc__)
-            if rje.yesNo('Quit?'): sys.exit()
-            cmd_list += rje.inputCmds(out,cmd_list)
+            if rje.yesNo('Show general commandline options?',default='N'): out.verbose(-1,4,text=rje.__doc__)
+            if rje.yesNo('Quit?'): sys.exit()           # Option to quit after help
+            cmd_list += rje.inputCmds(out,cmd_list)     # Add extra commands interactively.
         elif out.stat['Interactive'] > 1: cmd_list += rje.inputCmds(out,cmd_list)    # Ask for more commands
+        ### ~ [3] ~ Return commands ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         return cmd_list
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Major Problem with cmdHelp()'
+    except: rje.printf('Major Problem with cmdHelp()')
 #########################################################################################################################
-def setupProgram(): ### Basic Setup of Program
+def setupProgram(): ### Basic Setup of Program when called from commandline.
     '''
-    Basic setup of Program:
+    Basic Setup of Program when called from commandline:
     - Reads sys.argv and augments if appropriate
     - Makes Info, Out and Log objects
     - Returns [info,out,log,cmd_list]
     '''
-    try:
-        ### Initial Command Setup & Info ###
-        info = makeInfo()
-        cmd_list = rje.getCmdList(sys.argv[1:],info=info)      ### Load defaults from program.ini
-        ### Out object ###
-        out = rje.Out(cmd_list=cmd_list)
-        out.verbose(2,2,cmd_list,1)
-        out.printIntro(info)
-        ### Additional commands ###
-        cmd_list = cmdHelp(info,out,cmd_list)
-        ### Log ###
-        log = rje.setLog(info=info,out=out,cmd_list=cmd_list)
-        return [info,out,log,cmd_list]
+    try:### ~ [1] ~ Initial Command Setup & Info ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+        info = makeInfo()                                   # Sets up Info object with program details
+        if len(sys.argv) == 2 and sys.argv[1] in ['version','-version','--version']: rje.printf(info.version); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: rje.printf('%s v%s' % (info.program,info.version)); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['description','-description','--description']: rje.printf('%s: %s' % (info.program,info.description)); sys.exit(0)
+        cmd_list = rje.getCmdList(sys.argv[1:],info=info)   # Reads arguments and load defaults from program.ini
+        out = rje.Out(cmd_list=cmd_list)                    # Sets up Out object for controlling output to screen
+        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2
+        out.printIntro(info)                                # Prints intro text using details from Info object
+        cmd_list = cmdHelp(info,out,cmd_list)               # Shows commands (help) and/or adds commands from user
+        log = rje.setLog(info,out,cmd_list)                 # Sets up Log object for controlling log file output
+        return (info,out,log,cmd_list)                      # Returns objects for use in program
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except:
-        print 'Problem during initial setup.'
-        raise
+    except: rje.printf('Problem during initial setup.'); raise
 #########################################################################################################################
 ### END OF SECTION I                                                                                                    #
 #########################################################################################################################
@@ -343,7 +341,7 @@ class OddJob(rje.RJE_Object):
                     best = (0,0)
                     ox = 0
                     for rf in rje.sortKeys(seq.dict['Translation']):
-                        for orf in string.split(seq.dict['Translation'][rf],'*'):
+                        for orf in rje.split(seq.dict['Translation'][rf],'*'):
                             if len(orf) < seqs.stat['MinLen']: continue
                             ox += 1
                             newname = '%s_ORF%s RF%d; %d aa.' % (seq.shortName(),rje.preZero(ox,99),rf,len(orf))
@@ -401,7 +399,7 @@ class OddJob(rje.RJE_Object):
                         seq.addSequence(seq.info['Sequence'])
                         uniprot.addFromSeq(seq)
                     seqlist.saveFasta(case=True)
-                    uniprot.saveUniProt(string.replace(fas,'.fas','.dat'),append=False)
+                    uniprot.saveUniProt(rje.replace(fas,'.fas','.dat'),append=False)
             ### ELM Protein Stuff ###
             elif self.info['Name'] == 'elmdup':
                 self.elmDup()
@@ -437,7 +435,7 @@ class OddJob(rje.RJE_Object):
                         motifs.append('%s_%s_%d %s\t# (%s/%s); Scons=%s; p=%s;' % (ppi,data,dx,motif,occ,seqnum,scons,pvalue))
                         self.log.printLog('\r#MOT','Processing: %d motifs.' % len(motifs),newline=False,log=False)
                     elif line:   ### Prot/Domain dataset
-                        info = string.split(line)
+                        info = rje.split(line)
                         if len(info) > 1:
                             data = '%s_%s' % (info[0],info[1])
                         else:
@@ -445,9 +443,9 @@ class OddJob(rje.RJE_Object):
                         dx = 0
                 ## Output ##
                 motifs.sort()
-                outfile = string.replace(raw,'Raw','SigMotif')
+                outfile = rje.replace(raw,'Raw','SigMotif')
                 OUT = open(outfile,'w')
-                OUT.write(string.join(motifs,'\n'))
+                OUT.write(rje.join(motifs,'\n'))
                 OUT.close()
                 self.log.printLog('\r#MOT','Processing: %d motifs output.' % len(motifs))                
             
@@ -457,7 +455,7 @@ class OddJob(rje.RJE_Object):
                 for h in hfile:
                     d = os.path.splitext(os.path.basename(h))[0]
                     for v in ['amb','uhs','mts']:
-                        print 'cp %s SlimDisc/%s_%s.fas' % (h,d,v)
+                        print( 'cp %s SlimDisc/%s_%s.fas' % (h,d,v))
                         os.system('cp %s SlimDisc/%s_%s.fas' % (h,d,v))
 
             ### hprd_elm_comp = Extracts rows of *.compare.tdt files where the HPRD dataset matches its ELM ###
@@ -468,10 +466,10 @@ class OddJob(rje.RJE_Object):
                 mx = 0
                 results = {}
                 for comp in cfile:
-                    file = string.replace(comp,'.compare.tdt','')
+                    file = rje.replace(comp,'.compare.tdt','')
                     results[file] = {}
                     for cline in self.loadFromFile(comp)[1:]:
-                        data = string.split(rje.chomp(cline),'\t')
+                        data = rje.split(rje.chomp(cline),'\t')
                         if len(data) < 8:
                             continue
                         try:
@@ -486,13 +484,13 @@ class OddJob(rje.RJE_Object):
                                 results[file][dataset]['Total'] += 1
                                 rje.writeDelimit(OUT,[file] + data,'\t')
                                 mx += 1
-                                print '\r', mx,
+                                #print '\r', mx,
                             else:
                                 self.deBug('\D%s\D not in %s' % (hprd,data[1]))
                         except:
                             self.log.errorLog('Balls!')
-                            print '\n', file, data
-                print
+                            #print '\n', file, data
+                #print
                 OUT.close()
                 OUT = open('hprd_elm.performance.tdt','w')
                 rje.writeDelimit(OUT,['file','dataset','best','total'],delimit='\t')
@@ -547,9 +545,9 @@ class OddJob(rje.RJE_Object):
                         dpath = '/home/richard/SlimDisc_Projects/IPI_GO/'
                     else:
                         dpath = '/home/richard/SlimDisc_Projects/PPI_Datasets/'
-                    print 'cp %s%s.fas .' % (dpath,d)
+                    print( 'cp %s%s.fas .' % (dpath,d))
                     os.system('cp %s%s.fas .' % (dpath,d))
-                print 'Done!'
+                print( 'Done!')
 
             ### New ELM Reformat (Jan '08) ###
             elif self.info['Name'] == 'newelm':
@@ -569,54 +567,54 @@ class OddJob(rje.RJE_Object):
                         (name,pattern,desc) = details
                         ## ~ Modify Pattern ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
                         old = pattern
-                        if pattern[0] == '<': pattern = string.replace(pattern,'<','^')
+                        if pattern[0] == '<': pattern = rje.replace(pattern,'<','^')
                         else: pattern = '-%s' % pattern
-                        pattern = string.replace(pattern,'>',' $')
-                        pattern = string.replace(pattern,'?','.')
-                        pattern = string.replace(pattern,'-',' -')
+                        pattern = rje.replace(pattern,'>',' $')
+                        pattern = rje.replace(pattern,'?','.')
+                        pattern = rje.replace(pattern,'-',' -')
                         while rje.matchExp('(\-(\S+) )',pattern):
                             match = rje.matchExp('(\-(\S+) )',pattern)
                             self.deBug(match)
-                            if string.count(match[1],'/') > 0:
-                                amb = string.replace(match[1],'/','')
-                                pattern = string.replace(pattern,match[0],'[%s]' % amb)
-                            else: pattern = string.replace(pattern,match[0],match[1])
+                            if rje.count(match[1],'/') > 0:
+                                amb = rje.replace(match[1],'/','')
+                                pattern = rje.replace(pattern,match[0],'[%s]' % amb)
+                            else: pattern = rje.replace(pattern,match[0],match[1])
                             #self.log.printLog('\r#MOT','%s => %s         |<=' % (old,pattern),newline=False,log=False)
                         while rje.matchExp('(\-(\S+))$',pattern):
                             match = rje.matchExp('(\-(\S+))$',pattern)
-                            if string.count(match[1],'/') > 0:
-                                amb = string.replace(match[1],'/','')
-                                pattern = string.replace(pattern,match[0],'[%s]' % amb)
-                            else: pattern = string.replace(pattern,match[0],match[1])
-                        pattern = string.replace(pattern,' ','')
+                            if rje.count(match[1],'/') > 0:
+                                amb = rje.replace(match[1],'/','')
+                                pattern = rje.replace(pattern,match[0],'[%s]' % amb)
+                            else: pattern = rje.replace(pattern,match[0],match[1])
+                        pattern = rje.replace(pattern,' ','')
                         self.log.printLog('\r#MOT','%s => %s' % (old,pattern))
                         ## ~ Modify Description ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-                        desc = string.join(string.split(string.replace(desc,'"','')))
+                        desc = rje.join(rje.split(rje.replace(desc,'"','')))
                         ## >> Stupid MnM << ##
-                        desc = string.replace(desc,'&dopt=Abstract; http://www.ncbi.nlm.nih.gov/entrez/query.fcgi?cmd=Retrieve&db=pubmed&dopt=Abstract&list_uids=',',')
-                        desc = string.replace(desc,'&dopt=Abstract; http://www.ncbi.nlm.nih.gov/entrez/query.fcgi?cmd=retrieve&db=pubmed&list_uids=',',')
-                        desc = string.replace(desc,'; http://www.ncbi.nlm.nih.gov/entrez/query.fcgi?db=pubmed&cmd=Retrieve&dopt=AbstractPlus&list_uids=',',')
-                        desc = string.replace(desc,', http://www.ncbi.nlm.nih.gov/entrez/query.fcgi?cmd=Retrieve&db=pubmed&dopt=Abstract&list_uids=',',')
-                        desc = string.replace(desc,';http://www.ncbi.nlm.nih.gov/entrez/query.fcgi?itool=abstractplus&db=pubmed&cmd=Retrieve&dopt=abstractplus&list_uids=',',')
-                        desc = string.replace(desc,';http://www.ncbi.nlm.nih.gov/entrez/query.fcgi?cmd=Retrieve&db=pubmed&dopt=Abstract&list_uids=',',')
-                        desc = string.replace(desc,' ; http://','&')
-                        desc = string.replace(desc,'; http://','&')
+                        desc = rje.replace(desc,'&dopt=Abstract; http://www.ncbi.nlm.nih.gov/entrez/query.fcgi?cmd=Retrieve&db=pubmed&dopt=Abstract&list_uids=',',')
+                        desc = rje.replace(desc,'&dopt=Abstract; http://www.ncbi.nlm.nih.gov/entrez/query.fcgi?cmd=retrieve&db=pubmed&list_uids=',',')
+                        desc = rje.replace(desc,'; http://www.ncbi.nlm.nih.gov/entrez/query.fcgi?db=pubmed&cmd=Retrieve&dopt=AbstractPlus&list_uids=',',')
+                        desc = rje.replace(desc,', http://www.ncbi.nlm.nih.gov/entrez/query.fcgi?cmd=Retrieve&db=pubmed&dopt=Abstract&list_uids=',',')
+                        desc = rje.replace(desc,';http://www.ncbi.nlm.nih.gov/entrez/query.fcgi?itool=abstractplus&db=pubmed&cmd=Retrieve&dopt=abstractplus&list_uids=',',')
+                        desc = rje.replace(desc,';http://www.ncbi.nlm.nih.gov/entrez/query.fcgi?cmd=Retrieve&db=pubmed&dopt=Abstract&list_uids=',',')
+                        desc = rje.replace(desc,' ; http://','&')
+                        desc = rje.replace(desc,'; http://','&')
                         ## >> Stupid MnM End << ##
                         try: (words,subcell) = rje.matchExp('^(\S.+)\s+(\S+)\s+http',desc)
                         except:
-                            print '>>>\n%s\n<<<' % m
+                            print( '>>>\n%s\n<<<' % m)
                             continue
-                        try: pmid = string.split(rje.matchExp("list_uids=(\S+)",desc)[0],'&')[0]
+                        try: pmid = rje.split(rje.matchExp("list_uids=(\S+)",desc)[0],'&')[0]
                         except: pmid = ''
-                        source = string.split(desc)
+                        source = rje.split(desc)
                         s = -1
                         while source[s-1][:4] != 'http': s -= 1
-                        source = string.join(source[s:])
+                        source = rje.join(source[s:])
                         desc = '# %s [CC=%s] [MnM]' % (words,subcell)
                         if pmid: desc += ' [PMID:%s]' % pmid
                         if source != 'N/A': desc += '[%s]' % source
                         OUT.write('%s\t%s\t%s\n' % (name,pattern,desc))
-                        print '%s\t%s\t%s' % (name,pattern,desc)
+                        print( '%s\t%s\t%s' % (name,pattern,desc))
                 OUT.close()
 
             ### WAG ###
@@ -637,7 +635,7 @@ class OddJob(rje.RJE_Object):
                         self.log.printLog('\r#GO','%s CC GO terms.' % rje.integerString(len(cc)),newline=False,log=False)
                 self.log.printLog('\r#GO','%s CC GO terms.' % rje.integerString(len(cc)))
                 DO.close()
-                open('go_cc.txt','w').write(string.join(cc,'\n'))
+                open('go_cc.txt','w').write(rje.join(cc,'\n'))
 
             ### IPI GO CC II ###
             elif self.info['Name'] == 'go_cc2':     # Extracts GO cellular component Datasets
@@ -652,7 +650,7 @@ class OddJob(rje.RJE_Object):
                         cc.append(go)
                         self.log.printLog('\r#GO','%s of %s CC GO datasets.' % (rje.integerString(len(cc)),rje.integerString(cx)),newline=False,log=False)
                 self.log.printLog('\r#GO','%s of %s CC GO datasets.' % (rje.integerString(len(cc)),rje.integerString(cx)))
-                open('go_fas.txt','w').write(string.join(cc,'\n'))
+                open('go_fas.txt','w').write(rje.join(cc,'\n'))
 
             ### IPI GO CC III ###
             elif self.info['Name'] == 'go_cc3':     # Cleanup Files
@@ -672,7 +670,7 @@ class OddJob(rje.RJE_Object):
                     GABIN = open('%s.old' % gab,'r')
                     GABOUT = open(gab,'w')
                     for line in GABIN.readlines():
-                        gdata = string.split(line)
+                        gdata = rje.split(line)
                         if not gdata:
                             continue
                         if gdata[0] == 'Qry':   # Header
@@ -751,7 +749,7 @@ class OddJob(rje.RJE_Object):
                 self.progLog('\r#SEQ','Processed %s primary sequences' % rje.iLen(mapping))
                 babsseq.nextSeq()
                 nseq = ncbiseq.currSeq()
-                nacc = string.split(ncbiseq.shortName(),'|')[3]
+                nacc = rje.split(ncbiseq.shortName(),'|')[3]
                 newname = '%s %s %s' % (babsseq.shortName(),ncbiseq.shortName(),ncbiseq.seqDesc())
                 mapping[nacc] = babsseq.shortName()
                 SEQOUT.write('>%s\n%s\n' % (newname,babsseq.currSeq()[1]))
@@ -776,7 +774,7 @@ class OddJob(rje.RJE_Object):
             while gline:
                 if gline.startswith('#'): headlines.append(gline)
                 else:
-                    gdata = string.split(gline,'\t')
+                    gdata = rje.split(gline,'\t')
                     if len(gdata) < 2: continue
                     gsource = gdata[1]
                     if gdata[0] in mapping: gdata[0] = mapping[gdata[0]]
@@ -784,7 +782,7 @@ class OddJob(rje.RJE_Object):
                         gout[gsource] = open('Svulgaris.ncbi.%s.gff3' % (gsource),'w')
                         gout[gsource].writelines(headlines)
                         gx[gsource] = 0
-                    gout[gsource].write(string.join(gdata,'\t')); gx[gsource] += 1
+                    gout[gsource].write(rje.join(gdata,'\t')); gx[gsource] += 1
                     zx += 1
                 self.progLog('\r#GFF','Parsing %d GFF sources: %s lines' % (len(gx),rje.iStr(zx)),rand=0.01)
                 gline = GFF.readline()
@@ -821,7 +819,7 @@ class OddJob(rje.RJE_Object):
                     nacc = ncbiseq.seqAcc()
                     bacc = babsseq.seqAcc()
                     bdesc = babsseq.seqDesc()
-                    btype = string.split(bdesc)[0]
+                    btype = rje.split(bdesc)[0]
                     newname = '%s %s %s %s' % (babsseq.shortName(),btype,nacc,ncbiseq.seqDesc())
                     mapping[nacc] = babsseq.shortName()
                     SEQOUT.write('>%s\n%s\n' % (newname,nseq[1]))
@@ -846,7 +844,7 @@ class OddJob(rje.RJE_Object):
                 while gline:
                     if gline.startswith('#'): headlines.append(gline)
                     else:
-                        gdata = string.split(gline,'\t')
+                        gdata = rje.split(gline,'\t')
                         if len(gdata) < 2: continue
                         gsource = gdata[1]
                         if gdata[0] in mapping: gdata[0] = mapping[gdata[0]]
@@ -854,7 +852,7 @@ class OddJob(rje.RJE_Object):
                             gout[gsource] = open('%s10xv2.ncbi.%s.gff3' % (snake,gsource),'w')
                             gout[gsource].writelines(headlines)
                             gx[gsource] = 0
-                        gout[gsource].write(string.join(gdata,'\t')); gx[gsource] += 1
+                        gout[gsource].write(rje.join(gdata,'\t')); gx[gsource] += 1
                         zx += 1
                     self.progLog('\r#GFF','Parsing %d GFF sources: %s lines' % (len(gx),rje.iStr(zx)),rand=0.01)
                     gline = GFF.readline()
@@ -1011,7 +1009,7 @@ class OddJob(rje.RJE_Object):
                 for mentry in mdb.entries():
                     self.progLog('\r#SCORE','%s acc' % rje.iStr(ax))
                     ax += 1
-                    acc = string.replace(mentry['acc'],'O60344','P0DPD8')
+                    acc = rje.replace(mentry['acc'],'O60344','P0DPD8')
                     #No disorder calculation for EFMT4_HUMAN__P0DPD7: disorder method "dishl" not recognised (strict=F)!
                     #WARN     00:00:55        No disorder calculation for ECE2_HUMAN__P0DPD6: disorder method "dishl" not recognised (strict=F)!
 
@@ -1023,7 +1021,7 @@ class OddJob(rje.RJE_Object):
                     mbase = 'MobiScores/%s' % acc
                     complete = True
                     for pred in ['espN', 'iupl', 'glo', 'espD', 'espX', 'dis465', 'iups', 'jronn', 'vsl', 'disHL']:
-                        plen = len(string.split(mentry[pred]))
+                        plen = len(rje.split(mentry[pred]))
                         if plen != seqlen:
                             self.warnLog('%s = %d aa but %s prediction length = %d' % (acc,seqlen,pred,plen))
                             complete = False
@@ -1038,8 +1036,8 @@ class OddJob(rje.RJE_Object):
                     else: bacc.append(acc)
                 self.printLog('\r#SCORE','Saved %s score files for %s acc to MobiScores/.' % (rje.iStr(fx),rje.iStr(ax)))
                 self.printLog('\r#FAS','%s sequences saved to %s: %s without sequences.' % (rje.iStr(sx),mfas,rje.iStr(mx)))
-                open('mobicomplete.acc','w').write('%s\n' % string.join(cacc,'\n'))
-                open('mobipartial.acc','w').write('%s\n' % string.join(bacc,'\n'))
+                open('mobicomplete.acc','w').write('%s\n' % rje.join(cacc,'\n'))
+                open('mobipartial.acc','w').write('%s\n' % rje.join(bacc,'\n'))
                 self.printLog('#ACC','%s complete prediction sets: accnum output to mobicomplete.acc' % rje.iLen(cacc))
                 self.printLog('#ACC','%s incomplete prediction sets: accnum output to mobipartial.acc' % rje.iLen(bacc))
                 MFAS.close()
@@ -1056,7 +1054,7 @@ class OddJob(rje.RJE_Object):
                 for mentry in mdb.entries():
                     self.progLog('\r#SCORE','%s acc| %s aa' % (rje.iStr(ax),rje.iStr(aax)))
                     ax += 1
-                    acc = string.replace(mentry['acc'],'O60344','P0DPD8')
+                    acc = rje.replace(mentry['acc'],'O60344','P0DPD8')
 
                     #No disorder calculation for EFMT4_HUMAN__P0DPD7: disorder method "dishl" not recognised (strict=F)!
                     #No disorder calculation for ECE2_HUMAN__P0DPD6: disorder method "dishl" not recognised (strict=F)!
@@ -1070,7 +1068,7 @@ class OddJob(rje.RJE_Object):
 
                     complete = True
                     for pred in ['espN', 'iupl', 'glo', 'espD', 'espX', 'dis465', 'iups', 'jronn', 'vsl', 'disHL']:
-                        plen = len(string.split(mentry[pred]))
+                        plen = len(rje.split(mentry[pred]))
                         if plen != seqlen:
                             self.warnLog('%s = %d aa but %s prediction length = %d' % (acc,seqlen,pred,plen))
                             complete = False
@@ -1083,7 +1081,7 @@ class OddJob(rje.RJE_Object):
 
                     for pred in ['espN', 'iupl', 'glo', 'espD', 'espX', 'dis465', 'iups', 'jronn', 'vsl', 'disHL']:
                         sdict = scores[pred]
-                        for val in string.split(mentry[pred]):
+                        for val in rje.split(mentry[pred]):
                             num = float(val)
                             if num in sdict: sdict[num] += 1
                             else: sdict[num] = 1
@@ -1112,7 +1110,7 @@ class OddJob(rje.RJE_Object):
                 rje.mkDir(self,'MobiNormTables/',log=True)
                 ax = 0.0; atot = len(cacc)
                 for mentry in mdb.entries():
-                    acc = string.replace(mentry['acc'],'O60344','P0DPD8')
+                    acc = rje.replace(mentry['acc'],'O60344','P0DPD8')
                     if acc not in cacc: mdb.dropEntry(mentry); continue
                     self.progLog('\r#NORM','Saving normalised scores: %.2f%%' % (ax/atot))
                     ndb = db.addEmptyTable('norm',['pos']+pmethods,['pos'],log=False)
@@ -1124,12 +1122,12 @@ class OddJob(rje.RJE_Object):
                     for pred in ['espN', 'iupl', 'glo', 'espD', 'espX', 'dis465', 'iups', 'jronn', 'vsl', 'disHL']:
                         sdict = scores[pred]
                         newscores = []; pos = 0
-                        for val in string.split(mentry[pred]):
+                        for val in rje.split(mentry[pred]):
                             pos += 1
                             norm = sdict[float(val)]
                             newscores.append(norm)
                             ndb.data(pos)[pred] = norm
-                        mentry[pred] = string.join(newscores)
+                        mentry[pred] = rje.join(newscores)
                         mfile = '%s.%s.txt' % (mbase, pred.lower())
                         #if not os.path.exists(mfile):
                         open(mfile,'w').write('%s\t%s\n' % (acc,mentry[pred]))
@@ -1189,7 +1187,7 @@ class OddJob(rje.RJE_Object):
                     except: self.warnLog('No %s for %s' % (udat,acc))
                 for upred in modbdat[u'predictors']:
                     pred = str(upred)
-                    mentry[pred] = string.replace('%s' % modbdat[u'predictors'][upred],',','')[1:-1]
+                    mentry[pred] = rje.replace('%s' % modbdat[u'predictors'][upred],',','')[1:-1]
                 mdb.addEntry(mentry)
                 #dentry = {'acc':str(acc)}
 
@@ -1253,7 +1251,7 @@ class OddJob(rje.RJE_Object):
                     num = float(val)
                     ndata.append(sdict[num])
                 nfile = '%s%s.anchor.txt' % (outdir,acc)
-                open(nfile,'w').write('%s\n' % string.join(ndata))
+                open(nfile,'w').write('%s\n' % rje.join(ndata))
                 #NormTable
                 ntab = 'MobiNormTables/%s.mobinorm.tdt' % acc
                 if not rje.exists(ntab): continue
@@ -1292,7 +1290,7 @@ class OddJob(rje.RJE_Object):
             for field in sdb.fields():
                 if field.startswith('N|'):
                     snpformat[field] = 'int'
-                    strain = string.split(field,'|')[1]
+                    strain = rje.split(field,'|')[1]
                     allstrains.append(strain)
                     if strain.startswith('mbg') and strain not in parentstrains: mbgstrains.append(strain)
                     snpformat[strain] = 'num'
@@ -1326,7 +1324,7 @@ class OddJob(rje.RJE_Object):
                         elif strain in mbgstrains: entry['Strains'].append(strain)
                         else: entry['Pops'].append(strain)
                 for field in ['Parents','Pops','Strains']:
-                    entry[field] = string.join(entry[field],'|')
+                    entry[field] = rje.join(entry[field],'|')
             self.printLog('#SNP','%s SNPs recalculated' % rje.iStr(snpx))
 
             #6. Save to pop00snpft.snpmap.tdt.
@@ -1349,7 +1347,7 @@ class OddJob(rje.RJE_Object):
             #Locus	Pos	REF	ALT	N	Freq
             #sgdIII_YEAST__BK006937	116	A	C	11	0.224489795918
             for snpfile in snptabs:
-                strain = string.split(rje.baseFile(snpfile,strip_path=True),'.')[0]
+                strain = rje.split(rje.baseFile(snpfile,strip_path=True),'.')[0]
                 sdb = db.addTable(filename=snpfile,mainkeys=['Locus','Pos','REF','ALT'],name=strain,expect=True)
                 sdb.dataFormat({'Pos':'int','N':'int','Freq':'num'})
                 sdb.renameField('N','N|%s' % strain)
@@ -1402,9 +1400,9 @@ class OddJob(rje.RJE_Object):
                     if field[:3] in ['Pop'] and entry[field] > 0:
                         entry['Pops'].append(field)
                 if fx: entry['CombFreq'] /= fx
-                entry['Parents'] = string.join(entry['Parents'],'|')
-                entry['Strains'] = string.join(entry['Strains'],'|')
-                entry['Pops'] = string.join(entry['Pops'],'|')
+                entry['Parents'] = rje.join(entry['Parents'],'|')
+                entry['Strains'] = rje.join(entry['Strains'],'|')
+                entry['Pops'] = rje.join(entry['Pops'],'|')
                 self.deBug(entry)
             comdb.saveToFile()
 
@@ -1425,21 +1423,21 @@ class OddJob(rje.RJE_Object):
             for entry in qdb.entries():
                 refn = 1000 - entry['N']
                 if refn > 0:
-                    seq = string.split(entry['Seq'],'|')
+                    seq = rje.split(entry['Seq'],'|')
                     seq.append('%s:%s' % (entry['Ref'],refn))
                     seq.sort()
-                    entry['Seq'] = string.join(seq,'|')
+                    entry['Seq'] = rje.join(seq,'|')
                 entry['N'] = entry['QN'] = 1000
                 entry['Dep'] = 1.0
-                entry['Parents'] = string.split(entry['Parents'],'|')
+                entry['Parents'] = rje.split(entry['Parents'],'|')
                 entry['Parents'] = rje.sortUnique(entry['Parents'])
-                entry['Parents'] = string.join(entry['Parents'],'|')
-                entry['Strains'] = string.split(entry['Strains'],'|')
+                entry['Parents'] = rje.join(entry['Parents'],'|')
+                entry['Strains'] = rje.split(entry['Strains'],'|')
                 entry['Strains'] = rje.sortUnique(entry['Strains'])
-                entry['Strains'] = string.join(entry['Strains'],'|')
-                entry['Pops'] = string.split(entry['Pops'],'|')
+                entry['Strains'] = rje.join(entry['Strains'],'|')
+                entry['Pops'] = rje.split(entry['Pops'],'|')
                 entry['Pops'] = rje.sortUnique(entry['Pops'])
-                entry['Pops'] = string.join(entry['Pops'],'|')
+                entry['Pops'] = rje.join(entry['Pops'],'|')
             qdb.saveToFile()
 
             #!# Make this file:
@@ -1509,8 +1507,8 @@ class OddJob(rje.RJE_Object):
                 table.dataFormat({'Query_Len':'int','Hit_Len':'int'})
                 table.dropEntriesDirect('MapRank',['1'],inverse=True)
                 for entry in table.entries():
-                    entry['Query'] = string.split(entry['Query'],'__')[1]
-                    entry['Hit'] = string.split(entry['Hit'],'__')[1]
+                    entry['Query'] = rje.split(entry['Query'],'__')[1]
+                    entry['Hit'] = rje.split(entry['Hit'],'__')[1]
                 table.remakeKeys()
 
             # protein genus   family  order   class   phylum  boot    spcode  inpara  paralogues      desc
@@ -1549,7 +1547,7 @@ class OddJob(rje.RJE_Object):
             jgidb.addFields(['protein','prokka','len','pos'])
             jgidb.addField('ncbi',after='protein',evalue='-')
             for entry in jgidb.entries():
-                try: entry['protein'] = string.split(rje.matchExp('locus_tag=(\S+)',entry['Details'])[0],';')[0]
+                try: entry['protein'] = rje.split(rje.matchExp('locus_tag=(\S+)',entry['Details'])[0],';')[0]
                 except:
                     self.warnLog('Dropped: %s' % entry)
                     jgidb.dropEntry(entry)
@@ -1596,14 +1594,14 @@ class OddJob(rje.RJE_Object):
                             if mentry['Query_Len'] > mentry['Hit_Len']: entry['ncbi'] += '(-)'
                             if mentry['Query_Len'] < mentry['Hit_Len']: entry['ncbi'] += '(+)'
                         elif len(n2jdb.index('Hit')[jacc]) > 1:
-                            nacc = entry['ncbi'] = string.join(n2jdb.indexDataList('Hit',jacc,'Query'),',')
-                            nacc1 = string.split(nacc,',')[0]
+                            nacc = entry['ncbi'] = rje.join(n2jdb.indexDataList('Hit',jacc,'Query'),',')
+                            nacc1 = rje.split(nacc,',')[0]
                             #entry['ncbi'] = '<a href="https://www.ncbi.nlm.nih.gov/protein/%s">%s</a>*' % (entry['ncbi'],entry['ncbi'])
                             if nacc1 in ncbi.data():
                                 entry['ncbi'] = '<a href="%s%s">%s</a> [<a href="%s%s">^</a>]*' % (nurlbase,nacc1,nacc,gurlbase,nacc)
                             elif nacc1:
                                 entry['ncbi'] = '%s [<a href="%s%s">^</a>]' % (nacc,gurlbase,nacc)
-                            for nacc in string.split(nacc,','):
+                            for nacc in rje.split(nacc,','):
                                 if nacc in ncbi.data():
                                     try:
                                         ncbi.data(nacc)['protein'] = '<a href="%s%s">%s</a>' % (jurlbase,pacc,pacc)
@@ -1612,7 +1610,7 @@ class OddJob(rje.RJE_Object):
 
             gffdb.addFields(['prokka'])
             for entry in gffdb.entries():
-                try: entry['prokka'] = string.split(rje.matchExp('locus_tag=(\S+)',entry['Details'])[0],';')[0]
+                try: entry['prokka'] = rje.split(rje.matchExp('locus_tag=(\S+)',entry['Details'])[0],';')[0]
                 except: pass
                 #if rje.matchExp('locus_tag=(\S+\d+);p',entry['Details']): entry['jgi'] = rje.matchExp('locus_tag=(\S+\d+);p',entry['Details'])[0]
                 #elif rje.matchExp('locus_tag=(\S+\d+)',entry['Details']): entry['jgi'] = rje.matchExp('locus_tag=(\S+\d+)',entry['Details'])[0]
@@ -1624,14 +1622,14 @@ class OddJob(rje.RJE_Object):
             gffdb = jgidb
             #mapdb.addFields(['jgi','protein'])
             #for entry in mapdb.entries():
-            #    entry['jgi'] = string.split(entry['Query'],'__')[1]
-            #    try: entry['protein'] = string.split(entry['Hit'],'__')[1]
+            #    entry['jgi'] = rje.split(entry['Query'],'__')[1]
+            #    try: entry['protein'] = rje.split(entry['Hit'],'__')[1]
             #    except: entry['protein'] = entry['Hit']; print entry
             #mapdb.newKey(['protein'])
             ### Merge & add links
             taxdb.addFields(['prokka','jgi','pos','len'])
             taxdb.renameField('desc','description')
-            taxdb.list['Fields'] = string.split('protein prokka jgi description len pos inpara	paralogues	genus	family	order	class	phylum	boot	spcode')
+            taxdb.list['Fields'] = rje.split('protein prokka jgi description len pos inpara	paralogues	genus	family	order	class	phylum	boot	spcode')
             taxdb.addField('ncbi',after='protein')
             tfields = taxdb.list['Fields'][0:]
             taxdb.addFields(['start'])
@@ -1640,32 +1638,32 @@ class OddJob(rje.RJE_Object):
             for entry in taxdb.entries():
                 #self.bugPrint(entry['protein'])
                 prot = entry['protein']
-                pacc = prot #string.split(prot,'.')[1]
+                pacc = prot #rje.split(prot,'.')[1]
                 #if mapdb.data(prot): entry['jgi'] = mapdb.data(prot)['jgi']
                 if gffdb.data(prot):
                     entry['len'] = gffdb.data(prot)['len']; entry['pos'] = gffdb.data(prot)['pos']; entry['prokka'] = gffdb.data(prot)['prokka']
                     if ncbi:  entry['ncbi'] = gffdb.data(prot)['ncbi']
                 entry['protein'] = '<a href="%s%s">%s</a>' % (jurlbase,pacc,prot)
-                pdesc = string.split(entry['description'])[:-3]
+                pdesc = rje.split(entry['description'])[:-3]
                 entry['jgi'] = pdesc[0][3:]
-                entry['description'] = string.join(pdesc[2:])
+                entry['description'] = rje.join(pdesc[2:])
                 pos = rje.matchExp('>(\d+)\.\.(\d+)<',entry['pos'])
-                #entry['start'] = int(string.split(entry['pos'],'..')[0])
+                #entry['start'] = int(rje.split(entry['pos'],'..')[0])
                 entry['start'] = int(pos[0])
                 for field in ['inpara','paralogues']:
                     fdata = []
-                    for dprot in string.split(entry[field],'|'):
-                        #if dprot: fdata.append('<a href="%s%s">%s</a>' % (urlbase,string.split(dprot,'.')[1],dprot))
+                    for dprot in rje.split(entry[field],'|'):
+                        #if dprot: fdata.append('<a href="%s%s">%s</a>' % (urlbase,rje.split(dprot,'.')[1],dprot))
                         if dprot: fdata.append('<a href="%s%s">%s</a>' % (jurlbase,dprot,dprot))
                         else: fdata.append('')
-                    entry[field] = string.join(fdata,'; ')
-                for field in string.split('genus	family	order	class	phylum	spcode'):
-                    entry[field] = string.join(string.split(entry[field],'|'),'; ')
+                    entry[field] = rje.join(fdata,'; ')
+                for field in rje.split('genus	family	order	class	phylum	spcode'):
+                    entry[field] = rje.join(rje.split(entry[field],'|'),'; ')
                 tdata = []
                 for field in tfields: tdata.append('%s' % entry[field])
                 #self.bugPrint(entry)
                 #self.debug(tdata)
-                open('./proteins/%s.taxamap.html' % pacc,'w').write('<tr>\n<td>%s</td>\n</tr>\n' % string.join(tdata,'</td><td>'))
+                open('./proteins/%s.taxamap.html' % pacc,'w').write('<tr>\n<td>%s</td>\n</tr>\n' % rje.join(tdata,'</td><td>'))
             #taxdb.remakeKeys()
             taxdb.newKey(['start','protein'])
             ### Output
@@ -1678,7 +1676,7 @@ class OddJob(rje.RJE_Object):
                     nacc = nentry['protein_id']
                     tdata = []
                     for field in nfields: tdata.append('%s' % nentry[field])
-                    open('./proteins/%s.taxamap.html' % nacc,'w').write('<tr>\n<td>%s</td>\n</tr>\n' % string.join(tdata,'</td><td>'))
+                    open('./proteins/%s.taxamap.html' % nacc,'w').write('<tr>\n<td>%s</td>\n</tr>\n' % rje.join(tdata,'</td><td>'))
                 except: self.debug(nentry)
 
             open('taxonomy/DCMF160804.ncbi.html','w').write(rje_html.dbTableToHTML(ncbi,fields=nfields,tabwidth='100%',tdwidths=[],tdalign=[],tdtitles={},valign='top',thead=True,border=1,tabid=''))
@@ -1703,17 +1701,17 @@ class OddJob(rje.RJE_Object):
                     fline = faslines.pop(0)
                     if fline[:1] != '>': continue
                     #>jgi_WON710A1__Ga0180325_115 Id:2718340124 Locus_tag:Ga0180325_115 O-antigen ligase [Peptococcaceae bacterium DCMF]
-                    jgi = string.split(string.split(fline)[0],"__")[1]
+                    jgi = rje.split(rje.split(fline)[0],"__")[1]
                     if jgi.startswith('Ga'):
-                        desc = string.join(string.split(fline)[3:-3])
+                        desc = rje.join(rje.split(fline)[3:-3])
                     else:
-                        desc = string.join(string.split(fline)[1:-3])
+                        desc = rje.join(rje.split(fline)[1:-3])
                     open('proteins/%s.desc.txt' % jgi,'w').write(desc)
                     open('proteins/%s.qry.fas' % jgi,'w').write('%s\n%s\n' % (rje.chomp(fline),rje.chomp(faslines.pop(0))))
 
             # NCBI GFF
             gffdb = ncbigff
-            gfields = string.split('seqid source type start end score strand phase attributes')
+            gfields = rje.split('seqid source type start end score strand phase attributes')
             gffdb.addField('seqid',evalue='chr_WON710A1__DCMF160804')
             gffdb.addField('source',evalue='ncbi')
             gffdb.renameField('feature','type')
@@ -1779,8 +1777,8 @@ class OddJob(rje.RJE_Object):
                     table.dataFormat({'Query_Len':'int','Hit_Len':'int'})
                     table.dropEntriesDirect('MapRank',['1'],inverse=True)
                     for entry in table.entries():
-                        entry['Query'] = string.split(entry['Query'],'__')[1]
-                        entry['Hit'] = string.split(entry['Hit'],'__')[1]
+                        entry['Query'] = rje.split(entry['Query'],'__')[1]
+                        entry['Hit'] = rje.split(entry['Hit'],'__')[1]
                     table.remakeKeys()
 
             # protein genus   family  order   class   phylum  boot    spcode  inpara  paralogues      desc
@@ -1790,7 +1788,7 @@ class OddJob(rje.RJE_Object):
             jgidb.addFields(['protein','prokka','len','pos'])
             if ncbi: jgidb.addField('ncbi',after='protein',evalue='-')
             for entry in jgidb.entries():
-                try: entry['protein'] = string.split(rje.matchExp('locus_tag=(\S+)',entry['Details'])[0],';')[0]
+                try: entry['protein'] = rje.split(rje.matchExp('locus_tag=(\S+)',entry['Details'])[0],';')[0]
                 except:
                     self.warnLog('Dropped: %s' % entry)
                     jgidb.dropEntry(entry)
@@ -1817,12 +1815,12 @@ class OddJob(rje.RJE_Object):
                             if mentry['Query_Len'] > mentry['Hit_Len']: entry['ncbi'] += '(-)'
                             if mentry['Query_Len'] < mentry['Hit_Len']: entry['ncbi'] += '(+)'
                         elif len(n2jdb.index('Hit')[jacc]) > 1:
-                            entry['ncbi'] = string.join(n2jdb.indexDataList('Hit',jacc,'Query'),',')
+                            entry['ncbi'] = rje.join(n2jdb.indexDataList('Hit',jacc,'Query'),',')
                             entry['ncbi'] = '<a href="https://www.ncbi.nlm.nih.gov/protein/%s">%s</a>*' % (entry['ncbi'],entry['ncbi'])
 
             gffdb.addFields(['prokka'])
             for entry in gffdb.entries():
-                try: entry['prokka'] = string.split(rje.matchExp('locus_tag=(\S+)',entry['Details'])[0],';')[0]
+                try: entry['prokka'] = rje.split(rje.matchExp('locus_tag=(\S+)',entry['Details'])[0],';')[0]
                 except: pass
                 #if rje.matchExp('locus_tag=(\S+\d+);p',entry['Details']): entry['jgi'] = rje.matchExp('locus_tag=(\S+\d+);p',entry['Details'])[0]
                 #elif rje.matchExp('locus_tag=(\S+\d+)',entry['Details']): entry['jgi'] = rje.matchExp('locus_tag=(\S+\d+)',entry['Details'])[0]
@@ -1834,14 +1832,14 @@ class OddJob(rje.RJE_Object):
             gffdb = jgidb
             #mapdb.addFields(['jgi','protein'])
             #for entry in mapdb.entries():
-            #    entry['jgi'] = string.split(entry['Query'],'__')[1]
-            #    try: entry['protein'] = string.split(entry['Hit'],'__')[1]
+            #    entry['jgi'] = rje.split(entry['Query'],'__')[1]
+            #    try: entry['protein'] = rje.split(entry['Hit'],'__')[1]
             #    except: entry['protein'] = entry['Hit']; print entry
             #mapdb.newKey(['protein'])
             ### Merge & add links
             taxdb.addFields(['prokka','jgi','pos','len'])
             taxdb.renameField('desc','description')
-            taxdb.list['Fields'] = string.split('protein prokka jgi description len pos inpara	paralogues	genus	family	order	class	phylum	boot	spcode')
+            taxdb.list['Fields'] = rje.split('protein prokka jgi description len pos inpara	paralogues	genus	family	order	class	phylum	boot	spcode')
             if ncbi: taxdb.addField('ncbi',after='protein')
             tfields = taxdb.list['Fields'][0:]
             taxdb.addFields(['start'])
@@ -1851,30 +1849,30 @@ class OddJob(rje.RJE_Object):
             for entry in taxdb.entries():
                 self.bugPrint(entry['protein'])
                 prot = entry['protein']
-                pacc = prot #string.split(prot,'.')[1]
+                pacc = prot #rje.split(prot,'.')[1]
                 #if mapdb.data(prot): entry['jgi'] = mapdb.data(prot)['jgi']
                 if gffdb.data(prot):
                     entry['len'] = gffdb.data(prot)['len']; entry['pos'] = gffdb.data(prot)['pos']; entry['prokka'] = gffdb.data(prot)['prokka']
                     if ncbi:  entry['ncbi'] = gffdb.data(prot)['ncbi']
                 entry['protein'] = '<a href="%s%s">%s</a>' % (urlbase,pacc,prot)
-                pdesc = string.split(entry['description'])[:-3]
+                pdesc = rje.split(entry['description'])[:-3]
                 entry['jgi'] = pdesc[0][3:]
-                entry['description'] = string.join(pdesc[2:])
-                entry['start'] = int(string.split(entry['pos'],'..')[0])
+                entry['description'] = rje.join(pdesc[2:])
+                entry['start'] = int(rje.split(entry['pos'],'..')[0])
                 for field in ['inpara','paralogues']:
                     fdata = []
-                    for dprot in string.split(entry[field],'|'):
-                        #if dprot: fdata.append('<a href="%s%s">%s</a>' % (urlbase,string.split(dprot,'.')[1],dprot))
+                    for dprot in rje.split(entry[field],'|'):
+                        #if dprot: fdata.append('<a href="%s%s">%s</a>' % (urlbase,rje.split(dprot,'.')[1],dprot))
                         if dprot: fdata.append('<a href="%s%s">%s</a>' % (urlbase,dprot,dprot))
                         else: fdata.append('')
-                    entry[field] = string.join(fdata,'; ')
-                for field in string.split('genus	family	order	class	phylum	spcode'):
-                    entry[field] = string.join(string.split(entry[field],'|'),'; ')
+                    entry[field] = rje.join(fdata,'; ')
+                for field in rje.split('genus	family	order	class	phylum	spcode'):
+                    entry[field] = rje.join(rje.split(entry[field],'|'),'; ')
                 tdata = []
                 for field in tfields: tdata.append('%s' % entry[field])
                 self.bugPrint(entry)
                 self.debug(tdata)
-                open('./proteins/%s.taxamap.html' % pacc,'w').write('<tr>\n<td>%s</td>\n</tr>\n' % string.join(tdata,'</td><td>'))
+                open('./proteins/%s.taxamap.html' % pacc,'w').write('<tr>\n<td>%s</td>\n</tr>\n' % rje.join(tdata,'</td><td>'))
             #taxdb.remakeKeys()
             taxdb.newKey(['start','protein'])
             ### Output
@@ -1901,8 +1899,8 @@ class OddJob(rje.RJE_Object):
                 fline = faslines.pop(0)
                 if fline[:1] != '>': continue
                 #>jgi_WON710A1__Ga0180325_115 Id:2718340124 Locus_tag:Ga0180325_115 O-antigen ligase [Peptococcaceae bacterium DCMF]
-                jgi = string.split(string.split(fline)[0],"__")[1]
-                desc = string.join(string.split(fline)[3:-3])
+                jgi = rje.split(rje.split(fline)[0],"__")[1]
+                desc = rje.join(rje.split(fline)[3:-3])
                 open('proteins/%s.desc.txt' % jgi,'w').write(desc)
                 open('proteins/%s.qry.fas' % jgi,'w').write('%s\n%s\n' % (rje.chomp(fline),rje.chomp(faslines.pop(0))))
 
@@ -1938,13 +1936,13 @@ class OddJob(rje.RJE_Object):
             ### ~ [1] Update Data ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             gffdb.addFields(['protein','len','pos','jgi'])
             for entry in gffdb.entries():
-                entry['protein'] = string.split(rje.matchExp('locus_tag=(\S+)',entry['Details'])[0],';')[0]
+                entry['protein'] = rje.split(rje.matchExp('locus_tag=(\S+)',entry['Details'])[0],';')[0]
                 self.bugPrint(entry['protein'])
                 entry['len'] = int((int(entry['End']) - int(entry['Start']) + 1) / 3.0)
                 entry['pos'] = '%s..%s (%s)' % (entry['Start'],entry['End'],entry['Strand'])
             jgidb.addFields(['jgi'])
             for entry in jgidb.entries():
-                try: entry['jgi'] = string.split(rje.matchExp('locus_tag=(\S+)',entry['Details'])[0],';')[0]
+                try: entry['jgi'] = rje.split(rje.matchExp('locus_tag=(\S+)',entry['Details'])[0],';')[0]
                 except: pass
                 #if rje.matchExp('locus_tag=(\S+\d+);p',entry['Details']): entry['jgi'] = rje.matchExp('locus_tag=(\S+\d+);p',entry['Details'])[0]
                 #elif rje.matchExp('locus_tag=(\S+\d+)',entry['Details']): entry['jgi'] = rje.matchExp('locus_tag=(\S+\d+)',entry['Details'])[0]
@@ -1955,36 +1953,36 @@ class OddJob(rje.RJE_Object):
             gffdb.newKey(['protein'])
             #mapdb.addFields(['jgi','protein'])
             #for entry in mapdb.entries():
-            #    entry['jgi'] = string.split(entry['Query'],'__')[1]
-            #    try: entry['protein'] = string.split(entry['Hit'],'__')[1]
+            #    entry['jgi'] = rje.split(entry['Query'],'__')[1]
+            #    try: entry['protein'] = rje.split(entry['Hit'],'__')[1]
             #    except: entry['protein'] = entry['Hit']; print entry
             #mapdb.newKey(['protein'])
             ### Merge & add links
             taxdb.addFields(['jgi','pos','len'])
-            taxdb.list['Fields'] = string.split('protein jgi desc len pos inpara	paralogues	genus	family	order	class	phylum	boot	spcode')
+            taxdb.list['Fields'] = rje.split('protein jgi desc len pos inpara	paralogues	genus	family	order	class	phylum	boot	spcode')
             taxdb.renameField('desc','description')
             urlbase = "http://www.slimsuite.unsw.edu.au/research/dcmf/dcmf.php?protein="
             taxdb.fillBlanks()
             for entry in taxdb.entries():
                 self.bugPrint(entry['protein'])
                 prot = entry['protein']
-                pacc = string.split(prot,'.')[1]
+                pacc = rje.split(prot,'.')[1]
                 #if mapdb.data(prot): entry['jgi'] = mapdb.data(prot)['jgi']
                 if gffdb.data(prot): entry['len'] = gffdb.data(prot)['len']; entry['pos'] = gffdb.data(prot)['pos']; entry['jgi'] = gffdb.data(prot)['jgi']
                 entry['protein'] = '<a href="%s%s">%s</a>' % (urlbase,pacc,prot)
                 for field in ['inpara','paralogues']:
                     fdata = []
-                    for dprot in string.split(entry[field],'|'):
-                        if dprot: fdata.append('<a href="%s%s">%s</a>' % (urlbase,string.split(dprot,'.')[1],dprot))
+                    for dprot in rje.split(entry[field],'|'):
+                        if dprot: fdata.append('<a href="%s%s">%s</a>' % (urlbase,rje.split(dprot,'.')[1],dprot))
                         else: fdata.append('')
-                    entry[field] = string.join(fdata,'; ')
-                for field in string.split('genus	family	order	class	phylum	spcode'):
-                    entry[field] = string.join(string.split(entry[field],'|'),'; ')
+                    entry[field] = rje.join(fdata,'; ')
+                for field in rje.split('genus	family	order	class	phylum	spcode'):
+                    entry[field] = rje.join(rje.split(entry[field],'|'),'; ')
                 tdata = []
                 for field in taxdb.fields(): tdata.append('%s' % entry[field])
                 self.bugPrint(entry)
                 self.debug(tdata)
-                open('./proteins/%s.taxamap.html' % pacc,'w').write('<tr>\n<td>%s</td>\n</tr>\n' % string.join(tdata,'</td><td>'))
+                open('./proteins/%s.taxamap.html' % pacc,'w').write('<tr>\n<td>%s</td>\n</tr>\n' % rje.join(tdata,'</td><td>'))
             taxdb.remakeKeys()
             ### Output
             import rje_html
@@ -2014,11 +2012,11 @@ class OddJob(rje.RJE_Object):
             db.basefile(rje.baseFile(infile,strip_path=True))
             hdb = db.addTable(infile,mainkeys=['gene_ID'],name='hgt.nr')
             ### ~ [1] Compress data ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            hdb.keepFields(string.split('species,gene_ID,desc,transcript_ID,h_index,blastx_taxon,og,metazoa_uniprot_best_hit_accession,archaea_uniprot_best_hit_accession,bacteria_uniprot_best_hit_accession,fungi_uniprot_best_hit_accession,protist_uniprot_best_hit_accession,plants_uniprot_best_hit_accession',','))
+            hdb.keepFields(rje.split('species,gene_ID,desc,transcript_ID,h_index,blastx_taxon,og,metazoa_uniprot_best_hit_accession,archaea_uniprot_best_hit_accession,bacteria_uniprot_best_hit_accession,fungi_uniprot_best_hit_accession,protist_uniprot_best_hit_accession,plants_uniprot_best_hit_accession',','))
             taxa = []; rules = {'n_taxon':'sum','nr_taxon':'sum'}
             for field in hdb.fields()[0:]:
                 if field.endswith('_accession'):
-                    taxon = string.split(field,'_')[0]
+                    taxon = rje.split(field,'_')[0]
                     if taxon == 'plants': taxon = 'plant'
                     taxa.append(taxon)
                     hdb.renameField(field,taxon)
@@ -2034,7 +2032,7 @@ class OddJob(rje.RJE_Object):
             for taxon in taxa: hdb.addField('nr_%s' % taxon)
             for entry in hdb.entries():
                 for taxon in taxa:
-                    entry['nr_%s' % taxon] = len(string.split(entry[taxon],'|'))
+                    entry['nr_%s' % taxon] = len(rje.split(entry[taxon],'|'))
                 try: entry['n_taxon'] = entry['n_%s' % entry['blastx_taxon']]
                 except: entry['n_taxon'] = 0
                 try: entry['nr_taxon'] = entry['nr_%s' % entry['blastx_taxon']]
@@ -2072,15 +2070,15 @@ class OddJob(rje.RJE_Object):
                 parent = ''
                 #self.debug(entry)
                 for lvl in ['Level_1','Level_2','Level_3','Level_4','Level_5','Level_6','Level_7']:
-                    entry[lvl] = string.replace(entry[lvl],'unidentified','unclassified')
-                    #entry[lvl] = string.replace(entry[lvl],'Incertae_sedis','Incertae_sedis-%s' % levels[lvl])
+                    entry[lvl] = rje.replace(entry[lvl],'unidentified','unclassified')
+                    #entry[lvl] = rje.replace(entry[lvl],'Incertae_sedis','Incertae_sedis-%s' % levels[lvl])
                     null = '%s__' % levels[lvl]
                     #self.bugPrint(null)
                     #self.bugPrint(entry[lvl])
                     if entry[lvl] in [null,'Unassigned','unclassified','%sunclassified' % null,'%sunidentified' % null,'%sunculturedfungus' % null,'%sIncertae_sedis' % null,'%sunclassified_sp.' % null]:
                         if not taxon or taxon.endswith('unclassified'): entry[lvl] = '%sunclassified' % null
                         #elif taxon.endswith('unassigned)'): entry[lvl] = '%s%s' % (null,taxon[3:])
-                        #elif taxon.endswith('unassigned)'): entry[lvl] = '%s(%s;%s-unassigned)' % (null,string.split(taxon,'(')[1][:-1],levels[lvl])
+                        #elif taxon.endswith('unassigned)'): entry[lvl] = '%s(%s;%s-unassigned)' % (null,rje.split(taxon,'(')[1][:-1],levels[lvl])
                         elif taxon.endswith('unassigned)'): entry[lvl] = '%s%s;%s-unassigned)' % (null,taxon[3:][:-1],levels[lvl])
                         else: entry[lvl] = '%s%s(%s-unassigned)' % (null,taxon[3:],levels[lvl])
                     if entry[lvl] in parents:
@@ -2091,7 +2089,7 @@ class OddJob(rje.RJE_Object):
                             self.bugPrint(parents[entry[lvl]])
                             renamed.append(entry[lvl])
                             newtax = '%s%d' % (entry[lvl],renamed.count(entry[lvl]))
-                            self.warnLog('%s had multiple parents (%s & %s) -> %s' % (entry[lvl],string.join(parents[entry[lvl]],'|'),parent,newtax))
+                            self.warnLog('%s had multiple parents (%s & %s) -> %s' % (entry[lvl],rje.join(parents[entry[lvl]],'|'),parent,newtax))
                             parents[newtax] = {parent:newtax}
                             parents[entry[lvl]][parent] = newtax
                             entry[lvl] = newtax
@@ -2259,10 +2257,10 @@ class OddJob(rje.RJE_Object):
             tdb = db.addEmptyTable('transcripts',['file','name','number','desc','sequence'],keys=['file','name'])
             for seq in best.seqs():
                 (name,sequence) = best.getSeq(seq,'tuple')
-                tdb.addEntry({'file':'best','name':name,'number':string.split(name,'|')[2],'desc':string.split(name,'|')[3],'sequence':sequence})
+                tdb.addEntry({'file':'best','name':name,'number':rje.split(name,'|')[2],'desc':rje.split(name,'|')[3],'sequence':sequence})
             for seq in all.seqs():
                 (name,sequence) = all.getSeq(seq,'tuple')
-                tdb.addEntry({'file':'all','name':name,'number':string.split(name,'|')[2],'desc':string.split(name,'|')[3],'sequence':sequence})
+                tdb.addEntry({'file':'all','name':name,'number':rje.split(name,'|')[2],'desc':rje.split(name,'|')[3],'sequence':sequence})
             tdb.saveToFile('holger_transcripts.csv')
 
         except: self.errorLog('Error in rje_misc(%s)' % self.info['Name'],printerror=True,quitchoice=True)
@@ -2340,8 +2338,8 @@ class OddJob(rje.RJE_Object):
                 entry['D/C'] = entry['meanD'] / entry['meanC']
                 entry['C/A'] = entry['meanC'] / entry['meanA']
                 entry['D/B'] = entry['meanD'] / entry['meanB']
-                entry['ContigNum'] = len(string.split(entry['Contig'],';'))
-                entry['AT'] = string.split(entry['TopHit'],'__')[-1]
+                entry['ContigNum'] = len(rje.split(entry['Contig'],';'))
+                entry['AT'] = rje.split(entry['TopHit'],'__')[-1]
             ### ~ [5] ~ Reorganise ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             mdb.list['Fields'].append(mdb.list['Fields'].pop(0))
             mdb.newKey(['AT'],startfields=True)
@@ -2385,7 +2383,7 @@ class OddJob(rje.RJE_Object):
             dmi.makeField('#PDB#:#dch#','DomPDB'); dmi.makeField('#PDB#:#pch#','MotPDB')
             pdb = db.addTable('3did.DMI.pdb.ens_HUMAN.mapping.tdt',name='PDB',mainkeys=['Query'])
             #pdb.dropEntriesDirect('Hit',['None'])
-            for entry in pdb.entries(): entry['Query'] = string.split(entry['Query'],'|')[0]
+            for entry in pdb.entries(): entry['Query'] = rje.split(entry['Query'],'|')[0]
             xref = db.addTable('../../HGNC/genemap.111005.data.tdt',name='HGNC',mainkeys=['Gene'])
             ### ~ [1] ~ Join Tables ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             temp = db.joinTables(name='Temp',join=[(dmi,'DomPDB'),(pdb,'Query',['Hit'])],newkey=['ID'],empties=False)
@@ -2398,7 +2396,7 @@ class OddJob(rje.RJE_Object):
             map.dropEntriesDirect('DomSeq',['None'])
             map.dropEntriesDirect('MotSeq',['None'])
             map.makeField('#MotSeq#','qry')
-            for entry in map.entries(): entry['qry'] = string.split(entry['qry'],'_')[-1]
+            for entry in map.entries(): entry['qry'] = rje.split(entry['qry'],'_')[-1]
             map.makeField('#peptide#.#Hub#.#qry#','dataset')
             map.dataFormat({'pstart':'int','pend':'int'})
             ensloci = rje_seqlist.SeqList(self.log,self.cmd_list+['seqin=../../EnsEMBL/ens_HUMAN.loci.fas','autoload=T','seqmode=file'])
@@ -2412,7 +2410,7 @@ class OddJob(rje.RJE_Object):
                 for entry in map.indexEntries('dataset',dataset):
                     #while len(seq) < entry['pend']: seq += 'x'
                     qry = entry['MotSeq']; hub = entry['Hub']; ex += 1
-                pseq = string.join(map.indexDataList('dataset',dataset,'pseq'))
+                pseq = rje.join(map.indexDataList('dataset',dataset,'pseq'))
                 self.printLog('#DSET','%s: %d entries' % (dataset,ex))
                 SEQOUT.write('>%s %s\n%s\n' % (dataset,qry,pseq))
                 ppifas = ppidir + hub + '.ppi.fas'
@@ -2475,11 +2473,11 @@ class OddJob(rje.RJE_Object):
             nsx = 0
             for dkey in table.dataKeys():
                 entry = table.data(dkey)
-                [entry['ELM'],entry['Query'],dset] = string.split(entry['Dataset'],'.')
+                [entry['ELM'],entry['Query'],dset] = rje.split(entry['Dataset'],'.')
                 if 'QSF' in entry['RunID']: entry['Prog'] = 'QSF'
                 if 'Subset' in entry['Dataset']: entry['Species'] = 'Subset'
                 if '_' not in dset: entry['Dataset'] = '%s_whole' % entry['Dataset']
-                entry['Method'] = '%s_%s' % (entry['Prog'],string.split(entry['Dataset'],'_')[-1])
+                entry['Method'] = '%s_%s' % (entry['Prog'],rje.split(entry['Dataset'],'_')[-1])
                 if string.atof(entry['Sig']) > sigcut:
                     if entry['Rank'] not in ['0','1']: table.dict['Data'].pop(dkey); continue
                     if entry['Rank'] == '1': entry['Rank'] = '0'; entry['Pattern'] = '-'; entry['Sig'] = '0.1'; nsx += 1
@@ -2582,7 +2580,7 @@ class OddJob(rje.RJE_Object):
                 else: entry['OTT'] = ''; entry['OTF'] = ''           
             roc.addField('QRegion','Method')
             for entry in roc.entries():
-                (entry['Method'],entry['QRegion']) = string.split(entry['Method'],'_')
+                (entry['Method'],entry['QRegion']) = rje.split(entry['Method'],'_')
             roc.newKey(['ELM','Species','Method','QRegion'])
             roc.saveToFile()
             
@@ -2595,7 +2593,7 @@ class OddJob(rje.RJE_Object):
             perf.dropFields(['Cloud','Pattern','Support'])
             perf.addField('QRegion','Method')
             for entry in perf.entries():
-                (entry['Method'],entry['QRegion']) = string.split(entry['Method'],'_')
+                (entry['Method'],entry['QRegion']) = rje.split(entry['Method'],'_')
             perf.newKey(['DCloud','Species','Method','QRegion'],startfields=False)
             perf.reshapeWide('Method',reshape=['Sig','Verdict'])
             perf.addField('QvS',evalue=0); perf.addField('QSF',evalue=0); perf.addField('SF',evalue=0); perf.addField('Tie',evalue=0)
@@ -2669,7 +2667,7 @@ class OddJob(rje.RJE_Object):
             nsx = 0
             for dkey in table.dataKeys():
                 entry = table.data(dkey)
-                [entry['ELM'],entry['Hub'],entry['Query'],dset] = string.split(entry['Dataset'],'.')
+                [entry['ELM'],entry['Hub'],entry['Query'],dset] = rje.split(entry['Dataset'],'.')
                 if 'QSF' in entry['RunID']: entry['Prog'] = 'QSF'
                 if string.atof(entry['Sig']) > sigcut:
                     if entry['Rank'] not in ['0','1']: table.dict['Data'].pop(dkey); continue
@@ -2838,13 +2836,13 @@ class OddJob(rje.RJE_Object):
         remsort = False
         for entry in skdb.entries():
             try:
-                [entry['Masking'],entry['Flank'],entry['Program']] = string.split(entry['Method'],'.')
+                [entry['Masking'],entry['Flank'],entry['Program']] = rje.split(entry['Method'],'.')
                 if entry['Flank'] == 'All': entry['Flank'] = 'whole'
                 entry['Sort'] = ['site',"flank5", "win100", "win300",'whole'].index(entry['Flank'])
                 entry['Masking'] = {'both':'both','no':'none','dis':'disorder','cons':'conservation'}[entry['Masking'][:-4]]
             except:
                 remsort = True
-                [entry['Masking'],entry['Program']] = string.split(entry['Method'],'.')
+                [entry['Masking'],entry['Program']] = rje.split(entry['Method'],'.')
                 entry['Masking'] = {'both':'both','no':'none','dis':'disorder','cons':'conservation'}[entry['Masking'][:-4]]
             entry['Program'] = {'SF':'SLiM','QSF':'QSLiM'}[entry['Program']]
         if remsort: skdb.dropFields(['Sort','Flank'])
@@ -2900,8 +2898,8 @@ class OddJob(rje.RJE_Object):
                 resdb.renameField('cloud', 'Cloud')
                 resdb.addField('ELM'); resdb.addField('Hub'); resdb.addField('Query'); resdb.addField('Flank')
                 for entry in resdb.entries():
-                    [entry['ELM'],entry['Hub'],entry['Query'],entry['Flank']] = string.split(entry['dataset'],'.')
-                    entry['Flank'] = string.split(entry['Flank'],'_')[-1]
+                    [entry['ELM'],entry['Hub'],entry['Query'],entry['Flank']] = rje.split(entry['dataset'],'.')
+                    entry['Flank'] = rje.split(entry['Flank'],'_')[-1]
 
                 # Reduce to useful data
                 # See also code at SBSBINF/Tools/svn/docs/dev_pydocs.html#libraries-rje_db
@@ -3027,8 +3025,8 @@ class OddJob(rje.RJE_Object):
                 resdb.renameField('cloud', 'Cloud')
                 resdb.addField('ELM'); resdb.addField('Query'); resdb.addField('Flank')
                 for entry in resdb.entries():
-                    [entry['ELM'],entry['Query'],entry['Flank']] = string.split(entry['dataset'],'.')
-                    entry['Flank'] = string.split(entry['Flank'],'_')[-1]
+                    [entry['ELM'],entry['Query'],entry['Flank']] = rje.split(entry['dataset'],'.')
+                    entry['Flank'] = rje.split(entry['Flank'],'_')[-1]
 
                 # Reduce to useful data
                 # See also code at SBSBINF/Tools/svn/docs/dev_pydocs.html#libraries-rje_db
@@ -3146,12 +3144,12 @@ class OddJob(rje.RJE_Object):
             while seqlist.nextSeq():
                 self.progLog('\r#FAS','Making fasta files: %s' % seqlist.progress())
                 cseq = seqlist.currSeq()
-                cdata = string.split(cseq[0])
+                cdata = rje.split(cseq[0])
                 try:
                     desc = descdb.data(cdata[0])['Seq. Description']
-                    if desc == '---NA---': UNK.write('>%s %s\n%s\n' % (cdata[0],string.join(cdata[1:]),cseq[1])); ux+=1
-                    else: ANN.write('>%s %s %s\n%s\n' % (cdata[0],desc,string.join(cdata[1:]),cseq[1])); ax+=1
-                except: MISS.write('>%s %s\n%s\n' % (cdata[0],string.join(cdata[1:]),cseq[1])); mx+=1
+                    if desc == '---NA---': UNK.write('>%s %s\n%s\n' % (cdata[0],rje.join(cdata[1:]),cseq[1])); ux+=1
+                    else: ANN.write('>%s %s %s\n%s\n' % (cdata[0],desc,rje.join(cdata[1:]),cseq[1])); ax+=1
+                except: MISS.write('>%s %s\n%s\n' % (cdata[0],rje.join(cdata[1:]),cseq[1])); mx+=1
             ANN.close(); UNK.close(); MISS.close()
             self.printLog('#FAS','Fasta files generated: %s annotated; %s unknown; %s missing.' % (rje.iStr(ax),rje.iStr(ux),rje.iStr(mx)))
             self.printLog('#ZEN',rje_zen.Zen().wisdom())
@@ -3176,7 +3174,7 @@ class OddJob(rje.RJE_Object):
                 structure = pdb.indexDataList('Name',seq,'Type',sortunique=False)
                 structure.sort()
                 if len(structure) < 2: continue
-                structure = string.join(structure,';')
+                structure = rje.join(structure,';')
                 for entry in pdb.indexEntries('Name',seq):
                     dom = entry['Type']; seq = entry['Name']; x = int(entry['Start']); y = int(entry['End'])
                     dlen = y - x + 1
@@ -3189,7 +3187,7 @@ class OddJob(rje.RJE_Object):
                     if dom in data: structure.append(dom)   #'%s (%d)' % (dom,len(pdb.indexDataList('Type',dom,'Name'))))
                 structure.sort()
                 if len(structure) < 2: continue
-                structure = string.join(structure,'; ')
+                structure = rje.join(structure,'; ')
                 for entry in pdb.indexEntries('Name',seq):
                     dom = entry['Type']; seq = entry['Name']; x = int(entry['Start']); y = int(entry['End'])
                     if dom not in data: continue
@@ -3201,7 +3199,7 @@ class OddJob(rje.RJE_Object):
                 for dom in rje.sortKeys(data):
                     self.progLog('\r#DOM','%s dom  ' % rje.iStr(len(data)))
                     for structure in rje.sortKeys(data[dom]):
-                        domlist = string.split(structure,'; ')
+                        domlist = rje.split(structure,'; ')
                         newstruct = []
                         for sdom in domlist:
                             if sdom in data and len(data[sdom]) > 1: newstruct.append(sdom)
@@ -3212,18 +3210,18 @@ class OddJob(rje.RJE_Object):
                             if sdom == dom: continue
                             shared = 0
                             for sharestruct in data[dom]:
-                                if sdom in string.split(sharestruct,'; '): shared += 1
+                                if sdom in rje.split(sharestruct,'; '): shared += 1
                             if shared == len(data[dom]): newstruct = []; reduction = True; break    # Redundant domain
                         if len(newstruct) < 2: data[dom].pop(structure); reduction = True; continue
-                        newstruct = string.join(newstruct,'; ')
+                        newstruct = rje.join(newstruct,'; ')
                         data[dom][newstruct] = data[dom].pop(structure)
                     if not data[dom]: data.pop(dom) #?#
             for dom in data:
                 for structure in rje.sortKeys(data[dom]):
-                    domlist = string.split(structure,'; ')
+                    domlist = rje.split(structure,'; ')
                     newstruct = []
                     for sdom in domlist: newstruct.append('%s (%d/%d)' % (sdom,len(pdb.indexDataList('Type',sdom,'Name')),len(data[sdom])))
-                    newstruct = string.join(newstruct,'; ')
+                    newstruct = rje.join(newstruct,'; ')
                     data[dom][newstruct] = data[dom].pop(structure)
             BIOL = open('biol2018.tdt','w')
             BIOL.write('Domain\tStructure\tSeqN\tSeq\n')
@@ -3243,18 +3241,18 @@ class OddJob(rje.RJE_Object):
             est = rje_seq.SeqList(self.log,self.cmd_list+['seqin=clones_est.fas'])
             nuc = rje_seq.SeqList(self.log,self.cmd_list+['seqin=clones_nuc.fas'])
             hum = rje_seq.SeqList(self.log,self.cmd_list+['seqin=Homo_sapiens.GRCh37.59.cdna.fas'])
-            candidates = string.split(open('biol3050.more_genes.txt').read(),'\n')
+            candidates = rje.split(open('biol3050.more_genes.txt').read(),'\n')
             seqdict = {}; enst2gene = {}; sx = 0.0; stot = hum.seqNum()
             for seq in hum.seqs():
                 self.progLog('\r#SEQ','Making sequence dictionary: %.2f%%' % (sx/stot)); sx += 100.0
                 seq.trimPolyA()
-                details = string.split(seq.info['Name'],'|')
+                details = rje.split(seq.info['Name'],'|')
                 cdna = seq.info['Sequence']
                 enst = details[0]; hgnc = details[-1]
                 if cdna not in seqdict: seqdict[cdna] = []
                 seqdict[cdna].append(enst); enst2gene[enst] = hgnc
             self.printLog('\r#SEQ','Making sequence dictionary: %.2f%%' % (sx/stot))
-            fullens = string.join(seqdict.keys())
+            fullens = rje.join(seqdict.keys())
 
             cloneseq = {}; sx = 0.0; stot = est.seqNum() + nuc.seqNum()
             for clone in est.seqs() + nuc.seqs():
@@ -3264,7 +3262,7 @@ class OddJob(rje.RJE_Object):
                     if cseq not in cloneseq: cloneseq[cseq] = []
                     cloneseq[cseq].append(clone)
             self.printLog('\r#SEQ','Making sequence dictionary 2: %.2f%%' % (sx/stot))
-            fullclone = string.join(cloneseq.keys())
+            fullclone = rje.join(cloneseq.keys())
 
             ### ~ [1] ~ Match clones to transcripts ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             #sx = 0.0; stot = len(cloneseq) + len(seqdict); cpairs = []
@@ -3298,7 +3296,7 @@ class OddJob(rje.RJE_Object):
             for (cseq,eseq) in cpairs:
                 for clone in cloneseq[cseq]:
                     for enst in seqdict[eseq]:
-                        entry = {'clone':string.split(clone.shortName(),'|')[3],'enst':enst,'hgnc':enst2gene[enst],
+                        entry = {'clone':rje.split(clone.shortName(),'|')[3],'enst':enst,'hgnc':enst2gene[enst],
                                  'strand':dirn,'cand':enst2gene[enst] in candidates}
                         dkey = maindb.makeKey(entry)
                         maindb.data()[dkey] = entry
@@ -3340,11 +3338,11 @@ class OddJob(rje.RJE_Object):
                 if line[:2] not in ['AC','ID']: continue
                 if line[:5] == 'ID   ':
                     primacc = ''
-                    id = string.split(line)[1]
-                    [gene,spec] = string.split(id,'_')
+                    id = rje.split(line)[1]
+                    [gene,spec] = rje.split(id,'_')
                     ex += 1
                 if line[:5] == 'AC   ':
-                    acclist = string.split(string.replace(line,';',''))[1:]
+                    acclist = rje.split(rje.replace(line,';',''))[1:]
                     if 'AC' in acclist: acclist.remove('AC')
                     if not primacc: primacc = acclist[0]
                     for acc in acclist: unidict[acc] = {'ID':acc,'AccNum':primacc,'Spec':spec}; ix += 1
@@ -3393,16 +3391,16 @@ class OddJob(rje.RJE_Object):
             ### ~ [1] Read Data ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             indata = rje.dataDict(self,datafile,['strain','prot_hit_num'],'All',lists=True)
             for ikey in rje.sortKeys(indata):
-                (strain,id) = string.split(ikey,',')
+                (strain,id) = rje.split(ikey,',')
                 prot = indata[ikey]['prot_acc'][0]
-                desc = string.replace(indata[ikey]['prot_desc'][0],'Full=','')
+                desc = rje.replace(indata[ikey]['prot_desc'][0],'Full=','')
                 if desc[3:7] == 'Name': desc = desc[9:]
                 prot2desc[prot] = desc; self.printLog('#DESC','%s = %s' % (prot,desc))
-                indata[ikey]['pep_seq'] = string.join(indata[ikey]['pep_seq'],'|')
-                pepconv = string.replace(indata[ikey]['pep_seq'],'I','L')
-                pepconv = string.replace(pepconv,'Q','K')
-                peplist = rje.sortUnique(string.split(pepconv,'|'))
-                indata[ikey]['pep_seq'] = string.join(rje.sortUnique(string.split(indata[ikey]['pep_seq'],'|')),'|')
+                indata[ikey]['pep_seq'] = rje.join(indata[ikey]['pep_seq'],'|')
+                pepconv = rje.replace(indata[ikey]['pep_seq'],'I','L')
+                pepconv = rje.replace(pepconv,'Q','K')
+                peplist = rje.sortUnique(rje.split(pepconv,'|'))
+                indata[ikey]['pep_seq'] = rje.join(rje.sortUnique(rje.split(indata[ikey]['pep_seq'],'|')),'|')
                 if strain not in data:
                     data[strain] = {}
                     pep2prot[strain] = {}
@@ -3411,10 +3409,10 @@ class OddJob(rje.RJE_Object):
                     pepcon[strain] = {}
                 fullpeplist[strain] += peplist
                 id2prot[strain][id] = prot
-                spec = string.split(prot,'_')[1]
+                spec = rje.split(prot,'_')[1]
                 if spec not in speclist: speclist.append(spec)
                 data[strain][prot] = {'strain':strain,'pepcount':len(peplist),'hit':id,'desc':desc,
-                                      'accnum':string.split(prot,'_')[-1],'spec':spec,
+                                      'accnum':rje.split(prot,'_')[-1],'spec':spec,
                                       'pep_uniq':0,'peplist':indata[ikey]['pep_seq'],'conpep':peplist[0:],
                                       'pep_rem':0}
                 for pep in peplist:
@@ -3498,7 +3496,7 @@ class OddJob(rje.RJE_Object):
             species = {}
             for spec in speclist:
                 grep = os.popen('grep %s /scratch/RJE_Filestore/SBSBINF/Databases/DBase_090505/UniProt/uniprot.spec.tdt' % spec).read()
-                species[spec] = string.split(grep,':')[-4]
+                species[spec] = rje.split(grep,':')[-4]
                 self.printLog('#SPEC','%s = %s' % (spec,species[spec]))
 
             ### ~ [END] Output data ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -3526,7 +3524,7 @@ class OddJob(rje.RJE_Object):
             accgenes = {}
             for key in rje.sortKeys(ppi):
                 try:
-                    acc = string.split(key,'__')[1]
+                    acc = rje.split(key,'__')[1]
                     if acc not in accgenes: accgenes[acc] = []
                     accgenes[acc] += ppi[key]['Gene']
                 except: self.errorLog('Error with %s' % key)
@@ -3579,7 +3577,7 @@ class OddJob(rje.RJE_Object):
             for line in self.loadFromFile(mapfile,chomplines=True):
                 if rje.matchExp('^(\S+)\s+(AT\S+)',line):   # Mapping lines
                     (acc,at) = rje.matchExp('^(\S+)\s+(AT\S+)',line)
-                    if acc in acclist: atmap[acc] = string.split(at,':')
+                    if acc in acclist: atmap[acc] = rje.split(at,':')
             gofile = '/scratch/Databases/NewDB/Arabidopsis/ATH_GO_GOSLIM.20080216.txt'
             #Column headers :explanation
             #1. locus name: standard AGI convention name
@@ -3598,7 +3596,7 @@ class OddJob(rje.RJE_Object):
             godata = {}
             gosdat = {}
             for line in self.loadFromFile(gofile,chomplines=True):
-                data = string.split(line,'\t')
+                data = rje.split(line,'\t')
                 if len(data) < 12: continue
                 gene = data[0]
                 if gene not in gomap: gomap[gene] = []
@@ -3617,7 +3615,7 @@ class OddJob(rje.RJE_Object):
                     self.log.errorLog('Acc %s not mapped!' % acc)
                     continue
                 for map in genes:
-                    gene = string.split(map,'.')[0]
+                    gene = rje.split(map,'.')[0]
                     try: gomap[acc] += gomap[gene][0:]
                     except: self.log.errorLog('Problem with gomap for %s' % gene)
                 gomap[acc] = rje.sortUnique(gomap[acc],False)
@@ -3630,12 +3628,12 @@ class OddJob(rje.RJE_Object):
             for goslim in rje.sortKeys(gosdat):
                 if not gosdat[goslim]['Acc']: continue
                 gosdat[goslim]['N'] = len(gosdat[goslim]['Acc'])
-                gosdat[goslim]['Acc'] = string.join(gosdat[goslim]['Acc'],',')
+                gosdat[goslim]['Acc'] = rje.join(gosdat[goslim]['Acc'],',')
                 rje.delimitedFileOutput(self,gfile,ghead,'\t',gosdat[goslim])
             for go in rje.sortKeys(godata):
                 if not godata[go]['Acc']: continue
                 godata[go]['N'] = len(godata[go]['Acc'])
-                godata[go]['Acc'] = string.join(godata[go]['Acc'],',')
+                godata[go]['Acc'] = rje.join(godata[go]['Acc'],',')
                 rje.delimitedFileOutput(self,gfile,ghead,'\t',godata[go])
         except: self.log.errorLog(rje_zen.Zen().wisdom())
 #########################################################################################################################
@@ -3732,7 +3730,7 @@ class OddJob(rje.RJE_Object):
 
 
             ## ~ [1a] Temp replacement ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-            ##for dkey in cm.data(): cm.data()[dkey]['Name1'] = string.join(string.split(cm.data()[dkey]['Name1'],'#')[:3] + [cm.data()[dkey]['Motif1']],'#')
+            ##for dkey in cm.data(): cm.data()[dkey]['Name1'] = rje.join(rje.split(cm.data()[dkey]['Name1'],'#')[:3] + [cm.data()[dkey]['Motif1']],'#')
             ##cm.saveToFile(backup=True)   # Temp
             
             ### ~ [2] Join data from Dataset summaries and motif comparisons ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -3751,8 +3749,8 @@ class OddJob(rje.RJE_Object):
                 try: red.list['Tables'].remove(s)
                 except:
                     self.log.errorLog(rje_zen.Zen().wisdom())
-                    print red.list
-                j.info['Name'] = string.join(string.split(s.name(),'_')[:1],'_')
+                    print( red.list)
+                j.info['Name'] = rje.join(rje.split(s.name(),'_')[:1],'_')
                 j.saveToFile(backup=False)
                 #s.saveToFile(backup=False)
         except: self.log.errorLog(rje_zen.Zen().wisdom())
@@ -3775,25 +3773,25 @@ class OddJob(rje.RJE_Object):
                 elif line[:1] == 'Y': type = ['KIN','Y']
                 elif line[:2] == 'ST': type = ['KIN','ST']
                 elif line[:4] == 'Bind': type[0] = 'BIND'
-                ptype = string.join(type,'_')
+                ptype = rje.join(type,'_')
                 if ptype not in x: x[ptype] = 1
                 ## ~ [2b] Motifs ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
                 if line[:4] == '<tr>':      # New entry
-                    line = string.replace(line,'span style="color: red;">','')
-                    line = string.replace(line,'</span>','')
-                    this = string.split(line,'</td>')[1:]
-                    pattern = string.split(string.join(string.split(this[0],'<'),''),'>')[1]
-                    pattern = string.replace(pattern,'p','')
-                    pattern = string.replace(pattern,'*','')
-                    pattern = string.replace(pattern,'/','')
-                    pattern = string.replace(pattern,'X','.')
-                    desc = string.split(string.join(string.split(this[1],'<'),''),'>')[1]
+                    line = rje.replace(line,'span style="color: red;">','')
+                    line = rje.replace(line,'</span>','')
+                    this = rje.split(line,'</td>')[1:]
+                    pattern = rje.split(rje.join(rje.split(this[0],'<'),''),'>')[1]
+                    pattern = rje.replace(pattern,'p','')
+                    pattern = rje.replace(pattern,'*','')
+                    pattern = rje.replace(pattern,'/','')
+                    pattern = rje.replace(pattern,'X','.')
+                    desc = rje.split(rje.join(rje.split(this[1],'<'),''),'>')[1]
                     if desc[-1] != ' ': desc += ' '
-                    desc += '[PMF] [PMID:%s]' % rje.matchExp('list_uids=(\S+)"',string.split(string.join(string.split(this[2],'<'),''),'>')[1])[0]
+                    desc += '[PMF] [PMID:%s]' % rje.matchExp('list_uids=(\S+)"',rje.split(rje.join(rje.split(this[2],'<'),''),'>')[1])[0]
                     name = '%s%s' % (ptype,rje.preZero(x[ptype],len(phomo)))
                     x[ptype] += 1
                     OUT.write('%s\t%s\t# %s\n' % (name, pattern, desc))
-                    print '%s\t%s\t# %s' % (name, pattern, desc)
+                    print( '%s\t%s\t# %s' % (name, pattern, desc))
             OUT.close()
             self.log.printLog('#OUT','Output complete!')
         except: self.log.errorLog(rje_zen.Zen().wisdom())
@@ -3817,15 +3815,15 @@ class OddJob(rje.RJE_Object):
                     if line == '//': break
                 ## ~ [2b] Correct entry ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
                 # Parse all acc numbers and add to AC
-                if entry[1][:2] != 'AC': print string.join(['']+entry,'\n')
+                if entry[1][:2] != 'AC': print( ' '.join(['']+entry,'\n'))
                 acclist = [rje.matchExp('^AC\s+(\S+);',entry[1])[0]]
                 accmap = rje.matchExp('^DE.+\[acc:(\S+) pep:(\S+) gene:(\S+)\]',entry[3])
                 if not accmap:
-                    print string.join(['']+entry,'\n')
-                    print accmap
+                    print( ' '.join(['']+entry,'\n'))
+                    print( accmap)
                 for acc in accmap:
                     if acc not in acclist + ['-']: acclist.append(acc)
-                entry[1] = 'AC   %s' % string.join(acclist,'; ')
+                entry[1] = 'AC   %s' % rje.join(acclist,'; ')
                 # Cross-reference GeneCards Gene and add it and EnsG to GN
                 ens = accmap[-1]
                 genelist = []
@@ -3833,16 +3831,16 @@ class OddJob(rje.RJE_Object):
                     for gene in hgnc[ens]['Symbol'] + [ens] + hgnc[ens]['Alias']:
                         if gene not in genelist: genelist.append(gene)
                 else: genelist = [ens]
-                entry.insert(4,'GN   %s' % string.join(genelist,'; '))
+                entry.insert(4,'GN   %s' % rje.join(genelist,'; '))
                 # Modify the DOMAIN/PFAM assignment for new iucut.
                 for i in range(len(entry)):
                     ft = entry[i]
                     if ft[:2] != 'FT': continue
-                    ftx = string.split(ft)
+                    ftx = rje.split(ft)
                     if ftx[1] not in ['PFAM']: continue
-                    if float(ftx[-1]) < 0.5: entry[i] = string.replace(entry[i],'PFAM','DOMAIN')
+                    if float(ftx[-1]) < 0.5: entry[i] = rje.replace(entry[i],'PFAM','DOMAIN')
                 # Re-output entry #
-                OUT.write(string.join(entry,'\n'))
+                OUT.write(rje.join(entry,'\n'))
                 dx += 1
                 self.log.printLog('\r#DAT','Reformatted %s entries' % rje.integerString(dx),newline=False,log=False)
 
@@ -3858,10 +3856,10 @@ class OddJob(rje.RJE_Object):
         try:### ~ Setup sequence files to search ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             ### ~ These files are based on the HPRD interaction dataset for AAA (AAA_hprd.upc)
             makefiles = False
-            abcfam = string.split('ABCD2_HUMAN__Q9UBJ2 ABCD1_HUMAN__P33897 ABCD3_HUMAN__P28288 TAP1_HUMAN__NP_000584.2 TAP2_HUMAN__Q03519 CFTR_HUMAN__P13569 ABCB8_HUMAN__Q9NUT2 ABCG8_HUMAN__Q9H221 ABCG1_HUMAN__P45844 ABCG4_HUMAN__Q9H172 ABCG5_HUMAN__Q9H222')
-            strfam = string.split('ESR1_HUMAN__P03372 RXRA_HUMAN__P19793 THRB_HUMAN__P10828 RORA_HUMAN__P35398 PPARG_HUMAN__P37231 PPARA_HUMAN__Q07869')
-            mcmfam = string.split('MCM2_HUMAN__P49736 MCM4_HUMAN__P33991 MCM5_HUMAN__P33992 MCM6_HUMAN__Q14566 MCM3_HUMAN__P25205 MCM7_HUMAN__P33993')
-            singles = string.split('AKAP8L_HUMAN__Q9ULX6 SSNA1_HUMAN__O43805 TBC1D4_HUMAN__O60343 ATP5C1_HUMAN__P36542 EEF1G_HUMAN__P26641 PSMA7_HUMAN__O14818 RPLP1_HUMAN__P05386 ORC6L_HUMAN__Q9Y5N6 BRCA2_HUMAN__P51587')
+            abcfam = rje.split('ABCD2_HUMAN__Q9UBJ2 ABCD1_HUMAN__P33897 ABCD3_HUMAN__P28288 TAP1_HUMAN__NP_000584.2 TAP2_HUMAN__Q03519 CFTR_HUMAN__P13569 ABCB8_HUMAN__Q9NUT2 ABCG8_HUMAN__Q9H221 ABCG1_HUMAN__P45844 ABCG4_HUMAN__Q9H172 ABCG5_HUMAN__Q9H222')
+            strfam = rje.split('ESR1_HUMAN__P03372 RXRA_HUMAN__P19793 THRB_HUMAN__P10828 RORA_HUMAN__P35398 PPARG_HUMAN__P37231 PPARA_HUMAN__Q07869')
+            mcmfam = rje.split('MCM2_HUMAN__P49736 MCM4_HUMAN__P33991 MCM5_HUMAN__P33992 MCM6_HUMAN__Q14566 MCM3_HUMAN__P25205 MCM7_HUMAN__P33993')
+            singles = rje.split('AKAP8L_HUMAN__Q9ULX6 SSNA1_HUMAN__O43805 TBC1D4_HUMAN__O60343 ATP5C1_HUMAN__P36542 EEF1G_HUMAN__P26641 PSMA7_HUMAN__O14818 RPLP1_HUMAN__P05386 ORC6L_HUMAN__Q9Y5N6 BRCA2_HUMAN__P51587')
             ### Make files with different levels of homology ###
             rje_blast.BLASTRun(self.log,self.cmd_list).formatDB(fasfile='AAA_hprd.fas',protein=True,force=False)
             dataset = singles[0:] + [strfam[0],mcmfam[0]]   # Should be 11 sequences (add from abcfam)
@@ -3970,17 +3968,17 @@ class OddJob(rje.RJE_Object):
                 elif type == 'UP':
                     datadict['UPNum'] = rje.matchExp('^(\d+)',details)[0]
                 elif type == 'ADJ':
-                    (ax,mx) = rje.matchExp('(\d+) AA to (\d+) AA',string.replace(details,',',''))
+                    (ax,mx) = rje.matchExp('(\d+) AA to (\d+) AA',rje.replace(details,',',''))
                     datadict['AANum'] = int(ax)
                     datadict['MaskAA'] = int(mx)
                 elif type == 'DIM':
-                    datadict['DimNum'] = rje.matchExp('(\d+) dimers',string.replace(details,',',''))[0]
-                elif type == 'SLIM' and rje.matchExp('^(\d+) SLiMs',string.replace(details,',','')):
-                    datadict['SlimNum'] = rje.matchExp('^(\d+) SLiMs',string.replace(details,',',''))[0]
+                    datadict['DimNum'] = rje.matchExp('(\d+) dimers',rje.replace(details,',',''))[0]
+                elif type == 'SLIM' and rje.matchExp('^(\d+) SLiMs',rje.replace(details,',','')):
+                    datadict['SlimNum'] = rje.matchExp('^(\d+) SLiMs',rje.replace(details,',',''))[0]
                 elif type == 'BON':
-                    datadict['BonfNum'] = rje.matchExp('(\d+) equivalent',string.replace(details,',',''))[0]
+                    datadict['BonfNum'] = rje.matchExp('(\d+) equivalent',rje.replace(details,',',''))[0]
                 elif type == 'PROB':
-                    datadict['SigNum'] = rje.matchExp('(\d+) Sig',string.replace(details,',',''))[0]
+                    datadict['SigNum'] = rje.matchExp('(\d+) Sig',rje.replace(details,',',''))[0]
                     datadict['RunTime'] = (3600 * int(hr)) + (60 * int(min)) + int(sec) - start
                     rje.delimitedFileOutput(self,outfile,headers,',',datadict)
                     dx += 1
@@ -4055,15 +4053,15 @@ class OddJob(rje.RJE_Object):
         try:
             ### Setup ###
             wlines = self.loadFromFile('goldman.wag')
-            aas = string.split(wlines[0])
-            codes = string.split(wlines[1])
-            rawfreqs = string.split(wlines[2])
+            aas = rje.split(wlines[0])
+            codes = rje.split(wlines[1])
+            rawfreqs = rje.split(wlines[2])
             freq = {}
             for i in range(len(rawfreqs)):
                 freq[aas[i]] = string.atof(rawfreqs[i])
             prob = {}
             for r in range(3,22):
-                subs = string.split(wlines[r])
+                subs = rje.split(wlines[r])
                 for i in range(len(subs)):
                     prob['%s%s' % (aas[i],aas[r-2])] = string.atof(subs[i])
                     prob['%s%s' % (aas[r-2],aas[i])] = string.atof(subs[i])
@@ -4204,8 +4202,8 @@ class OddJob(rje.RJE_Object):
                         yx += 1
                         self.log.printLog('\r#FAS','Reformatting YGOB fasta: %s' % rje.integerString(yx),newline=False,log=False)
                     else:
-                        NEWFAS.write(string.replace(line,'*',''))
-                        seq += rje.chomp(string.replace(line,'*',''))
+                        NEWFAS.write(rje.replace(line,'*',''))
+                        seq += rje.chomp(rje.replace(line,'*',''))
                     line = YGOB.readline()
                 ydict[name] = seq
                 NEWFAS.close()
@@ -4220,10 +4218,10 @@ class OddJob(rje.RJE_Object):
             ylines = self.loadFromFile(rje.makePath('C:/Documents and Settings/redwards/My Documents/redwards/Databases/YGOB/Pillars.tab',True),chomplines=True)
             yx = 0.0
             for y in ylines:
-                y = string.replace(y,'undef','---')
+                y = rje.replace(y,'undef','---')
                 yx += 100.0
-                orths1 = string.split(y)[:-3]
-                orths2 = string.split(y)[3:]
+                orths1 = rje.split(y)[:-3]
+                orths2 = rje.split(y)[3:]
                 orths2.reverse()
                 if len(orths1) != 7 or len(orths2) != 7:
                     self.log.errorLog('Cannot parse "%s"' % y,printerror=False)
@@ -4292,7 +4290,7 @@ class OddJob(rje.RJE_Object):
                 ygob1 = glob.glob('%s*.orthaln.fas' % alndir)
                 ygob2 = glob.glob('%s*.orth.fas' % orthdir)
                 for y in ygob1 + ygob2:
-                    orth = string.replace(y,'orth','ygob')
+                    orth = rje.replace(y,'orth','ygob')
                     os.rename(y,orth)
                 self.log.printLog('#MOVE','Renamed %d files.' % len(ygob1))
                 return
@@ -4302,7 +4300,7 @@ class OddJob(rje.RJE_Object):
             ygob2 = glob.glob('%s*.orth.fas' % orthdir)
             for orth in ygob2:
                 file = os.path.basename(orth)
-                aln = alndir + string.replace(file,'orth','orthaln')
+                aln = alndir + rje.replace(file,'orth','orthaln')
                 if aln not in ygob1:    # Already done
                     scmd = self.cmd_list + ['seqin=%s' % orth]
                     seqs = rje_seq.SeqList(log=self.log,cmd_list=scmd)
@@ -4392,10 +4390,10 @@ class OddJob(rje.RJE_Object):
                 lx += 100.0
                 if line[:1] == '!':
                     continue
-                go = string.split(line)
+                go = rje.split(line)
                 if len(go) >= 3:
-                    desc = string.join(go[1:-1])
-                    id = string.replace(go[0],':','_')
+                    desc = rje.join(go[1:-1])
+                    id = rje.replace(go[0],':','_')
                     type = go[-1]
                     if type not in ['P','C','F']:
                         self.log.errorLog('Fuck. What is "%s"?' % rje.chomp(line),printerror=False)
@@ -4437,7 +4435,7 @@ class OddJob(rje.RJE_Object):
             lx = 0.0
             for line in golines:
                 lx += 100.0
-                go = string.split(line,',')
+                go = rje.split(line,',')
                 if len(go) >= 5:
                     godesc[go[3]] = go[4]
                     if not genego.has_key(go[0]):
@@ -4461,7 +4459,7 @@ class OddJob(rje.RJE_Object):
                 pep = rje.matchExp('pep:(\S+)',seq.info['Name'])[0]
                 if protgo.has_key(pep):
                     for go in protgo.pop(pep):
-                        gofile = 'GO_DATASETS/%s.fas' % string.replace(go,':','_')
+                        gofile = 'GO_DATASETS/%s.fas' % rje.replace(go,':','_')
                         GO = open(gofile,'a')
                         GO.write('>%s\n%s\n' % (seq.info['Name'],seq.info['Sequence']))
                         GO.close()
@@ -4506,7 +4504,7 @@ class OddJob(rje.RJE_Object):
 
             DUP = open('elm_dup.tdt','w') 
             for pair in dup:
-                DUP.write('%s\n' % string.join(pair,'\t'))
+                DUP.write('%s\n' % rje.join(pair,'\t'))
             DUP.close()
 
         except:
@@ -4553,7 +4551,7 @@ class OddJob(rje.RJE_Object):
                     open('no_aln.txt','a').write('%s\n' % acc)
 
             ### HumProt ###
-            open('elm_human.txt','w').write(string.join(humprot,'\n'))
+            open('elm_human.txt','w').write(rje.join(humprot,'\n'))
             
         except:
             self.log.errorLog('Wah wah wah! Cry like a baby - elmAln() is busted.',quitchoice=True)
@@ -4563,11 +4561,11 @@ class OddJob(rje.RJE_Object):
         try:
             ### Read in Mapping ###
             mlines = self.loadFromFile('mapping.tdt',chomplines=True)
-            headers = string.split(mlines[0],'\t')
+            headers = rje.split(mlines[0],'\t')
             mappings = {}
             for line in mlines:
                 ## Read line ##
-                data = string.split(line,'\t')
+                data = rje.split(line,'\t')
                 if not data or data == headers:
                     continue
                 if len(data) != len(headers):
@@ -4583,7 +4581,7 @@ class OddJob(rje.RJE_Object):
                     continue
                 (id,acc) = rje.matchExp('^(\S+_\S+)__(\S+)',datadict['Query'])
                 mappings[acc] = elmprot
-            open('elm_map100.txt','w').write(string.join(mappings.values(),'\n'))
+            open('elm_map100.txt','w').write(rje.join(mappings.values(),'\n'))
             self.log.printLog('\r#MAP','Read %s 100%% len mappings' % (rje.integerString(len(mappings))))
 
             ### Get UniProt ###
@@ -4651,7 +4649,7 @@ class OddJob(rje.RJE_Object):
             self.progLog('\r#BASE','Counting datasets...')
             for g in glob.glob('*.*'):
                 self.progLog('\r#BASE','Counting datasets: %s' % rje.integerString(len(bases)))
-                base = string.join(string.split(g,'.')[:2],'.')
+                base = rje.join(rje.split(g,'.')[:2],'.')
                 if base not in bases: bases.append(base)
             ### ~ [1] Cleanup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             (bx,btot) = (0.0,len(bases))
@@ -4663,12 +4661,12 @@ class OddJob(rje.RJE_Object):
                 oldtar = '%s.tar.gz' % base
                 newtar = '%s.l5w2o2a1.FreqConsDisComp-5-8.tar.gz' % base
                 for gz in glob.glob('%s.*.gz' % base):
-                    if string.split(gz,'.')[-2] in ['pickle','tar']: continue
+                    if rje.split(gz,'.')[-2] in ['pickle','tar']: continue
                     os.popen('gunzip %s' % gz).read()
                 if os.path.exists(oldtar): os.unlink(oldtar)
                 if os.path.exists(newtar): x = os.popen('tar -xzf %s' % newtar).read()
                 for b in glob.glob('SLiMFinder090817/*'):   #glob.glob('SLiMFinder090817/%s.*' % base):
-                    if string.split(b,'.')[-1] not in ['csv','upc','fas','tdt','txt'] or string.split(b,'.')[-2] in ['phydis','compare']: os.unlink(b)
+                    if rje.split(b,'.')[-1] not in ['csv','upc','fas','tdt','txt'] or rje.split(b,'.')[-2] in ['phydis','compare']: os.unlink(b)
                     else:
                         n = os.path.basename(b)
                         if os.path.exists(n): os.unlink(n)
@@ -4678,12 +4676,12 @@ class OddJob(rje.RJE_Object):
                 #x#os.popen('mv SLiMFinder090817/%s.* .' % base).read()
                 keepers = []
                 for b in glob.glob('%s.*' % base):
-                    if string.split(b,'.')[-1] not in ['csv','upc','fas','tdt','txt','gz','pickle'] or string.split(b,'.')[-2] in ['phydis','compare']: os.unlink(b)
-                    elif string.split(b,'.')[-1] not in ['gz']: keepers.append(b)
-                self.deBug('>> %s <<' % string.join(keepers,' | '))
-                open('%s.done' % base,'w').write(string.join(keepers,'\n'))
+                    if rje.split(b,'.')[-1] not in ['csv','upc','fas','tdt','txt','gz','pickle'] or rje.split(b,'.')[-2] in ['phydis','compare']: os.unlink(b)
+                    elif rje.split(b,'.')[-1] not in ['gz']: keepers.append(b)
+                self.deBug('>> %s <<' % rje.join(keepers,' | '))
+                open('%s.done' % base,'w').write(rje.join(keepers,'\n'))
                 if os.path.exists(newtar): os.unlink(newtar)
-                #x# Later? #x# x = os.popen('tar -czf %s %s' % (newtar,string.join(keepers))).read()
+                #x# Later? #x# x = os.popen('tar -czf %s %s' % (newtar,rje.join(keepers))).read()
                 self.deBug(glob.glob('SLiMFinder090817/*'))
             self.printLog('\r#TARGZ','Cleaning TARGZ for %s datasets complete!' % (rje.integerString(len(bases))))
         except: self.errorLog(rje_zen.Zen().wisdom())
@@ -4729,14 +4727,14 @@ class OddJob(rje.RJE_Object):
             while glist:
                 self.progLog('\r#PASS1','Processing files: %.3f%% (%d Sig)' % (gx/gtot, len(sig))); gx += 100.0
                 g = glist.pop(0); file = os.path.basename(g)
-                base = string.join(string.split(file,'.')[:2],'.')
-                ext = string.join(string.split(file,'.')[2:][-2:],'.')
-                if string.split(ext,'.')[0][-3:] in ['y2h','bin','ppi','dom']:
-                    base = '%s.%s' % (base,string.split(ext,'.')[0])
-                    ext = string.join(string.split(ext,'.')[1:],'.')
-                if string.split(base,'.')[-1][-3:] not in ['y2h','bin','ppi','dom']:
-                    ext = '%s.%s' % (string.split(base,'.')[-1],ext)
-                    base = string.join(string.split(base,'.')[:-1],'.')
+                base = rje.join(rje.split(file,'.')[:2],'.')
+                ext = rje.join(rje.split(file,'.')[2:][-2:],'.')
+                if rje.split(ext,'.')[0][-3:] in ['y2h','bin','ppi','dom']:
+                    base = '%s.%s' % (base,rje.split(ext,'.')[0])
+                    ext = rje.join(rje.split(ext,'.')[1:],'.')
+                if rje.split(base,'.')[-1][-3:] not in ['y2h','bin','ppi','dom']:
+                    ext = '%s.%s' % (rje.split(base,'.')[-1],ext)
+                    base = rje.join(rje.split(base,'.')[:-1],'.')
                 newdir = ''
                 ## ~ [1a] Classify data ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
                 if base[:4] in ['rseq','rupc']: newdir = 'Random'; ext = ''
@@ -4763,7 +4761,7 @@ class OddJob(rje.RJE_Object):
             while slist:
                 self.progLog('\r#PASS2','Processing files: %.3f%%' % (sx/stot)); sx += 100.0
                 g = slist.pop(0); file = os.path.basename(g)
-                base = string.join(string.split(file,'.')[:2],'.')
+                base = rje.join(rje.split(file,'.')[:2],'.')
                 ## ~ [1a] Classify data ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
                 if base in sig: newdir = 'Sig'
                 else: newdir = 'NoSig'
@@ -4810,11 +4808,11 @@ class OddJob(rje.RJE_Object):
         '''PRP SI maker.'''
         try:### Load ###
             ass = rje.dataDict(self,'assembly.tdt',['CONS'],['EST'],lists=True)
-            print len(ass)
+            print( len(ass))
             tlr = rje.dataDict(self,'tlrfam.tdt',getheaders=True)
-            print rje.sortKeys(tlr)
+            print( rje.sortKeys(tlr))
             igs = rje.dataDict(self,'igsfam.tdt')
-            print rje.sortKeys(igs)
+            print( rje.sortKeys(igs))
             ### Setup output ###
             head = tlr.pop('Headers')[:-1]
             head.insert(1,'CONS')
@@ -4862,7 +4860,7 @@ class OddJob(rje.RJE_Object):
                     seq = seqdict[occ['Seq']]
                     occ['Start_Pos'] = seq.info['Sequence'].find(occ['Match'])
                     occ['End_Pos'] = occ['Start_Pos'] + string.atoi(occ['End_Pos']) - 1
-                    check = string.join([occ['Hub'],occ['Dataset'],occ['Pattern'],occ['Seq'],'%d %d' % (occ['Start_Pos'],occ['End_Pos'])])
+                    check = rje.join([occ['Hub'],occ['Dataset'],occ['Pattern'],occ['Seq'],'%d %d' % (occ['Start_Pos'],occ['End_Pos'])])
                     if check in done: self.printLog('#DUP','Oops. Double hit: %s' % check)
                     else: done.append(check)
                 except: self.errorLog('Problem mapping %s occurrence %s %s' % (occ['Seq'],occ['Pattern'],occ['Match']))
@@ -4979,7 +4977,7 @@ class OddJob(rje.RJE_Object):
             self.printLog('\r#PPI','%s PPI processed.' % (rje.integerString(ptot)))
             nfile = 'humsf09.no_map.0905050.tdt'
             nomap.sort()
-            open(nfile,'w').write(string.join(nomap,'\n'))
+            open(nfile,'w').write(rje.join(nomap,'\n'))
             self.printLog('#NOMAP','%s hubs without mapping -> %s' % (rje.integerString(len(nomap)),nfile))
         except: self.errorLog(rje_zen.Zen().wisdom())
 #########################################################################################################################
@@ -5020,16 +5018,16 @@ class OddJob(rje.RJE_Object):
                         dspokes[spoke].append(hub)
                 ## Output domain-spoke pairs ##
                 for spoke in dspokes:
-                    sdata = {'Domain':domain,'Hubs':string.join(dspokes[spoke],',')}
+                    sdata = {'Domain':domain,'Hubs':rje.join(dspokes[spoke],',')}
                     evidence = []
                     for hub in dspokes[spoke]:
                         pkey = '%s\t%s' % (hub,spoke)
                         if pkey not in ppidict: continue
                         sdata = rje.combineDict(sdata,ppidict[pkey],overwrite=False)
-                        for e in string.split(ppidict[pkey]['Evidence'],'|'):
+                        for e in rje.split(ppidict[pkey]['Evidence'],'|'):
                             if e not in evidence: evidence.append(e)
                     evidence.sort()
-                    sdata['Evidence'] = string.join(evidence,'|')
+                    sdata['Evidence'] = rje.join(evidence,'|')
                     try: seq = sdata['SpokeSeq']
                     except:
                         self.errorLog('No sequence for %s' % spoke)
@@ -5070,7 +5068,7 @@ class OddJob(rje.RJE_Object):
             for pkey in rje.sortKeys(ppidict):
                 self.progLog('\r#PPI','Processing PPI: %.2f%%' % (px/ptot)); px += 100.0
                 if pkey == 'Headers': continue
-                try: (hub,spoke) = string.split(pkey)
+                try: (hub,spoke) = rje.split(pkey)
                 except:
                     if pkey not in badkeys: badkeys.append(pkey)
                     continue
@@ -5095,7 +5093,7 @@ class OddJob(rje.RJE_Object):
                 break # ! DONE OK !
                 self.progLog('\r#PPI','Processing PPI: %.2f%%' % (px/ptot)); px += 100.0
                 if pkey == 'Headers': continue
-                try: (hub,spoke) = string.split(pkey)
+                try: (hub,spoke) = rje.split(pkey)
                 except:
                     if pkey not in badkeys: badkeys.append(pkey)
                     continue
@@ -5156,8 +5154,8 @@ def abNprob(a,b,N,overlap=0):     ### Returns probabilities of overlap in a give
         pb += rje.binomial(k,b,float(a)/N,exact=True,callobj=callobj)
     ea = a * float(b) / N
     eb = b * float(a) / N
-    print 'Prob <=%d from %d a in %d b = %.4f (Exp %.3f)' % (overlap,a,b,pb,eb)
-    print 'Prob <=%d from %d b in %d a = %.4f (Exp %.3f)' % (overlap,b,a,pa,ea)
+    print( 'Prob <=%d from %d a in %d b = %.4f (Exp %.3f)' % (overlap,a,b,pb,eb))
+    print( 'Prob <=%d from %d b in %d a = %.4f (Exp %.3f)' % (overlap,b,a,pa,ea))
 #########################################################################################################################
 ### End of SECTION III: Misc methods                                                                                    #
 #########################################################################################################################
@@ -5169,22 +5167,21 @@ def abNprob(a,b,N,overlap=0):     ### Returns probabilities of overlap in a give
 #########################################################################################################################
 def runMain():
     ### ~ [1] ~ Basic Setup of Program  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-    try: [info,out,mainlog,cmd_list] = setupProgram()
-    except SystemExit: return  
-    except:
-        print 'Unexpected error during program setup:', sys.exc_info()[0]
-        return 
+    try: (info,out,mainlog,cmd_list) = setupProgram()
+    except SystemExit: return
+    except: rje.printf('Unexpected error during program setup:', sys.exc_info()[0]); return
+
     ### ~ [2] ~ Rest of Functionality... ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try: OddJob(log=mainlog,cmd_list=cmd_list).run()
     ### ~ [3] ~ End ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     except SystemExit: return  # Fork exit etc.
     except KeyboardInterrupt: mainlog.errorLog('User terminated.')
     except: mainlog.errorLog('Fatal error in main %s run.' % info.program)
-    mainlog.printLog('#LOG', '%s V:%s End: %s\n' % (info.program,info.version,time.asctime(time.localtime(time.time()))))
+    mainlog.endLog(info)
 #########################################################################################################################
-if __name__ == "__main__":      ### Call runMain 
+if __name__ == "__main__":      ### Call runMain
     try: runMain()
-    except: print 'Cataclysmic run error:', sys.exc_info()[0]
+    except: rje.printf('Cataclysmic run error: {0}'.format(sys.exc_info()[0]))
     sys.exit()
 #########################################################################################################################
 ### END OF SECTION IV                                                                                                   #

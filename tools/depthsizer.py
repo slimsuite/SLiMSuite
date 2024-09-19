@@ -19,9 +19,9 @@
 """
 Module:       depthsizer
 Description:  Read-depth based genome size prediction
-Version:      1.6.1
-Last Edit:    12/01/22
-Citation:     Chen SH et al. & Edwards RJ (preprint): bioRxiv 2021.06.02.444084 (doi: 10.1101/2021.06.02.444084)
+Version:      1.9.3
+Last Edit:    01/08/24
+Citation:     Chen SH et al. & Edwards RJ (2022): Mol. Ecol. Res. (doi: 10.1111/1755-0998.13574)
 Copyright (C) 2021  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -71,8 +71,8 @@ Commandline:
     seqin=FILE      : Input sequence assembly [None]
     basefile=FILE   : Root of output file names [gapspanner or $SEQIN basefile]
     summarise=T/F   : Whether to generate and output summary statistics sequence data before and after processing [True]
-    genomesize=INT  : Haploid genome size (bp) [0]
     bam=FILE        : BAM file of long reads mapped onto assembly [$BASEFILE.bam]
+    bamcsi=T/F      : Use CSI indexing for BAM files, not BAI (needed for v long scaffolds) [False]
     reads=FILELIST  : List of fasta/fastq files containing reads. Wildcard allowed. Can be gzipped. []
     readtype=LIST   : List of ont/pb/hifi file types matching reads for minimap2 mapping [ont]
     dochtml=T/F     : Generate HTML DepthSizer documentation (*.docs.html) instead of main run [False]
@@ -82,6 +82,9 @@ Commandline:
     readbp=INT      : Total combined read length for depth calculations (over-rides reads=FILELIST) []
     adjustmode=X    : Map adjustment method to apply (None/CovBases/IndelRatio/MapBases/MapAdjust/MapRatio/OldAdjust/OldCovBases) [IndelRatio]
     quickdepth=T/F  : Whether to use samtools depth in place of mpileup (quicker but underestimates?) [False]
+    depchunk=INT    : Chunk input into minimum of INT bp chunks for temp depth calculation [1e6]
+    deponly=T/F     : Cease execution following checking/creating BAM and fastdep/fastmp files [False]
+    depfile=FILE    : Precomputed depth file (*.fastdep or *.fastmp) to use [None]
     covbases=T/F    : Whether to calculate predicted minimum genome size based on mapped reads only [True]
     mapadjust=T/F   : Whether to calculate mapadjust predicted genome size based on read length:mapping ratio [False]
     benchmark=T/F   : Activate benchmarking mode and also output the assembly size and mean depth estimate [False]
@@ -89,11 +92,14 @@ Commandline:
     depdensity=T/F  : Whether to use the BUSCO depth density profile in place of modal depth in legacy mode [True]
     depadjust=INT   : Advanced R density bandwidth adjustment parameter [12]
     seqstats=T/F    : Whether to output CN and depth data for full sequences as well as BUSCO genes [False]
+    reduced=T/F     : Only generate/use fastmp for BUSCO-containing sequences (*.busco.fastmp) [True]
+    fragmented=T/F  : Whether to use Fragmented as well as Complete BUSCO genes for SC Depth estimates [False]
     ### ~ Forking options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     forks=X         : Number of parallel sequences to process at once [0]
     killforks=X     : Number of seconds of no activity before killing all remaining forks. [36000]
     killmain=T/F    : Whether to kill main thread rather than individual forks when killforks reached. [False]
     logfork=T/F     : Whether to log forking in main log [False]
+    memsaver=T/F    : Whether to disable threading for the R script [False]
     ### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
 """
 #########################################################################################################################
@@ -124,6 +130,15 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     #       - MapRatio = Use mapbases adjusted by indelratio
     # 1.6.0 - Disable legacy mode using Diploidocus.
     # 1.6.1 - Bug fixes to underlying R script and related core codebase.
+    # 1.6.2 - Updated citation to Mol Ecol Res paper.
+    # 1.6.3 - Fixed R code bug. Added bamcsi=T/F to use CSI indexing.
+    # 1.7.0 - Fixed a problem with lack of Duplicated BUSCOs. Added fragmented=T option.
+    # 1.7.1 - Fixed inconsistency with output s.f.
+    # 1.8.0 - Added reduced=T/F : Only generate/use fastmp for BUSCO-containing sequences (*.busco.fastmp) [True]
+    # 1.9.0 - Added multi-threading to the R script and chunking of input sequences for depth calculation.
+    # 1.9.1 - Fixed indelratio to cope with -ve strand BUSCO formatting.
+    # 1.9.2 - Fixed fragmented mode to use different scdepth file.
+    # 1.9.3 - Fixed bug with chunking of input sequences when reduced=T that missed some BUSCO genes.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -139,14 +154,18 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
     # [Y] : Rationalise the log outputs etc.
     # [Y] : Add Lower output based solely on mapped reads (+/- Adjust)
     # [ ] : Add the sequence, window and chromcheck settings to DepthSizer. (Also available in DepthKopy.)
+    # [Y] : Check why genomesize is an option and possibly remove? (Legacy from Diploidocus origins?)
+    # [ ] : Add option to use complete genome rather than BUSCOs for the SC depth.
+    # [Y] : Add a reduced=T/F option that only generates fastmp for BUSCO-containing sequences (*.busco.fastmp)
+    # [ ] : Add a forkdep=T/F option that only generates the BAM & fastmps file then stops, for efficient Nextflow etc.
     '''
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copy_right) = ('DepthSizer', '1.6.1', 'January 2022', '2021')
+    (program, version, last_edit, copy_right) = ('DepthSizer', '1.9.3', 'August 2024', '2021')
     description = 'Read-depth based genome size prediction'
     author = 'Dr Richard J. Edwards.'
-    comments = ['Citation: Chen SH et al. & Edwards RJ (preprint): bioRxiv 2021.06.02.444084 (doi: 10.1101/2021.06.02.444084)',
+    comments = ['Citation: Chen SH et al. & Edwards RJ (2022): Mol. Ecol. Res. (doi: 10.1111/1755-0998.13574)',
                 'Please raise bugs or questions at https://github.com/slimsuite/depthsizer.',rje_obj.zen()]
     return rje.Info(program,version,last_edit,description,author,time.time(),copy_right,comments)
 #########################################################################################################################
@@ -211,7 +230,10 @@ class DepthSizer(rje_readcore.ReadCore):
     Bool:boolean
     - Benchmark=T/F   : Activate benchmarking mode and also output the assembly size and mean depth estimate [False]
     - CovBases=T/F    : Whether to calculate predicted minimum genome size based on mapped reads only [True]
+    - DepOnly=T/F     : Cease execution following checking/creating BAM and fastdep/fastmp files [False]
+    - Fragmented=T/F  : Whether to use Fragmented as well as Complete BUSCO genes for SC Depth estimates [False]
     - Legacy=T/F      : Whether to perform Legacy v1.0.0 (Diploidocus) calculations [False]
+    - Reduced=T/F     : Only generate/use fastmp for BUSCO-containing sequences (*.busco.fastmp) [True]
 
     Int:integer
 
@@ -232,7 +254,7 @@ class DepthSizer(rje_readcore.ReadCore):
         '''Sets Attributes of Object.'''
         ### ~ Basics ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         self.strlist = ['AdjustMode']
-        self.boollist = ['Benchmark','CovBases','DocHTML','Legacy','MapAdjust']
+        self.boollist = ['Benchmark','CovBases','DepOnly','DocHTML','Fragmented','Legacy','MapAdjust','Reduced']
         self.intlist = []
         self.numlist = []
         self.filelist = []
@@ -243,7 +265,7 @@ class DepthSizer(rje_readcore.ReadCore):
         self._setDefaults(str='None',bool=False,int=0,num=0.0,obj=None,setlist=True,setdict=True,setfile=True)
         self._setReadCoreAttributes()   # See rje_readcore
         self.setStr({'AdjustMode':'IndelRatio'})
-        self.setBool({'CovBases':True,'Legacy':False})
+        self.setBool({'CovBases':True,'Legacy':False,'Reduced':True})
         self.setInt({})
         self.setNum({})
         ### ~ Other Attributes ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -265,7 +287,7 @@ class DepthSizer(rje_readcore.ReadCore):
                 #self._cmdReadList(cmd,'path',['Att'])  # String representing directory path 
                 #self._cmdReadList(cmd,'file',['Att'])  # String representing file path 
                 #self._cmdReadList(cmd,'date',['Att'])  # String representing date YYYY-MM-DD
-                self._cmdReadList(cmd,'bool',['Benchmark','CovBases','DocHTML','Legacy','MapAdjust'])  # True/False Booleans
+                self._cmdReadList(cmd,'bool',['Benchmark','CovBases','DepOnly','DocHTML','Fragmented','Legacy','MapAdjust','Reduced'])  # True/False Booleans
                 #self._cmdReadList(cmd,'int',['Att'])   # Integers
                 #self._cmdReadList(cmd,'float',['Att']) # Floats
                 #self._cmdReadList(cmd,'min',['Att'])   # Integer value part of min,max command
@@ -321,12 +343,23 @@ class DepthSizer(rje_readcore.ReadCore):
         calculate the modal read depth for each BUSCO gene along with the overall modal read depth for all gene
         regions. These are not recommended.
 
+        **Version 1.8.** Version 1.8 introduced a new `reduced=T/F` mode, which only processes sequences that have BUSCO
+        predictions. (Complete, Duplicated or Fragmented.) This is _on_ (`True`) by default, and substantially reduces
+        the disk footprint and processing time for highly fragmented genomes. If the BUSCO Completeness is low, using the
+        `fragmented=T` option (introduced in version 1.7, default `False`) will use `Fragmented` BUSCO genes as well as
+        `Complete` genes to establish the single-copy read depth.
+
         ## Citation
 
-        DepthSizer is still under review as part of the Waratah genome paper. For now, please cite the preprint:
+        DepthSizer has been published as part of the Waratah genome paper:
 
-        > Chen SH, Rossetto M, van der Merwe M, Lu-Irving P, Yap JS, Sauquet H, Bourke G, Amos TG, Bragg JG & Edwards RJ (preprint):
+        > Chen SH, Rossetto M, van der Merwe M, Lu-Irving P, Yap JS, Sauquet H, Bourke G, Amos TG, Bragg JG & Edwards RJ (2022).
         Chromosome-level de novo genome assembly of Telopea speciosissima (New South Wales waratah) using long-reads,
+        linked-reads and Hi-C. Molecular Ecology Resources doi: [10.1111/1755-0998.13574](https://doi.org/10.1111/1755-0998.13574)
+
+        Please contact the author if you have trouble getting the full text version, or read the bioRxiv preprint version:
+
+        > Chromosome-level de novo genome assembly of Telopea speciosissima (New South Wales waratah) using long-reads,
         linked-reads and Hi-C. [bioRxiv 2021.06.02.444084](https://www.biorxiv.org/content/10.1101/2021.06.02.444084v2.full);
         doi: 10.1101/2021.06.02.444084.
 
@@ -366,8 +399,8 @@ class DepthSizer(rje_readcore.ReadCore):
         seqin=FILE      : Input sequence assembly [None]
         basefile=FILE   : Root of output file names [gapspanner or $SEQIN basefile]
         summarise=T/F   : Whether to generate and output summary statistics sequence data before and after processing [True]
-        genomesize=INT  : Haploid genome size (bp) [0]
         bam=FILE        : BAM file of long reads mapped onto assembly [$BASEFILE.bam]
+        bamcsi=T/F      : Use CSI indexing for BAM files, not BAI (needed for v long scaffolds) [False]
         reads=FILELIST  : List of fasta/fastq files containing reads. Wildcard allowed. Can be gzipped. []
         readtype=LIST   : List of ont/pb/hifi file types matching reads for minimap2 mapping [ont]
         dochtml=T/F     : Generate HTML DepthSizer documentation (*.docs.html) instead of main run [False]
@@ -377,6 +410,9 @@ class DepthSizer(rje_readcore.ReadCore):
         readbp=INT      : Total combined read length for depth calculations (over-rides reads=FILELIST) []
         adjustmode=X    : Map adjustment method to apply (None/CovBases/IndelRatio/MapBases/MapAdjust/MapRatio/OldAdjust/OldCovBases) [IndelRatio]
         quickdepth=T/F  : Whether to use samtools depth in place of mpileup (quicker but underestimates?) [False]
+        depchunk=INT    : Chunk input into minimum of INT bp chunks for temp depth calculation [1e6]
+        deponly=T/F     : Cease execution following checking/creating BAM and fastdep/fastmp files [False]
+        depfile=FILE    : Precomputed depth file (*.fastdep or *.fastmp) to use [None]
         covbases=T/F    : Whether to calculate predicted minimum genome size based on mapped reads only [True]
         mapadjust=T/F   : Whether to calculate mapadjust predicted genome size based on read length:mapping ratio [False]
         benchmark=T/F   : Activate benchmarking mode and also output the assembly size and mean depth estimate [False]
@@ -384,6 +420,8 @@ class DepthSizer(rje_readcore.ReadCore):
         depdensity=T/F  : Whether to use the BUSCO depth density profile in place of modal depth in legacy mode [True]
         depadjust=INT   : Advanced R density bandwidth adjustment parameter [12]
         seqstats=T/F    : Whether to output CN and depth data for full sequences as well as BUSCO genes [False]
+        reduced=T/F     : Only generate/use fastmp for BUSCO-containing sequences (*.busco.fastmp) [True]
+        fragmented=T/F  : Whether to use Fragmented as well as Complete BUSCO genes for SC Depth estimates [False]
         ### ~ Forking options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         forks=X         : Number of parallel sequences to process at once [0]
         killforks=X     : Number of seconds of no activity before killing all remaining forks. [36000]
@@ -397,7 +435,7 @@ class DepthSizer(rje_readcore.ReadCore):
         The main inputs for DepthSizer genome size prediction are:
 
         * `seqin=FILE` : Input sequence assembly to tidy [Required].
-        * `reads=FILELIST`: List of fasta/fastq files containing long reads. Wildcard allowed. Can be gzipped. For a single run (not cycling), a BAM file can be supplied instead with `bam=FILE`. (This will be preferentially used if found, and defaults to `$BASEFILE.bam`.) Read types (pb/ont/hifi) for each file are set with `readtype=LIST`, which will be cycled if shorter (default=`ont`). Optionally, the pre-calculated total read length can be provided with `readbp=INT` and/or the pre-calculated (haploid) genome size can be provided with `genomesize=INT`.
+        * `reads=FILELIST`: List of fasta/fastq files containing long reads. Wildcard allowed. Can be gzipped.
         * `readtype=LIST` : List of ont/pb/hifi file types matching reads for minimap2 mapping [ont]
         * `busco=TSVFILE` : BUSCO full table [`full_table_$BASEFILE.busco.tsv`] used for calculating single copy ("diploid") read depth.
 
@@ -423,7 +461,8 @@ class DepthSizer(rje_readcore.ReadCore):
         and the `Contig`, `Start` and `End` fields are used to define the regions that should be predominantly single copy.
         [BUSCOMP](https://github.com/slimsuite/buscomp) v0.10.0 and above will generate a `*.complete.tsv` file that can
         be used in place of BUSCO results. This can enable rapid re-annotation of BUSCO genes following, for example,
-        vector trimming with [Diploidocus](https://github.com/slimsuite/diploidocus).
+        vector trimming with [Diploidocus](https://github.com/slimsuite/diploidocus). If `fragmented=T` then entries with
+        `Status` = `Fragmented` are also used. This is useful when Completeness is low.
 
         ## Step 3: Single-copy read depth
 
@@ -439,7 +478,17 @@ class DepthSizer(rje_readcore.ReadCore):
         to check smoothing if required. Additional checking plots are also output (see Outputs below).
 
         The full output of depths per position is output to `$BAM.fastmp` (or `$BAM.fastdep` if `quickdepth=T`). The
-        single-copy is also output to `$BAM.fastmp.scdepth`.
+        single-copy is also output to `$BAM.fastmp.scdepth`. If `reduced=T` (the default) then the `fastmp` or `fastdep`
+        file will have a `$BAM.busco.*` prefix and only include the sequences in the BUSCO table. By default, generation
+        of the fastdep/fastmp data is performed by chunking up the assembly and creating temporary files in parallel
+        (`tmpdir=PATH`). Sequences are batched in order such that each batch meets the minimum size criterion set by
+        `depchunk=INT` (default 1Mbp). If `depchunk=0` then each sequence will be processed individually. This is not
+        recommended for large, highly fragmented genomes. Unless `dev=T` or `debug=T`, the temporary files will be
+        deleted once the final file is made. If DepthSizer crashed during the generation of the file, it should be
+        possible to re-run and it will re-use existing temporary files.
+
+        **NOTE:** To generate output that is compatible with [DepthKopy](https://github.com/slimsuite/depthkopy), run
+        with `reduced=F`.
 
         ## Step 4: Read mapping adjustments
 
@@ -569,6 +618,10 @@ class DepthSizer(rje_readcore.ReadCore):
             self.setup()
             if self.getBool('Legacy'):
                 return self.legacyDepthSizer()
+            if self.getBool('DepOnly'):
+                self.getFastDep()
+                self.printLog('#EXIT','Terminating after fastdep creation (deponly=T).')
+                return False
             return self.depthSizer()
         except:
             self.errorLog(self.zen())
@@ -615,7 +668,7 @@ class DepthSizer(rje_readcore.ReadCore):
             self.infoLog('Actual genome size likely to fall within range of output predictions.')
             if self.getBool('Benchmark'):
                 self.infoLog('Ignore "Assembly" and "MeanX" predictions: benchmarking only.')
-            self.printLog('#FINAL','Estimated genome size (adjustmode={1}) = {0}'.format(rje_seqlist.dnaLen(gensize,dp=0,sf=3),self.getStr('AdjustMode')))
+            self.printLog('#FINAL','Estimated genome size (adjustmode={1}) = {0}'.format(rje_seqlist.dnaLen(gensize,dp=0,sf=4),self.getStr('AdjustMode')))
             if self.getStrLC('AdjustMode') == 'covbases':
                 self.warnLog('Estimated genome size is likely to be an underestimate. See: {0}'.format(gfile))
             else:
@@ -660,7 +713,7 @@ def runMain():
     except: rje.printf('Unexpected error during program setup:', sys.exc_info()[0]); return
     
     ### ~ [2] ~ Rest of Functionality... ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-    try: DepthSizer(mainlog,['basefile=depthsizer']+cmd_list).run()
+    try: DepthSizer(mainlog,['basefile=depthsizer','reduced=T']+cmd_list).run()
 
     ### ~ [3] ~ End ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     except SystemExit: return  # Fork exit etc.

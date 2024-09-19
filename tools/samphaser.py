@@ -174,9 +174,9 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         ### ~ [2] ~ Look for help commands and print options if found ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         cmd_help = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
         if cmd_help > 0:
-            print '\n\nHelp for %s %s: %s\n' % (info.program, info.version, time.asctime(time.localtime(info.start_time)))
+            rje.printf('\n\nHelp for {0} {1}: {2}\n'.format(info.program, info.version, time.asctime(time.localtime(info.start_time))))
             out.verbose(-1,4,text=__doc__)
-            if rje.yesNo('Show general commandline options?'): out.verbose(-1,4,text=rje.__doc__)
+            if rje.yesNo('Show general commandline options?',default='N'): out.verbose(-1,4,text=rje.__doc__)
             if rje.yesNo('Quit?'): sys.exit()           # Option to quit after help
             cmd_list += rje.inputCmds(out,cmd_list)     # Add extra commands interactively.
         elif out.stat['Interactive'] > 1: cmd_list += rje.inputCmds(out,cmd_list)    # Ask for more commands
@@ -184,7 +184,7 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         return cmd_list
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Major Problem with cmdHelp()'
+    except: rje.printf('Major Problem with cmdHelp()')
 #########################################################################################################################
 def setupProgram(): ### Basic Setup of Program when called from commandline.
     '''
@@ -196,18 +196,18 @@ def setupProgram(): ### Basic Setup of Program when called from commandline.
     try:### ~ [1] ~ Initial Command Setup & Info ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         info = makeInfo()                                   # Sets up Info object with program details
         if len(sys.argv) == 2 and sys.argv[1] in ['version','-version','--version']: rje.printf(info.version); sys.exit(0)
-        if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: rje.printf('{0} v{1}'.format(info.program,info.version)); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: rje.printf('%s v%s' % (info.program,info.version)); sys.exit(0)
         if len(sys.argv) == 2 and sys.argv[1] in ['description','-description','--description']: rje.printf('%s: %s' % (info.program,info.description)); sys.exit(0)
         cmd_list = rje.getCmdList(sys.argv[1:],info=info)   # Reads arguments and load defaults from program.ini
         out = rje.Out(cmd_list=cmd_list)                    # Sets up Out object for controlling output to screen
-        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2 
+        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2
         out.printIntro(info)                                # Prints intro text using details from Info object
         cmd_list = cmdHelp(info,out,cmd_list)               # Shows commands (help) and/or adds commands from user
         log = rje.setLog(info,out,cmd_list)                 # Sets up Log object for controlling log file output
         return (info,out,log,cmd_list)                      # Returns objects for use in program
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Problem during initial setup.'; raise
+    except: rje.printf('Problem during initial setup.'); raise
 #########################################################################################################################
 ### END OF SECTION I                                                                                                    #
 #########################################################################################################################
@@ -417,8 +417,8 @@ class SAMPhaser(rje_obj.RJE_Object):
                 if not entry: break
                 snpx += 1
                 alleles = {}
-                for aseq in string.split(entry['Seq'],'|'):
-                    [a,n] = string.split(aseq,':')
+                for aseq in rje.split(entry['Seq'],'|'):
+                    [a,n] = rje.split(aseq,':')
                     n = int(n)
                     if self.getNum('PhaseCut') < 1.0:
                         if n / float(entry['QN']) < self.getNum('PhaseCut'): continue
@@ -435,11 +435,11 @@ class SAMPhaser(rje_obj.RJE_Object):
                         allentry = {'Locus':entry['Locus'],'Pos':int(entry['Pos']),'REF':entry['Ref'],'ALT':a,'N':alleles[a],
                                     'Freq':float(alleles[a])/sum(alleles.values())}
                         snptabdb.addEntry(allentry)
-                entry['Seq'] = string.join(entry['Seq'],'|')
-                entry['RID'] = string.split(entry['RID'],'|')
+                entry['Seq'] = rje.join(entry['Seq'],'|')
+                entry['RID'] = rje.split(entry['RID'],'|')
                 for rid in entry['RID'][0:]:
-                    if string.split(rid,':')[0] not in alleles: entry['RID'].remove(rid)
-                entry['RID'] = string.join(entry['RID'],'|')
+                    if rje.split(rid,':')[0] not in alleles: entry['RID'].remove(rid)
+                entry['RID'] = rje.join(entry['RID'],'|')
                 snpdb.addEntry(entry)
                 self.progLog('#SNP','Parsing SNPs: %.2f%%; %s Pos -> %s biallelic SNP.' % (100.0 * snpdb.obj['File'].tell() / snpend,rje.iStr(snpx),rje.iStr(snpdb.entryNum())))
             self.printLog('#SNP','%s positions reduced to %s biallelic SNP meeting PhaseCut requirements (indels=%s).' % (rje.iStr(snpx),rje.iStr(snpdb.entryNum()),self.getBool('PhaseIndels')))
@@ -582,7 +582,7 @@ class SAMPhaser(rje_obj.RJE_Object):
                 self.debug(rentry)
         except: self.errorLog('%s.readA() error' % self.prog()); raise
 #########################################################################################################################
-    def skipLocus(self,locus): return (locus in self.list['SkipLoci'] or string.split(locus,'__')[-1] in self.list['SkipLoci'])
+    def skipLocus(self,locus): return (locus in self.list['SkipLoci'] or rje.split(locus,'__')[-1] in self.list['SkipLoci'])
 #########################################################################################################################
     def phase(self):    ### Main SNP phasing method.
         '''
@@ -604,13 +604,13 @@ class SAMPhaser(rje_obj.RJE_Object):
             snpdb.addFields(['V1','R1','A1','V2','R2','A2','Block'])
             for sentry in snpdb.entries():
                 alldata = []
-                for snpdata in string.split(sentry['RID'],'|'):
-                    alldata += string.split(snpdata,':')
+                for snpdata in rje.split(sentry['RID'],'|'):
+                    alldata += rje.split(snpdata,':')
                 sentry['V1'] = alldata[0]                       # Allele 1
-                sentry['R1'] = string.split(alldata[1],',')     # List of RID for allele 1
+                sentry['R1'] = rje.split(alldata[1],',')     # List of RID for allele 1
                 sentry['A1'] = 0.0                              # Probability of Track A for Allele 1
                 sentry['V2'] = alldata[2]                       # Allele 2
-                sentry['R2'] = string.split(alldata[3],',')     # List of RID for allele 2
+                sentry['R2'] = rje.split(alldata[3],',')     # List of RID for allele 2
                 sentry['A2'] = 0.0                              # Probability of Track A for Allele 2
                 sentry['Block'] = 0                             # Assigned haplotype block
             #?# Add filter based on read counts?
@@ -633,9 +633,9 @@ class SAMPhaser(rje_obj.RJE_Object):
                 locx = len(riddb.indexKeys('Locus'))
                 self.list['SkipLoci'] = []
                 for locus in riddb.indexKeys('Locus'):
-                    self.bugPrint('%s -> %s' % (locus,string.split(locus,'__')[-1]))
-                    #self.deBug(locus in self.list['PhaseLoci'] or string.split(locus,'__')[-1] in self.list['PhaseLoci'])
-                    if locus in self.list['PhaseLoci'] or string.split(locus,'__')[-1] in self.list['PhaseLoci']: continue
+                    self.bugPrint('%s -> %s' % (locus,rje.split(locus,'__')[-1]))
+                    #self.deBug(locus in self.list['PhaseLoci'] or rje.split(locus,'__')[-1] in self.list['PhaseLoci'])
+                    if locus in self.list['PhaseLoci'] or rje.split(locus,'__')[-1] in self.list['PhaseLoci']: continue
                     self.list['SkipLoci'].append(locus)
                 skipx = len(self.list['SkipLoci'])
                 self.printLog('#SKIP','%d of %d loci skipped for phasing based on phaseloci=LIST' % (skipx,locx))
@@ -721,8 +721,8 @@ class SAMPhaser(rje_obj.RJE_Object):
             #    if rentry['Block'] in badblock: rentry['Block'] = 0
             ## ~ [3a] Dev output for checking ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             for entry in snpdb.entries():
-                entry['R1'] = string.join(entry['R1'],',')
-                entry['R2'] = string.join(entry['R2'],',')
+                entry['R1'] = rje.join(entry['R1'],',')
+                entry['R2'] = rje.join(entry['R2'],',')
             if self.dev():
                 snpdb.saveToFile(sfdict={'A1':3,'A2':3})
                 riddb.saveToFile(filename='%s.devrid.tdt' % self.baseFile(),sfdict={'pTrack':3})
@@ -761,14 +761,14 @@ class SAMPhaser(rje_obj.RJE_Object):
                     sentry['A'] = sentry['V1']
                     sentry['B'] = sentry['V2']
                     sentry['pA'] = sentry['A1']
-                    sentry['nA'] = len(string.split(sentry['R1'],','))
-                    sentry['nB'] = len(string.split(sentry['R2'],','))
+                    sentry['nA'] = len(rje.split(sentry['R1'],','))
+                    sentry['nB'] = len(rje.split(sentry['R2'],','))
                 else:
                     sentry['A'] = sentry['V2']
                     sentry['B'] = sentry['V1']
                     sentry['pA'] = sentry['A2']
-                    sentry['nA'] = len(string.split(sentry['R2'],','))
-                    sentry['nB'] = len(string.split(sentry['R1'],','))
+                    sentry['nA'] = len(rje.split(sentry['R2'],','))
+                    sentry['nB'] = len(rje.split(sentry['R1'],','))
             snpdb.dropEntries(['pA<%f' % self.getNum('TrackProb')])
             snpdb.setFields(['Locus','Block','Pos','Ref','A','B','nA','nB','pA'])
             # Add SNPs to Block Tables
@@ -816,7 +816,7 @@ class SAMPhaser(rje_obj.RJE_Object):
     def snpListToStr(self,snplist,snpjoin='|'):
         snpstr = []
         for snp in snplist: snpstr.append('%d:%s' % snp)
-        return string.join(snpstr,snpjoin)
+        return rje.join(snpstr,snpjoin)
 #########################################################################################################################
     def unzipSeq(self):     ### Unzip sequences based on SNP phasing
         '''Unzip sequences based on SNP phasing.'''
@@ -897,9 +897,9 @@ class SAMPhaser(rje_obj.RJE_Object):
             bdb.newKey(['Haplotig'])
             bdb.addField('nSNP')
             for entry in bdb.entries():
-                entry['nSNP'] = len(string.split(entry['SNP'],'|'))
+                entry['nSNP'] = len(rje.split(entry['SNP'],'|'))
                 if entry['Track'] == 'X': entry['nSNP'] = minx
-                entry['HapAcc'] = '%s.%s' % (string.split(entry['Locus'],'__')[-1],entry['Haplotig'])
+                entry['HapAcc'] = '%s.%s' % (rje.split(entry['Locus'],'__')[-1],entry['Haplotig'])
             bdb.dropField('SNP')
             bdb.dropEntries(['nSNP<%d' % minx],logtxt='nSNP<%d phased SNP filter' % minx)
             #self.printLog('#MINSNP','%s blocks entries with nSNP >= %d' % (rje.iStr(bdb.entryNum()),minx))
@@ -931,7 +931,7 @@ class SAMPhaser(rje_obj.RJE_Object):
                 for hap in bdb.index('Block'):
                     if hap in skiphap: continue
                     if len(bdb.index('Block')[hap]) < 2: drophap.append(hap)
-                    elif len(bdb.index('Block')[hap]) > 2: self.warnLog('Block %d has %d haplotigs!: %s' % (hap,len(bdb.index('Block')[hap]),string.join(bdb.index('Block')[hap],'; ')))
+                    elif len(bdb.index('Block')[hap]) > 2: self.warnLog('Block %d has %d haplotigs!: %s' % (hap,len(bdb.index('Block')[hap]),rje.join(bdb.index('Block')[hap],'; ')))
                 bdb.dropEntries(drophap,keylist=True,logtxt='HalfHap=False filtering of solo haplotigs')
 
 
@@ -1053,7 +1053,7 @@ class SAMPhaser(rje_obj.RJE_Object):
                 if skipping:
                     HAPFAS.write('>%s\n%s\n' % (seqname,sequence)); bx +=1
                     for hentry in hapdb.indexEntries('HapAcc',locus):
-                        hentry['Locus'] = string.split(seqname)[0]  #x# Was just the acc: '%s.%s' % (sacc,hap)
+                        hentry['Locus'] = rje.split(seqname)[0]  #x# Was just the acc: '%s.%s' % (sacc,hap)
                         if hentry['Locus'] != hentry['HapAcc']:
                             self.warnLog('Skipped locus mismatch! %s vs %s' % (hentry['Locus'], hentry['HapAcc']))
                     continue
@@ -1119,13 +1119,13 @@ class SAMPhaser(rje_obj.RJE_Object):
                     if allcut < 1: allcut = max(self.getNum('UnzipCut')*int(entry['QN']),self.getNum('AbsUnzipCut'))
                     #self.bugPrint(entry)
                     #self.bugPrint(allcut)
-                    for alldata in string.split(entry['RID'],'|'):
-                        (allele,ridlist) = string.split(alldata,':')
-                        allrid[allele] = string.split(ridlist,',')
+                    for alldata in rje.split(entry['RID'],'|'):
+                        (allele,ridlist) = rje.split(alldata,':')
+                        allrid[allele] = rje.split(ridlist,',')
                         if len(allrid[allele]) >= allcut: posrid += allrid[allele]
                         else: allrid.pop(allele)
                     #self.debug(allrid.keys())
-                    if allrid.keys() in [ [], [entry['Ref']] ]: cutx += 1; continue
+                    if list(allrid.keys()) in [ [], [entry['Ref']] ]: cutx += 1; continue
                     colvar = rje.listIntersect(posrid,colrid)
                     # Check for new collapsed block and/or update current collapsed block
                     if colvar:
@@ -1208,7 +1208,7 @@ class SAMPhaser(rje_obj.RJE_Object):
                         hentry['Start'] -= (bentry['Start']-1)
                         hentry['End'] -= (bentry['Start']-1)
                         hentry['HapAcc'] = '%s.%s' % (sacc,hap)
-                        hentry['Locus'] = string.split(bname)[0]  #x# Was just the acc: '%s.%s' % (sacc,hap)
+                        hentry['Locus'] = rje.split(bname)[0]  #x# Was just the acc: '%s.%s' % (sacc,hap)
                         if min(hentry['Start'],hentry['End']) < 1: self.warnLog('%s %s RID%s starts/ends before haplotig!' % (locus,hap,hentry['RID']))
                 #open(pickupfile,'a').write('%s\n' % locus)
             HAPFAS.close()
@@ -1237,7 +1237,7 @@ class SAMPhaser(rje_obj.RJE_Object):
                     for rid in poordep[hap]:
                         rentry = rje.combineDict({'Haplotig':hap,'pTrack':0.5},riddb.data(rid))
                         rentry['Locus'] = '%s.%s' % (rentry['Locus'],hap)
-                        rentry['HapAcc'] = string.split(rentry['Locus'],'__')[-1]
+                        rentry['HapAcc'] = rje.split(rentry['Locus'],'__')[-1]
 
             # Read coverage plot
             sam.baseFile('%s.haplotigs' % self.baseFile())
@@ -1279,18 +1279,18 @@ class SAMPhaser(rje_obj.RJE_Object):
                 locx += 1
                 (sname,sequence) = seqlist.getSeq(seqdict[locus])
                 #i# >sgdIA6_YEAST__BK006935.A6 sgdI_YEAST__BK006935 1-14,881 of 230,218 (109 SNP; 72-13302)
-                desc = string.split(sname)[1:]  # desc[1] should be the sequence positions of the original sequence
-                beghap = int(string.split(desc[1],'-')[0].replace(',',''))
-                endhap = int(string.split(desc[1], '-')[1].replace(',', ''))
+                desc = rje.split(sname)[1:]  # desc[1] should be the sequence positions of the original sequence
+                beghap = int(rje.split(desc[1],'-')[0].replace(',',''))
+                endhap = int(rje.split(desc[1], '-')[1].replace(',', ''))
                 splitn = []
                 begpos = 1
                 endpos = 0
                 #!# Convert locus: need to standardise this later #!#
                 #!# Modify the unsplit gapped sequences to match the depthplot loci
                 #!# Then switch the ordering here to make it clear that sequence lengths are different!
-                dlocus = string.split(string.split(locus,'_')[-1],'.')
+                dlocus = rje.split(rje.split(locus,'_')[-1],'.')
                 if rje.matchExp('^(\D+)(\d+)',dlocus[1]): dlocus[1] = dlocus[1][1:] + dlocus[1][:1]
-                dlocus = string.join(dlocus,'.')
+                dlocus = rje.join(dlocus,'.')
                 #self.bugPrint('%s -> %s: %s' % (locus,dlocus,len(depdb.indexEntries('Locus',dlocus))))
                 #self.deBug('%d == %d?' % (len(sequence),max(depdb.indexDataList('Locus',dlocus,'Pos'))))
                 for entry in depdb.indexEntries('Locus',dlocus):
@@ -1333,7 +1333,7 @@ class SAMPhaser(rje_obj.RJE_Object):
                         # Desc - update the start and end positions
                         newdesc = desc[:1] + ['%s-%s' % (rje.iStr(begpos-beghap+1),rje.iStr(endpos-beghap))] + desc[2:]
                         newdesc[-1] = '%s; ZeroSplit %d-%d)' % (desc[-1][:-1],beghap,endhap)
-                        newname = string.join([newshort]+newdesc)
+                        newname = rje.join([newshort]+newdesc)
                         # Truncate sequence
                         newseq = sequence[begpos-1:endpos-1]
                         newseq = newseq.replace('-','')
@@ -1426,7 +1426,7 @@ class SAMPhaser(rje_obj.RJE_Object):
             bdb.addField('HapAcc')
             bdb.newKey(['Haplotig'])
             bdb.addField('nSNP')
-            for entry in bdb.entries(): entry['nSNP'] = len(string.split(entry['SNP'],'|'))
+            for entry in bdb.entries(): entry['nSNP'] = len(rje.split(entry['SNP'],'|'))
             bdb.dropField('SNP')
             bdb.dropEntries(['nSNP<%d' % minx],logtxt='nSNP<%d phased SNP filter' % minx)
             #self.printLog('#MINSNP','%s blocks entries with nSNP >= %d' % (rje.iStr(bdb.entryNum()),minx))
@@ -1450,7 +1450,7 @@ class SAMPhaser(rje_obj.RJE_Object):
                 drophap = []
                 for hap in bdb.index('Block'):
                     if len(bdb.index('Block')[hap]) < 2: drophap.append(hap)
-                    elif len(bdb.index('Block')[hap]) > 2: self.warnLog('Block %d has %d haplotigs!: %s' % (hap,len(bdb.index('Block')[hap]),string.join(bdb.index('Block')[hap],'; ')))
+                    elif len(bdb.index('Block')[hap]) > 2: self.warnLog('Block %d has %d haplotigs!: %s' % (hap,len(bdb.index('Block')[hap]),rje.join(bdb.index('Block')[hap],'; ')))
                 bdb.dropEntries(drophap,keylist=True,logtxt='HalfHap=False filtering of solo haplotigs')
 
             #i# Extend haplotigs to ends of sequence if close
@@ -1550,9 +1550,9 @@ class SAMPhaser(rje_obj.RJE_Object):
                     if allcut < 1: allcut = max(self.getNum('UnzipCut')*int(entry['QN']),self.getNum('AbsUnzipCut'))
                     #self.bugPrint(entry)
                     #self.bugPrint(allcut)
-                    for alldata in string.split(entry['RID'],'|'):
-                        (allele,ridlist) = string.split(alldata,':')
-                        allrid[allele] = string.split(ridlist,',')
+                    for alldata in rje.split(entry['RID'],'|'):
+                        (allele,ridlist) = rje.split(alldata,':')
+                        allrid[allele] = rje.split(ridlist,',')
                         if len(allrid[allele]) >= allcut: posrid += allrid[allele]
                         else: allrid.pop(allele)
                     #self.debug(allrid.keys())
@@ -1717,13 +1717,13 @@ class SAMPhaser(rje_obj.RJE_Object):
             hlink = ['<p>','Quick Links:']
             for section in sections:
                 if section in links: link = links[section]
-                else: link = string.split(section)[0].lower()
+                else: link = rje.split(section)[0].lower()
                 hlink.append('~ <a href="#%s" title="%s">%s</a>' % (link,desc[link],section))
                 sectdata[section] = {'Link':link, 'LinkDesc':desc[link],
                                      'LinkHTML':'<a href="#%s" title="%s">%s</a>' % (link,desc[link],section),
                                      'HTML':[]}  # This will need to be joined at the end.
             hlink += ['</p>','']
-            hlink = string.join(hlink,'\n')
+            hlink = rje.join(hlink,'\n')
             #i# Elsewhere, a link to the top can be provided:
             toplink = '[<a href="#head" title="Return to top of page">Top</a>]'
 
@@ -1793,7 +1793,7 @@ class SAMPhaser(rje_obj.RJE_Object):
                 HTML.write(html.htmlHead(title=basename,tabber=False,frontpage=True,keywords=[],redirect='',refresh=0))
                 HTML.write('<a name="head"><h1>%s SAMPhaser Report</h1></a>\n\n' % basename)
                 HTML.write(rje_html.progStartHTML(self))
-                for section in sections: HTML.write(string.join(sectdata[section]['HTML'],'\n'))
+                for section in sections: HTML.write(rje.join(sectdata[section]['HTML'],'\n'))
                 HTML.write(html.htmlTail(tabber=False))
                 HTML.close()
                 self.printLog('#HTML','HTML report output: %s' % hfile)
@@ -1910,8 +1910,8 @@ def runMain():
     ### ~ [1] ~ Basic Setup of Program  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try: (info,out,mainlog,cmd_list) = setupProgram()
     except SystemExit: return  
-    except: print 'Unexpected error during program setup:', sys.exc_info()[0]; return
-    
+    except: rje.printf('Unexpected error during program setup:', sys.exc_info()[0]); return
+
     ### ~ [2] ~ Rest of Functionality... ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try: SAMPhaser(mainlog,cmd_list).run()
 
@@ -1923,7 +1923,7 @@ def runMain():
 #########################################################################################################################
 if __name__ == "__main__":      ### Call runMain 
     try: runMain()
-    except: print 'Cataclysmic run error:', sys.exc_info()[0]
+    except: rje.printf('Cataclysmic run error: {0}'.format(sys.exc_info()[0]))
     sys.exit()
 #########################################################################################################################
 ### END OF SECTION IV                                                                                                   #

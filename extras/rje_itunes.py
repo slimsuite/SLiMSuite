@@ -82,11 +82,11 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         if not info: info = makeInfo()
         if not out: out = rje.Out()
         ### ~ [2] ~ Look for help commands and print options if found ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-        help = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
-        if help > 0:
-            print '\n\nHelp for %s %s: %s\n' % (info.program, info.version, time.asctime(time.localtime(info.start_time)))
+        cmd_help = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
+        if cmd_help > 0:
+            rje.printf('\n\nHelp for {0} {1}: {2}\n'.format(info.program, info.version, time.asctime(time.localtime(info.start_time))))
             out.verbose(-1,4,text=__doc__)
-            if rje.yesNo('Show general commandline options?'): out.verbose(-1,4,text=rje.__doc__)
+            if rje.yesNo('Show general commandline options?',default='N'): out.verbose(-1,4,text=rje.__doc__)
             if rje.yesNo('Quit?'): sys.exit()           # Option to quit after help
             cmd_list += rje.inputCmds(out,cmd_list)     # Add extra commands interactively.
         elif out.stat['Interactive'] > 1: cmd_list += rje.inputCmds(out,cmd_list)    # Ask for more commands
@@ -94,7 +94,7 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         return cmd_list
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Major Problem with cmdHelp()'
+    except: rje.printf('Major Problem with cmdHelp()')
 #########################################################################################################################
 def setupProgram(): ### Basic Setup of Program when called from commandline.
     '''
@@ -105,16 +105,19 @@ def setupProgram(): ### Basic Setup of Program when called from commandline.
     '''
     try:### ~ [1] ~ Initial Command Setup & Info ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         info = makeInfo()                                   # Sets up Info object with program details
+        if len(sys.argv) == 2 and sys.argv[1] in ['version','-version','--version']: rje.printf(info.version); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: rje.printf('%s v%s' % (info.program,info.version)); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['description','-description','--description']: rje.printf('%s: %s' % (info.program,info.description)); sys.exit(0)
         cmd_list = rje.getCmdList(sys.argv[1:],info=info)   # Reads arguments and load defaults from program.ini
         out = rje.Out(cmd_list=cmd_list)                    # Sets up Out object for controlling output to screen
-        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2 
+        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2
         out.printIntro(info)                                # Prints intro text using details from Info object
         cmd_list = cmdHelp(info,out,cmd_list)               # Shows commands (help) and/or adds commands from user
         log = rje.setLog(info,out,cmd_list)                 # Sets up Log object for controlling log file output
         return (info,out,log,cmd_list)                      # Returns objects for use in program
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Problem during initial setup.'; raise
+    except: rje.printf('Problem during initial setup.'); raise
 #########################################################################################################################
 # iTunes fields and formatting
 iformat = {'Name':'str',
@@ -250,7 +253,7 @@ class iTunes(rje_obj.RJE_Object):
             db = self.obj['DB'] = rje_db.Database(self.log,self.cmd_list)
             #self.deBug(self.list['iTunes'])
             for ifile in self.list['iTunes']:
-                #self.deBug(string.split(open(ifile,'r').readline(),'\t'))
+                #self.deBug(rje.split(open(ifile,'r').readline(),'\t'))
                 idb = db.addTable(ifile,mainkeys=['Location'],name=rje.baseFile(ifile,True))
                 for field in iformat:
                     if iformat[field] == 'del' and field in idb.fields(): idb.dropField(field)
@@ -267,8 +270,8 @@ class iTunes(rje_obj.RJE_Object):
                     entry['Album_Artist'] = entry['Artist']
                     try:
                         for divider in ['\\\\','\\',':','/']:
-                            if len(string.split(entry['Location'],divider)) > 2: 
-                                entry['Album_Artist'] = string.split(entry['Location'],divider)[-3]
+                            if len(rje.split(entry['Location'],divider)) > 2: 
+                                entry['Album_Artist'] = rje.split(entry['Location'],divider)[-3]
                                 break
                     except:
                         self.errorLog('!')
@@ -321,7 +324,7 @@ class iTunes(rje_obj.RJE_Object):
                     sortfield = 'Plays'
                     outfields = ['Album_Artist','Plays','Tracks']
                     out = new
-                html = ['<h2>%s - Top %d %ss</h2>' % (new.name(),self.getInt('TopList'),string.replace(group,'_',' ')),
+                html = ['<h2>%s - Top %d %ss</h2>' % (new.name(),self.getInt('TopList'),rje.replace(group,'_',' ')),
                         '<table border=1 width="100%"><tr>']
                 for field in ['#'] + outfields: html.append('<th>%s</th>' % field)
                 html.append('</tr>')
@@ -341,8 +344,8 @@ class iTunes(rje_obj.RJE_Object):
                         for field in outfields: html.append('<td>%s</td>' % entry[field])
                         html.append('</tr>')
                         lastx = entry[sortfield]
-                html.append('</table>\n<!-- End of %s Top %d %ss -->\n\n' % (out.name(),self.getInt('TopList'),string.replace(group,'_',' ')))
-                self.str['TopHTML'] += string.join(html,'\n')
+                html.append('</table>\n<!-- End of %s Top %d %ss -->\n\n' % (out.name(),self.getInt('TopList'),rje.replace(group,'_',' ')))
+                self.str['TopHTML'] += rje.join(html,'\n')
 
         except: self.errorLog('%s.average error' % self)
 #########################################################################################################################
@@ -357,13 +360,13 @@ class iTunes(rje_obj.RJE_Object):
             db = self.db()
             tabindex = '#Artist#|#Album#|#Track Number#|#Name#'
             try:
-                age1 = string.atoi(string.split(table1.name(),'.')[-1])
-                age2 = string.atoi(string.split(table2.name(),'.')[-1])
+                age1 = string.atoi(rje.split(table1.name(),'.')[-1])
+                age2 = string.atoi(rje.split(table2.name(),'.')[-1])
                 table1.index(tabindex,make=True)
                 table2.index(tabindex,make=True)
                 if age1 < age2: oldtable = table1; newtable = table2; newdate = age2
                 else: newtable = table1; oldtable = table2; newdate = age1              
-                diftable = db.copyTable(newtable,'%s-%s' % (oldtable.name(),string.split(newtable.name(),'.')[-1]))
+                diftable = db.copyTable(newtable,'%s-%s' % (oldtable.name(),rje.split(newtable.name(),'.')[-1]))
                 diftable.keepFields(dfields+[tabindex])
                 diftable.addField('Status')
             except: self.errorLog('Cannot generate differences for %s and %s' % (table1,table2))
@@ -435,8 +438,8 @@ def runMain():
     ### ~ [1] ~ Basic Setup of Program  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try: (info,out,mainlog,cmd_list) = setupProgram()
     except SystemExit: return  
-    except: print 'Unexpected error during program setup:', sys.exc_info()[0]; return
-    
+    except: rje.printf('Unexpected error during program setup:', sys.exc_info()[0]); return
+
     ### ~ [2] ~ Rest of Functionality... ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try: iTunes(mainlog,cmd_list).run()
 
@@ -444,11 +447,11 @@ def runMain():
     except SystemExit: return  # Fork exit etc.
     except KeyboardInterrupt: mainlog.errorLog('User terminated.')
     except: mainlog.errorLog('Fatal error in main %s run.' % info.program)
-    mainlog.printLog('#LOG', '%s V:%s End: %s\n' % (info.program,info.version,time.asctime(time.localtime(time.time()))))
+    mainlog.endLog(info)
 #########################################################################################################################
-if __name__ == "__main__":      ### Call runMain 
+if __name__ == "__main__":      ### Call runMain
     try: runMain()
-    except: print 'Cataclysmic run error:', sys.exc_info()[0]
+    except: rje.printf('Cataclysmic run error: {0}'.format(sys.exc_info()[0]))
     sys.exit()
 #########################################################################################################################
 ### END OF SECTION IV                                                                                                   #

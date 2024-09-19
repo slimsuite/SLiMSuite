@@ -19,8 +19,8 @@
 """
 Module:       SAAGA
 Description:  Summarise, Annotate & Assess Genome Annotations
-Version:      0.7.7
-Last Edit:    25/11/21
+Version:      0.7.9
+Last Edit:    09/05/23
 Citation:     Edwards RJ et al. (2021), BMC Genomics 22, 188 https://doi.org/10.1186/s12864-021-07493-6
 Assess Citation:  Stuart KC et al. (2021), bioRvix https://doi.org/10.1101/2021.04.07.438753
 GitHub:       http://github.com/slimsuite/saaga
@@ -126,6 +126,8 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 0.7.5 - Added bestlineage=T/F : Whether to enforce a single lineage for best taxa ratings [True]
     # 0.7.6 - Fixed GFF output.
     # 0.7.7 - Fixed contig output for Taxolotl.
+    # 0.7.8 - Added input file checking.
+    # 0.7.9 - Fixed a // bug for Python3 for Taxolotl.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -155,12 +157,12 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
     # [ ] : Fix protein sequence name mapping for taxonomy mode in line with rest of SAAGA.
     # [ ] : Add window and region badtaxa scanning. (Could be useful for HGT detection?)
     # [ ] : Add CAI calculation.
-    # [ ] : Tidy up the d.p. output for the stats table.
+    # [ ] : Tidy up the d.p. output for the stats table. (4 d.p. for most stats.)
     '''
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copy_right) = ('SAAGA', '0.7.7', 'November 2021', '2020')
+    (program, version, last_edit, copy_right) = ('SAAGA', '0.7.9', 'May 2023', '2020')
     description = 'Summarise, Annotate & Assess Genome Annotations'
     author = 'Dr Richard J. Edwards.'
     comments = ['Citation: Edwards RJ et al. (2021), BMC Genomics 22, 188.',
@@ -923,14 +925,14 @@ class SAAGA(rje_obj.RJE_Object):
                     if gline.startswith('#'): OUT.write(gline)
                     else:
                         gtext = rje.chomp(gline)
-                        gdata = string.split(gtext,'\t')
+                        gdata = rje.split(gtext,'\t')
                         if gdata[2].lower() in ['gene','mrna']:
-                            attlist = rje.longCmd(string.split(gdata[8],';'))
+                            attlist = rje.longCmd(rje.split(gdata[8],';'))
                             id = ''
                             for attdata in attlist:
                                 if not attdata: continue
                                 try:
-                                    [att,val] = string.split(attdata,'=')
+                                    [att,val] = rje.split(attdata,'=')
                                     if att.lower() == 'id': id = val; break
                                 except:
                                     self.warnLog('Problem with GFF attribute: {0}'.format(attdata))
@@ -1013,6 +1015,9 @@ class SAAGA(rje_obj.RJE_Object):
         '''Main class setup method.'''
         try:### ~ [1] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             self.headLog('SETUP',line='=')
+            for infile in ['Assembly','CDSIn','GFFIn','SeqIn']:
+                if self.getStrLC(infile):
+                    rje.checkForFiles(filelist=[self.getStr(infile)], log=self.log, cutshort=True, ioerror=not self.getStr(infile).startswith('annotation.'), missingtext='{0}=FILE not found.'.format(infile.lower()))
             try:
                 mmseq = os.popen('mmseqs').readline().split()[0]
                 if mmseq == 'MMseqs2': self.printLog('#MMSEQ2','MMseqs2 found')
@@ -1206,7 +1211,7 @@ class SAAGA(rje_obj.RJE_Object):
             rmd = rje_rmd.Rmd(self.log,self.cmd_list)
             rtxt = rmd.rmdHead(title='%s Documentation' % prog,author='Richard J. Edwards',setup=True)
             #!# Replace this with documentation text?
-            rtxt += string.replace(self.run.__doc__,'\n        ','\n')
+            rtxt += rje.replace(self.run.__doc__,'\n        ','\n')
             rtxt += '\n\n<br>\n<small>&copy; 2021 Richard Edwards | richard.edwards@unsw.edu.au</small>\n'
             rmdfile = '%s.docs.Rmd' % self.baseFile()
             open(rmdfile,'w').write(rtxt)
@@ -1900,10 +1905,24 @@ class SAAGA(rje_obj.RJE_Object):
             # loci : ['locus', 'start', 'end', 'sequence']
             locdb = self.db('loci')     # Scaffolds -> locus = sequences/trans
             if not locdb:
-                if not assembly: raise IOError('Need GFF or Assembly file')
-                locdb = db.addEmptyTable('loci',['locus', 'start', 'end', 'sequence'],['locus'])
-                for seq in assembly.seqs():
-                    locdb.addEntry({'locus':assembly.shortName(seq), 'start':1, 'end':assembly.seqLen(seq), 'sequence':''})
+                locdb = db.addEmptyTable('loci', ['locus', 'start', 'end', 'sequence'], ['locus'])
+                if assembly: # raise IOError('Need GFF or Assembly file')
+                    for seq in assembly.seqs():
+                        locdb.addEntry({'locus':assembly.shortName(seq), 'start':1, 'end':assembly.seqLen(seq), 'sequence':''})
+                else:
+                    protdb = self.db('sequences')
+                    for pentry in protdb.entries():
+                        locdb.addEntry({'locus':pentry['name'], 'start':1, 'end':pentry['length']*3, 'sequence':''})
+                    self.printLog('#LOCI','{0} loci generated from {1} proteins'.format(rje.iStr(locdb.entryNum()),rje.iStr(protdb.entryNum())))
+                    if not self.db('trans'):
+                        transdb = db.addEmptyTable('trans', ['#', 'locus', 'source', 'start', 'end', 'strand', 'attributes', 'name', 'id', 'parent'], ['#'])
+                        tx = 1
+                        for pentry in protdb.entries():
+                            transdb.addEntry({'#':tx,'locus':pentry['name'], 'start':1, 'end':pentry['length']*3, 'strand':'+',
+                                              'name':pentry['name'],'id':pentry['name'],'parent':pentry['name']})
+                            tx += 1
+                        self.printLog('#CDS','{0} CDS generated from {1} proteins'.format(rje.iStr(transdb.entryNum()),rje.iStr(protdb.entryNum())))
+                        genedb = db.copyTable(transdb,'gene')
             # sequences : ['name', 'desc', 'gene', 'spec', 'accnum', 'length']
             #seqdb = self.db('sequences')    # Proteins -> name = protdb:id
             # gene : ['#', 'locus', 'source', 'start', 'end', 'strand', 'attributes', 'name', 'id', 'parent']
@@ -2000,7 +2019,7 @@ class SAAGA(rje_obj.RJE_Object):
                     taxlineage[('no rank','1','root')] = []
                     continue
                 #i# Parse levels
-                i = len(rje.matchExp('^(\s+)',rentry['taxname'])[0]) / 2
+                i = len(rje.matchExp('^(\s+)',rentry['taxname'])[0]) // 2
                 levels = levels[:i]
                 #if rx < 1000: self.debug('Level {1}::{0}\n'.format(levels,i))
                 mytree = taxtree
@@ -2197,7 +2216,7 @@ class SAAGA(rje_obj.RJE_Object):
             revranks = taxranks[0:]
             revranks.reverse()   # Now bigger index is higher level
             bestranks = {}  # {level:(taxid,count)}
-            for prefix in [''] + taxsubsets.keys():
+            for prefix in [''] + list(taxsubsets.keys()):
                 ## ~ [7a] ~ Set table ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
                 table = 'taxolotl_report'
                 if prefix: table = '{0}.taxolotl_report'.format(prefix)

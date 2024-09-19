@@ -408,7 +408,7 @@ class PAGSAT(rje_obj.RJE_Object):
             self.debug('Features: %s' % self.getBool('Features'))
             ## ~ [1d] Check sequence naming and offer reformatting options ~~~~~~~~~~~~~~~~~~~~~~~~ ##
             #!# Need to add reformatting here #!#
-            if string.split(self.getStr('RefGenome'),'.')[-1] in ['gb','gbk']:  # Look for *.fas
+            if rje.split(self.getStr('RefGenome'),'.')[-1] in ['gb','gbk']:  # Look for *.fas
                 self.setStr({'RefGenome':'%s.fas' % self.getStr('RefBase')})
             if not self.getStr('RefGenome').endswith('.fas') or not rje.exists(self.getStr('RefGenome')):
                 self.printLog('#NAMES','%s.full.fas sequence names will not be suitable.' % self.getStr('RefBase'))
@@ -574,12 +574,12 @@ class PAGSAT(rje_obj.RJE_Object):
             self.devLog('#RUN','runGABLAM')
             basefile = None
             for gcmd in gabcmd:
-                if gcmd.startswith('basefile='): basefile = string.split(gcmd,'=',1)[1]
+                if gcmd.startswith('basefile='): basefile = rje.split(gcmd,'=',1)[1]
             self.printLog('#~~#','## ~~~~~ %s GABLAM ~~~~~ ##' % basefile)
             # Set blastbase = basefile name for blast file
-            if gtype == 'Self': blastbase = string.join(string.split(basefile,'.')[:-1],'.')
+            if gtype == 'Self': blastbase = rje.join(rje.split(basefile,'.')[:-1],'.')
             else: blastbase = self.fileBase('GABLAM','Base',gtype)
-            #if basefile.endswith('.%d' % self.getInt('MinLocLen')): blastbase = string.join(string.split(basefile,'.')[:-1],'.')
+            #if basefile.endswith('.%d' % self.getInt('MinLocLen')): blastbase = rje.join(rje.split(basefile,'.')[:-1],'.')
             #else: blastbase = basefile
             ### ~ [1] Run GABLAM, processing BLAST file as required ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             blastfile = '%s.blast' % blastbase
@@ -622,8 +622,8 @@ class PAGSAT(rje_obj.RJE_Object):
             #basefile = self.baseFile()
             #gdir = '%s.GABLAM/' % basefile
             #if gtype not in ['Assembly','Reciprocal'] and basefile.endswith('.%d' % self.getInt('MinLocLen')):
-            #    gdir = '%s.GABLAM/' % string.join(string.split(basefile,'.')[:-1],'.')
-            #    gbase = '%s%s' % (gdir,string.join(string.split(self.baseFile(strip_path=True),'.')[:-1],'.'))
+            #    gdir = '%s.GABLAM/' % rje.join(rje.split(basefile,'.')[:-1],'.')
+            #    gbase = '%s%s' % (gdir,rje.join(rje.split(self.baseFile(strip_path=True),'.')[:-1],'.'))
             #else: gbase = '%s%s' % (gdir,self.baseFile(strip_path=True))
 
             self.printLog('#GDIR',gdir)
@@ -751,7 +751,7 @@ class PAGSAT(rje_obj.RJE_Object):
                 if not table: raise ValueError('Problem with PacBio dismatrix tables: %s' % gtables)
                 table.dataFormat({diskey:'float','Hit_AlnID':'float'})
                 for entry in table.entries():
-                    if not spcode: spcode = string.split(entry['Qry'],'_')[1]
+                    if not spcode: spcode = rje.split(entry['Qry'],'_')[1]
                     gablam.addDis(entry['Qry'],entry['Hit'],100.0-entry[diskey])
                     # Ref vs Assembly needs to be added both ways round
                     if not gablam.getDis(entry['Hit'],entry['Qry']): gablam.addDis(entry['Hit'],entry['Qry'],100.0-entry['Hit_AlnID'])
@@ -908,9 +908,9 @@ class PAGSAT(rje_obj.RJE_Object):
                 # b. Remove chr and contig from lists
                 if lentry['Qry'] in chrom: chrom.remove(lentry['Qry'])
                 if lentry['Hit'] in contigs: contigs.remove(lentry['Hit'])
-            if chrom: self.printLog('#CHROM','%d reference chromosomes without primary contig hits: %s' % (len(chrom),string.join(chrom,', ')))
+            if chrom: self.printLog('#CHROM','%d reference chromosomes without primary contig hits: %s' % (len(chrom),rje.join(chrom,', ')))
             else: self.printLog('#CHROM','No reference chromosomes without primary contig hits.')
-            if contigs: self.printLog('#CHROM','%d assembly contigs without primary reference hits: %s' % (len(contigs),string.join(contigs,', ')))
+            if contigs: self.printLog('#CHROM','%d assembly contigs without primary reference hits: %s' % (len(contigs),rje.join(contigs,', ')))
             else: self.printLog('#CHROM','No assembly contigs without primary reference hits.')
             # Sort assembly list
             mapping.sort()
@@ -946,7 +946,7 @@ class PAGSAT(rje_obj.RJE_Object):
                 #!# Replace with tname list and self.db(tname)
                 if not table: continue
                 self.printLog('#TABLE','### ~~~~~~~~ %s ~~~~~~~~ ###' % table.name())
-                table.setStr({'Name':string.replace(table.name(),'hitsum','Coverage')})
+                table.setStr({'Name':rje.replace(table.name(),'hitsum','Coverage')})
                 table.dataFormat({'HitNum':'int','Positives':'int','EVal':'num','Length':'int','Coverage':'int','Identity':'int'})
                 table.makeField('Length-Coverage','Missing',evalue=0)
                 table.makeField('Coverage-Identity','Errors',evalue=0)
@@ -955,7 +955,7 @@ class PAGSAT(rje_obj.RJE_Object):
                 for entry in table.entries():
                     if not entry['Missing'] and not entry['Errors']: entry['Perfect'] = 1
                 table.saveToFile()
-                sumtab.append(db.copyTable(table,string.replace(table.name(),'.Coverage','')))
+                sumtab.append(db.copyTable(table,rje.replace(table.name(),'.Coverage','')))
             # Output summary statistics
             covdb = None
             if adb: fullsum = sumtab + db.splitTable(adb,'Type')
@@ -963,7 +963,7 @@ class PAGSAT(rje_obj.RJE_Object):
             for table in fullsum:
                 if table not in sumtab:
                     table.dropFields(['Insertions','Deletions']); table.renameField('Chrom','Qry')
-                    table.setStr({'Name':string.split(table.name(),'_')[-1]+'Align'})
+                    table.setStr({'Name':rje.split(table.name(),'_')[-1]+'Align'})
                 else: table.dropFields(['MaxScore','EVal','Description'])
                 table.addField('N',evalue=1)
                 table.addField('Summary',evalue=table.name())
@@ -1017,15 +1017,15 @@ class PAGSAT(rje_obj.RJE_Object):
                         if contig in seqdict:   # Contig
                             pentry['ContigNum'] += 1
                             pentry['HitNum'] += len(posdict[pos][contig])
-                            pentry['Contigs'].append(string.split(contig,'_')[0])
+                            pentry['Contigs'].append(rje.split(contig,'_')[0])
                         else:
                             pentry['ChromNum'] += 1
                             pentry['ChromHit'] += len(posdict[pos][contig])
-                            pentry['RefChrom'].append(string.split(contig,'_')[0])
+                            pentry['RefChrom'].append(rje.split(contig,'_')[0])
                     pentry['Contigs'].sort()
-                    pentry['Contigs'] = string.join(pentry['Contigs'],';')
+                    pentry['Contigs'] = rje.join(pentry['Contigs'],';')
                     pentry['RefChrom'].sort()
-                    pentry['RefChrom'] = string.join(pentry['RefChrom'],';')
+                    pentry['RefChrom'] = rje.join(pentry['RefChrom'],';')
                     # Class
                     if pentry['HitNum'] == 1: pentry['Class'] = 'U'
                     elif pentry['ContigNum'] == 1: pentry['Class'] = 'C'
@@ -1090,15 +1090,15 @@ class PAGSAT(rje_obj.RJE_Object):
                         if contig in chrdict:   # Chromosome
                             pentry['ContigNum'] += 1
                             pentry['HitNum'] += len(posdict[pos][contig])
-                            pentry['Contigs'].append(string.split(contig,'_')[0])
+                            pentry['Contigs'].append(rje.split(contig,'_')[0])
                         else:
                             pentry['ChromNum'] += 1
                             pentry['ChromHit'] += len(posdict[pos][contig])
-                            pentry['RefChrom'].append(string.split(contig,'_')[0])
+                            pentry['RefChrom'].append(rje.split(contig,'_')[0])
                     pentry['Contigs'].sort()
-                    pentry['Contigs'] = string.join(pentry['Contigs'],';')
+                    pentry['Contigs'] = rje.join(pentry['Contigs'],';')
                     pentry['RefChrom'].sort()
-                    pentry['RefChrom'] = string.join(pentry['RefChrom'],';')
+                    pentry['RefChrom'] = rje.join(pentry['RefChrom'],';')
                     # Class
                     if pentry['HitNum'] == 1: pentry['Class'] = 'U'
                     elif pentry['ContigNum'] == 1: pentry['Class'] = 'C'
@@ -1136,14 +1136,14 @@ class PAGSAT(rje_obj.RJE_Object):
                             for contig in posdict[dirn][pos]:
                                 pentry['%sHit' % dirn] += len(posdict[dirn][pos][contig])
                                 pentry['%sChrom' % dirn] += 1
-                                pchrom = string.split(contig,'_')[0]
+                                pchrom = rje.split(contig,'_')[0]
                                 if pchrom not in pentry['Chroms']: pentry['Chroms'].append(pchrom)
                     pentry['Chroms'].sort()
                     # Class
                     if (pentry['FwdHit']+pentry['RevHit']) == 1: pentry['Class'] = 'U'
                     elif len(pentry['Chroms']) == 1: pentry['Class'] = 'C'
                     elif len(pentry['Chroms']) > 1: pentry['Class'] = 'M'
-                    pentry['Chroms'] = string.join(pentry['Chroms'],';')
+                    pentry['Chroms'] = rje.join(pentry['Chroms'],';')
                     ctgdb.addEntry(pentry)
             ctgdb.saveToFile()
 
@@ -1152,7 +1152,7 @@ class PAGSAT(rje_obj.RJE_Object):
             #i# ctgdb = db.addEmptyTable('dirplot.contig',['Contig','Pos','FwdHit','FwdChrom','RevHit','RevChrom','Chroms','Class'],['Contig','Pos'])
             mapdb = db.addEmptyTable('mapping.contig',['Contig','Chrom','Fwd','Rev'],['Contig','Chrom'])
             mapchr = {}
-            for chrname in refseq.names(): mapchr[string.split(chrname,'_')[0]] = chrname
+            for chrname in refseq.names(): mapchr[rje.split(chrname,'_')[0]] = chrname
             for contig in ctgdb.index('Contig'):
                 ckeys = ctgdb.index('Contig')[contig][0:]
                 while ckeys:    # These should be in pairs!
@@ -1161,9 +1161,9 @@ class PAGSAT(rje_obj.RJE_Object):
                     while ckeys and ctgdb.data(ckeys[0])['Chroms'] == cstart['Chroms'] and ctgdb.data(ckeys[0])['Class'] == 'U':
                         cend = ctgdb.data(ckeys.pop(0))
                     self.debug(cstart)
-                    if (len(string.split(cstart['Chroms'],';')) + cstart['FwdChrom'] + cstart['RevChrom']) != 2:
+                    if (len(rje.split(cstart['Chroms'],';')) + cstart['FwdChrom'] + cstart['RevChrom']) != 2:
                         raise ValueError(cstart)
-                    if (len(string.split(cend['Chroms'],';')) + cend['FwdChrom'] + cend['RevChrom']) != 2:
+                    if (len(rje.split(cend['Chroms'],';')) + cend['FwdChrom'] + cend['RevChrom']) != 2:
                         raise ValueError(cend)
                     # Now have a region mapping to a single chromosome
                     chrom = mapchr[cstart['Chroms']]
@@ -1363,19 +1363,19 @@ class PAGSAT(rje_obj.RJE_Object):
                 contigs = []
                 poslist = rje.sortKeys(aentries[chrom])
                 entry = aentries[chrom][poslist[0]]
-                qname = string.split(entry['Query'],'__')[0]
+                qname = rje.split(entry['Query'],'__')[0]
                 if self.getBool('Diploid') and diploid: qname += chrom[-2:]
                 #self.debug(qname)
-                aname = string.split(qname,'_')[0] + '_ALIGN'
-                hname = string.split(qname,'_')[0] + '_' + string.split(entry['Hit'],'_')[1]
+                aname = rje.split(qname,'_')[0] + '_ALIGN'
+                hname = rje.split(qname,'_')[0] + '_' + rje.split(entry['Hit'],'_')[1]
                 qentry = {'Chrom':qname,'Type':'Reference','Ctid':dentry['Ctid']}; hentry = {'Chrom':hname,'Type':'Assembly','Ctid':dentry['Ctid']}
                 qpos = 0    # Last position covered
                 qseq = aseq = hseq = ''
                 for spos in poslist:
                     entry = aentries[chrom][spos]
                     if entry['Hit'] not in contigs: contigs.append(entry['Hit'])
-                    qname += ' %s(%s..%s)' % (string.split(entry['Qry'],'_')[-1],entry['QryStart'],entry['QryEnd'])
-                    hname += ' %s(%s..%s)' % (string.split(entry['Hit'],'_')[-1],entry['SbjStart'],entry['SbjEnd'])
+                    qname += ' %s(%s..%s)' % (rje.split(entry['Qry'],'_')[-1],entry['QryStart'],entry['QryEnd'])
+                    hname += ' %s(%s..%s)' % (rje.split(entry['Hit'],'_')[-1],entry['SbjStart'],entry['SbjEnd'])
                     addseq = chrseq[1][qpos:entry['QryStart']]
                     if addseq:
                         qseq += addseq
@@ -1391,14 +1391,14 @@ class PAGSAT(rje_obj.RJE_Object):
                     qseq += addseq
                     aseq += '-' * len(addseq)
                     hseq += '.' * len(addseq)
-                aseq = string.replace(aseq,' ','x')
+                aseq = rje.replace(aseq,' ','x')
                 qentry['Length'] = len(chrseq[1])
                 hentry['Length'] = 0
                 for ctg in contigs: hentry['Length'] += assembly.seqLen(seqdict[ctg])
-                qentry['Identity'] = hentry['Identity'] = string.count(aseq,'|')
-                qentry['Insertions'] = hentry['Deletions'] = string.count(hseq,'-')
-                qentry['Deletions'] = hentry['Insertions'] = string.count(qseq,'-')
-                qentry['Coverage'] = hentry['Coverage'] = string.count(aseq,'x') + qentry['Identity'] - qentry['Insertions'] - qentry['Deletions']
+                qentry['Identity'] = hentry['Identity'] = rje.count(aseq,'|')
+                qentry['Insertions'] = hentry['Deletions'] = rje.count(hseq,'-')
+                qentry['Deletions'] = hentry['Insertions'] = rje.count(qseq,'-')
+                qentry['Coverage'] = hentry['Coverage'] = rje.count(aseq,'x') + qentry['Identity'] - qentry['Insertions'] - qentry['Deletions']
                 if not diploid:
                     ALNFAS = open('%s%s.aln.fas' % (alndir,chrom),'w')
                     ALNFAS.write('>%s\n%s\n' % (qname,qseq))
@@ -1496,7 +1496,7 @@ class PAGSAT(rje_obj.RJE_Object):
             ftdict['Proteins'] = ftdict.pop('CDS')
             #self.debug(ftdict['Proteins'].index('note').keys()[:10])
             acc2chr = {}
-            for seq in refseq.seqs(): acc2chr[string.split(refseq.seqAcc(seq),'.')[0]] = refseq.seqGene(seq)
+            for seq in refseq.seqs(): acc2chr[rje.split(refseq.seqAcc(seq),'.')[0]] = refseq.seqGene(seq)
             ### ~ [1] Process ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             for gtype in ['Genes','Proteins']:
                 ## ~ [1a] Load GABLAM data ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
@@ -1572,7 +1572,7 @@ class PAGSAT(rje_obj.RJE_Object):
                 ctg = rje.stripPath(pfile)[trimx:-4]
                 #self.debug(ctg)
                 #!# NB. This does not work if genesummary=F! Can we read it a better way? (Read a TDT?)
-                #if rje.exists(string.replace(pfile,'covplot','genehits')): chrpng[ctg] = pfile
+                #if rje.exists(rje.replace(pfile,'covplot','genehits')): chrpng[ctg] = pfile
                 #else: ctgpng[ctg] = pfile
                 if ctg in chrdb.index('Qry'): chrpng[ctg] = pfile
                 else: ctgpng[ctg] = pfile
@@ -1583,7 +1583,7 @@ class PAGSAT(rje_obj.RJE_Object):
             hlink = ['<p>','Quick Links:']
             for linkid in ['Contents','Summary Table','Reference Coverage','Assembly Coverage','Tree','Summary PNG','ChromAlign PNG','Assembly PNG']:
                 if linkid in links: link = links[linkid]
-                else: link = string.split(linkid)[0].lower()
+                else: link = rje.split(linkid)[0].lower()
                 hlink.append('~ <a href="#%s" title="%s">%s</a>' % (link,desc[link],linkid))
             hlink += ['</p>','']
             hbody += hlink
@@ -1650,7 +1650,7 @@ class PAGSAT(rje_obj.RJE_Object):
                 pngfile = chrpng[chrom]
                 pnglink = './%s.Plots/%s' % (basename,rje.stripPath(pngfile))
                 hbody.append('<a href="%s"><img src="%s" width="100%%" title="%s"></a>' % (pnglink,pnglink,'%s coverage plot' % chrom))
-                pngfile = string.replace(pngfile,'covplot','genehits')
+                pngfile = rje.replace(pngfile,'covplot','genehits')
                 pnglink = './%s.Plots/%s' % (basename,rje.stripPath(pngfile))
                 hbody.append('<a href="%s"><img src="%s" width="100%%" title="%s"></a>' % (pnglink,pnglink,'%s gene hits plot' % chrom))
             hbody += ['<h2>Assembly Chromosomes</h2>']
@@ -1664,7 +1664,7 @@ class PAGSAT(rje_obj.RJE_Object):
             ### ~ [X] Output HTML ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             HTML = open(hfile,'w')
             HTML.write(html.htmlHead(title=basename,tabber=False,frontpage=True,keywords=[],redirect='',refresh=0))
-            HTML.write(string.join(hbody,'\n'))
+            HTML.write(rje.join(hbody,'\n'))
             HTML.write(html.htmlTail(tabber=False))
             HTML.close()
             self.printLog('#HTML','HTML report output: %s' % hfile)
@@ -1702,7 +1702,7 @@ class PAGSAT(rje_obj.RJE_Object):
             #i# Use self.fileBase(resdir='Assemble') to return basefile for all output files.
             pagdir = self.getStr('ResDir')
             #Replace PAGSAT/ with TIDY/
-            assdir = rje.makePath('%s.ASSEMBLE/' % string.join(string.split(pagdir,'.')[:-1],'.'))
+            assdir = rje.makePath('%s.ASSEMBLE/' % rje.join(rje.split(pagdir,'.')[:-1],'.'))
             rje.mkDir(self,assdir)
             plotdir = rje.makePath('%s.PLOT/' % self.fileBase())    # Where to find PAGSAT plots.
             self.setStr({'AssembleDir':assdir,'PlotDir':plotdir})
@@ -1719,7 +1719,7 @@ class PAGSAT(rje_obj.RJE_Object):
             hbody = ['<h1>%s Assembly Tidy</h1>' % basename,'']
             hbody += ['<p>','Quick Links:']
             for hid in ['Chromosome Map','ChromAlign PNG','Reference Plots','Assembly Plots']:
-                link = string.split(hid)[0].lower()
+                link = rje.split(hid)[0].lower()
                 hbody.append('~ <a href="#%s" title="%s">%s</a>' % (link,desc[link],hid))
             hbody += ['</p>','']
 
@@ -1757,16 +1757,16 @@ class PAGSAT(rje_obj.RJE_Object):
             #?# Add orphan circularisation to tidy
             chrmap = {}; ctg2name = {}; ctg2chrom = {}; newname = {}
             for entry in cdb.entries():
-                chrom = string.split(entry['Query'],'_')[0] + entry['Ctid']
+                chrom = rje.split(entry['Query'],'_')[0] + entry['Ctid']
                 ctg2name[chrom] = entry['Query']
                 if chrom not in chrmap: chrmap[chrom] = []
-                [ctg,spec,n,acc] =  string.split(entry['Hit'],'_')
-                if self.getStrLC('NewAcc'): newacc = '%s.%s' % (self.getStr('NewAcc'),string.split(acc,'.')[1])
+                [ctg,spec,n,acc] =  rje.split(entry['Hit'],'_')
+                if self.getStrLC('NewAcc'): newacc = '%s.%s' % (self.getStr('NewAcc'),rje.split(acc,'.')[1])
                 else: newacc = acc
-                if chrom.startswith('chr'): newname[entry['Hit']] = string.join([string.replace(chrom,'chr',self.getStr('NewChr')),spec,n,newacc],'_')
-                elif chrom.startswith('mt'): newname[entry['Hit']] = string.join(['%sMT' % string.replace(chrom,'mt',self.getStr('NewChr')),spec,n,newacc],'_')
+                if chrom.startswith('chr'): newname[entry['Hit']] = rje.join([rje.replace(chrom,'chr',self.getStr('NewChr')),spec,n,newacc],'_')
+                elif chrom.startswith('mt'): newname[entry['Hit']] = rje.join(['%sMT' % rje.replace(chrom,'mt',self.getStr('NewChr')),spec,n,newacc],'_')
                 else:
-                    newname[entry['Hit']] = string.join([string.replace(chrom,'chr',self.getStr('NewChr')),spec,n,newacc],'_')
+                    newname[entry['Hit']] = rje.join([rje.replace(chrom,'chr',self.getStr('NewChr')),spec,n,newacc],'_')
                     self.warnLog('Non chrN/mt sequence name: %s' % newname[entry['Hit']])
                 if entry['Dirn'] < 0: newname[entry['Hit']] += ' RevComp'
                 ctg2name[ctg] = entry['Hit']
@@ -1785,11 +1785,11 @@ class PAGSAT(rje_obj.RJE_Object):
                     chrtxt.append(ctg)
                     hmap.append('<a href="#%s">%s</a>' % (ctg2name[ctg],ctg))
                     if dirn < 0: chrtxt[-1] += 'rev'; hmap[-1] += '(Rev)'
-                self.printLog('#CHRMAP','%s: %s' % (chrom,string.join(chrtxt,'|')))
-                chrmapurl[ctg2name[chrom]] = string.join(hmap,' | ')
-                hbody += ['<a href="#%s"><b>%s:</b></a> %s<br>' % (ctg2name[chrom],chrom,string.join(hmap,' | '))]
+                self.printLog('#CHRMAP','%s: %s' % (chrom,rje.join(chrtxt,'|')))
+                chrmapurl[ctg2name[chrom]] = rje.join(hmap,' | ')
+                hbody += ['<a href="#%s"><b>%s:</b></a> %s<br>' % (ctg2name[chrom],chrom,rje.join(hmap,' | '))]
             #!# Add orphan sequences here
-            pagbase = string.join(string.split(basename,'.')[:-1],'.')
+            pagbase = rje.join(rje.split(basename,'.')[:-1],'.')
             hbody += ['<p>Please see <a href="../%s.PAGSAT/%s.report.html">PAGSAT Report</a> for contig plots of orphan contigs not found above.</p>' % (pagbase,basename)]
             #sumtable = open('%s.Summary.tdt' % self.basefile()).read()
             #hbody.append(rje_html.tableToHTML(sumtable,'\t',tabwidth='100%',tdwidths=[],tdalign=[],valign='center',thead=True,border=1,tabid=''))
@@ -1816,7 +1816,7 @@ class PAGSAT(rje_obj.RJE_Object):
             hbody += hplots
             HTML = open(hfile,'w')
             HTML.write(html.htmlHead(title=basename,tabber=False,frontpage=True,keywords=[],redirect='',refresh=0))
-            HTML.write(string.join(hbody,'\n'))
+            HTML.write(rje.join(hbody,'\n'))
             HTML.write(html.htmlTail(tabber=False))
             HTML.close()
             self.printLog('#HTML','HTML summary output: %s' % hfile)
@@ -1841,7 +1841,7 @@ class PAGSAT(rje_obj.RJE_Object):
                 newseq = []
                 while seqlist.list['Seq']:
                     (sname,sequence) = seqlist.list['Seq'].pop(0)
-                    namedata = string.split(sname,maxsplit=1)
+                    namedata = rje.split(sname,maxsplit=1)
                     if len(namedata) == 1: short = namedata[0]; desc = ''
                     else: [short,desc] = namedata
                     if short not in newname:
@@ -1849,7 +1849,7 @@ class PAGSAT(rje_obj.RJE_Object):
                         if not self.getBool('Orphans'):
                             self.printLog('#DEL','Deleted contig %s: not found in %s table.' % (short,maptable))
                             continue
-                        newname[short] = string.join(['Orphan']+string.split(short,'_')[1:],'_')
+                        newname[short] = rje.join(['Orphan']+rje.split(short,'_')[1:],'_')
                     if newname[short].endswith('RevComp'): sequence = rje_sequence.reverseComplement(sequence)
                     newseq.append(('%s %s' % (newname[short],desc),sequence))
                     self.printLog('#EDIT','%s -> %s' % (short,newname[short]))
@@ -1889,11 +1889,11 @@ class PAGSAT(rje_obj.RJE_Object):
                         if seqname.lower().startswith('orphan'): olist.append(seq); otxt.append(seqname)
                         elif expand_orphans and not seqname.startswith(self.getStr('NewChr')): olist.append(seq); otxt.append(seqname)
                     if olist:
-                        print '%s\n\n' % string.join(['\n%d Orphan sequences:' % len(olist)]+otxt,'\n - ')
+                        print '%s\n\n' % rje.join(['\n%d Orphan sequences:' % len(olist)]+otxt,'\n - ')
                         if self.yesNo('Delete %d orphan sequences? (Review/Edit for individual changes.)' % len(olist)):
                             for seq in olist:
                                 seqlist.list['Seq'].remove(seq)
-                                self.printLog('#DEL','Deleted contig %s: Orphan contig.' % (string.split(seq[0])[0]))
+                                self.printLog('#DEL','Deleted contig %s: Orphan contig.' % (rje.split(seq[0])[0]))
                     elif self.getBool('Orphans'): print '\n\nNo Orphan contigs.\n\n'
                     else: self.printLog('#INFO','No Orphans permitted. Check earlier #DEL entries in log file.')
                     stepi = 3
@@ -1916,7 +1916,7 @@ class PAGSAT(rje_obj.RJE_Object):
                         #X#ctidAseq.append(seq)
                         (seqname,sequence) = seqlist.getSeq(seq)
                         seqname = '%s_%s__%s %s' % (seqlist.seqGene(seq)[:-1],seqlist.seqSpec(seq),seqlist.seqAcc(seq),seqlist.seqDesc(seq))
-                        self.printLog('#CHR','%s -> %s' % (seqlist.shortName(seq),string.split(seqname)[0]))
+                        self.printLog('#CHR','%s -> %s' % (seqlist.shortName(seq),rje.split(seqname)[0]))
                         ctidAseq.append((seqname,sequence))
                     else: nonhapx += 1
                 aseqfile = '%s%s.haploid.fas' % (assdir,self.fileBase('Assembly'))
@@ -1928,9 +1928,9 @@ class PAGSAT(rje_obj.RJE_Object):
                 for seq in seqlist.seqs():
                     (seqname,sequence) = seqlist.getSeq(seq)
                     acc = seqlist.seqAcc(seq)
-                    utig = string.split(acc,'.')[-1]
+                    utig = rje.split(acc,'.')[-1]
                     seqname = '%s%s_%s__%s %s' % (seqlist.seqGene(seq),utig,seqlist.seqSpec(seq),acc,seqlist.seqDesc(seq))
-                    self.printLog('#UTIG','%s -> %s' % (seqlist.shortName(seq),string.split(seqname)[0]))
+                    self.printLog('#UTIG','%s -> %s' % (seqlist.shortName(seq),rje.split(seqname)[0]))
                     seqs.append((seqname,sequence))
                 pseqfile = '%s%s.ctidX.fas' % (assdir,self.fileBase('Assembly'))
                 seqlist.saveSeq(seqfile=pseqfile,seqs=seqs,seqtuples=True)
@@ -1987,7 +1987,7 @@ class PAGSAT(rje_obj.RJE_Object):
             if len(chromseq) == 1:
                 try:
                     (seqname,sequence) = chromseq[0]
-                    seqdesc = string.split(seqname,maxsplit=1)[1]
+                    seqdesc = rje.split(seqname,maxsplit=1)[1]
                 except: seqdesc = ''
                 self.debug(seqdesc)
                 choicedef = {True:'N',False:'Y'}[seqdesc.startswith('Circle')]
@@ -2086,10 +2086,10 @@ class PAGSAT(rje_obj.RJE_Object):
                 si = seqlist.list['Seq'].index(iseq)
                 (seqname,sequence) = seqlist.getSeq(iseq)
                 chromseq.remove((seqname,sequence))
-                seqname = string.split(seqname)
+                seqname = rje.split(seqname)
                 if len(seqname) > 1 and seqname[1] == 'RevComp': seqname.pop(1)
                 else: seqname.insert(1,'RevComp')
-                seqname = string.join(seqname)
+                seqname = rje.join(seqname)
                 sequence = rje_sequence.reverseComplement(sequence)
                 self.printLog('#EDIT','%s -> %s' % (sname,seqname))
                 seqdict[sname] = seqlist.list['Seq'][si] = (seqname,sequence)
@@ -2122,7 +2122,7 @@ class PAGSAT(rje_obj.RJE_Object):
                 #self.debug(ctid)
                 # Rename sequences
                 for c in 'ABN':
-                    self.printLog('#CTID%s' % c,string.join(ctid[c],'; '))
+                    self.printLog('#CTID%s' % c,rje.join(ctid[c],'; '))
                     #self.debug(rje.sortKeys(seqdict))
                     for contig in ctid[c]:
                         cseq = seqdict[contig]
@@ -2198,7 +2198,7 @@ class PAGSAT(rje_obj.RJE_Object):
                     qseq = seqdict[entry['Qry']]
                     joinseq = (jseq,qseq)
                     seqdesc = 'Circle[%s & %s]' % (joinseq[0][0],joinseq[1][0])
-                    seqname = '%s %s' % (string.split(joinseq[1][0])[0],seqdesc)
+                    seqname = '%s %s' % (rje.split(joinseq[1][0])[0],seqdesc)
                     sequence = joinseq[0][1] + joinseq[1][1]
                     qi = seqlist.list['Seq'].index(qseq)
                     seqdict[entry['Qry']] = seqlist.list['Seq'][qi] = (seqname,sequence)
@@ -2228,11 +2228,11 @@ class PAGSAT(rje_obj.RJE_Object):
                     if entry['QryType'] == 'End':
                         joinseq = (seqdict[entry['Qry']],jseq,seqdict[entry['Hit']])
                         seqdesc = 'Join[%s & %s & %s]' % (joinseq[0][0],joinseq[1][0],joinseq[2][0])
-                        seqname = '%s %s' % (string.split(joinseq[0][0])[0],seqdesc)
+                        seqname = '%s %s' % (rje.split(joinseq[0][0])[0],seqdesc)
                     elif entry['QryType'] == 'Start':
                         joinseq = (seqdict[entry['Hit']],jseq,seqdict[entry['Qry']])
                         seqdesc = 'Join[%s & %s & %s]' % (joinseq[0][0],joinseq[1][0],joinseq[2][0])
-                        seqname = '%s %s' % (string.split(joinseq[2][0])[0],seqdesc)
+                        seqname = '%s %s' % (rje.split(joinseq[2][0])[0],seqdesc)
                     else: raise ValueError(entry['QryType'])
                     sequence = joinseq[0][1] + joinseq[1][1] + joinseq[2][1]
                     qi = seqlist.list['Seq'].index(qseq)
@@ -2253,7 +2253,7 @@ class PAGSAT(rje_obj.RJE_Object):
                     chromseq.remove(seqdict[entry[qh]])
                     (seqname,sequence) = seqdict[entry[qh]]
                     si = seqlist.list['Seq'].index(seqdict[entry[qh]])
-                    try: (sname,seqdesc) = string.split(seqname,maxsplit=1)
+                    try: (sname,seqdesc) = rje.split(seqname,maxsplit=1)
                     except: sname = seqname; seqdesc = ''
 
                     #?# Why did this previously care about RevComp#?#
@@ -2294,7 +2294,7 @@ class PAGSAT(rje_obj.RJE_Object):
                         si = seqlist.list['Seq'].index(seqdict[entry[qh]])
 
                         #?# Why did this previously care about RevComp#?#
-                        #try: (sname,seqdesc) = string.split(seqname,maxsplit=1)
+                        #try: (sname,seqdesc) = rje.split(seqname,maxsplit=1)
                         #except: sname = seqname; seqdesc = ''
 
                         #if seqdesc.startswith('RevComp'):
@@ -2332,14 +2332,14 @@ class PAGSAT(rje_obj.RJE_Object):
                         chopx = entry['HitEnd']  # Front chopped from Hit
                         joinseq = (seqdict[entry['Qry']],seqdict[entry['Hit']])
                         seqdesc = 'Join[%s & %s]' % (joinseq[0][0],joinseq[1][0])
-                        seqname = '%s %s' % (string.split(joinseq[0][0])[0],seqdesc)
+                        seqname = '%s %s' % (rje.split(joinseq[0][0])[0],seqdesc)
                         hplus = len(joinseq[0][1])  # Length that will need to be added to hacc tdb entries
                     elif entry['QryType'] == 'Start':
                         qend = False
                         chopx = entry['QryEnd']   # Front chopped from Qry
                         joinseq = (seqdict[entry['Hit']],seqdict[entry['Qry']])
                         seqdesc = 'Join[%s & %s]' % (joinseq[0][0],joinseq[1][0])
-                        seqname = '%s %s' % (string.split(joinseq[1][0])[0],seqdesc)
+                        seqname = '%s %s' % (rje.split(joinseq[1][0])[0],seqdesc)
                         qplus = len(joinseq[0][1])  # Length that will need to be added to qacc tdb entries
                     else: raise ValueError(entry['QryType'])
                     sequence = joinseq[0][1] + joinseq[1][1]
@@ -2410,7 +2410,7 @@ class PAGSAT(rje_obj.RJE_Object):
             splitseq = {}       # Dictionary of sequence tuples per chromosome
             seqdict = seqlist.seqNameDic()  # Dictionary of shortname to sequence
             for seq in seqlist.seqs():
-                chrom = string.split(seq[0],'_')[0]
+                chrom = rje.split(seq[0],'_')[0]
                 if chrom[-1:] in ['H','A','B','N']: chrom = chrom[:-1]  # This should always be true but checking for future compatibility
                 if chrom not in splitseq: splitseq[chrom] = []
                 splitseq[chrom].append(seq)
@@ -2499,10 +2499,10 @@ class PAGSAT(rje_obj.RJE_Object):
                 #!# Can then simply compile the datasets if found with the right headers.
                 ## ~ [1a] Load and Process Summary Table ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
                 pbase = rje.baseFile(pfile,strip_path=True)
-                if pbase.endswith('.Summary'): pbase = string.join(string.split(pbase,'.')[:-1],'.')     # Strip Summary
-                basedir = rje.makePath('%s.PAGSAT/' % string.join(string.split(pbase,'.')[:-1],'.'))
-                gabdir = rje.makePath('%s.GABLAM/' % string.join(string.split(pbase,'.')[:-1],'.'))
-                self.setStr({'GABLAMDir':gabdir,'ResDir':basedir,'BaseBase':string.join(string.split(pbase,'.')[:-1],'.'),'CutBase':pbase})
+                if pbase.endswith('.Summary'): pbase = rje.join(rje.split(pbase,'.')[:-1],'.')     # Strip Summary
+                basedir = rje.makePath('%s.PAGSAT/' % rje.join(rje.split(pbase,'.')[:-1],'.'))
+                gabdir = rje.makePath('%s.GABLAM/' % rje.join(rje.split(pbase,'.')[:-1],'.'))
+                self.setStr({'GABLAMDir':gabdir,'ResDir':basedir,'BaseBase':rje.join(rje.split(pbase,'.')[:-1],'.'),'CutBase':pbase})
                 try: pdb = db.addTable(pfile,['Summary'],name=pbase,expect=True)
                 except: self.errorLog('Cannot load PAGSAT Summary table "%s": check format' % pfile); continue
                 pdb.dataFormat({'Length':'int','Coverage':'int','Identity':'int','Missing':'int','Errors':'int'})
@@ -2546,7 +2546,7 @@ class PAGSAT(rje_obj.RJE_Object):
                 #self.debug('%s' % compdb.data(pbase))
                 ## ~ [1b] Load and process CovPlot Table ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
                 #MBG8150.SP16481.hcq.sgd.srt.1000.covplot.chrom.tdt
-                cfile = string.replace(pfile,'Summary','covplot.chrom')
+                cfile = rje.replace(pfile,'Summary','covplot.chrom')
                 if not rje.exists(cfile): self.warnLog('Could not locate %s' % cfile); continue
                 try: cdb = db.addTable(cfile,['Chrom','Pos'],name='covplot',expect=True)
                 except: self.errorLog('Cannot load PAGSAT chromosome coverage table "%s": check format' % cfile); continue
@@ -2569,13 +2569,13 @@ class PAGSAT(rje_obj.RJE_Object):
                 ## ~ [1c] Unique coverage and duplication ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
                 bad_loc2chr = False
                 if ftdb:        #!# NOTE: Unique stuff is not working!
-                    centry['RepeatFT'] = string.join(repeatft,';')
+                    centry['RepeatFT'] = rje.join(repeatft,';')
                     # Note: locus=BK006937; Chrom=chrIII_S288C__BK006937.2
                     if not loc2chr:     # Only need to make once
                         for locus in ftdb.index('locus'):
                             loc2chr[locus] = None
                             for chrom in cdb.index('Chrom'):
-                                if string.split(chrom,'__')[1].startswith(locus): loc2chr[locus] = chrom
+                                if rje.split(chrom,'__')[1].startswith(locus): loc2chr[locus] = chrom
                             if not loc2chr[locus]: self.warnLog('CovPlot missing %s?' % locus); bad_loc2chr = True
                         #self.debug(loc2chr)
                     # First, modify cdb to include R entries where Contig hits = Chrom hits = 0
@@ -2627,7 +2627,7 @@ class PAGSAT(rje_obj.RJE_Object):
                     centry['UniqCtg'] = 100.0 * uniqctg / uniqlen
                 db.deleteTable(cdb)
                 ## ~ [1d] Load an process Tree file ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-                tfile = string.replace(pfile,'Summary.tdt','nwk')
+                tfile = rje.replace(pfile,'Summary.tdt','nwk')
                 tree = rje_tree.Tree(self.log,self.cmd_list+['autoload=F'])
                 tree.loadTree(tfile,postprocess=False)
                 centry['TreeLen'] = rje.dp(tree.treeLen(),1)
@@ -2661,7 +2661,7 @@ class PAGSAT(rje_obj.RJE_Object):
                 except: self.errorLog('Problem generating weighted tree length!')
                 ## ~ [1e] FragX and ChrX ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
                 #!# NOTE: This needs to be improved with respect to checking options etc. #!#
-                #lfile = '%s/%s.local.tdt' % (string.replace(pfile,'Summary.tdt','GABLAM'),pbase)
+                #lfile = '%s/%s.local.tdt' % (rje.replace(pfile,'Summary.tdt','GABLAM'),pbase)
                 # Not: MBG479.SP16499.hcq.qv20.sgd.srt.PAGSAT/MBG479.SP16499.hcq.qv20.sgd.srt.L500ID800.GABLAM/MBG479.SP16499.hcq.qv20.sgd.srt.L500ID800.local.tdt
                 # -> MBG479.SP16499.hcq.qv20.sgd.srt.GABLAM/MBG479.SP16499.hcq.qv20.sgd.srt.L500ID800.Reference.local.tdt
                 lfile = '%s.local.tdt' % self.fileBase('GABLAM','Cut','Reference')
@@ -2731,7 +2731,7 @@ class PAGSAT(rje_obj.RJE_Object):
                 if bad_loc2chr: loc2chr = {}
 
                 #chromcov = [50,95,98,99]    # No. of chromosomes covered by a single contig (GABLAM table)
-                #gfile = string.replace(lfile,'local','gablam')
+                #gfile = rje.replace(lfile,'local','gablam')
                 gfile = '%s.gablam.tdt' % self.fileBase('GABLAM','Cut','Reference')
                 if not rje.exists(gfile): self.warnLog('Could not locate %s' % gfile); continue
                 try: gdb = db.addTable(gfile,['Qry','Hit'],name='gablam',expect=True)

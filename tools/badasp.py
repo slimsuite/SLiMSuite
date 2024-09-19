@@ -19,8 +19,8 @@
 """
 Program:      BADASP
 Description:  Burst After Duplication with Ancestral Sequence Prediction
-Version:      1.3.1
-Last Edit:    28/03/15
+Version:      1.3.2
+Last Edit:    13/05/22
 Citation:     Edwards & Shields (2005), Bioinformatics 21(22):4190-1. [PMID: 16159912]
 Copyright (C) 2005  Richard J. Edwards - See source code for GNU License Notice
 
@@ -134,27 +134,21 @@ import rje_tree
 # 1.2 - Neatened and updated
 # 1.3 - Recognise only one subfamily and deal with accordingly.
 # 1.3.1 - Modified to recognise *.nwk as well as *.nsf tree input.
+# 1.3.2 - Py3 updates
 #############################################################################################################################
 ### Major Functionality to Add
 # [ ] Improve menu in general and choice of output in particular
 # [y] Option to load ancestral sequences (in rje_tree?)
 # [ ] Turn BADASP into an Object and neaten up.
 #############################################################################################################################
-def makeInfo():     ### Makes Info object
-    '''Makes rje.Info object for program.'''
-    try:
-        start_time = time.time()
-        program = 'BADASP'
-        version = '1.3.1'
-        last_edit = 'March 2015'
-        description = "Burst After Duplication with Ancestral Sequence Prediction"
-        author = "Dr Richard J. Edwards."
-        info = rje.Info(program,version,last_edit,description,author,start_time)
-        return info
-    except:
-        print 'Problem making Info object.'
-        raise
-#############################################################################################################################
+def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
+    '''Makes Info object which stores program details, mainly for initial print to screen.'''
+    (program, version, last_edit, cyear) = ('BADASP', '1.3.2', 'May 2022', '2005')
+    description = 'Burst After Duplication with Ancestral Sequence Prediction'
+    author = 'Dr Richard J. Edwards.'
+    comments = ['Cite: Edwards RJ et al. (2007) Nature Chem. Biol. 3(2):108-112.']
+    return rje.Info(program,version,last_edit,description,author,time.time(),cyear,comments)
+#########################################################################################################################
 def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for more sys.argv commands
     '''Prints *.__doc__ and asks for more sys.argv commands.'''
     try:
@@ -164,7 +158,7 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
             out = rje.Out()
         helpx = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
         if helpx > 0:
-            print '\n\nHelp for %s %s: %s\n' % (info.program, info.version, time.asctime(time.localtime(info.start_time)))
+            rje.printf('\n\nHelp for {0} {1}: {2}\n'.format(info.program, info.version, time.asctime(time.localtime(info.start_time))))
             out.verbose(-1,4,text=__doc__)
             if rje.yesNo('Show sequence commandline options?'):
                 out.verbose(-1,4,text=rje_seq.__doc__)
@@ -184,41 +178,30 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         sys.exit()
     except KeyboardInterrupt:
         sys.exit()
-    except:
-        print 'Major Problem with cmdHelp()'
-#############################################################################################################################
-def setupProgram(): ### Basic Setup of Program
+    except: rje.printf('Major Problem with cmdHelp()')
+#########################################################################################################################
+def setupProgram(): ### Basic Setup of Program when called from commandline.
     '''
-    Basic setup of Program:
+    Basic Setup of Program when called from commandline:
     - Reads sys.argv and augments if appropriate
     - Makes Info, Out and Log objects
     - Returns [info,out,log,cmd_list]
     '''
-    ### <0> ### Objects setup
-    try:
-        ## <a> ## Initial Command Setup & Info
-        cmd_list = sys.argv[1:]
-        info = makeInfo()
+    try:### ~ [1] ~ Initial Command Setup & Info ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+        info = makeInfo()                                   # Sets up Info object with program details
         if len(sys.argv) == 2 and sys.argv[1] in ['version','-version','--version']: rje.printf(info.version); sys.exit(0)
-        if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: rje.printf('{0} v{1}'.format(info.program,info.version)); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: rje.printf('%s v%s' % (info.program,info.version)); sys.exit(0)
         if len(sys.argv) == 2 and sys.argv[1] in ['description','-description','--description']: rje.printf('%s: %s' % (info.program,info.description)); sys.exit(0)
-        cmd_list = rje.getCmdList(cmd_list,info=info)      ### Load defaults from program.ini
-        ## <b> ## Out object
-        out = rje.Out(cmd_list=cmd_list)
-        out.verbose(0,2,cmd_list,1)
-        out.printIntro(info)
-        ## <c> ## Additional commands
-        cmd_list = cmdHelp(info,out,cmd_list)
-        ## <d> ## Log
-        log = rje.setLog(info=info,out=out,cmd_list=cmd_list)
-        return [info,out,log,cmd_list]
-    except SystemExit:
-        sys.exit()
-    except KeyboardInterrupt:
-        sys.exit()
-    except:
-        print 'Problem during initial setup.'
-        raise
+        cmd_list = rje.getCmdList(sys.argv[1:],info=info)   # Reads arguments and load defaults from program.ini
+        out = rje.Out(cmd_list=cmd_list)                    # Sets up Out object for controlling output to screen
+        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2
+        out.printIntro(info)                                # Prints intro text using details from Info object
+        cmd_list = cmdHelp(info,out,cmd_list)               # Shows commands (help) and/or adds commands from user
+        log = rje.setLog(info,out,cmd_list)                 # Sets up Log object for controlling log file output
+        return (info,out,log,cmd_list)                      # Returns objects for use in program
+    except SystemExit: sys.exit()
+    except KeyboardInterrupt: sys.exit()
+    except: rje.printf('Problem during initial setup.'); raise
 #############################################################################################################################
 ### END OF SECTION I
 #############################################################################################################################
@@ -289,7 +272,7 @@ def badasp(out,mainlog,cmd_list,tree=None): ### Main BADASP Method
             if tree.obj['SeqList'] and tree.opt['Rooted']:
                 break
             else:
-                print '\n ** Must have loaded sequences and a rooted tree. ** \n'
+                rje.printf('\n ** Must have loaded sequences and a rooted tree. ** \n')
                 if out.stat['Interactive'] < 0 or rje.yesNo('Quit BADASP?',default='N'):
                     sys.exit()
 
@@ -397,15 +380,15 @@ def badasp(out,mainlog,cmd_list,tree=None): ### Main BADASP Method
             qpconall.append('QPCon_Mean')
         for qp in qpconall:
             conseq.score['%s_All' % qp] = conseq.score[qp] 
-            if conseq.alnwin.has_key(qp):
+            if qp in conseq.alnwin:
                 conseq.alnwin['%s_All' % qp] = conseq.alnwin[qp] 
-            if conseq.qrywin.has_key(qp):
+            if qp in conseq.qrywin:
                 conseq.qrywin['%s_All' % qp] = conseq.qrywin[qp] 
-            if conseq.rank.has_key(qp):
+            if qp in conseq.rank:
                 conseq.rank['%s_All' % qp] = conseq.rank[qp] 
-            if conseq.alnrankwin.has_key(qp):
+            if qp in conseq.alnrankwin:
                 conseq.alnrankwin['%s_All' % qp] = conseq.alnrankwin[qp] 
-            if conseq.qryrankwin.has_key(qp):
+            if qp in conseq.qryrankwin:
                 conseq.qryrankwin['%s_All' % qp] = conseq.qryrankwin[qp] 
         
         _stage = '<4d> Specificity/Conservation Analyses - FamQP'
@@ -488,8 +471,8 @@ def badasp(out,mainlog,cmd_list,tree=None): ### Main BADASP Method
                         if rankout:
                             header.append('%s_fam%d_rankwin' % (fs,f+1))  # Subfam windows                    
         #if _header:
-        BADASP.write('%s\n' % string.join(header, delimit))
-        out.verbose(1,3,'%s...' % string.join(header, delimit),0)
+        BADASP.write('%s\n' % rje.join(header, delimit))
+        out.verbose(1,3,'%s...' % rje.join(header, delimit),0)
 
         ## <c> ## Stats
         _stage = '<5c> Stats'
@@ -548,13 +531,13 @@ def badasp(out,mainlog,cmd_list,tree=None): ### Main BADASP Method
                                 line.append(str(statobj.famrankwin[func][tree.subfam[f]][r]))   # Subfam windows                    
             # <iv> # Writing
             _stage = '<5c-iv> Output - Writing'
-            BADASP.write('%s\n' % string.join(line, delimit))
+            BADASP.write('%s\n' % rje.join(line, delimit))
         BADASP.close()
         out.verbose(0,2,'Done!',2)
 
     except:
         mainlog.errorLog('Fatal Error in BADASP Full output (%s):' % _stage,True)
-        BADASP.write('%s\n' % string.join(line, delimit))
+        BADASP.write('%s\n' % rje.join(line, delimit))
         BADASP.close()
                         
     try:    ### <6> ### Partial Results Output 
@@ -642,8 +625,8 @@ def badasp(out,mainlog,cmd_list,tree=None): ### Main BADASP Method
                         if rankout:
                             header.append('%s_fam%d_rankwin' % (fs,f+1))  # Subfam windows                    
         #if not _part_append:
-        BADASP.write('%s\n' % string.join(header, delimit))
-        out.verbose(1,3,'%s...' % string.join(header, delimit),0)
+        BADASP.write('%s\n' % rje.join(header, delimit))
+        out.verbose(1,3,'%s...' % rje.join(header, delimit),0)
 
         ## <c> ## Stats
         _stage = '<6c> Stats'
@@ -704,13 +687,13 @@ def badasp(out,mainlog,cmd_list,tree=None): ### Main BADASP Method
                                 line.append(str(statobj.famrankwin[func][tree.subfam[f]][r]))   # Subfam windows
             # <iv> # Writing
             _stage = '<6c-iv> Partial Output - Writing'
-            BADASP.write('%s\n' % string.join(line, delimit))
+            BADASP.write('%s\n' % rje.join(line, delimit))
         BADASP.close()
         out.verbose(0,2,'Done!',2)
         
     except:
         mainlog.errorLog('Fatal Error in BADASP Partial output (%s):' % _stage,True)
-        BADASP.write('%s\n' % string.join(line, delimit))
+        BADASP.write('%s\n' % rje.join(line, delimit))
         BADASP.close()
 #############################################################################################################################
 def statObj(method=None,objlist=[]):    ### Returns the appropriate Object for scores of 'method'
@@ -733,16 +716,12 @@ def statObj(method=None,objlist=[]):    ### Returns the appropriate Object for s
 ### SECTION IV: MAIN PROGRAM                                                                                               #
 #############################################################################################################################
 def runMain():
-    ### Basic Setup of Program ###
-    try:
-        [info,out,mainlog,cmd_list] = setupProgram()
-    except SystemExit:
-        return  
-    except:
-        print 'Unexpected error during program setup:', sys.exc_info()[0]
-        return
-        
-    ### Rest of Functionality... ###
+    ### ~ [1] ~ Basic Setup of Program  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+    try: (info,out,mainlog,cmd_list) = setupProgram()
+    except SystemExit: return
+    except: rje.printf('Unexpected error during program setup:', sys.exc_info()[0]); return
+
+    ### ~ [2] ~ Rest of Functionality... ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try:        
         badasp(out,mainlog,cmd_list)
 
@@ -758,8 +737,7 @@ def runMain():
 if __name__ == "__main__":      ### Call runMain 
     try:
         runMain()
-    except:
-        print 'Cataclysmic run error:', sys.exc_info()[0]
+    except: rje.printf('Cataclysmic run error: {0}'.format(sys.exc_info()[0]))
     sys.exit()
 #########################################################################################################################
 ### END OF SECTION IV

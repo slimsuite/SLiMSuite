@@ -202,8 +202,8 @@ class SLiMHTML(rje.RJE_Object):
                                    'MisMatch','Variant','wtFDR','SeqWt','HomNum_mean','GlobID_mean','LocID_mean',
                                    'BestELM','ELMSim','ELMPattern','Score','MatchIC','dConn','sConn','WtFDR',
                                    'AutoAnn']
-        self.list['MakePages'] = string.split('front,gene,domain,rand,slim,fake,occaln,interactome,slimaln,go',',')
-        self.list['UniReal'] = string.split('AC,GN,RC,RX,CC,DR,PE,KW,FT',',')
+        self.list['MakePages'] = rje.split('front,gene,domain,rand,slim,fake,occaln,interactome,slimaln,go',',')
+        self.list['UniReal'] = rje.split('AC,GN,RC,RX,CC,DR,PE,KW,FT',',')
         ### ~ Other Attributes ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         self._setForkAttributes()   # Delete if no forking
         self.obj['PPI'] = rje_ppi.PPI(self.log,self.cmd_list)
@@ -234,9 +234,9 @@ class SLiMHTML(rje.RJE_Object):
         try:### ~ [1] ~ Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             self.setup()
             if self.opt['Test']: self.sigMappingJIM(); return
-            genelist = rje.sortUnique(self.db().getTable('PPI').index('Hub').keys() + self.db().getTable('PPI').index('Spoke').keys())
+            genelist = rje.sortUnique(list(self.db().getTable('PPI').index('Hub').keys()) + list(self.db().getTable('PPI').index('Spoke').keys()))
             if self.opt['AddRand']:
-                randgene = rje.sortUnique(self.db().getTable('Occ_rseq').index('Spoke').keys() + self.db().getTable('Occ_rupc').index('Spoke').keys())
+                randgene = rje.sortUnique(list(self.db().getTable('Occ_rseq').index('Spoke').keys()) + list(self.db().getTable('Occ_rupc').index('Spoke').keys()))
                 genelist = rje.sortUnique(genelist+randgene)
             self.list['Genes'] = genelist[0:]
             rseqlist = self.db().getTable('Main_rseq').index('Dataset')
@@ -331,11 +331,11 @@ class SLiMHTML(rje.RJE_Object):
                 if 'occaln' in self.list['MakePages']: self.sigMappingJIM()
                 if 'interactome' in self.list['MakePages']:
                     for dataset in rje.sortKeys(self.db().getTable('Main_real').index('Dataset')):
-                        if string.split(dataset,'.')[0] in inthub:
+                        if rje.split(dataset,'.')[0] in inthub:
                             if hobj.opt['NoForks']: self.slimJimHub(dataset)
                             else: forkpng.append((dataset,'interactome'))                       
                     for dataset in rje.sortKeys(self.db().getTable('Main_real').index('Dataset')):
-                        if string.split(dataset,'.')[0] not in inthub: 
+                        if rje.split(dataset,'.')[0] not in inthub:
                             if hobj.opt['NoForks']: self.slimJimHub(dataset)
                             else: forkpng.append((dataset,'interactome'))                       
                     for dataset in rje.sortKeys(self.db().getTable('Sig_rand').index('Dataset')): 
@@ -489,7 +489,7 @@ class SLiMHTML(rje.RJE_Object):
             for entry in rdb.entries():
                 try: (hub,spoke,evidence) = (entry['Dataset'],self.gene(entry['Seq']),'Random')
                 except: continue
-                hub = string.join(string.split(hub,'_')[:2],'_'); pmap[hub] = entry['Dataset']
+                hub = rje.join(rje.split(hub,'_')[:2],'_'); pmap[hub] = entry['Dataset']
                 if hub not in ppi: ppi[hub] = {}
                 if spoke not in ppi[hub]: ppi[hub][spoke] = evidence
                 #self.deBug('%s: %s' % (hub,ppi[hub]))
@@ -574,7 +574,7 @@ class SLiMHTML(rje.RJE_Object):
             godb = self.db().addTable(dfile,['EnsG','GO_ID'],'All',name='GO')
             self.dict['GO'] = {}
             for gkey in godb.data():
-                (ensg,go) = string.split(gkey)
+                (ensg,go) = rje.split(gkey)
                 gtype = godb.data()[gkey]['GO_Type'].upper()
                 if ensg not in self.dict['GO']: self.dict['GO'][ensg] = {}
                 if gtype not in self.dict['GO'][ensg]: self.dict['GO'][ensg][gtype] = []
@@ -675,8 +675,8 @@ class SLiMHTML(rje.RJE_Object):
                 for line in open(self.getStr('SlimCheck'),'r').readlines():
                     self.progLog('\r#DESC','Loading %s SLiM descriptions' % rje.iLen(sd))
                     try:
-                        pattern = string.split(line)[0]
-                        desc = string.join(string.split(rje.chomp(line))[1:])
+                        pattern = rje.split(line)[0]
+                        desc = rje.join(rje.split(rje.chomp(line))[1:])
                     except: continue
                     while desc[-1:] == ' ': desc = desc[:-1]
                     if not (pattern and desc): continue
@@ -774,7 +774,7 @@ class SLiMHTML(rje.RJE_Object):
                     if hub in self.data('DBXRef'): nodes[hub] = rje.combineDict(nodes[hub],self.data('DBXRef')[hub])
                     nodes[hub]['PPI'] = len(ppi.indexEntries('Hub',hub))
                     if hub[:4].lower() in ['rupc','rseq']:
-                        nodes[hub]['PPI'] = int(string.split(hub,'-')[-1])
+                        nodes[hub]['PPI'] = int(rje.split(hub,'-')[-1])
                         nodes[hub]['Type'] = hub[:4]
                         nodes[hub]['Col'] = {'rupc':44,'rseq':45}[hub[:4].lower()]
                     elif entry['Dataset'][-3:] == 'dom': nodes[hub]['Type'] = 'Domain'; nodes[hub]['Col'] = 38
@@ -803,7 +803,7 @@ class SLiMHTML(rje.RJE_Object):
             self.printLog('\r#NODE','Generated %s XGMML nodes.  ' % rje.integerString(len(nodes)))
             ## ?? Should non-significant protein hubs and domains be added too ?? ##
             ### ~ [2] ~ Add PPI, Occurrences and Cloud relationships as Edges ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            for etype in string.split('com/y2h/com-y2h/ppi/dmi/occ/rseq/rupc/slim/pfam/cloud','/'): edges[etype] = {}
+            for etype in rje.split('com/y2h/com-y2h/ppi/dmi/occ/rseq/rupc/slim/pfam/cloud','/'): edges[etype] = {}
             ## ~ [2a] ~ Add PPI as Edges ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             px = 0.0; ptot = ppi.entryNum()
             for pp in ppi.entries():
@@ -815,7 +815,7 @@ class SLiMHTML(rje.RJE_Object):
                 else: etype = 'ppi'
                 if spoke not in nodes or hub not in nodes: continue
                 if (spoke,hub) in edges[etype]: continue
-                edges[etype][(hub,spoke)] = rje.combineDict({'Sig':-len(string.split(pp['Evidence'],'|'))},pp)
+                edges[etype][(hub,spoke)] = rje.combineDict({'Sig':-len(rje.split(pp['Evidence'],'|'))},pp)
             ## ~ [2a] ~ Add Occurrences as Edges ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             ex = 0.0; etot = occ.entryNum()
             for entry in occ.entries():
@@ -825,7 +825,7 @@ class SLiMHTML(rje.RJE_Object):
                 ## Hub-Pattern ##
                 if (hub,pattern) in edges['slim']:
                     edges['slim'][(hub,pattern)]['Sig'] = min(edges['slim'][(hub,pattern)]['Sig'], self.logSig(entry['Sig']))
-                    edges['slim'][(hub,pattern)]['Evidence'] = string.join(rje.sortUnique(string.split(edges['slim'][(hub,pattern)]['Evidence'],'|')+[entry['Dataset']]),'|')
+                    edges['slim'][(hub,pattern)]['Evidence'] = rje.join(rje.sortUnique(rje.split(edges['slim'][(hub,pattern)]['Evidence'],'|')+[entry['Dataset']]),'|')
                 else:
                     edges['slim'][(hub,pattern)] = rje.combineDict({},entry)
                     edges['slim'][(hub,pattern)]['Sig'] = self.logSig(entry['Sig'])
@@ -834,8 +834,8 @@ class SLiMHTML(rje.RJE_Object):
                 ## Pattern-Spoke ##
                 if (pattern,spoke) in edges['occ']:
                     edges['occ'][(pattern,spoke)]['Sig'] = min(edges['occ'][(pattern,spoke)]['Sig'], self.logSig(entry['Sig']))
-                    edges['occ'][(pattern,spoke)]['Evidence'] = string.join(rje.sortUnique(string.split(edges['occ'][(pattern,spoke)]['Evidence'],'|')+[entry['Dataset']]),'|')
-                    edges['occ'][(pattern,spoke)]['Start_Pos'] = string.join(rje.sortUnique(string.split(edges['occ'][(pattern,spoke)]['Start_Pos'],',')+[entry['Start_Pos']]),',')
+                    edges['occ'][(pattern,spoke)]['Evidence'] = rje.join(rje.sortUnique(rje.split(edges['occ'][(pattern,spoke)]['Evidence'],'|')+[entry['Dataset']]),'|')
+                    edges['occ'][(pattern,spoke)]['Start_Pos'] = rje.join(rje.sortUnique(rje.split(edges['occ'][(pattern,spoke)]['Start_Pos'],',')+[entry['Start_Pos']]),',')
                 else:                    
                     edges['occ'][(pattern,spoke)] = rje.combineDict({},entry)
                     edges['occ'][(pattern,spoke)]['Sig'] = self.logSig(entry['Sig'])
@@ -846,7 +846,7 @@ class SLiMHTML(rje.RJE_Object):
                 elif entry['Dataset'][-3:] == 'dom': etype = 'dmi'
                 else: continue
                 if (hub,spoke) in edges[etype]:
-                    edges[etype][(hub,spoke)]['Evidence'] = string.join(rje.sortUnique(string.split(edges[etype][(hub,spoke)]['Evidence'],'|')+[entry['Pattern']]),'|')
+                    edges[etype][(hub,spoke)]['Evidence'] = rje.join(rje.sortUnique(rje.split(edges[etype][(hub,spoke)]['Evidence'],'|')+[entry['Pattern']]),'|')
                 else:
                     edges[etype][(hub,spoke)] = rje.combineDict({},entry)
                     edges[etype][(hub,spoke)]['Evidence'] = edges[etype][(hub,spoke)].pop('Pattern')
@@ -860,7 +860,7 @@ class SLiMHTML(rje.RJE_Object):
                 for pattern in sig.indexDataList('KCloud',cloud,'Pattern',sortunique=False):
                     if pattern not in nodes: continue
                     for prevpat in cpat:
-                        if (pattern,prevpat) in edges['cloud']: edges['cloud'][(pattern,prevpat)]['Evidence'] = string.join(rje.sortUnique(string.split(edges['cloud'][(pattern,prevpat)]['Evidence'],',')+[cloud]),',')
+                        if (pattern,prevpat) in edges['cloud']: edges['cloud'][(pattern,prevpat)]['Evidence'] = rje.join(rje.sortUnique(rje.split(edges['cloud'][(pattern,prevpat)]['Evidence'],',')+[cloud]),',')
                         else: edges['cloud'][(pattern,prevpat)] = {'Sig':-len(rje.listIntersect(occ.indexDataList('Pattern',pattern,'Spoke'),occ.indexDataList('Pattern',pattern,'Spoke'))),'Evidence':cloud}
                     cpat.append(pattern)
             ## ~ [2c] ~ Domain-Protein Links ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
@@ -876,7 +876,7 @@ class SLiMHTML(rje.RJE_Object):
                         if domain not in nodes: continue
                         if (gene,domain) in edges['pfam']:
                             edges['pfam'][(gene,domain)]['Sig'] -= l
-                            edges['pfam'][(gene,domain)]['Evidence'] = string.join(string.split(edges['pfam'][(gene,domain)]['Evidence'],'|')+['%s:%s' % (entry['Start'],entry['Eval'])],'|')
+                            edges['pfam'][(gene,domain)]['Evidence'] = rje.join(rje.split(edges['pfam'][(gene,domain)]['Evidence'],'|')+['%s:%s' % (entry['Start'],entry['Eval'])],'|')
                         else:
                             edges['pfam'][(gene,domain)] = rje.combineDict({},entry)
                             edges['pfam'][(gene,domain)]['Sig'] = -l
@@ -989,15 +989,15 @@ class SLiMHTML(rje.RJE_Object):
                     if gdict:
                         ghtml = []
                         for g in rje.sortKeys(gdict): ghtml.append(gdict[g])
-                        gtab.append(('GO_%s' % gtype,string.join(ghtml,' ~ '),self.titleText('tab','go')))
+                        gtab.append(('GO_%s' % gtype,rje.join(ghtml,' ~ '),self.titleText('tab','go')))
             if gtab:
                 gtab.insert(0,('^','Click on GO tabs for Biological Process (BP), Cellular Component (CC), or Molecular Function (MF) GO terms associated with %s' % gene,'Compress GO tabs'))
                 html += ['','<!-- ~~~~ %s GO tabs ~~~~ -->' % gene,tabberHTML('GO',gtab),
                          '<!-- ~~~~ End %s GO tabs ~~~~ -->' % gene,'']
         except: self.errorLog('seqDetailsHTML Error')
         ### ~ [2] ~ Finish ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-        #print string.join(html,'\n')
-        return string.join(html,'\n')
+        #print rje.join(html,'\n')
+        return rje.join(html,'\n')
 #########################################################################################################################
     def frontPage(self,genelist,domainlist,slimlist):    ### Generates HTML front page for analysis
         '''
@@ -1053,8 +1053,8 @@ class SLiMHTML(rje.RJE_Object):
                 else: genedict[x].append('<a href="./gene/%s.html" target="_blank" title="%s">%s</a>' % (gene,nosigtitle,gtxt))
             for x in '%s_' % string.ascii_uppercase:
                 if len(genedict[x]) > 1: 
-                    if x == '_': genetab.append(('*','%s\n</p>' % string.join(genedict[x],jtxt),genetitle[x]))
-                    else: genetab.append((x,'%s\n</p>' % string.join(genedict[x],jtxt),genetitle[x]))
+                    if x == '_': genetab.append(('*','%s\n</p>' % rje.join(genedict[x],jtxt),genetitle[x]))
+                    else: genetab.append((x,'%s\n</p>' % rje.join(genedict[x],jtxt),genetitle[x]))
             ## ~ [1b] ~ Domains ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             domainlist.sort(); domaindict = {}; domaintab = []; domtitle = {}
             for x in '%s_' % string.ascii_uppercase:
@@ -1074,8 +1074,8 @@ class SLiMHTML(rje.RJE_Object):
                 domaindict[x].append('<a href="./domain/%s.html" target="_blank" title="%s">%s</a>' % (domain,self.titleText('link','domain'),gtxt))
             for x in '%s_' % string.ascii_uppercase:
                 if len(domaindict[x]) > 1:
-                    if x == '_': domaintab.append(('*','%s\n</p>' % string.join(domaindict[x],jtxt),domtitle[x]))
-                    else: domaintab.append((x,'%s\n</p>' % string.join(domaindict[x],jtxt),domtitle[x]))
+                    if x == '_': domaintab.append(('*','%s\n</p>' % rje.join(domaindict[x],jtxt),domtitle[x]))
+                    else: domaintab.append((x,'%s\n</p>' % rje.join(domaindict[x],jtxt),domtitle[x]))
             ## ~ [1c] ~ SLiMs ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             slimlist.sort(); slimdict = {}; slimtab = []; slim2dict = {}; slimtitle = {}
             for x in '%s_^' % string.ascii_uppercase:
@@ -1110,9 +1110,9 @@ class SLiMHTML(rje.RJE_Object):
                     elif x in slim: slim2dict[x].append('<a href="./slim/%s.html" target="_blank" title="%s">%s</a>' % (code,self.titleText('link','slim'),gtxt))
             for x in '%s_^' % string.ascii_uppercase:
                 if len(slimdict[x]) > 1:
-                    if x == '_': slimtab.append(('*','%s\n</p>' % string.join(slimdict[x],jtxt),slimtitle[x]))
-                    elif x == '^': slimtab.append(('Terminal','%s\n</p>' % string.join(slimdict[x]+slim2dict[x],jtxt),slimtitle[x]))
-                    else: slimtab.append((x,'%s\n</p>' % string.join(slimdict[x]+slim2dict[x],jtxt),slimtitle[x]))
+                    if x == '_': slimtab.append(('*','%s\n</p>' % rje.join(slimdict[x],jtxt),slimtitle[x]))
+                    elif x == '^': slimtab.append(('Terminal','%s\n</p>' % rje.join(slimdict[x]+slim2dict[x],jtxt),slimtitle[x]))
+                    else: slimtab.append((x,'%s\n</p>' % rje.join(slimdict[x]+slim2dict[x],jtxt),slimtitle[x]))
             ## ~ [1d] ~ Random data ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             rseqlist = rje.sortKeys(self.db().getTable('Main_rseq').index('Dataset'))
             rupclist = rje.sortKeys(self.db().getTable('Main_rupc').index('Dataset'))
@@ -1136,19 +1136,19 @@ class SLiMHTML(rje.RJE_Object):
             rupcdict['201+'] = ['<h2>Significant RUPC datasets with 201+ UPC...</h2><p>\n']
             for dset in rseqlist:
                 if dset not in sig_rand.index('Dataset'): continue
-                try: pot = pdict[string.split(dset,'-')[-1]]
+                try: pot = pdict[rje.split(dset,'-')[-1]]
                 except: pot = '201+'
                 rseqdict[pot].append('<a href="./rseq/%s.html" target="_blank">%s (%d)</a>' % (dset,dset,len(sig_rand.index('Dataset')[dset])))
             for dset in rupclist:
                 if dset not in sig_rand.index('Dataset'): continue
-                try: pot = pdict[string.split(dset,'-')[-1]]
+                try: pot = pdict[rje.split(dset,'-')[-1]]
                 except: pot = '201+'
                 rupcdict[pot].append('<a href="./rupc/%s.html" target="_blank">%s (%d)</a>' % (dset,dset,len(sig_rand.index('Dataset')[dset])))
             rseqtab = []
             rupctab = []
             for pot in plist:
-                rseqtab.append((pot,'%s\n</p>' % string.join(rseqdict[pot],jtxt),string.replace(rantitle[pot],'RAND','random sequence (RSeq)')))
-                rupctab.append((pot,'%s\n</p>' % string.join(rupcdict[pot],jtxt),string.replace(rantitle[pot],'RAND','random UPC (RUPC)')))
+                rseqtab.append((pot,'%s\n</p>' % rje.join(rseqdict[pot],jtxt),rje.replace(rantitle[pot],'RAND','random sequence (RSeq)')))
+                rupctab.append((pot,'%s\n</p>' % rje.join(rupcdict[pot],jtxt),rje.replace(rantitle[pot],'RAND','random UPC (RUPC)')))
             ## ~ [1e] ~ Data ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             datahtml = ['<!-- ~~~~~~~~ TARRED and Zipped Data Archives ~~~~~~~ -->',
                         '<h2>SLiMFinder Analysis Data Archive</h2>','','<dl>','',
@@ -1202,7 +1202,7 @@ class SLiMHTML(rje.RJE_Object):
                     for ptype in ['ppi','y2h','bin','com']:
                         if entry[ptype] == 'n/a': tphtml.append('<td><i>n/a</i></td>')
                         elif entry[ptype]:
-                            (pattern,sig) = string.split(entry[ptype])
+                            (pattern,sig) = rje.split(entry[ptype])
                             tphtml.append('<td>%s %s</td>' % (slimLink(pattern,frontpage=True),sig))
                         else: tphtml.append('<td></td>')
                     tphtml.append('</tr>')
@@ -1237,8 +1237,8 @@ class SLiMHTML(rje.RJE_Object):
                      'RUPC':['<th title="Random UPC (RUPC) datasets returning known SLiM" width=80%>RUPC</th>']}
             ktitle = {}
             for k in khtml:
-                ktitle[k] = string.split(khtml[k][0],'"')[1]
-                khtml[k] = [string.replace(string.join(annhtml[1:i],'\n'),'Results','Results (%s)' % k)] + khtml[k] + ['</tr>']
+                ktitle[k] = rje.split(khtml[k][0],'"')[1]
+                khtml[k] = [rje.replace(rje.join(annhtml[1:i],'\n'),'Results','Results (%s)' % k)] + khtml[k] + ['</tr>']
             for known in klist:
                 annhtml += ['<tr>%s' % self.knownTableLink(known)]
                 for k in khtml: khtml[k] += [annhtml[-1]] 
@@ -1247,7 +1247,7 @@ class SLiMHTML(rje.RJE_Object):
                     kpat.append(slimLink(entry['Pattern'],frontpage=True))
                     if entry['Pattern'] not in kslim: kslim.append(entry['Pattern'])
                 kpat.sort()
-                annhtml += ['<td>%s</td>' % string.join(kpat,jtxt)]
+                annhtml += ['<td>%s</td>' % rje.join(kpat,jtxt)]
                 khtml['Patterns'].append('%s</tr>' % annhtml[-1])
                 kpat = []
                 for entry in tdb.indexEntries('Known',known):
@@ -1255,7 +1255,7 @@ class SLiMHTML(rje.RJE_Object):
                     if entry['Hub'] in ppi.index('Hub') or entry['Hub'] in ppi.index('Spoke'): kpat.append(self.geneLink(entry['Hub'],frontpage=True))
                     if entry['Hub'] not in kgenes: kgenes.append(entry['Hub'])
                 kpat.sort()
-                annhtml += ['<td>%s</td>' % string.join(kpat,jtxt)]
+                annhtml += ['<td>%s</td>' % rje.join(kpat,jtxt)]
                 khtml['Genes'].append('%s</tr>' % annhtml[-1])
                 kpat = []
                 for entry in tdb.indexEntries('Known',known):
@@ -1263,7 +1263,7 @@ class SLiMHTML(rje.RJE_Object):
                     if entry['Hub'] not in ppi.index('Hub') and entry['Hub'] not in ppi.index('Spoke'): kpat.append(domainLink(entry['Hub'],frontpage=True))
                     if entry['Hub'] not in kdoms: kdoms.append(entry['Hub'])
                 kpat.sort()
-                annhtml += ['<td>%s</td>' % string.join(kpat,jtxt)]
+                annhtml += ['<td>%s</td>' % rje.join(kpat,jtxt)]
                 khtml['Domains'].append('%s</tr>' % annhtml[-1])
                 kpat = []
                 for entry in tdb.indexEntries('Known',known):
@@ -1277,7 +1277,7 @@ class SLiMHTML(rje.RJE_Object):
                         kpat.append(entry['Hub'])
                         if entry['Hub'] not in krseq: krseq.append(entry['Hub'])
                 kpat.sort()
-                annhtml += ['<td>%s</td>' % string.join(kpat,jtxt)]
+                annhtml += ['<td>%s</td>' % rje.join(kpat,jtxt)]
                 khtml['RSeq'].append('%s</tr>' % annhtml[-1])
                 kpat = []
                 for entry in tdb.indexEntries('Known',known):
@@ -1291,24 +1291,24 @@ class SLiMHTML(rje.RJE_Object):
                         kpat.append(entry['Hub'])
                         if entry['Hub'] not in krupc: krupc.append(entry['Hub'])
                 kpat.sort()
-                annhtml += ['<td>%s</td></tr>' % string.join(kpat,jtxt)]
+                annhtml += ['<td>%s</td></tr>' % rje.join(kpat,jtxt)]
                 khtml['RUPC'].append('%s</tr>' % annhtml[-1])
             for k in khtml: khtml[k] += ['<tr align=center><th title="Total counts of annotated SLiMs">Total:</th>']
             khtml['Patterns'] += ['<th title="Total number of different Patterns annotated as known">%d</th>' % len(kslim)]
             khtml['Genes'] += ['<th title="Total number of different Gene Hubs returning significant motifs annotated as known">%d</th>' % len(kgenes)]
             khtml['Domains'] += ['<th title="Total number of different Domain Hubs returning significant motifs annotated as known">%d</th>' % len(kdoms)]
-            khtml['RSeq'] += ['<th title="Total number of different RSeq Hubs returning significant motifs annotated as known">%d (%s dom)</th>' % (len(krseq),string.count(string.join(krseq),'dom'))]
-            khtml['RUPC'] += ['<th title="Total number of different RUPC Hubs returning significant motifs annotated as known">%d (%d dom)</th>' % (len(krupc),string.count(string.join(krupc),'dom'))]
+            khtml['RSeq'] += ['<th title="Total number of different RSeq Hubs returning significant motifs annotated as known">%d (%s dom)</th>' % (len(krseq),rje.count(rje.join(krseq),'dom'))]
+            khtml['RUPC'] += ['<th title="Total number of different RUPC Hubs returning significant motifs annotated as known">%d (%d dom)</th>' % (len(krupc),rje.count(rje.join(krupc),'dom'))]
             for k in ['Patterns','Genes','Domains','RSeq','RUPC']: 
                 khtml[k] += ['</tr></table>']
-                anntab.append((k,string.join(khtml[k],'\n'),ktitle[k]))
+                anntab.append((k,rje.join(khtml[k],'\n'),ktitle[k]))
                 # Totals #
             annhtml += ['<tr align=center><th title="Total counts of annotated SLiMs">Total:</th>',
                         '<th title="Total number of different Patterns annotated as known">%d</th>' % len(kslim),
                         '<th title="Total number of different Gene Hubs returning significant motifs annotated as known">%d</th>' % len(kgenes),
                         '<th title="Total number of different Domain Hubs returning significant motifs annotated as known">%d</th>' % len(kdoms),
-                        '<th title="Total number of different RSeq Hubs returning significant motifs annotated as known">%d (%s dom)</th>' % (len(krseq),string.count(string.join(krseq),'dom')),
-                        '<th title="Total number of different RUPC Hubs returning significant motifs annotated as known">%d (%d dom)</th>' % (len(krupc),string.count(string.join(krupc),'dom')),
+                        '<th title="Total number of different RSeq Hubs returning significant motifs annotated as known">%d (%s dom)</th>' % (len(krseq),rje.count(rje.join(krseq),'dom')),
+                        '<th title="Total number of different RUPC Hubs returning significant motifs annotated as known">%d (%d dom)</th>' % (len(krupc),rje.count(rje.join(krupc),'dom')),
                         '</tr>']
             annhtml += ['</table>']
             annhtml = annhtml[:1] + [tabberHTML('Known',anntab,level=1)]
@@ -1323,7 +1323,7 @@ class SLiMHTML(rje.RJE_Object):
             for entry in ndb.entries(): entry['SigRank'] = rje.preZero(int(entry['SigRank']),ndb.entryNum())
             ndb.newKey(['SigRank','Dataset','Pattern'],startfields=False)
             for entry in ndb.entries():
-                analysis = string.split(entry['Analysis'],'.')
+                analysis = rje.split(entry['Analysis'],'.')
                 if analysis[0] == 'real': entry['Analysis'] = analysis[1]
                 elif analysis[1][-3:] == 'dom': entry['Analysis'] = '%sdom' % analysis[0]
                 else: entry['Analysis'] = analysis[0]
@@ -1333,7 +1333,7 @@ class SLiMHTML(rje.RJE_Object):
                 unslimhtml = '<h2>Potential Novel %s SLiMs</h2>\n' % type
                 if type in unsplit: unslimhtml += self.resultTableHTML(unsplit[type].fields(),unsplit[type].data(),True,drop=self.list['DropFields']+['SigRank','Analysis','Class','Match'])
                 else: unslimhtml += '<i>No novel SLiMs</i>'
-                unslimtab.append((type,string.replace(unslimhtml,'href="../','target="_blank" href="./'),'Potential Novel %s SLiMs' % type))
+                unslimtab.append((type,rje.replace(unslimhtml,'href="../','target="_blank" href="./'),'Potential Novel %s SLiMs' % type))
             if not 'this_is_the_old_code':            
                 slimdict = {}; unslimtab = []; slim2dict = {}
                 for x in '%s_^' % string.ascii_uppercase:
@@ -1365,9 +1365,9 @@ class SLiMHTML(rje.RJE_Object):
                         elif x in slim: slim2dict[x].append('<a href="./slim/%s.html" target="_blank">%s</a>' % (code,gtxt))
                 for x in '%s_^' % string.ascii_uppercase:
                     if len(slimdict[x]) > 1:
-                        if x == '_': unslimtab.append(('*','%s\n\</p>' % string.join(slimdict[x],jtxt)))
-                        elif x == '^': unslimtab.append(('Terminal','%s\n</p>' % string.join(slimdict[x]+slim2dict[x],jtxt)))
-                        else: unslimtab.append(('%s' % x,'%s\n</p>' % string.join(slimdict[x]+slim2dict[x],jtxt)))
+                        if x == '_': unslimtab.append(('*','%s\n\</p>' % rje.join(slimdict[x],jtxt)))
+                        elif x == '^': unslimtab.append(('Terminal','%s\n</p>' % rje.join(slimdict[x]+slim2dict[x],jtxt)))
+                        else: unslimtab.append(('%s' % x,'%s\n</p>' % rje.join(slimdict[x]+slim2dict[x],jtxt)))
             ## ~ [1i] ~ GO Tabs ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             gdb = self.db().getTable('GO'); gotab = []
             got = {'bp':'Biological Process','cc':'Cellular Component','mf':'Molecular Function'}
@@ -1384,8 +1384,8 @@ class SLiMHTML(rje.RJE_Object):
                     gosub[x].append(goLink(go,gdb.dataList(gdb.indexEntries('GO_Desc',go),'GO_ID')[0],frontpage=True))
                     #!# Add numbers of genes, domains & slims #!#
                 gohtml = []
-                for x in string.ascii_uppercase: gohtml.append((x,string.join(gosub[x],'\n ~ '),'%s GO terms starting %s' % (got[type],x)))
-                #gotab.append(('GO_%s' % type.upper(),string.join(gohtml,'\n ~ ')))
+                for x in string.ascii_uppercase: gohtml.append((x,rje.join(gosub[x],'\n ~ '),'%s GO terms starting %s' % (got[type],x)))
+                #gotab.append(('GO_%s' % type.upper(),rje.join(gohtml,'\n ~ ')))
                 gotab.append(('GO_%s' % type.upper(),tabberHTML('GO_%s' % type.upper(),gohtml,level=1),'%s GO terms' % got[type]))
             ### ~ [2] ~ Main code ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             moretext = '<p>Click <a href="./full.htm" target="_blank">here</a> to access data by gene/domain/pattern.</p>\n'
@@ -1400,9 +1400,9 @@ class SLiMHTML(rje.RJE_Object):
             moretext += '<tr><td><a href="http://bioware.soton.ac.uk/slimdb/humsf10_slim/">\n'
             moretext += '<img alt="Significant SLiM cluster analysis" src="./resources/humsf.png" align="MIDDLE" border="0" height="50" title="Significant SLiM cluster analysis">'
             moretext += 'Significant SLiM cluster analysis</a></td></tr></table>\n\n'
-            tablist = [('Data',string.join(datahtml,'\n'),self.titleText('front','data')),
-                       ('TP',string.join(tphtml,'\n'),self.titleText('front','tp')),
-                       ('Annotated',string.join(annhtml,'\n'),self.titleText('front','annotated')),
+            tablist = [('Data',rje.join(datahtml,'\n'),self.titleText('front','data')),
+                       ('TP',rje.join(tphtml,'\n'),self.titleText('front','tp')),
+                       ('Annotated',rje.join(annhtml,'\n'),self.titleText('front','annotated')),
                        ('Novel',tabberHTML('Novel',unslimtab,level=1),self.titleText('front','novel')),
                        ('More...',moretext,self.titleText('front','more'))]
             fulltab = [('Genes',tabberHTML('Gene',genetab,level=1),self.titleText('front','gene')),
@@ -1466,7 +1466,7 @@ class SLiMHTML(rje.RJE_Object):
                     for ptype in ['ppi','y2h','bin','com']:
                         if entry[ptype] == 'n/a': continue
                         elif entry[ptype]:
-                            (pattern,sig) = string.split(entry[ptype])
+                            (pattern,sig) = rje.split(entry[ptype])
                             if pattern not in tpslims: tpslims.append(pattern)
                 tpslims.sort(); tx = 0.0; ttot = len(tpslims)
                 for slim in tpslims:
@@ -1508,9 +1508,9 @@ class SLiMHTML(rje.RJE_Object):
                 if interest: uhtml += [fthtml]
                 self.progLog('\r#FTHTM','Making SLiMFT HTML Page: %.2f%%' % (ux/utot)); ux += 100.0
             ### ~ [2] ~ Main code ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            tablist = [('TP',string.join(tphtml,'\n'),self.titleText('front','tp')),
-                       ('Annotated',string.join(annhtml,'\n'),self.titleText('front','annotated')),
-                       ('Novel',string.join(uhtml,'\n'),self.titleText('front','novel'))]
+            tablist = [('TP',rje.join(tphtml,'\n'),self.titleText('front','tp')),
+                       ('Annotated',rje.join(annhtml,'\n'),self.titleText('front','annotated')),
+                       ('Novel',rje.join(uhtml,'\n'),self.titleText('front','novel'))]
             tablist.append(('More...',
                             '<p>Click <a href="./index.htm">here</a> to return to the summary data and download page.</p>\n<p>Click <a href="./full.htm">here</a> to access data by gene/domain/pattern.</p>',
                             self.titleText('front','more')))
@@ -1519,13 +1519,13 @@ class SLiMHTML(rje.RJE_Object):
             open(fthfile,'w').write(html + tabberHTML('SLiMFT',tablist,level=0) + htmlTail())
             self.printLog('\r#FTHTM','SLiMFT HTML Page data output to %s' % fthfile)
             fthfile = self.info['HTMLPath'] + 'slimft_tp.htm'
-            open(fthfile,'w').write(string.join([html]+tphtml+[htmlTail()],'\n'))
+            open(fthfile,'w').write(rje.join([html]+tphtml+[htmlTail()],'\n'))
             self.printLog('\r#FTHTM','SLiMFT HTML Page data output to %s' % fthfile)
             fthfile = self.info['HTMLPath'] + 'slimft_known.htm'
-            open(fthfile,'w').write(string.join([html]+annhtml+[htmlTail()],'\n'))
+            open(fthfile,'w').write(rje.join([html]+annhtml+[htmlTail()],'\n'))
             self.printLog('\r#FTHTM','SLiMFT HTML Page data output to %s' % fthfile)
             fthfile = self.info['HTMLPath'] + 'slimft_novel.htm'
-            open(fthfile,'w').write(string.join([html]+uhtml+[htmlTail()],'\n'))
+            open(fthfile,'w').write(rje.join([html]+uhtml+[htmlTail()],'\n'))
             self.printLog('\r#FTHTM','SLiMFT HTML Page data output to %s' % fthfile)
         except: self.errorLog('slimFTPage Error')
 #########################################################################################################################
@@ -1542,17 +1542,17 @@ class SLiMHTML(rje.RJE_Object):
         if 'Class' not in data or 'Annotation' not in data: return ''
         adb = self.db().getTable('Annotation')
         title = []
-        for known in string.split(data['Annotation'],','):
+        for known in rje.split(data['Annotation'],','):
             if known not in adb.data(): title.append(known)
             else:
                 entry = adb.data()[known]
                 title.append('%s: %s' % (known,entry['Link']))
-        return '<b title="%s">%s</b>' % (string.join(title,'; '),data['Class'])
+        return '<b title="%s">%s</b>' % (rje.join(title,'; '),data['Class'])
 #########################################################################################################################
     def svgCode(self,svglink,title):    ### Returns HTML Code for SVG file embedding.
         '''Returns HTML Code for SVG file embedding.'''
         try:
-            svgfile = self.info['HTMLPath'] + string.join(string.split(svglink,'/')[1:],'/')
+            svgfile = self.info['HTMLPath'] + rje.join(rje.split(svglink,'/')[1:],'/')
             svghtm = '<p title="%s">\n' % (title)
             try: (width,height) = rje.matchExp('<svg width="(\d+)" height="(\d+)" version="1.1"',open(svgfile,'r').read())
             except: (width,height) = (1600,1600)
@@ -1597,7 +1597,7 @@ class SLiMHTML(rje.RJE_Object):
                     alt = '%s interactome image not yet made' % dataset
                     title = 'Graphical representation of %s interactome. Click to open in new window. Larger interactomes may not be clear. See tables for details.' % dataset
                     inthtml += ['<h2>%s Interactome</h2>' % dataset,'<a href="%s" target="_blank"><img src="%s" alt="%s" title="%s" width=1000></a>' % (intpng,intpng,alt,title)]
-            if inthtml: tablist.append(('Interactome',string.join(inthtml,'\n'),'Interactome graphics'))
+            if inthtml: tablist.append(('Interactome',rje.join(inthtml,'\n'),'Interactome graphics'))
             ## ~ [1c] ~ UPC tab ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             tablist.append(('UPC',self.UPCHTML(gene),'UPC clustering of spoke proteins'))
             ## ~ [1c] ~ Hub Results Summary tab ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
@@ -1614,7 +1614,7 @@ class SLiMHTML(rje.RJE_Object):
                     data = occdb.subset('Hub',gene)
                     hubhtml.append(self.resultTableHTML(headers,data,True,drop=self.list['DropFields']))
             else: hubhtml.append('<i>No Hub Datasets.</i>')
-            tablist.insert(0,('Hub',string.join(hubhtml,'\n'),'%s Hub results summary tables' % gene))
+            tablist.insert(0,('Hub',rje.join(hubhtml,'\n'),'%s Hub results summary tables' % gene))
             #-- Summary graphics?
             ## ~ [1d] ~ Spoke Summary Tab (SLiM Occurrences in "Gene") ~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             sphtml = ['<h2>%s Spoke results summary</h2>' % gene]
@@ -1624,7 +1624,7 @@ class SLiMHTML(rje.RJE_Object):
                 sphtml.append(self.resultTableHTML(headers,data,True,drop=self.list['DropFields']+['Spoke','Desc']))
             elif gene in self.data('DBXRef'): sphtml.append('<i>No spoke results.</i>')
             else: sphtml.append('<i>No sequence mapping.</i>')
-            tablist.insert(1,('Spoke',string.join(sphtml,'\n'),'%s Spoke results summary tables' % gene))
+            tablist.insert(1,('Spoke',rje.join(sphtml,'\n'),'%s Spoke results summary tables' % gene))
             ## ~ [1e] ~ UniFake tab ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             if gene in self.data('DBXRef'):
                 ufile = rje.makePath(self.info['HTMLPath']+'unifake') + '%s.html' % seqid
@@ -1645,7 +1645,7 @@ class SLiMHTML(rje.RJE_Object):
                     data = occdb.subset('Spoke',gene)
                     rseqhtml.append(self.resultTableHTML(headers,data,True,drop=self.list['DropFields']+['Spoke','Desc']))
                 else: rseqhtml.append('<i>No signficiant RSeq results.</i>')
-                tablist.append(('RSeq',string.join(rseqhtml,'\n'),'Randomised sequence (RSeq) datasets returning significant %s Spoke results' % gene))
+                tablist.append(('RSeq',rje.join(rseqhtml,'\n'),'Randomised sequence (RSeq) datasets returning significant %s Spoke results' % gene))
             ## ~ [1g] ~ RUPC Results tab ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             if gene in self.data('DBXRef'): 
                 rseqhtml = ['<h2>%s RUPC results summary</h2>' % gene]
@@ -1656,7 +1656,7 @@ class SLiMHTML(rje.RJE_Object):
                     data = occdb.subset('Spoke',gene)
                     rseqhtml.append(self.resultTableHTML(headers,data,True,drop=self.list['DropFields']+['Spoke','Desc']))
                 else: rseqhtml.append('<i>No signficiant RUPC results.</i>')
-                tablist.append(('RUPC',string.join(rseqhtml,'\n'),'Randomised UPC (RUPC) datasets returning significant %s Spoke results' % gene))
+                tablist.append(('RUPC',rje.join(rseqhtml,'\n'),'Randomised UPC (RUPC) datasets returning significant %s Spoke results' % gene))
             #- Modify the old code (below)
 
             ### ~ [2] ~ Generate HTML page ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -1708,7 +1708,7 @@ class SLiMHTML(rje.RJE_Object):
                 if gdict:
                     ghtml = []
                     for g in rje.sortKeys(gdict): ghtml.append('%s (%d)' % (gdict[g],gcount[g]))
-                    gtab.append(('GO_%s' % gtype,string.join(ghtml,' ~ '),self.titleText('go',gtype)))
+                    gtab.append(('GO_%s' % gtype,rje.join(ghtml,' ~ '),self.titleText('go',gtype)))
             if gtab:
                 gtab.insert(0,('^','Click on GO tabs for Biological Process (BP), Cellular Component (CC), or Molecular Function (MF) GO terms associated with %s.' % domain,'Compress GO tabs'))
                 html += ['','<!-- ~~~~ %s GO tabs ~~~~ -->' % domain,tabberHTML('GO',gtab),
@@ -1724,9 +1724,9 @@ class SLiMHTML(rje.RJE_Object):
                         #pgene.append('<a href="../gene/%s.html">%s</a>' % (entry['Gene'],entry['Gene']))
                         pgene.append(self.geneLink(entry['Gene']))
                 pgene.sort()
-            ghtml = ['','<h2>Genes containing PFam Domains %s</h2>' % domain,string.join(pgene,' ~ ')]
+            ghtml = ['','<h2>Genes containing PFam Domains %s</h2>' % domain,rje.join(pgene,' ~ ')]
             if not pgene: ghtml += ['<i>None.</i>']
-            tablist.append(('Genes',string.join(ghtml,'\n'),'Genes containing PFam Domains %s' % domain))
+            tablist.append(('Genes',rje.join(ghtml,'\n'),'Genes containing PFam Domains %s' % domain))
             ## ~ [2b] ~ Interactors tab ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             tablist.append(('Interactors',self.domainInteractorsTableHTML(domain),'Table of %s interactors' % domain))
             ## ~ [2c] ~ Interactome tab ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
@@ -1745,7 +1745,7 @@ class SLiMHTML(rje.RJE_Object):
                     alt = '%s interactome image not yet made' % dataset
                     title = 'Graphical representation of %s interactome. Click to open in new window. Larger interactomes may not be clear. See tables for details.' % dataset
                     inthtml += ['<h2>%s Interactome</h2>' % dataset,'<a href="%s" target="_blank"><img src="%s" alt="%s" title="%s" width=1000></a>' % (intpng,intpng,alt,title)]
-            if inthtml: tablist.append(('Interactome',string.join(inthtml,'\n'),'Interactome graphics'))
+            if inthtml: tablist.append(('Interactome',rje.join(inthtml,'\n'),'Interactome graphics'))
             ## ~ [2c] ~ UPC tab ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             tablist.append(('UPC',self.UPCHTML(domain,domain=True),'UPC clustering of spoke proteins'))
             ## ~ [2d] ~ Hub Results Summary tab ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
@@ -1762,12 +1762,12 @@ class SLiMHTML(rje.RJE_Object):
                     data = occdb.subset('Hub',domain)
                     hubhtml.append(self.resultTableHTML(headers,data,True,drop=self.list['DropFields']))
             else: hubhtml.append('<i>No Hub Datasets.</i>')
-            tablist.insert(0,('Hub',string.join(hubhtml,'\n'),'%s Hub results summary tables' % domain))
+            tablist.insert(0,('Hub',rje.join(hubhtml,'\n'),'%s Hub results summary tables' % domain))
             #-- Summary graphics?
             ### ~ [3] ~ Generate HTML page ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             hfile = '%s%s.html' % (rje.makePath(self.info['HTMLPath'] + 'domain/'),domain)
             #x#self.deBug(tablist)
-            html = string.join(html,'\n') + self.tabberHTML(domain,tablist)
+            html = rje.join(html,'\n') + self.tabberHTML(domain,tablist)
             html += htmlTail()
             open(hfile,'w').write(html)
         except: self.errorLog('domainPage Error')
@@ -1782,7 +1782,7 @@ class SLiMHTML(rje.RJE_Object):
                     '<h3><a href="./slim/%s.html">%s</a></h3>' % (code,slim)]
             headers = mdb.fields()
             data = mdb.subset('Pattern',slim)
-            html.append(string.replace(self.resultTableHTML(headers,data,True,drop=self.list['DropFields']+['Match']),'../','./'))
+            html.append(rje.replace(self.resultTableHTML(headers,data,True,drop=self.list['DropFields']+['Match']),'../','./'))
             spokelist = []; rawspoke = []
             for entry in odb.indexEntries('Pattern',slim):
                 if entry['Spoke'] != '-': spokelist.append(self.geneLink(entry['Spoke'],frontpage=True));
@@ -1790,15 +1790,15 @@ class SLiMHTML(rje.RJE_Object):
                 rawspoke.append(entry['Seq'])
             uspokelist = rje.sortUnique(spokelist); rawspoke = rje.sortUnique(rawspoke)
             for i in range(len(uspokelist)): uspokelist[i] = '%s (%d)' % (uspokelist[i],spokelist.count(uspokelist[i]))
-            html += ['<p><b>Spokes (%d): </b>%s</p></hr width="50%%">' % (len(uspokelist),string.join(uspokelist,' ~ '))]
+            html += ['<p><b>Spokes (%d): </b>%s</p></hr width="50%%">' % (len(uspokelist),rje.join(uspokelist,' ~ '))]
             ### ~ [2] ~ UniFake Summary ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             hfile = '%s%s.html' % (rje.makePath(self.info['HTMLPath'] + 'slim/'),code)
             try:
-                uhtml = string.split(open(hfile,'r').read(),'UniFake TabberTab')[1]
-                uhtml = string.split(uhtml,'PRE>')[1]
-                html += ['<PRE>%sPRE>' % string.replace(uhtml,'../','./')]
+                uhtml = rje.split(open(hfile,'r').read(),'UniFake TabberTab')[1]
+                uhtml = rje.split(uhtml,'PRE>')[1]
+                html += ['<PRE>%sPRE>' % rje.replace(uhtml,'../','./')]
             except: html += ['<i>%s UniFake problem</i>' % slim]
-            return string.join(html,'\n')
+            return rje.join(html,'\n')
         except: self.errorLog('%s frontPageFT Error' % slim)
 #########################################################################################################################
     def slimPage(self,slim):    ### Generates HTML for domain page
@@ -1835,21 +1835,21 @@ class SLiMHTML(rje.RJE_Object):
             mdb = self.db().getTable('Main')
             odb = self.db().getTable('Occ')
             #hublist = []
-            #for entry in mdb.indexEntries('Pattern',slim): hublist.append('%s (%s)' % (self.geneLink(entry['Hub']),rje_slim.expectString(string.atof(entry['Sig']))))
+            #for entry in mdb.indexEntries('Pattern',slim): hublist.append('%s (%s)' % (self.geneLink(entry['Hub']),rje_slim.expectString(rje.atof(entry['Sig']))))
             #hublist.sort()
-            #hublist = string.join(hublist,' ~ ')
+            #hublist = rje.join(hublist,' ~ ')
             #html += ['<tr><td colspan=2><p>%sHubs: </FONT>%s</p></td></tr>' % (dfont,hublist)]
             genelist = []; domlist = []; randlist = []
             for entry in mdb.indexEntries('Pattern',slim):
-                if entry['Dataset'][-3:] == 'dom': domlist.append('%s (%s)' % (domainLink(entry['Hub']),rje_slim.expectString(string.atof(entry['Sig']))))
-                elif entry['Dataset'][:4] in ['rseq','rupc']: randlist.append('%s (%s)' % (randLink(entry['Dataset']),rje_slim.expectString(string.atof(entry['Sig']))))
-                else: genelist.append('%s (%s)' % (self.geneLink(entry['Hub']),rje_slim.expectString(string.atof(entry['Sig']))))
+                if entry['Dataset'][-3:] == 'dom': domlist.append('%s (%s)' % (domainLink(entry['Hub']),rje_slim.expectString(rje.atof(entry['Sig']))))
+                elif entry['Dataset'][:4] in ['rseq','rupc']: randlist.append('%s (%s)' % (randLink(entry['Dataset']),rje_slim.expectString(rje.atof(entry['Sig']))))
+                else: genelist.append('%s (%s)' % (self.geneLink(entry['Hub']),rje_slim.expectString(rje.atof(entry['Sig']))))
             genelist.sort(); domlist.sort()
-            if genelist: html += ['<tr><td colspan=2><p>%sGene Hubs (%d): </FONT>%s</p></td></tr>' % (dfont,len(genelist),string.join(genelist,' ~ '))]
+            if genelist: html += ['<tr><td colspan=2><p>%sGene Hubs (%d): </FONT>%s</p></td></tr>' % (dfont,len(genelist),rje.join(genelist,' ~ '))]
             else: html += ['<tr><td colspan=2><p>%sGene Hubs: </FONT><i>None.</i></p></td></tr>' % (dfont)]
-            if domlist: html += ['<tr><td colspan=2><p>%sDomain Hubs (%d): </FONT>%s</p></td></tr>' % (dfont,len(domlist),string.join(domlist,' ~ '))]
+            if domlist: html += ['<tr><td colspan=2><p>%sDomain Hubs (%d): </FONT>%s</p></td></tr>' % (dfont,len(domlist),rje.join(domlist,' ~ '))]
             else: html += ['<tr><td colspan=2><p>%sDomain Hubs: </FONT><i>None.</i></p></td></tr>' % (dfont)]
-            if randlist: html += ['<tr><td colspan=2><p>%sRandom Datasets (%d): </FONT>%s</p></td></tr>' % (dfont,len(randlist),string.join(randlist,' ~ '))]
+            if randlist: html += ['<tr><td colspan=2><p>%sRandom Datasets (%d): </FONT>%s</p></td></tr>' % (dfont,len(randlist),rje.join(randlist,' ~ '))]
             else: html += ['<tr><td colspan=2><p>%sRandom Datasets: </FONT><i>None.</i></p></td></tr>' % (dfont)]
             spokelist = []; rawspoke = []
             for entry in odb.indexEntries('Pattern',slim):
@@ -1858,7 +1858,7 @@ class SLiMHTML(rje.RJE_Object):
                 rawspoke.append(entry['Seq'])
             uspokelist = rje.sortUnique(spokelist); rawspoke = rje.sortUnique(rawspoke)
             for i in range(len(uspokelist)): uspokelist[i] = '%s (%d)' % (uspokelist[i],spokelist.count(uspokelist[i]))
-            html += ['<tr><td colspan=2><p>%sSpokes (%d): </FONT>%s</p></td></tr>' % (dfont,len(uspokelist),string.join(uspokelist,' ~ '))]
+            html += ['<tr><td colspan=2><p>%sSpokes (%d): </FONT>%s</p></td></tr>' % (dfont,len(uspokelist),rje.join(uspokelist,' ~ '))]
             html += ['</table>','<!-- ~~~~ End %s SLiM Summary details table ~~~~ -->' % slim,'']
             ## ~ [1a] Add GO annotation for spoke proteins ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             dbxref = self.db().getTable('DBXRef')
@@ -1883,7 +1883,7 @@ class SLiMHTML(rje.RJE_Object):
                     ghtml = []
                     for g in rje.sortKeys(gdict):
                         if gcount[g] > 1: ghtml.append('%s (%d)' % (gdict[g],gcount[g]))
-                    gtab.append(('GO_%s' % gtype,string.join(ghtml,' ~ '),self.titleText('go',gtype)))
+                    gtab.append(('GO_%s' % gtype,rje.join(ghtml,' ~ '),self.titleText('go',gtype)))
             if gtab:
                 gtab.insert(0,('^','Click on GO tabs for Biological Process (BP), Cellular Component (CC), or Molecular Function (MF) GO terms associated with %s (2+ hubs/spokes).' % slim,'Compress GO tabs'))
                 html += ['','<!-- ~~~~ %s GO tabs ~~~~ -->' % slim,tabberHTML('GO',gtab),
@@ -1898,14 +1898,14 @@ class SLiMHTML(rje.RJE_Object):
             headers = mdb.fields()
             data = mdb.subset('Pattern',slim)
             hubhtml.append(self.resultTableHTML(headers,data,True,drop=self.list['DropFields']+['Match']))
-            tablist.append(('Hub',string.join(hubhtml,'\n'),'%s Hub results summary' % slim))
+            tablist.append(('Hub',rje.join(hubhtml,'\n'),'%s Hub results summary' % slim))
             #-- Summary graphics?
             ## ~ [2b] ~ Spoke Summary Tab (SLiM Occurrences in "Gene") ~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             sphtml = ['<h2>%s Spoke occurrences</h2>' % slim]
             headers = odb.fields()
             data = odb.subset('Pattern',slim)
             sphtml.append(self.resultTableHTML(headers,data,True,drop=self.list['DropFields']))
-            tablist.append(('Spoke',string.join(sphtml,'\n'),'%s Spoke results summary' % slim))
+            tablist.append(('Spoke',rje.join(sphtml,'\n'),'%s Spoke results summary' % slim))
             #-- Summary graphics?
             ## ~ [2c] ~ CompariMotif ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             chtml = ['<h2>%s CompariMotif search results</h2>' % slim]
@@ -1913,7 +1913,7 @@ class SLiMHTML(rje.RJE_Object):
             if slim in cdb.index('Pattern'):
                 chtml.append(self.resultTableHTML(cdb.fields(),cdb.indexEntries('Pattern',slim),asdict=False,drop=['Pattern','Rank']))
             else: chtml.append('<i>No CompariMotif hits.</i>')
-            tablist.append(('CompariMotif',string.join(chtml,'\n'),'%s CompariMotif search results' % slim))
+            tablist.append(('CompariMotif',rje.join(chtml,'\n'),'%s CompariMotif search results' % slim))
             ## ~ [2d] ~ Interactome tab ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             inthtml = []
             if self.opt['SVG']:
@@ -1926,7 +1926,7 @@ class SLiMHTML(rje.RJE_Object):
                 alt = '%s interactome image not yet made' % code
                 title = 'Graphical representation of %s interactome, Hubs in Centre and Spokes around edge. Click to open in new window. Larger interactomes may not be clear. See tables for details.' % code
                 inthtml += ['<h2>%s Interactome</h2>' % slim,'<a href="%s" target="_blank"><img src="%s" alt="%s" title="%s" width=1000></a>' % (intpng,intpng,alt,title)]
-            tablist.append(('Interactome',string.join(inthtml,'\n'),'Interactome graphics'))
+            tablist.append(('Interactome',rje.join(inthtml,'\n'),'Interactome graphics'))
             ## ~ [2e] ~ UniFake tab ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             ufhtml = ['<h2>UniFake features overlapping motif occurrences.</h2>','<PRE>']
             for seqid in rawspoke:
@@ -1940,27 +1940,27 @@ class SLiMHTML(rje.RJE_Object):
                     uhtml = open(ufile,'r').read()
                     uhtml = uhtml[uhtml.find('<PRE>'):][5:]
                     uhtml = uhtml[:uhtml.find('</PRE>')]
-                    uhtml = string.split(uhtml,'\n')
+                    uhtml = rje.split(uhtml,'\n')
                     for ft in uhtml:
                         if not ft: continue
-                        ftsplit = string.split(ft)
+                        ftsplit = rje.split(ft)
                         if not ftsplit: continue
                         if ftsplit[0] not in ['ID','DE','GN','FT']: continue
                         if ftsplit[0] == 'GN' and 'href=' not in ft:
                             id = rje.matchExp('^(GN\s+Name=)(\S+)(;.*)',ft)
-                            if id: ft = string.join([id[0],self.geneLink(id[1]),id[2]],'')
+                            if id: ft = rje.join([id[0],self.geneLink(id[1]),id[2]],'')
                         if ftsplit[0] != 'FT': ufhtml.append(ft); continue
                         if ftsplit[1] in ['CHAIN']: continue
                         if ftsplit[1] == 'SLIM':
-                            try: start = string.atoi(ftsplit[2]); end = string.atoi(ftsplit[3])
+                            try: start = rje.atoi(ftsplit[2]); end = rje.atoi(ftsplit[3])
                             except:
                                 try:
-                                    psplit = string.split(string.join(string.split(ft,'>')[1:],'<'),'<')
-                                    start = string.atoi(psplit[0])
-                                    end = string.atoi(psplit[4])
+                                    psplit = rje.split(rje.join(rje.split(ft,'>')[1:],'<'),'<')
+                                    start = rje.atoi(psplit[0])
+                                    end = rje.atoi(psplit[4])
                                 except: continue
                         else:
-                            try: start = string.atoi(ftsplit[2]); end = string.atoi(ftsplit[3])
+                            try: start = rje.atoi(ftsplit[2]); end = rje.atoi(ftsplit[3])
                             except: continue
                         overlap = False
                         for (pstart,pend) in occpos:
@@ -1971,12 +1971,12 @@ class SLiMHTML(rje.RJE_Object):
                         if overlap: ufhtml.append(ft)
                     ufhtml.append('//')
                 else: ufhtml.append('<i>%s UniFake file to be generated.</i>' % seqid)
-                #self.deBug(string.join(ufhtml[dx:],'\n'))
+                #self.deBug(rje.join(ufhtml[dx:],'\n'))
             ufhtml.append('</PRE>')
-            tablist.append(('UniFake',string.join(ufhtml,'\n'),'Features from modified %s spoke UniProt entries' % slim))
+            tablist.append(('UniFake',rje.join(ufhtml,'\n'),'Features from modified %s spoke UniProt entries' % slim))
             ### ~ [3] ~ Generate HTML page ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             hfile = '%s%s.html' % (rje.makePath(self.info['HTMLPath'] + 'slim/'),code)
-            html = string.join(html,'\n') + tabberHTML(code,tablist)
+            html = rje.join(html,'\n') + tabberHTML(code,tablist)
             html += htmlTail()
             open(hfile,'w').write(html)
         except: self.errorLog('slimPage Error')
@@ -2015,9 +2015,9 @@ class SLiMHTML(rje.RJE_Object):
                 #        else: pgene.append('<a href="../gene/%s.html">%s</a>' % (entry['Gene'],entry['Gene']))
                 pgene.append(self.geneLink(self.gene(seq)))
             pgene.sort()
-            ghtml = ['','<h2>Genes in %s</h2>' % dataset,string.join(pgene,' ~ ')]
+            ghtml = ['','<h2>Genes in %s</h2>' % dataset,rje.join(pgene,' ~ ')]
             if not pgene: ghtml += ['<i>None.</i>']
-            tablist.append(('Genes',string.join(ghtml,'\n'),'Genes in %s' % dataset))
+            tablist.append(('Genes',rje.join(ghtml,'\n'),'Genes in %s' % dataset))
             ## ~ [2b] ~ Interactors tab ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             #!# Consider adding indicator of shared interactors?
             ## ~ [2c] ~ Interactome tab ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
@@ -2038,7 +2038,7 @@ class SLiMHTML(rje.RJE_Object):
                 headers = occdb.fields()
                 data = occdb.subset('Dataset',dataset)
                 hubhtml.append(self.resultTableHTML(headers,data,True,drop=self.list['DropFields']))
-            tablist.insert(0,('Sig',string.join(hubhtml,'\n'),'SLiM occurrences for %s results' % dataset))
+            tablist.insert(0,('Sig',rje.join(hubhtml,'\n'),'SLiM occurrences for %s results' % dataset))
             ## ~ [2d] ~ Interactome tab ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             inthtml = []
             if self.opt['SVG']:
@@ -2051,10 +2051,10 @@ class SLiMHTML(rje.RJE_Object):
                 alt = '%s interactome image not yet made' % dataset
                 title = 'Graphical representation of %s interactome. Click to open in new window. Larger interactomes may not be clear. See tables for details.' % dataset
                 inthtml += ['<h2>%s Interactome</h2>' % dataset,'<a href="%s" target="_blank"><img src="%s" alt="%s" title="%s" width=1000></a>' % (intpng,intpng,alt,title)]
-            tablist.append(('Interactome',string.join(inthtml,'\n'),'Interactome graphics'))
+            tablist.append(('Interactome',rje.join(inthtml,'\n'),'Interactome graphics'))
             ### ~ [3] ~ Generate HTML page ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             hfile = '%s%s.html' % (rje.makePath(self.info['HTMLPath'] + '%s/' % rtype),dataset)
-            html = string.join(html,'\n') + self.tabberHTML(dataset,tablist)
+            html = rje.join(html,'\n') + self.tabberHTML(dataset,tablist)
             html += htmlTail()
             open(hfile,'w').write(html)
         except: self.errorLog('randPage Error')
@@ -2125,21 +2125,21 @@ class SLiMHTML(rje.RJE_Object):
             self.deBug(tabhtml)
             if tabhtml:
                 tabhtml = ['<H2>GO Relationships</H2>','<ul>'] + tabhtml + ['</ul>']
-                tablist.append(('GO',string.join(tabhtml,'\n'),'GO Term relationships for %s' % go))
+                tablist.append(('GO',rje.join(tabhtml,'\n'),'GO Term relationships for %s' % go))
             ## ~ [2a] ~ Gene List ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             tabhtml = []
             genes.sort()
             for gene in genes: tabhtml.append(self.geneLink(gene))
             if tabhtml: tabhtml[0] = '<h2>%s Genes</h2><p>\n%s' % (go,tabhtml[0])
             else: tabhtml = ['<i>No genes in analysis mapped to %s</i>' % go]
-            tablist.append(('Genes',string.join(tabhtml,jtxt),'Genes mapped to %s' % go))
+            tablist.append(('Genes',rje.join(tabhtml,jtxt),'Genes mapped to %s' % go))
             ## ~ [2b] ~ Domain List ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             tabhtml = []
             domains.sort()
             for hub in domains: tabhtml.append(domainLink(hub))
             if tabhtml: tabhtml[0] = '<h2>%s Domains</h2><p>\n%s' % (go,tabhtml[0])
             else: tabhtml = ['<i>No domains in analysis mapped to %s</i>' % go]
-            tablist.append(('Domains',string.join(tabhtml,jtxt),'Domains mapped to %s' % go))
+            tablist.append(('Domains',rje.join(tabhtml,jtxt),'Domains mapped to %s' % go))
             ## ~ [2c] ~ SigHub List ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             tabhtml = []
             sighubs.sort()
@@ -2148,7 +2148,7 @@ class SLiMHTML(rje.RJE_Object):
                 else: tabhtml.append(domainLink(hub))
             if tabhtml: tabhtml[0] = '<h2>%s Hubs with significant results</h2><p>\n%s' % (go,tabhtml[0])
             else: tabhtml = ['<i>No %s hubs returned significant results</i>' % go]
-            tablist.append(('Hubs',string.join(tabhtml,jtxt),'Significant Hubs mapped to %s' % go))
+            tablist.append(('Hubs',rje.join(tabhtml,jtxt),'Significant Hubs mapped to %s' % go))
             ## ~ [2d] ~ SigSpoke List ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             tabhtml = []
             sigspokes.sort()
@@ -2158,17 +2158,17 @@ class SLiMHTML(rje.RJE_Object):
                 else: tabhtml.append(prot)
             if tabhtml: tabhtml[0] = '<h2>%s Spokes with significant results</h2><p>\n%s' % (go,tabhtml[0])
             else: tabhtml = ['<i>No %s spokes returned significant results</i>' % go]
-            tablist.append(('Spokes',string.join(tabhtml,jtxt),'Significant Spokes mapped to %s' % go))
+            tablist.append(('Spokes',rje.join(tabhtml,jtxt),'Significant Spokes mapped to %s' % go))
             ## ~ [2e] ~ SLiM List ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             tabhtml = []
             slims.sort()
             for slim in slims: tabhtml.append(slimLink(slim))
             if tabhtml: tabhtml[0] = '<h2>%s SLiM predictions</h2><p>\n%s' % (go,tabhtml[0])
             else: tabhtml = ['<i>No %s significant SLiM predictions</i>' % go]
-            tablist.append(('SLiMs',string.join(tabhtml,jtxt),'Significant SLiM predictions mapped to %s' % go))
+            tablist.append(('SLiMs',rje.join(tabhtml,jtxt),'Significant SLiM predictions mapped to %s' % go))
             ### ~ [3] ~ Generate HTML page ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             hfile = '%s%s.html' % (rje.makePath(self.info['HTMLPath'] + 'go/'),goid)
-            html = string.join(html,'\n') + tabberHTML(goid,tablist)
+            html = rje.join(html,'\n') + tabberHTML(goid,tablist)
             html += htmlTail()
             open(hfile,'w').write(html)
             self.deBug(html)
@@ -2201,13 +2201,13 @@ class SLiMHTML(rje.RJE_Object):
             for i in range(2):
                 for ptype in ['ppi','y2h','bin','com']: html.append('<th title="%s">%s</th>' %  (self.titleText('ppi',ptype),ptype))
             html.append('</tr>')
-                    #string.join(['<tr><th align=left>Gene</th><th align=left>Evidence'] + ['ppi','bin','com','y2h'] * 2 ,'</th><th>' )] + ['</th></tr>']
+                    #rje.join(['<tr><th align=left>Gene</th><th align=left>Evidence'] + ['ppi','bin','com','y2h'] * 2 ,'</th><th>' )] + ['</th></tr>']
             ## ~ [2b] Table contents ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             for i in ilist[0:]:
                 html += ['<tr valign="top"><td width=90>%s</td>' % self.geneLink(i)]
                 hkey = '%s\t%s' % (gene,i); skey = '%s\t%s' % (i,gene)
-                if hkey in hdb: html += ['<td width=350>%s</td>' % string.join(string.split(hdb[hkey]['Evidence'],'|'),';<br>')]
-                else: html += ['<td width=350>%s</td>' % string.join(string.split(sdb[skey]['Evidence'],'|'),';<br>')]
+                if hkey in hdb: html += ['<td width=350>%s</td>' % rje.join(rje.split(hdb[hkey]['Evidence'],'|'),';<br>')]
+                else: html += ['<td width=350>%s</td>' % rje.join(rje.split(sdb[skey]['Evidence'],'|'),';<br>')]
                 ## [i] Hub SLiMs ##
                 for type in ['ppi','y2h','bin','com']:
                     if hkey in hdb and hdb[hkey][type] == 'Y':
@@ -2215,9 +2215,9 @@ class SLiMHTML(rje.RJE_Object):
                         slist = []
                         for entry in occ.entryList(rje.sortKeys(hocc)):
                             if entry['Dataset'] == dset and entry['Spoke'] == i:
-                                sres = '%s (%s)' % (slimLink(entry['Pattern']),rje_slim.expectString(string.atof(entry['Sig'])))
+                                sres = '%s (%s)' % (slimLink(entry['Pattern']),rje_slim.expectString(rje.atof(entry['Sig'])))
                                 if sres not in slist: slist.append(sres)
-                        if slist: html += ['<td align=center width=70>%s</td>' % string.join(slist,'; ')]
+                        if slist: html += ['<td align=center width=70>%s</td>' % rje.join(slist,'; ')]
                         else: html += ['<td align=center width=70>None</td>']
                     else: html += ['<td align=center width=70>-</td>']
                 ## [ii] Spoke SLiMs ##
@@ -2227,15 +2227,15 @@ class SLiMHTML(rje.RJE_Object):
                         slist = []
                         for entry in occ.entryList(rje.sortKeys(socc)):
                             if entry['Dataset'] == dset and entry['Spoke'] == gene:
-                                slist.append('%s (%s)' % (slimLink(entry['Pattern']),rje_slim.expectString(string.atof(entry['Sig']))))
-                        if slist: html += ['<td align=center width=70>%s</td>' % string.join(slist,'; ')]
+                                slist.append('%s (%s)' % (slimLink(entry['Pattern']),rje_slim.expectString(rje.atof(entry['Sig']))))
+                        if slist: html += ['<td align=center width=70>%s</td>' % rje.join(slist,'; ')]
                         else: html += ['<td align=center width=70>None</td>']
                     else: html += ['<td align=center width=70>-</td>']
                 html += ['</tr>','']
         except: self.errorLog('interactorTableHTML Error')
         ### ~ [3] Finish ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         html += ['</table>','']
-        return string.join(html,'\n')
+        return rje.join(html,'\n')
 #########################################################################################################################
     def domainTableHTML(self,gene): ### Table of interactors with evidence & SLiMs returned for 4 datasets types
         '''
@@ -2267,7 +2267,7 @@ class SLiMHTML(rje.RJE_Object):
             if ddb:
                 dlist = []
                 for domain in rje.sortKeys(ddb): dlist.append(domainLink(domain))
-                html += ['<p>%s' % string.join(dlist+['</p>'],'; ')]
+                html += ['<p>%s' % rje.join(dlist+['</p>'],'; ')]
             elif gene in self.db().getTable('DBXRef').index('Gene'): html += ['<p><i>None.</i></p>']
             else: html += ['<p><i>None. (No sequence mapped.)</i></p>']
             #html += ['<hr width=60%>','']
@@ -2280,15 +2280,15 @@ class SLiMHTML(rje.RJE_Object):
                      '<th align=left title="%s">Evidence</th>' % self.titleText('ppi','evidence')]
             for ptype in ['ppi','y2h','bin','com']: html.append('<th title="%s">%s</th>' %  (self.titleText('ppi',ptype),ptype))
             html.append('</tr>')
-                     #string.join(['<tr><th align=left>Domain</th><th align=left>Interacting Hubs</th><th align=left>Evidence'] + ['ppi','bin','com','y2h'],'</th><th>' )] + ['</th></tr>']
+                     #rje.join(['<tr><th align=left>Domain</th><th align=left>Interacting Hubs</th><th align=left>Evidence'] + ['ppi','bin','com','y2h'],'</th><th>' )] + ['</th></tr>']
             ## ~ [2b] Table contents ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             for i in ilist[0:]:
                 skey = '%s\t%s' % (i,gene)
                 html += ['<tr valign="top"><td width=150>%s</td>' % domainLink(i)]
                 hlist = []
-                for hub in string.split(sdb[skey]['Hubs'],','): hlist.append(self.geneLink(hub))
-                html += ['<td width=220>%s;</td>' % string.join(hlist,'; ')]
-                html += ['<td width=350>%s</td>' % string.join(string.split(sdb[skey]['Evidence'],'|'),'; ')]
+                for hub in rje.split(sdb[skey]['Hubs'],','): hlist.append(self.geneLink(hub))
+                html += ['<td width=220>%s;</td>' % rje.join(hlist,'; ')]
+                html += ['<td width=350>%s</td>' % rje.join(rje.split(sdb[skey]['Evidence'],'|'),'; ')]
                 ## [i] Spoke SLiMs ##
                 for type in ['ppi','y2h','bin','com']:
                     if skey in sdb and sdb[skey][type] == 'Y':
@@ -2296,16 +2296,16 @@ class SLiMHTML(rje.RJE_Object):
                         slist = []
                         for entry in occ.entryList(rje.sortKeys(socc)):
                             if entry['Dataset'] == dset and entry['Spoke'] == gene:
-                                sres = '%s (%s)' % (slimLink(entry['Pattern']),rje_slim.expectString(string.atof(entry['Sig'])))
+                                sres = '%s (%s)' % (slimLink(entry['Pattern']),rje_slim.expectString(rje.atof(entry['Sig'])))
                                 if sres not in slist: slist.append(sres)
-                        if slist: html += ['<td width=70>%s</td>' % string.join(slist,'; ')]
+                        if slist: html += ['<td width=70>%s</td>' % rje.join(slist,'; ')]
                         else: html += ['<td width=70>None</td>']
                     else: html += ['<td align=center width=70>-</td>']
                 html += ['</tr>','']
         except: self.errorLog('domainTableHTML Error')
         ### ~ [3] Finish ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         html += ['</table>','']
-        return string.join(html,'\n')
+        return rje.join(html,'\n')
 #########################################################################################################################
     def domainInteractorsTableHTML(self,domain):    ### Table of interactors with evidence & SLiMs returned for 4 datasets types
         '''
@@ -2329,15 +2329,15 @@ class SLiMHTML(rje.RJE_Object):
                      '<th align=left title="%s">Evidence</th>' % self.titleText('ppi','evidence')]
             for ptype in ['ppi','y2h','bin','com']: html.append('<th title="%s">%s</th>' %  (self.titleText('ppi',ptype),ptype))
             html.append('</tr>')
-                     #string.join(['<tr><th align=left>Gene</th><th align=left>Interacting Hubs</th><th align=left>Evidence'] + ['ppi','bin','com','y2h'],'</th><th>' )] + ['</th></tr>']
+                     #rje.join(['<tr><th align=left>Gene</th><th align=left>Interacting Hubs</th><th align=left>Evidence'] + ['ppi','bin','com','y2h'],'</th><th>' )] + ['</th></tr>']
             ## ~ [2b] Table contents ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             for i in ilist[0:]:
                 skey = '%s\t%s' % (domain,i)
                 html += ['<tr valign="top"><td width=150>%s</td>' % self.geneLink(i)]
                 hlist = []
-                for hub in string.split(ppi[skey]['Hubs'],','): hlist.append(self.geneLink(hub))
-                html += ['<td width=220>%s;</td>' % string.join(hlist,'; ')]
-                html += ['<td width=350>%s</td>' % string.join(string.split(ppi[skey]['Evidence'],'|'),'; ')]
+                for hub in rje.split(ppi[skey]['Hubs'],','): hlist.append(self.geneLink(hub))
+                html += ['<td width=220>%s;</td>' % rje.join(hlist,'; ')]
+                html += ['<td width=350>%s</td>' % rje.join(rje.split(ppi[skey]['Evidence'],'|'),'; ')]
                 ## [i] Spoke SLiMs ##
                 for type in ['ppi','y2h','bin','com']:
                     if skey in ppi and ppi[skey][type] == 'Y':
@@ -2345,16 +2345,16 @@ class SLiMHTML(rje.RJE_Object):
                         slist = []
                         for entry in occ.indexEntries('Hub',domain):
                             if entry['Dataset'] == dset and entry['Spoke'] == i:
-                                sres = '%s (%s)' % (slimLink(entry['Pattern']),rje_slim.expectString(string.atof(entry['Sig'])))
+                                sres = '%s (%s)' % (slimLink(entry['Pattern']),rje_slim.expectString(rje.atof(entry['Sig'])))
                                 if sres not in slist: slist.append(sres)
-                        if slist: html += ['<td width=70>%s</td>' % string.join(slist,'; ')]
+                        if slist: html += ['<td width=70>%s</td>' % rje.join(slist,'; ')]
                         else: html += ['<td width=70>None</td>']
                     else: html += ['<td align=center width=70>-</td>']
                 html += ['</tr>','']
         except: self.errorLog('domainInteractorsTableHTML Error')
         ### ~ [3] Finish ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         html += ['</table>','']
-        return string.join(html,'\n')
+        return rje.join(html,'\n')
 #########################################################################################################################
     def pround(self,x):
         if self.opt['PRound']: p = 10 * int(x/10.0) + 5
@@ -2376,23 +2376,23 @@ class SLiMHTML(rje.RJE_Object):
             hcode = ''
             for h in headers: hcode += '<th title="%s">%s</th>\n' % (self.titleText('results',h),h)
             rows = [hcode]
-            #rows = ['<TD><B>%s</B></TD>' % string.join(headers,'</B></TD><TD><B>')]
+            #rows = ['<TD><B>%s</B></TD>' % rje.join(headers,'</B></TD><TD><B>')]
             ## ~ [2b] ~ Body ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             for dat in datalist:
                 rdata = []
                 for h in headers:
                     if h in dat:
                         if h in ['Cons','GlobID','LocID','Hyd','IUP','SA','IC'] or h[-4:] == 'mean':
-                            try: rdata.append('%.2f' % string.atof(dat[h]))
+                            try: rdata.append('%.2f' % rje.atof(dat[h]))
                             except: rdata.append('-')
                         elif h in ['Sig','FDR','dConn','sConn','ExpUP']:
                             try:
-                                rdata.append(rje_slim.expectString(string.atof(dat[h])))
+                                rdata.append(rje_slim.expectString(rje.atof(dat[h])))
                             except: rdata.append('-')
                         elif h == 'Pattern' and dat['Pattern'] != '-':
                             rdata.append('<a href="../slim/%s.html" title="%s Results page">%s</A>' % (rje_slim.slimFromPattern(dat[h]),dat[h],dat[h]))
                         elif h in ['Dataset','Hub','Seq','Spoke']:
-                            if h == 'Dataset': gene = string.join(string.split(dat['Dataset'],'.')[:-1],'.')
+                            if h == 'Dataset': gene = rje.join(rje.split(dat['Dataset'],'.')[:-1],'.')
                             elif h == 'Seq' and 'Spoke' in dat: gene = dat['Spoke']
                             else: gene = str(dat[h])
                             if h not in ['Seq','Spoke'] and 'Dataset' in dat and dat['Dataset'][-3:] == 'dom': rdata.append('<a href="../domain/%s.html" title="%s Results page">%s</A>' % (gene,gene,dat[h]))
@@ -2401,14 +2401,14 @@ class SLiMHTML(rje.RJE_Object):
                                 else: rdata.append(str(dat[h]))
                             else: rdata.append(self.geneLink(gene,frontpage=False,altgene=dat[h]))
                         elif h == 'Start_Pos':
-                            p = string.atoi(dat[h])
+                            p = rje.atoi(dat[h])
                             pngdir = '../map_png/'
                             try: basefile = '%s%s.%s' % (pngdir,dat['Dataset'],dat['Seq'])
                             except: rdata.append('%d' % p); continue
                             ofile = '%s.%s.png' % (basefile,self.pround(p))
                             rdata.append('<a href="%s" target="_blank" title="Alignment of motif occurrence">%d</a>' % (ofile,p))
                         elif h in ['Rank','End_Pos']:
-                            try: rdata.append('%d' % string.atoi(dat[h]))
+                            try: rdata.append('%d' % rje.atoi(dat[h]))
                             except: rdata.append(str(dat[h]))
                             if h == 'Rank':
                                 if 'MotifNum' in dat: rdata[-1] = '%s / %s' % (rdata[-1],dat['MotifNum'])
@@ -2434,9 +2434,9 @@ class SLiMHTML(rje.RJE_Object):
                     #        if not os.path.exists('%s%s' % (pngdir,pfile)): continue
                     #        rdata[-1] = '<a href="../motifaln_png/%s" title="Graphic of motif occurrences">%s</a>' % (pfile,rdata[-1])
                     #    except: continue
-                rows.append('<TD>%s</TD>' % string.join(rdata,'</TD><TD>'))
+                rows.append('<TD>%s</TD>' % rje.join(rdata,'</TD><TD>'))
         except: self.errorLog('resultTableHTML error')
-        return '<TABLE BORDER=%d><TR VALIGN="top">\n%s\n</TR></TABLE>\n' % (self.stat['Border'],string.join(rows,'\n</TR><TR VALIGN="top">\n'))
+        return '<TABLE BORDER=%d><TR VALIGN="top">\n%s\n</TR></TABLE>\n' % (self.stat['Border'],rje.join(rows,'\n</TR><TR VALIGN="top">\n'))
 #########################################################################################################################
     ### <5> ### Misc HTML pages                                                                                         #
 #########################################################################################################################
@@ -2471,7 +2471,7 @@ class SLiMHTML(rje.RJE_Object):
                          '<table border=%d width=1000><tr>' % self.stat['Border'],
                          '<th title="UP Number">UP</th><th title="No. Proteins in UP">N</th><th title="Corrected UP Size (Min. Spanning Tree)">MST</th><th title="Spoke Proteins in UP">Spokes</th>']
                 for up in utxt[2:]:
-                    udet = string.split(up)
+                    udet = rje.split(up)
                     uhtml += ['</tr><tr>','  <td width=30>%s</td><td width=50>%s</td><td width=70>%s</td><td width=850>' % (udet[0],udet[1],udet[2])]
                     spokes = []
                     for seq in udet[3:]:
@@ -2482,10 +2482,10 @@ class SLiMHTML(rje.RJE_Object):
                         #    spokes.append(self.geneLink(gene))
                         #else: spokes.append(seq)
                     spokes.sort()
-                    uhtml += ['    %s' % string.join(spokes,';\n    '),'  </td>']                                    
+                    uhtml += ['    %s' % rje.join(spokes,';\n    '),'  </td>']
                 ### ~ [3] ~ End ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
                 uhtml += ['</tr></table>']
-            return string.join(uhtml,'\n')
+            return rje.join(uhtml,'\n')
         except: self.errorLog('UPCHTML (%s) error' % upc); return '<p><i>UPC file error</i></p>'
 #########################################################################################################################
     def uniFakeHTML(self):  ### Generate composite HTML-linked DAT file            #774#                            #V2.0
@@ -2509,7 +2509,7 @@ class SLiMHTML(rje.RJE_Object):
                     continue
                 hfile = '%s%s.html' % (hdir,spokeseq)
                 if not self.opt['Force'] and self.checkHTML(hfile): continue
-                try: fakeacc = string.split(spokeseq,'__')[1]
+                try: fakeacc = rje.split(spokeseq,'__')[1]
                 except: continue
                 ## ~ [2b] ~ Compile UniProt data and add Features ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
                 try:
@@ -2531,11 +2531,11 @@ class SLiMHTML(rje.RJE_Object):
                     maptit = 'Alignment of motif occurrence'
                     mottit = 'Summary graphic for motif'
                     for occ in odb.entryList(odb.index('Seq')[spokeseq]):
-                        mappng = '%s.%s.%s.png' % (mapdir,occ['Dataset'],occ['Seq'],self.pround(string.atoi(occ['Start_Pos'])))
+                        mappng = '%s.%s.%s.png' % (mapdir,occ['Dataset'],occ['Seq'],self.pround(rje.atoi(occ['Start_Pos'])))
                         motpng = '%s.%s.%d.%s.png' % (motdir,occ['Dataset'],int(occ['Rank']),rje_slim.slimFromPattern(dat['Pattern']))
-                        ftdic = {'Type':'SLIM','Start':string.atoi(occ['Start_Pos']),'End':string.atoi(occ['End_Pos']),
+                        ftdic = {'Type':'SLIM','Start':rje.atoi(occ['Start_Pos']),'End':rje.atoi(occ['End_Pos']),
                                  'PosLink':'<a href="%s" target="_blank" title="%s">' % (mappng,maptit), 
-                                 'Desc':'%s Rank <a href="%s" target="_blank" title="%s">%s</a> SLiM %s (p=%s)' % (occ['Dataset'],motpng,mottit,int(occ['Rank']),occ['Pattern'],rje_slim.expectString(string.atof(occ['Sig'])))}
+                                 'Desc':'%s Rank <a href="%s" target="_blank" title="%s">%s</a> SLiM %s (p=%s)' % (occ['Dataset'],motpng,mottit,int(occ['Rank']),occ['Pattern'],rje_slim.expectString(rje.atof(occ['Sig'])))}
                         dat.list['Feature'].append(ftdic)
                 ## ~ [2d] ~ Add PPI to comments ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
                 for ppi in self.db().getTable('PPI').indexEntries('Hub',spoke):
@@ -2552,14 +2552,14 @@ class SLiMHTML(rje.RJE_Object):
                 #self.deBug(entry.dict['Data'])
                 ## Standard info ##
                 for key in ['ID','AC','DT','DE','GN','OS']:
-                    if entry.dict['Data'].has_key(key):
+                    if key in entry.dict['Data']:
                         for rest in entry.dict['Data'][key]:
                             if key == 'ID':
-                                id = string.split(rest)
-                                rest = string.join(['<a href="http://www.uniprot.org/uniprot/%s" title="Link to UniProt entry">%s</a>' % (id[0],id[0])] + id[1:])
+                                id = rje.split(rest)
+                                rest = rje.join(['<a href="http://www.uniprot.org/uniprot/%s" title="Link to UniProt entry">%s</a>' % (id[0],id[0])] + id[1:])
                             if key == 'GN':
                                 id = rje.matchExp('^(GN\s+Name=)(\S+)(;.*)',rest)
-                                if id: rest = string.join([id[0],self.geneLink(id[1]),id[2]],'')
+                                if id: rest = rje.join([id[0],self.geneLink(id[1]),id[2]],'')
                             uhtml.append('%s   %s\n' % (key,rje.chomp(rest)))
                 ## Other data, except Features and sequence ##
                 for key in rje.sortKeys(entry.dict['Data']):
@@ -2576,19 +2576,19 @@ class SLiMHTML(rje.RJE_Object):
                     ftxt += '%7s' % ('%d' % p2)
                     while len(ftxt) > 27 and ftxt[-(len('%d' % p2)+2):-len('%d' % p2)] == '  ': ftxt = ftxt[:-(len('%d' % p2)+1)] + ftxt[-len('%d' % p2):]
                     if 'PosLink' in ftdict:
-                        fsplit = string.split(ftxt)
+                        fsplit = rje.split(ftxt)
                         for i in range(1,len(fsplit)): fsplit[i] = '%s%s</a>' % (ftdict['PosLink'],ftsplit[i])
-                        ftxt = string.join(fsplit)
+                        ftxt = rje.join(fsplit)
                     ftxt += ' %s\n' % self.linkFT(ftdict['Type'],ftdict['Desc'],spokeseq)
                     uhtml.append(ftxt)
                 ## Sequence/End ##
                 uhtml.append('SQ   SEQUENCE%s%d AA;  %d MW;  000000000000000 RJE06;\n' % (' ' * (7 - len('%d' % eseq.aaLen())),eseq.aaLen(),rje_sequence.MWt(eseq.info['Sequence'])))
                 uniseq = eseq.info['Sequence'][0:]
                 while len(uniseq) > 0:
-                    uhtml.append('     %s\n' % string.join([uniseq[0:10],uniseq[10:20],uniseq[20:30],uniseq[30:40],uniseq[40:50],uniseq[50:60]],' '))
+                    uhtml.append('     %s\n' % rje.join([uniseq[0:10],uniseq[10:20],uniseq[20:30],uniseq[30:40],uniseq[40:50],uniseq[50:60]],' '))
                     uniseq = uniseq[60:]
                 uhtml.append('//\n</PRE>\n')
-                html += string.join(uhtml,'') + htmlTail()
+                html += rje.join(uhtml,'') + htmlTail()
                 open(hfile,'w').write(html)
                 self.printLog('#UNI','Generation of %s HTML-linked DAT file complete.' % spoke,screen=False)
             self.printLog('\r#UNI','Generation of HTML-linked DAT files complete.')
@@ -2598,21 +2598,21 @@ class SLiMHTML(rje.RJE_Object):
         '''Adds hyperlinks to feature text.'''
         try:### ~ [1] ~ Hyperlink SLiMs and datasets ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if type == 'SLIM':
-                dsplit = string.split(desc)
+                dsplit = rje.split(desc)
                 dset = dsplit[0]
-                hub = string.join(string.split(dset,'.')[:-1],'.')
+                hub = rje.join(rje.split(dset,'.')[:-1],'.')
                 pattern = dsplit[4]
                 slim = rje_slim.slimFromPattern(pattern)
                 if hub in self.db().getTable('PPI').index('Hub'): dsplit[0] = '<A HREF="../gene/%s.html" title="%s Results page">%s</A>' % (hub,hub,dsplit[0])
                 elif dset[:4] in ['rseq','rupc']: dsplit[0] = '<A HREF="../%s/%s.html" title="%s Results page">%s</A>' % (dset[:4],dset,dset,dsplit[0])
                 else: dsplit[0] = '<A HREF="../domain/%s.html" title="%s Results page">%s</A>' % (hub,hub,dsplit[0])
                 dsplit[4] = '<A HREF="../slim/%s.html" title="%s Results page">%s</A>' % (slim,dsplit[4],dsplit[4])
-                return string.join(dsplit)
+                return rje.join(dsplit)
             if type in ['PFAM','DOMAIN']:
-                hub = string.split(desc)[0]
+                hub = rje.split(desc)[0]
                 if hub in self.db().getTable('PFam').index('Type'):
-                    dsplit = ['<A HREF="../domain/%s.html" title="%s Results page">%s</A>' % (hub,hub,hub)] + string.split(desc)[1:]
-                    return string.join(dsplit)
+                    dsplit = ['<A HREF="../domain/%s.html" title="%s Results page">%s</A>' % (hub,hub,hub)] + rje.split(desc)[1:]
+                    return rje.join(dsplit)
         except: self.errorLog(rje_zen.Zen().wisdom())
         return desc
 #########################################################################################################################
@@ -2631,7 +2631,7 @@ class SLiMHTML(rje.RJE_Object):
                 else:
                     tdb = self.db().addEmptyTable('TitleText',['Page','ID','Title'])
                     tdb.info['Source'] = self.info['TitleText']
-                    open(self.info['TitleText'],'w').write('%s\n' % string.join(['Page','ID','Title'],'\t'))
+                    open(self.info['TitleText'],'w').write('%s\n' % rje.join(['Page','ID','Title'],'\t'))
             tkey = '%s\t%s' % (page,id)
             ### ~ [1] ~ Easy case ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if tkey in tdb.data(): return tdb.data()[tkey]['Title']
@@ -2639,7 +2639,7 @@ class SLiMHTML(rje.RJE_Object):
             #if not rje.yesNo('Add new mouseover (title) text for %s|%s?' % (page,id)): return ''
             title = rje.choice('New mouseover (title) text for %s|%s title?' % (page,id),confirm=True)
             tdb.data()[tkey] = {'Page':page,'ID':id,'Title':title}
-            open(self.info['TitleText'],'a').write('%s\n' % string.join([page,id,title],'\t'))
+            open(self.info['TitleText'],'a').write('%s\n' % rje.join([page,id,title],'\t'))
             return title
         except: self.errorLog('TitleText problem (%s|%s)' % (page,id)); return ''
 #########################################################################################################################
@@ -2649,8 +2649,8 @@ class SLiMHTML(rje.RJE_Object):
         '''Make *.mapping.fas from GOPHER alignment and occ data.'''
         try:### ~ [0] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             mdir = os.path.dirname(mfile)
-            bdir = string.join(string.split(mdir,'_')[:2]+['Build/'],'_')
-            dataset = string.replace(os.path.basename(mfile),'.mapping.fas','')
+            bdir = rje.join(rje.split(mdir,'_')[:2]+['Build/'],'_')
+            dataset = rje.replace(os.path.basename(mfile),'.mapping.fas','')
             mdb = self.db().getTable('Main')
             patlist = mdb.dataList(mdb.indexEntries('Dataset',dataset),'Pattern')
             occdb = self.db().getTable('Occ')
@@ -2694,17 +2694,17 @@ class SLiMHTML(rje.RJE_Object):
             self.printLog('#MAP','%s mapping fasta files for PNG generation' % rje.integerString(mtot))
             ### ~ [1] Process each file in turn ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             for dset in rje.sortKeys(occdb.index('Dataset')):
-                if dset[:4] == 'rseq': rsigdir = string.replace(sigdir,'Sig','RSeq_Sig')
-                elif dset[:4] == 'rupc': rsigdir = string.replace(sigdir,'Sig','RUPC_Sig')
-                else: rsigdir = string.replace(sigdir,'Sig','Real_Sig')
+                if dset[:4] == 'rseq': rsigdir = rje.replace(sigdir,'Sig','RSeq_Sig')
+                elif dset[:4] == 'rupc': rsigdir = rje.replace(sigdir,'Sig','RUPC_Sig')
+                else: rsigdir = rje.replace(sigdir,'Sig','Real_Sig')
                 mfile = '%s%s.mapping.fas' % (rsigdir,dset)
                 #if mfile not in mfiles:
-                #    mfile = string.replace(mfile,'.com.','.comppi.')
-                #    mfile = string.replace(mfile,'.ppidom.','.domppi.')
-                #    mfile = string.replace(mfile,'.comdom.','.comdomppi.')
+                #    mfile = rje.replace(mfile,'.com.','.comppi.')
+                #    mfile = rje.replace(mfile,'.ppidom.','.domppi.')
+                #    mfile = rje.replace(mfile,'.comdom.','.comdomppi.')
                 #if mfile not in mfiles: self.errorLog('Where is %s?!' % mfile); continue
                 if not os.path.exists(mfile):
-                    targz = string.replace(mfile,'mapping.fas','l5w2o2a1.FreqConsDisComp-4-6FT.tar.gz')
+                    targz = rje.replace(mfile,'mapping.fas','l5w2o2a1.FreqConsDisComp-4-6FT.tar.gz')
                     os.system('tar -xzf %s' % targz)
                 #if not os.path.exists(mfile): self.makeMapFas(mfile)
                 if not os.path.exists(mfile): self.errorLog('Where is %s?!' % mfile); continue
@@ -2726,7 +2726,7 @@ class SLiMHTML(rje.RJE_Object):
                 seqocc = {}; ox = 0; oxx = 0; px = []
                 for entry in occdb.indexEntries('Dataset',dset):
                     enseq = entry['Seq']; ox += 1
-                    pos = string.atoi(entry['Start_Pos'])
+                    pos = rje.atoi(entry['Start_Pos'])
                     basefile = '%s%s.%s' % (pngdir,dset,enseq)
                     ofile = '%s.%s.png' % (basefile,self.pround(pos))#seq.aaLen()))
                     if os.path.exists(ofile) and not self.opt['Force'] or self.pround(pos) in px: continue
@@ -2761,7 +2761,7 @@ class SLiMHTML(rje.RJE_Object):
                     rseq.relCons(relfile)
                     ## ~ [3c] ~ Call R to generate graphics ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
                     for entry in seqocc[enseq]:
-                        pos = string.atoi(entry['Start_Pos'])
+                        pos = rje.atoi(entry['Start_Pos'])
                         ofile = '%s.%s.png' % (basefile,rje.preZero(self.pround(pos),10000))#seq.aaLen()))
                         if os.path.exists(ofile) and not self.opt['Force']: continue
                         rcmd = '%s --no-restore --no-save --args "occaln" "%s" "%s"' % (self.info['RPath'],basefile,self.pround(pos))    #!# Update R code #!#
@@ -2891,15 +2891,15 @@ class SLiMHTML(rje.RJE_Object):
             except:
                 dbxref = self.db().getTable('DBXRef')
                 if prot not in dbxref.index('EnsLoci'):
-                    details = string.split(prot,'_')
+                    details = rje.split(prot,'_')
                     if details[0] != details[0].upper(): self.dict['GeneMap'][prot] = details[-1]
-                    else: self.dict['GeneMap'][prot] = string.join(details[:2],'_')
+                    else: self.dict['GeneMap'][prot] = rje.join(details[:2],'_')
                 else: self.dict['GeneMap'][prot] = dbxref.dataList(dbxref.indexEntries('EnsLoci',prot),'Gene')[0]
             if self.dict['GeneMap'][prot] in ['-','']: self.dict['GeneMap'][prot] = prot
-            for x in '!"%&\'()*+,/:;<=>?@[\\]': self.dict['GeneMap'][prot] = string.replace(self.dict['GeneMap'][prot],x,'')
+            for x in '!"%&\'()*+,/:;<=>?@[\\]': self.dict['GeneMap'][prot] = rje.replace(self.dict['GeneMap'][prot],x,'')
         elif self.dict['GeneMap'][prot] in ['-','']:
             self.dict['GeneMap'][prot] = prot                  
-            for x in '!"%&\'()*+,/:;<=>?@[\\]': self.dict['GeneMap'][prot] = string.replace(self.dict['GeneMap'][prot],x,'')
+            for x in '!"%&\'()*+,/:;<=>?@[\\]': self.dict['GeneMap'][prot] = rje.replace(self.dict['GeneMap'][prot],x,'')
         return self.dict['GeneMap'][prot]
 #########################################################################################################################
     def hubInteractomeSVG(self,dataset):    ### Generates Hub interactome tree & ppi visualisation
@@ -2913,24 +2913,24 @@ class SLiMHTML(rje.RJE_Object):
             if os.path.exists('%s.svg' % basefile) and not self.opt['Force']: return
             sigdir = '../2010-06-HumSF09_Data_Archive/HumSF09_Sig/'
             hub = dataset
-            if dataset[:4] == 'rseq': rsigdir = string.replace(sigdir,'Sig','RSeq_Sig')
-            elif dataset[:4] == 'rupc': rsigdir = string.replace(sigdir,'Sig','RUPC_Sig')
-            else: rsigdir = string.replace(sigdir,'Sig','Real_Sig'); hub = string.split(dataset,'.')[0]
-            if dataset not in self.db().getTable('Occ').index('Dataset'): rsigdir = string.replace(rsigdir,'Sig','NonSig')
+            if dataset[:4] == 'rseq': rsigdir = rje.replace(sigdir,'Sig','RSeq_Sig')
+            elif dataset[:4] == 'rupc': rsigdir = rje.replace(sigdir,'Sig','RUPC_Sig')
+            else: rsigdir = rje.replace(sigdir,'Sig','Real_Sig'); hub = rje.split(dataset,'.')[0]
+            if dataset not in self.db().getTable('Occ').index('Dataset'): rsigdir = rje.replace(rsigdir,'Sig','NonSig')
             disfile = '%s%s.dis.tdt' % (rsigdir,dataset)        # Make tree from this
             ## ~ [1a] ~ Load UPC groupings for sequence ordering ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             upcfile = '%s%s.upc' % (rsigdir,dataset)            # Get UPC from this
             uplist = []
             for uline in open(upcfile,'r').readlines()[2:]:
-                upc = string.split(uline)[3:]
+                upc = rje.split(uline)[3:]
                 upc.sort()
-                uplist.append(string.join(upc))
+                uplist.append(rje.join(upc))
             uplist.sort()
             reorder = []
             upx = 1             # UP identifier counter
             upid = {}           # Dictionary of prot:UP_ID
             for upc in uplist:
-                uprots = string.split(upc)
+                uprots = rje.split(upc)
                 reorder += uprots     #!# Then reorder sequences! #!#
                 if len(uprots) > 1:
                     for u in uprots: upid[self.gene(u)] = upx
@@ -2949,7 +2949,7 @@ class SLiMHTML(rje.RJE_Object):
                 dismat.opt['ProgLog'] = hobj.opt['NoForks']
                 for obj1 in reorder:
                     for obj2 in reorder:
-                        dis = (string.atof(disdat[obj1][obj2]) + string.atof(disdat[obj2][obj1])) / 2.0
+                        dis = (rje.atof(disdat[obj1][obj2]) + rje.atof(disdat[obj2][obj1])) / 2.0
                         dismat.addDis(self.gene(obj1),self.gene(obj2),dis)
                 nsftree = dismat.upgma()
                 open(nsf_file,'w').write(nsftree)
@@ -3004,24 +3004,24 @@ class SLiMHTML(rje.RJE_Object):
             if os.path.exists('%s.png' % basefile) and not self.opt['Force']: return
             sigdir = '../2010-06-HumSF09_Data_Archive/HumSF09_Sig/'
             hub = dataset
-            if dataset[:4] == 'rseq': rsigdir = string.replace(sigdir,'Sig','RSeq_Sig')
-            elif dataset[:4] == 'rupc': rsigdir = string.replace(sigdir,'Sig','RUPC_Sig')
-            else: rsigdir = string.replace(sigdir,'Sig','Real_Sig'); hub = string.split(dataset,'.')[0]
-            if dataset not in self.db().getTable('Occ').index('Dataset'): rsigdir = string.replace(rsigdir,'Sig','NonSig')
+            if dataset[:4] == 'rseq': rsigdir = rje.replace(sigdir,'Sig','RSeq_Sig')
+            elif dataset[:4] == 'rupc': rsigdir = rje.replace(sigdir,'Sig','RUPC_Sig')
+            else: rsigdir = rje.replace(sigdir,'Sig','Real_Sig'); hub = rje.split(dataset,'.')[0]
+            if dataset not in self.db().getTable('Occ').index('Dataset'): rsigdir = rje.replace(rsigdir,'Sig','NonSig')
             disfile = '%s%s.dis.tdt' % (rsigdir,dataset)        # Make tree from this
             ## ~ [1a] ~ Load UPC groupings for sequence ordering ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             upcfile = '%s%s.upc' % (rsigdir,dataset)            # Get UPC from this
             uplist = []
             for uline in open(upcfile,'r').readlines()[2:]:
-                upc = string.split(uline)[3:]
+                upc = rje.split(uline)[3:]
                 upc.sort()
-                uplist.append(string.join(upc))
+                uplist.append(rje.join(upc))
             uplist.sort()
             reorder = []
             upx = 1             # UP identifier counter
             upid = {}           # Dictionary of prot:UP_ID
             for upc in uplist:
-                uprots = string.split(upc)
+                uprots = rje.split(upc)
                 reorder += uprots     #!# Then reorder sequences! #!#
                 if len(uprots) > 1:
                     for u in uprots: upid[self.gene(u)] = upx
@@ -3033,7 +3033,7 @@ class SLiMHTML(rje.RJE_Object):
             dismat = rje_dismatrix_V2.DisMatrix(self.log,self.cmd_list)
             for obj1 in reorder:
                 for obj2 in reorder:
-                    dis = (string.atof(disdat[obj1][obj2]) + string.atof(disdat[obj2][obj1])) / 2.0
+                    dis = (rje.atof(disdat[obj1][obj2]) + rje.atof(disdat[obj2][obj1])) / 2.0
                     dismat.addDis(self.gene(obj1),self.gene(obj2),dis)
             upgma = rje_tree.Tree(self.log,self.cmd_list+['autoload=F'])
             nsftree = dismat.upgma()
@@ -3103,13 +3103,13 @@ class SLiMHTML(rje.RJE_Object):
             spokes.sort()
             hublist = []; ncol = {}
             for i in range(len(hubs)):
-                if hubs[i][:4] not in ['rseq','rupc']: hubs[i] = string.split(hubs[i],'.')[0]
+                if hubs[i][:4] not in ['rseq','rupc']: hubs[i] = rje.split(hubs[i],'.')[0]
                 if hubs[i] in pdb.index('Hub'):
                     hublist.append(hubs[i])  # Gene dataset
                     if hubs[i] in spokes: ncol[hublist[-1]] = rje_svg.soton[18]
                     else: ncol[hublist[-1]] = rje_svg.soton[4]
                 elif hubs[i][:4] in ['rseq','rupc']:
-                    hublist.append(string.join(string.split(hubs[i],'_')[:2],'_'))
+                    hublist.append(rje.join(rje.split(hubs[i],'_')[:2],'_'))
                     if hubs[i][:4] in ['rseq']: ncol[hublist[-1]] = rje_svg.soton[7]
                     else: ncol[hublist[-1]] = rje_svg.soton[10]
                     try: self.deBug('%s >> %s: %s' % (hubs[i],hublist[-1],self.obj['PPI'].ppi()[hublist[-1]]))
@@ -3199,7 +3199,7 @@ class SLiMHTML(rje.RJE_Object):
             if os.path.exists(nfile): os.unlink(nfile)
             headers = ['Spoke']
             for i in range(len(hubs)):
-                if hubs[i][:4] not in ['rseq','rupc']: hubs[i] = string.split(hubs[i],'.')[0]
+                if hubs[i][:4] not in ['rseq','rupc']: hubs[i] = rje.split(hubs[i],'.')[0]
             hubs = rje.sortUnique(hubs)
             for hub in hubs:
                 if hub in pdb.index('Hub'): headers.append(hub)  # Gene dataset
@@ -3207,14 +3207,14 @@ class SLiMHTML(rje.RJE_Object):
                 if hub in pdb.index('Hub') or hub[:4] in ['rseq','rupc']: continue
                 headers.append('d%s' % hub)     # Domains dataset
             for hub in hubs:
-                if hub[:4] in ['rseq','rupc']: headers.append(string.join(string.split(hub,'_')[:2],'_'))
+                if hub[:4] in ['rseq','rupc']: headers.append(rje.join(rje.split(hub,'_')[:2],'_'))
             rje.delimitedFileOutput(self,nfile,headers)
             ndata = {}; sortdict = {}
             for spoke in spokes:
                 datadict = {'Spoke':spoke}
                 for hub in hubs:
                     if hub in pdb.index('Hub'): h = hub  # Gene dataset
-                    elif hub[:4] in ['rseq','rupc']: h = string.join(string.split(hub,'_')[:2],'_')
+                    elif hub[:4] in ['rseq','rupc']: h = rje.join(rje.split(hub,'_')[:2],'_')
                     else: h = 'd%s' % hub               # Domains dataset
                     datadict[h] = 0
                     if spoke in odb.dataList(odb.indexEntries('Hub',hub),'Spoke'): datadict[h] = 1
@@ -3266,13 +3266,13 @@ class SLiMHTML(rje.RJE_Object):
             basefile = rje.makePath('%s%s.%s.%s' % (pngdir,dataset,sdata['Rank'],rje_slim.slimFromPattern(sdata['Pattern'])),wholepath=True)
             if os.path.exists('%s.png' % basefile) and not self.opt['Force']: return
             sigdir = '../2010-06-HumSF09_Data_Archive/HumSF09_Sig/'
-            if dset[:4] == 'rseq': rsigdir = string.replace(sigdir,'Sig','RSeq_Sig')
-            elif dset[:4] == 'rupc': rsigdir = string.replace(sigdir,'Sig','RUPC_Sig')
-            else: rsigdir = string.replace(sigdir,'Sig','Real_Sig')
-            if dataset not in self.db().getTable('Occ').index('Dataset'): rsigdir = string.replace(rsigdir,'Sig','NonSig')
-            gene = sdata['Hub'] #string.replace(sdata['Dataset'],self.info['Suffix'],'')
+            if dset[:4] == 'rseq': rsigdir = rje.replace(sigdir,'Sig','RSeq_Sig')
+            elif dset[:4] == 'rupc': rsigdir = rje.replace(sigdir,'Sig','RUPC_Sig')
+            else: rsigdir = rje.replace(sigdir,'Sig','Real_Sig')
+            if dataset not in self.db().getTable('Occ').index('Dataset'): rsigdir = rje.replace(rsigdir,'Sig','NonSig')
+            gene = sdata['Hub'] #rje.replace(sdata['Dataset'],self.info['Suffix'],'')
             slim = sdata['Pattern']
-            rank = string.atoi(sdata['Rank'])
+            rank = rje.atoi(sdata['Rank'])
             basefile = rje.makePath('%s%s.%s.%s' % (pngdir,dataset,rank,rje_slim.slimFromPattern(slim)),wholepath=True)
             if os.path.exists('%s.png' % basefile) and not self.opt['Force']: return
             disfile = '%s%s.dis.tdt' % (rsigdir,dataset)        # Make tree from this
@@ -3282,15 +3282,15 @@ class SLiMHTML(rje.RJE_Object):
             upcfile = '%s%s.upc' % (rsigdir,dataset)            # Get UPC from this
             uplist = []
             for uline in open(upcfile,'r').readlines()[2:]:
-                upc = string.split(uline)[3:]
+                upc = rje.split(uline)[3:]
                 upc.sort()
-                uplist.append(string.join(upc))
+                uplist.append(rje.join(upc))
             uplist.sort()
             reorder = []
             upx = 1             # UP identifier counter
             upid = {}           # Dictionary of prot:UP_ID
             for upc in uplist:
-                uprots = string.split(upc)
+                uprots = rje.split(upc)
                 reorder += uprots     #!# Then reorder sequences! #!#
                 if len(uprots) > 1:
                     for u in uprots: upid[self.gene(u)] = upx
@@ -3301,12 +3301,12 @@ class SLiMHTML(rje.RJE_Object):
             scmd = ['seqin=%s' % motifaln,'autoload=T','seqnr=F','accnr=F','replacechar=F','maxx=0','maxgap=0']
             mseq = rje_seq.SeqList(self.log,self.cmd_list+scmd)
             #i = rank
-            #findslim = string.replace(string.replace(slim,'^',''),'$','')
-            slimsplit = string.split(mseq.seq[0].info['Sequence'],'-XXXXXXXXXX-')
-            #while (string.replace(slimsplit[i-1][10:],'-','') not in [slim,findslim]): i += 1   # What does this do?! #
+            #findslim = rje.replace(rje.replace(slim,'^',''),'$','')
+            slimsplit = rje.split(mseq.seq[0].info['Sequence'],'-XXXXXXXXXX-')
+            #while (rje.replace(slimsplit[i-1][10:],'-','') not in [slim,findslim]): i += 1   # What does this do?! #
             for seq in mseq.seq[0:]:
-                seq.info['Sequence'] = string.split(seq.info['Sequence'],'-XXXXXXXXXX-')[rank-1]
-                if not string.replace(seq.info['Sequence'],'-',''): mseq.seq.remove(seq)
+                seq.info['Sequence'] = rje.split(seq.info['Sequence'],'-XXXXXXXXXX-')[rank-1]
+                if not rje.replace(seq.info['Sequence'],'-',''): mseq.seq.remove(seq)
             self.printLog('#SEQ','%d seq from motifaln with Rank %d motif %s' % (mseq.seqNum()-1,rank,slim))
             ## ~ [2a] ~ Reorder sequences to group by UPC ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             ordseq = mseq.seq[:1]
@@ -3333,13 +3333,13 @@ class SLiMHTML(rje.RJE_Object):
                     newm.append('+')    #(amb)
                     r += len(amb)+2
             while len(newm) < len(msequence): newm.append('-')
-            mseq.seq[0].info['Sequence'] = string.join(newm,'')
+            mseq.seq[0].info['Sequence'] = rje.join(newm,'')
             ## ~ [2c] ~ Save file ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             if os.path.exists('%s.aln.tdt' % basefile): os.unlink('%s.aln.tdt' % basefile)
             mseq.saveR(seqfile='%s.aln.tdt' % basefile,name='Gene')
 
             ### ~ [3] ~ Load full sequences and make profile ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            sdbdir = string.join(string.split(rsigdir,'_')[:2] + ['SLiMDB'],'_')
+            sdbdir = rje.join(rje.split(rsigdir,'_')[:2] + ['SLiMDB'],'_')
             seqfile = '%s/%s.slimdb' % (sdbdir,dataset)         # Get extra seq data from this
             scmd = ['seqin=%s' % seqfile,'autoload=T','replacechar=F','maxx=0','maxgap=0']
             dseq = rje_seq.SeqList(self.log,self.cmd_list+scmd)
@@ -3353,10 +3353,10 @@ class SLiMHTML(rje.RJE_Object):
                 odata = occdic.pop(okey)
                 if odata['Pattern'] != slim or int(sdata['Rank']) != int(odata['Rank']): continue
                 seq = seqdic[odata['Seq']]
-                oseq = seq.info['Sequence'][max(0,string.atoi(odata['Start_Pos'])-6):string.atoi(odata['End_Pos'])+5]
-                c = max(0,6 - string.atoi(odata['Start_Pos']))
+                oseq = seq.info['Sequence'][max(0,rje.atoi(odata['Start_Pos'])-6):rje.atoi(odata['End_Pos'])+5]
+                c = max(0,6 - rje.atoi(odata['Start_Pos']))
                 oseq = '-' * c + oseq
-                n = max(0,string.atoi(odata['End_Pos'])+5-seq.aaLen())
+                n = max(0,rje.atoi(odata['End_Pos'])+5-seq.aaLen())
                 oseq = oseq + '-' * n
                 proseq.append(oseq)
             #self.deBug(proseq)
@@ -3402,7 +3402,7 @@ class SLiMHTML(rje.RJE_Object):
                 reduced.append(obj1)
                 for seq2 in mseq.seq[1:]:
                     obj2 = seq2.shortName()   
-                    dis = (string.atof(disdat[obj1][obj2]) + string.atof(disdat[obj2][obj1])) / 2.0
+                    dis = (rje.atof(disdat[obj1][obj2]) + rje.atof(disdat[obj2][obj1])) / 2.0
                     dismat.addDis(seq1.info['Gene'],seq2.info['Gene'],dis)
             upgma = rje_tree.Tree(self.log,self.cmd_list+['autoload=F'])
             nsftree = dismat.upgma()
@@ -3462,7 +3462,7 @@ class SLiMHTML(rje.RJE_Object):
             if okey == 'Headers': continue
             for mkey in ['Rank','Start_Pos','End_Pos']:
                 if mkey in occdic[okey]:
-                    try: maxval[mkey] = max(maxval[mkey],string.atoi(occdic[okey][mkey]))
+                    try: maxval[mkey] = max(maxval[mkey],rje.atoi(occdic[okey][mkey]))
                     except: self.errorLog('%s::%s' % (mkey,occdic[okey][mkey]))
         ### ~ [2] ~ Remake occdic ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         for okey in rje.sortKeys(occdic):
@@ -3471,10 +3471,10 @@ class SLiMHTML(rje.RJE_Object):
             newkey = []
             for mkey in mainkeys:
                 if mkey in maxval:
-                    try: newkey.append(rje.preZero(string.atoi(odata[mkey]),maxval[mkey]))
+                    try: newkey.append(rje.preZero(rje.atoi(odata[mkey]),maxval[mkey]))
                     except: newkey.append(odata[mkey])
                 else: newkey.append(odata[mkey])
-            occdic[string.join(newkey,delimit)] = odata
+            occdic[rje.join(newkey,delimit)] = odata
         return occdic
 #########################################################################################################################
 ### End of SECTION II: SLiMHTML Class                                                                                   #
@@ -3499,7 +3499,7 @@ def htmlHead(title,stylesheets=['../example.css','../redwards.css'],tabber=True,
             '<meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">', #!# Add additional metadata #!#
             '<title>%s</title>' % title,'']
     for stylesheet in stylesheets:
-        if frontpage: html.append('<link rel="stylesheet" href="%s" TYPE="text/css" MEDIA="screen">' % string.replace(stylesheet,'../','./'))
+        if frontpage: html.append('<link rel="stylesheet" href="%s" TYPE="text/css" MEDIA="screen">' % rje.replace(stylesheet,'../','./'))
         else: html.append('<link rel="stylesheet" href="%s" TYPE="text/css" MEDIA="screen">' % stylesheet)
     if tabber:
         html += ['','<!-- ~~~~~~~~~~~ Tabber Javascript ~~~~~~~~~~~ -->','<script type="text/javascript">',
@@ -3509,8 +3509,8 @@ def htmlHead(title,stylesheets=['../example.css','../redwards.css'],tabber=True,
         if frontpage: html += ['<script type="text/javascript" src="./javascript/tabber.js"></script>','']
         else: html += ['<script type="text/javascript" src="../javascript/tabber.js"></script>','']
     html += ['</head>','<!-- ~~~~~~~~~~~~~~~ End of HTML head data ~~~~~~~~~~~~~~~~~ -->','','<body>','']
-    #print string.join(html,'\n')
-    return string.join(html,'\n')
+    #print rje.join(html,'\n')
+    return rje.join(html,'\n')
 #########################################################################################################################
 def htmlTail(copyright='RJ Edwards 2010',tabber=True):  ### Returns text for bottom of HTML
     '''
@@ -3518,15 +3518,15 @@ def htmlTail(copyright='RJ Edwards 2010',tabber=True):  ### Returns text for bot
     >> copyright:str = copyright text'
     >> tabber:bool = whether page has tabber tabs
     '''
-    t = string.split(time.asctime(time.localtime(time.time())))
+    t = rje.split(time.asctime(time.localtime(time.time())))
     datetime = '%s %s %s' % (t[2],t[1],t[-1])
     html = ['','<!-- ~~~~~~~~~~~~~~ HTML tail data ~~~~~~~~~~~~~~~~~ -->',
             '<HR><FONT COLOR=#979E45 SIZE=2>&copy; %s. Last modified %s.</FONT></P>' % (copyright,datetime),'',
             '<script type="text/javascript">','/* manualStartup=true so need to run it now */',
             'tabberAutomatic(tabberOptions);','</script>','','</body>','</html>',
             '<!-- ~~~~~~~~~~~~~~ End of HTML tail data ~~~~~~~~~~~~~~~~~ -->']
-    #print string.join(html,'\n')
-    return string.join(html,'\n')
+    #print rje.join(html,'\n')
+    return rje.join(html,'\n')
 #########################################################################################################################
 def tabberHTML(id,tablist,level=0):     ### Returns text for Tabber HTML
     '''
@@ -3542,11 +3542,11 @@ def tabberHTML(id,tablist,level=0):     ### Returns text for Tabber HTML
         #print tab
         #print tab[0],tab[1]
         #print tabberTabHTML(tab[0],tab[1])
-        if len(tab) > 2: html += string.split(tabberTabHTML(tab[0],tab[1],tab[2]),'\n')
-        else: html += string.split(tabberTabHTML(tab[0],tab[1]),'\n')
+        if len(tab) > 2: html += rje.split(tabberTabHTML(tab[0],tab[1],tab[2]),'\n')
+        else: html += rje.split(tabberTabHTML(tab[0],tab[1]),'\n')
     html += ['</div>','<!-- ~~~~~~~~~~~~~~~ End of %s Tabber Div ~~~~~~~~~~~~~~~ -->' % id,]
-    #print string.join(html,jointxt)
-    return string.join(html,jointxt)
+    #print rje.join(html,jointxt)
+    return rje.join(html,jointxt)
 #########################################################################################################################
 def tabberTabHTML(id,text,title=''):          ### Returns text for TabberTab HTML
     '''
@@ -3556,11 +3556,11 @@ def tabberTabHTML(id,text,title=''):          ### Returns text for TabberTab HTM
     '''
     if not title: title = id
     html = ['','<!-- ~~~ %s TabberTab div ~~~ -->' % id,'<div class="tabbertab" title="%s" id="%s">' % (title,id),'']
-    html += string.split(text,'\n')
+    html += rje.split(text,'\n')
     html += ['','</div>','<!-- ~~~ %s TabberTab end ~~~ -->' % id]
-    #print string.join(html,'\n  ')
-    if string.join(html).upper().find('<PRE>') >= 0: return string.join(html,'\n')       
-    else: return string.join(html,'\n  ')
+    #print rje.join(html,'\n  ')
+    if rje.join(html).upper().find('<PRE>') >= 0: return rje.join(html,'\n')
+    else: return rje.join(html,'\n  ')
 #########################################################################################################################
 def geneLink(gene,frontpage=False):     ### Returns gene link text
     '''Returns gene link text.'''

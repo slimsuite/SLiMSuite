@@ -211,7 +211,7 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         if not out: out = rje.Out()
         help = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
         if help > 0:
-            print '\n\nHelp for %s %s: %s\n' % (info.program, info.version, time.asctime(time.localtime(info.start_time)))
+            rje.printf('\n\nHelp for {0} {1}: {2}\n'.format(info.program, info.version, time.asctime(time.localtime(info.start_time))))
             out.verbose(-1,4,text=__doc__)
             if rje.yesNo('Show SLiMCalc commandline options?',default='N'): out.verbose(-1,4,text=rje_slimcalc.__doc__)
             if rje.yesNo('Show RJE_SEQ commandline options?',default='N'): out.verbose(-1,4,text=rje_seq.__doc__)
@@ -222,36 +222,30 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         return cmd_list
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Major Problem with cmdHelp()'
+    except: rje.printf('Major Problem with cmdHelp()')
 #########################################################################################################################
-def setupProgram(): ### Basic Setup of Program
+def setupProgram(): ### Basic Setup of Program when called from commandline.
     '''
-    Basic setup of Program:
+    Basic Setup of Program when called from commandline:
     - Reads sys.argv and augments if appropriate
     - Makes Info, Out and Log objects
     - Returns [info,out,log,cmd_list]
     '''
-    try:
-        ### Initial Command Setup & Info ###
-        info = makeInfo()
+    try:### ~ [1] ~ Initial Command Setup & Info ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+        info = makeInfo()                                   # Sets up Info object with program details
         if len(sys.argv) == 2 and sys.argv[1] in ['version','-version','--version']: rje.printf(info.version); sys.exit(0)
-        if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: rje.printf('{0} v{1}'.format(info.program,info.version)); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: rje.printf('%s v%s' % (info.program,info.version)); sys.exit(0)
         if len(sys.argv) == 2 and sys.argv[1] in ['description','-description','--description']: rje.printf('%s: %s' % (info.program,info.description)); sys.exit(0)
-        cmd_list = rje.getCmdList(sys.argv[1:],info=info)      ### Load defaults from program.ini
-        ### Out object ###
-        out = rje.Out(cmd_list=cmd_list)
-        out.verbose(2,2,cmd_list,1)
-        out.printIntro(info)
-        ### Additional commands ###
-        cmd_list = cmdHelp(info,out,cmd_list)
-        ### Log ###
-        log = rje.setLog(info=info,out=out,cmd_list=cmd_list)
-        return [info,out,log,cmd_list]
+        cmd_list = rje.getCmdList(sys.argv[1:],info=info)   # Reads arguments and load defaults from program.ini
+        out = rje.Out(cmd_list=cmd_list)                    # Sets up Out object for controlling output to screen
+        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2
+        out.printIntro(info)                                # Prints intro text using details from Info object
+        cmd_list = cmdHelp(info,out,cmd_list)               # Shows commands (help) and/or adds commands from user
+        log = rje.setLog(info,out,cmd_list)                 # Sets up Log object for controlling log file output
+        return (info,out,log,cmd_list)                      # Returns objects for use in program
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except:
-        print 'Problem during initial setup.'
-        raise
+    except: rje.printf('Problem during initial setup.'); raise
 #########################################################################################################################
 ### CONSTANTS ###                                                                                                     
 wildcards = ['.','X','x']
@@ -286,7 +280,7 @@ class QSLiMFinder(slimfinder.SLiMFinder):
     def QUPNum(self): return self.UPNum() - len(self.dict['FocusUPC']['Query'])
     def QUP(self,upc): return upc in self.dict['FocusUPC']['Query']
     def slimQUP(self,slim):     ### Returns number of UPC for a SLiM, excluding Query UPC
-        if not self.dict['Slim'].has_key(slim): return 0
+        if slim not in self.dict['Slim']: return 0
         qupx = 0
         for upc in self.dict['Slim'][slim]['UP']:
             if not self.QUP(upc): qupx += 1
@@ -503,7 +497,7 @@ class QSLiMFinder(slimfinder.SLiMFinder):
             self.printLog('#ADD','%d sequence(s) added from %s' % (qseq.seqNum(),self.getStr('AddQuery')))
             if not self.list['Query']:
                 self.list['Query'] = qseq.accList()
-                self.printLog('#QRY','Query set: %s' % string.join(self.list['Query'],'; '))
+                self.printLog('#QRY','Query set: %s' % rje.join(self.list['Query'],'; '))
         except: self.errorLog('QSLiMFinder.addQuery() error.'); raise
 #########################################################################################################################
     ### <5> ### SLiMBuild Generation Methods                                                                            #
@@ -534,7 +528,7 @@ class QSLiMFinder(slimfinder.SLiMFinder):
                 ## Setup Sequence ##
                 sx += 1
                 sequence = seq.info['Sequence'].upper()
-                if self.getBool('DNA'): sequence = string.replace(sequence,'N','X')
+                if self.getBool('DNA'): sequence = rje.replace(sequence,'N','X')
                 if self.getBool('Termini'): sequence = '^%s$' % sequence
                 ## Find Dimers ##
                 for i in range(len(sequence)):
@@ -554,16 +548,16 @@ class QSLiMFinder(slimfinder.SLiMFinder):
                         ## Add Dimer ##
                         self.dict['DimFreq'][seq][x] += 1
                         self.dict['DimFreq'][upc][x] += 1
-                        if not self.dict['Dimers'].has_key(ai): self.dict['Dimers'][ai] = {}
-                        if not self.dict['Dimers'][ai].has_key(x): self.dict['Dimers'][ai][x] = {}
-                        if not self.dict['Dimers'][ai][x].has_key(aj):
+                        if ai not in self.dict['Dimers']: self.dict['Dimers'][ai] = {}
+                        if x not in self.dict['Dimers'][ai]: self.dict['Dimers'][ai][x] = {}
+                        if aj not in self.dict['Dimers'][ai][x]:
                             self.dict['Dimers'][ai][x][aj] = {'UP':[],'Occ':[]}
                             dx += 1
                         if upc not in self.dict['Dimers'][ai][x][aj]['UP']: self.dict['Dimers'][ai][x][aj]['UP'].append(upc)
                         self.dict['Dimers'][ai][x][aj]['Occ'].append((seq,r))
                         newslim = '%s-%s-%s' % (ai,x,aj)   #!# Str->List mod 1.5 #!#
-                        if not self.dict['SeqOcc'].has_key(newslim): self.dict['SeqOcc'][newslim] = {seq:1}
-                        elif not self.dict['SeqOcc'][newslim].has_key(seq): self.dict['SeqOcc'][newslim][seq] = 1
+                        if newslim not in self.dict['SeqOcc']: self.dict['SeqOcc'][newslim] = {seq:1}
+                        elif seq not in self.dict['SeqOcc'][newslim]: self.dict['SeqOcc'][newslim][seq] = 1
                         else: self.dict['SeqOcc'][newslim][seq] += 1
                         if seq in self.dict['Focus']['Query']:
                             qdx += self.addQDimer(ai,x,aj,(seq,r))
@@ -732,7 +726,7 @@ class QSLiMFinder(slimfinder.SLiMFinder):
         '''
         try:### ~ [0] ~ Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             ai = slim[-1]
-            if not self.dict['Dimers'].has_key(ai): return []
+            if ai not in self.dict['Dimers']: return []
             extend = []
             slimocc = self.dict['Slim'][slim]['Occ']
             ### ~ [1] ~ Try dimers ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -753,8 +747,8 @@ class QSLiMFinder(slimfinder.SLiMFinder):
                         extend.append(newslim)
                         self.dict['Slim'][newslim] = {'Occ':newocc,'UP':newup}
                         for (seq,pos) in newocc:
-                            if not self.dict['SeqOcc'].has_key(newslim): self.dict['SeqOcc'][newslim] = {seq:1}
-                            elif not self.dict['SeqOcc'][newslim].has_key(seq): self.dict['SeqOcc'][newslim][seq] = 1
+                            if newslim not in self.dict['SeqOcc']: self.dict['SeqOcc'][newslim] = {seq:1}
+                            elif seq not in self.dict['SeqOcc'][newslim]: self.dict['SeqOcc'][newslim][seq] = 1
                             else: self.dict['SeqOcc'][newslim][seq] += 1
             ### Return ###
             return extend
@@ -770,7 +764,7 @@ class QSLiMFinder(slimfinder.SLiMFinder):
         '''
         try:### ~ [0] ~ Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             ai = slim[-1]
-            if not self.dict['QDimers'].has_key(ai): return []
+            if ai not in self.dict['QDimers']: return []
             extend = []
             slimocc = self.dict['QSlim'][slim]['Occ']   #.pop(slim)['Occ']
             ### ~ [1] ~ Try dimers ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -844,7 +838,7 @@ class QSLiMFinder(slimfinder.SLiMFinder):
             wild = False    # Whether next part is a wildcard length
             mult = 1        # Variable-length multiplier
             minslimlen = 0  # Minimum SLiM length
-            for part in string.split(slim,'-'):      # Split SLiM code in components
+            for part in rje.split(slim,'-'):      # Split SLiM code in components
                 ## Update lists ##
                 if wild: wildlist.append(part)
                 else: poslist.append(part); minslimlen += 1
@@ -917,7 +911,7 @@ class QSLiMFinder(slimfinder.SLiMFinder):
         if self.getBool('SeqOcc'): k = max(1,self.slimOccNum(slim,upc))
 
         ### ~ [2] Special AADimerFreq option ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-        for slimvar in rje.listCombos(string.split(slim,'-')):
+        for slimvar in rje.listCombos(rje.split(slim,'-')):
             v = rje.getFromDict(self.dict['AAFreq'][upc],slimvar[0],returnkey=False,default=0.0)
             slist = slimvar[0:]
             while slist:
@@ -1157,8 +1151,6 @@ class QSLiMFinder(slimfinder.SLiMFinder):
                     #x#if slim2 in clouds: continue    # Already checked against rest
                     cx = 0  # Shared sequence count
                     for seq in occ[slim1]:
-                        #X#print slim1, slim2, occ[slim1][seq],
-                        #X#self.deBug(occ[slim2][seq])
                         if not occ[slim2][seq]: continue    # No occ for this seq
                         px = 0
                         for pos in occ[slim1][seq]:
@@ -1262,7 +1254,7 @@ class QSLiMFinder(slimfinder.SLiMFinder):
                 return
 
             ### ~ [2] Make into QSLiMFinder SLiMs ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            #X#aa = string.split('A,C,D,E,F,G,H,I,K,L,M,N,P,Q,R,S,T,V,W,Y,^,$',',')
+            #X#aa = rje.split('A,C,D,E,F,G,H,I,K,L,M,N,P,Q,R,S,T,V,W,Y,^,$',',')
             checklist = []
             for Motif in self.obj['SlimCheck'].slims()[0:]:
                 if Motif.slim(): checklist.append(Motif.slim())
@@ -1327,14 +1319,14 @@ class QSLiMFinder(slimfinder.SLiMFinder):
                             'Pattern':pattern,'Occ':len(self.dict['Slim'][slim]['Occ']),'Support':self.slimSeqNum(slim),
                             'IC':self.slimIC(slim),'UP':self.slimUP(slim), 'Norm':self.slimUP(slim),
                             }
-                if self.dict['Clouds'] and self.dict['Slim'][slim].has_key('Cloud'):
+                if self.dict['Clouds'] and 'Cloud' in self.dict['Slim'][slim]:
                     try:
                         datadict['Cloud'] = self.dict['Slim'][slim]['Cloud']
                         datadict['CloudSeq'] = len(self.dict['Clouds'][self.dict['Slim'][slim]['Cloud']]['Seq'])
                         datadict['CloudUP'] = len(self.dict['Clouds'][self.dict['Slim'][slim]['Cloud']]['UPC'])
                     except: pass
                 for p in ['ExpUP','Prob','Sig','E']:
-                    if self.dict['Slim'][slim].has_key(p): datadict[p] = rje_slim.expectString(self.dict['Slim'][slim][p])
+                    if p in self.dict['Slim'][slim]: datadict[p] = rje_slim.expectString(self.dict['Slim'][slim][p])
                 for h in self.list['Headers']:
                     if Motif and h not in datadict and h in Motif.stat: datadict[h] = Motif.stat[h]
                 rje.delimitedFileOutput(self,self.getStr('ResFile'),reshead,delimit,datadict)
@@ -1353,7 +1345,7 @@ class QSLiMFinder(slimfinder.SLiMFinder):
 #########################################################################################################################
 def patternFromCode(slim): return rje_slim.patternFromCode(slim)  ### Returns pattern with wildcard for iXj formatted SLiM (e.g. A-3-T-0-G becomes A...TG)
 #########################################################################################################################
-def slimPos(slim): return (string.count(slim,'-') / 2) + 1  ### Returns the number of positions in a slim
+def slimPos(slim): return (rje.count(slim,'-') / 2) + 1  ### Returns the number of positions in a slim
 #########################################################################################################################
 def slimLen(slim): return len(patternFromCode(slim))    ### Returns length of slim
 #########################################################################################################################
@@ -1368,14 +1360,12 @@ def slimDif(slim1,slim2): return rje_slimcore.slimDif(slim1,slim2)  ### Returns 
 ### SECTION IV: MAIN PROGRAM                                                                                            #
 #########################################################################################################################
 def runMain():
-    ### Basic Setup of Program ###
-    try: [info,out,mainlog,cmd_list] = setupProgram()
-    except SystemExit: return  
-    except:
-        print 'Unexpected error during program setup:', sys.exc_info()[0]
-        return
-        
-    ### Rest of Functionality... ###
+    ### ~ [1] ~ Basic Setup of Program  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+    try: (info,out,mainlog,cmd_list) = setupProgram()
+    except SystemExit: return
+    except: rje.printf('Unexpected error during program setup:', sys.exc_info()[0]); return
+
+    ### ~ [2] ~ Rest of Functionality... ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try: QSLiMFinder(mainlog,cmd_list).run()
         
     ### End ###
@@ -1386,7 +1376,7 @@ def runMain():
 #########################################################################################################################
 if __name__ == "__main__":      ### Call runMain 
     try: runMain()
-    except: print 'Cataclysmic run error:', sys.exc_info()[0]
+    except: rje.printf('Cataclysmic run error: {0}'.format(sys.exc_info()[0]))
     sys.exit()
 #########################################################################################################################
 ### END OF SECTION IV                                                                                                   #

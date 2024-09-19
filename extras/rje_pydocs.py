@@ -68,7 +68,11 @@ See also rje.py generic commandline options.
 #########################################################################################################################
 ### SECTION I: GENERAL SETUP & PROGRAM DETAILS                                                                          #
 #########################################################################################################################
-import glob, os, re, shutil, string, sys, time, urllib2
+import glob, os, re, shutil, string, sys, time
+try:
+    import urllib2 as urllib
+except:
+    import urllib.request as urllib
 sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)),'../libraries/'))
 sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)),'../tools/'))
 ### User modules - remember to add *.__doc__ to cmdHelp() below ###
@@ -156,11 +160,11 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         if not info: info = makeInfo()
         if not out: out = rje.Out()
         ### ~ [2] ~ Look for help commands and print options if found ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-        helpx = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
-        if helpx > 0:
-            print '\n\nHelp for %s %s: %s\n' % (info.program, info.version, time.asctime(time.localtime(info.start_time)))
+        cmd_help = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
+        if cmd_help > 0:
+            rje.printf('\n\nHelp for {0} {1}: {2}\n'.format(info.program, info.version, time.asctime(time.localtime(info.start_time))))
             out.verbose(-1,4,text=__doc__)
-            if rje.yesNo('Show general commandline options?'): out.verbose(-1,4,text=rje.__doc__)
+            if rje.yesNo('Show general commandline options?',default='N'): out.verbose(-1,4,text=rje.__doc__)
             if rje.yesNo('Quit?'): sys.exit()           # Option to quit after help
             cmd_list += rje.inputCmds(out,cmd_list)     # Add extra commands interactively.
         elif out.stat['Interactive'] > 1: cmd_list += rje.inputCmds(out,cmd_list)    # Ask for more commands
@@ -168,7 +172,7 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         return cmd_list
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Major Problem with cmdHelp()'
+    except: rje.printf('Major Problem with cmdHelp()')
 #########################################################################################################################
 def setupProgram(): ### Basic Setup of Program when called from commandline.
     '''
@@ -179,16 +183,19 @@ def setupProgram(): ### Basic Setup of Program when called from commandline.
     '''
     try:### ~ [1] ~ Initial Command Setup & Info ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         info = makeInfo()                                   # Sets up Info object with program details
+        if len(sys.argv) == 2 and sys.argv[1] in ['version','-version','--version']: rje.printf(info.version); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: rje.printf('%s v%s' % (info.program,info.version)); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['description','-description','--description']: rje.printf('%s: %s' % (info.program,info.description)); sys.exit(0)
         cmd_list = rje.getCmdList(sys.argv[1:],info=info)   # Reads arguments and load defaults from program.ini
         out = rje.Out(cmd_list=cmd_list)                    # Sets up Out object for controlling output to screen
-        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2 
+        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2
         out.printIntro(info)                                # Prints intro text using details from Info object
         cmd_list = cmdHelp(info,out,cmd_list)               # Shows commands (help) and/or adds commands from user
         log = rje.setLog(info,out,cmd_list)                 # Sets up Log object for controlling log file output
         return (info,out,log,cmd_list)                      # Returns objects for use in program
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Problem during initial setup.'; raise
+    except: rje.printf('Problem during initial setup.'); raise
 #########################################################################################################################
 web_defaults = {'Logo':'../_Documentation/binflogo.jpg',                    # Logo image file
                 'Style':'http://www.southampton.ac.uk/~re1u06/software/redwards.css',  # Style file for HTML pages
@@ -315,7 +322,7 @@ class PyDoc(rje_obj.RJE_Object):
         try:### ~ [1] ~ Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if not self.setup(): return False
             if self.test(): return self.testRun()
-            if self.dev(): print self.list['PyList'][0:]; return
+            if self.dev(): print( self.list['PyList'][0:]); return
             self.parseModules()
             if self.getBool('MakePages'): return self.makePages()
             ### ~ [2] ~ Add main run code here ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -403,7 +410,7 @@ class PyDoc(rje_obj.RJE_Object):
             ### ~ [2] Update Imported_By ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             for pyfile in pyfiles:
                 entry = self.db('Module').data(pyfile)
-                for imod in string.split(entry['Imports'],', '):
+                for imod in rje.split(entry['Imports'],', '):
                     if imod in self.db('Module').index('Module'):
                         for mentry in self.db('Module').indexEntries('Module',imod):
                             if mentry['Imported_By'] != 'None': mentry['Imported_By'] += ', %s' % entry['Module']
@@ -480,7 +487,7 @@ class PyDoc(rje_obj.RJE_Object):
                     break
                     return False
                 elif rje.matchExp('^class (\S+)\(',line):   # Newclass
-                    line = string.replace(line,'(',' (',1)
+                    line = rje.replace(line,'(',' (',1)
                     classname = rje.matchExp('^class (\S+) \(',line)[0]
                     classtext = [line]
                     i += 1
@@ -494,7 +501,7 @@ class PyDoc(rje_obj.RJE_Object):
                     data['Classes'].append((classname,classtext))
                 ## ~ [2c] Parse Method Text ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
                 elif rje.matchExp('^def (\S+)\((.*)\):',line):   # New method
-                    line = string.replace(line,'(',' (',1)
+                    line = rje.replace(line,'(',' (',1)
                     method_detail = rje.matchExp('^def (\S+) \((.*)\):',line)
                     methodtext = [line]
                     i += 1
@@ -525,14 +532,14 @@ class PyDoc(rje_obj.RJE_Object):
                     fulltext += line
                     i += 1
             if not data['Program']: data['Program'] = data['Module']
-            if data['Author'] == 'Unknown' and '_' in data['Module']: data['Author'] = string.split(data['Module'],'_')[0]
+            if data['Author'] == 'Unknown' and '_' in data['Module']: data['Author'] = rje.split(data['Module'],'_')[0]
             ## ~ [2f] Extract imported modules ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-            for line in string.split(fulltext,'\n'):
+            for line in rje.split(fulltext,'\n'):
                 if rje.matchExp('^\s*import (\S.+)$',line) or rje.matchExp('^\s*from (\S+)',line):
-                    try: implist = string.split(string.replace(rje.matchExp('^\s*import (\S.+)$',line)[0],', ',','),',')
-                    except: implist = string.split(rje.matchExp('^\s*from (\S+)',line)[0])
+                    try: implist = rje.split(rje.replace(rje.matchExp('^\s*import (\S.+)$',line)[0],', ',','),',')
+                    except: implist = rje.split(rje.matchExp('^\s*from (\S+)',line)[0])
                     for impmod in implist:
-                        newmod = string.split(impmod)[0]
+                        newmod = rje.split(impmod)[0]
                         newfile = self.findModule(newmod,addlib=True)
                         if not newfile: continue
                         data['Imports'].append(newmod)
@@ -556,9 +563,9 @@ class PyDoc(rje_obj.RJE_Object):
                          'CallAttributes':methodarg,'FullText':methodtext}
                 self.addMethod(entry)
             ### ~ [5] Update main database entry ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            data['Classes'] = string.join(classlist,'; ')
+            data['Classes'] = rje.join(classlist,'; ')
             data['Methods'] = len(data['Methods'])
-            data['Imports'] = string.join(data['Imports'],', ')
+            data['Imports'] = rje.join(data['Imports'],', ')
             self.printLog('\r#MOD','Parsing module %s complete: %d Classes; %d Methods' % (pyfile,len(classlist),data['Methods']))
             self.db('Module').addEntry(data)
             #for h in self.db('Module').fields(): self.deBug('%s: %s' % (h,data[h]))
@@ -606,7 +613,7 @@ class PyDoc(rje_obj.RJE_Object):
                     i += 1
                 ## ~ [2b] Methods ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
                 elif re.search('\s+def (\S+)\((.*)\):',line):   # New method
-                    line = string.replace(line,'(',' (',1)
+                    line = rje.replace(line,'(',' (',1)
                     method_detail = rje.matchExp('\s+def (\S+) \((.*)\):',line)
                     methodtext = [line]
                     i += 1
@@ -618,21 +625,21 @@ class PyDoc(rje_obj.RJE_Object):
                         #self.deBug(line)
                         ## Special commandline option parsing
                         if '#' in line: line = line[:line.find('#')]
-                        line = string.join(string.split(line),'')
-                        line = string.replace(line,'.lower()','')
-                        line = string.replace(line,'.upper()','')
+                        line = rje.join(rje.split(line),'')
+                        line = rje.replace(line,'.lower()','')
+                        line = rje.replace(line,'.upper()','')
                         if cmdread and not 'self' in line:
                             line = 'self._cmdReadList(cmd,%s,[%s' % (ctype,line)
                             if line[-1] == ')': line = line[:-1]    # Remove trailing ) for last line of argument
                         if rje.matchExp('self\._cmdRead(\S+)',line) and '%s' not in line:   # New Commandline argument(s)
-                            try: cmdata = string.split(rje.matchExp('self\._cmd\S+\(([^)]+)',line)[0],',')
+                            try: cmdata = rje.split(rje.matchExp('self\._cmd\S+\(([^)]+)',line)[0],',')
                             except:
                                 self.warnLog('Troubling parsing cmdRead: %s' % line,'cmdreadparse',quitchoice=True,suppress=True,dev=True)
                                 continue
                             for cx in range(len(cmdata)):
-                                cmdata[cx] = string.replace(string.split(cmdata[cx],'=')[-1],'"','')
-                                cmdata[cx] = string.replace(cmdata[cx],"'","")
-                                cmdata[cx] = string.replace(cmdata[cx]," ","")
+                                cmdata[cx] = rje.replace(rje.split(cmdata[cx],'=')[-1],'"','')
+                                cmdata[cx] = rje.replace(cmdata[cx],"'","")
+                                cmdata[cx] = rje.replace(cmdata[cx]," ","")
                             while '' in cmdata: cmdata.remove('')
                             try: cmd = cmdata[0]; ctype = cmdata[1]
                             except: self.deBug('%s: %s' % (entry['File'],cmdata))
@@ -722,13 +729,13 @@ class PyDoc(rje_obj.RJE_Object):
         >> html:boolean [False] = whether to return as HTML
         '''
         try:### ~ [1] Parse out function text ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            lines = string.split(self.info['DocString'],'\n')
+            lines = rje.split(self.info['DocString'],'\n')
             parse = False
             function = []
             for line in lines:
                 if line.find('Function:') == 0: parse = True                    # Found Function section
                 elif line[:1] not in ['',' ']: parse = False                    # Reached next section
-                elif parse: function.append(string.join(string.split(line)))    # Add re-formed line to function
+                elif parse: function.append(rje.join(rje.split(line)))    # Add re-formed line to function
             ### ~ [2] Tidy function text and add HTML code if appropriate ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             for f in range(len(function)):
                 if function[f][:1] == '*':
@@ -743,7 +750,7 @@ class PyDoc(rje_obj.RJE_Object):
                         if f > len(function): function[f] = '</P>'
                         else: function[f] = '</P><P>'
                     else: function[f] = '\n\n'
-            return string.join(function)
+            return rje.join(function)
         except: self.errorLog('%s.parseDocFunction error' % self)
 #########################################################################################################################
     ### <4> ### Documentation output Methods                                                                            #
@@ -844,17 +851,17 @@ class PyDoc(rje_obj.RJE_Object):
                     else: htm.append('<LI><B><A HREF="#%s-%s">%s</A></B> %s' % (sourcedir,module,program,entry['Description']))
                     if program.lower() != module.lower(): htm[-1] += ' (%s.py)' % module
                 htm.append('</UL>')
-                headtabs.append((sourcedir,string.join(htm,'\n'),'Full list of python modules from %s/' % sourcedir))
+                headtabs.append((sourcedir,rje.join(htm,'\n'),'Full list of python modules from %s/' % sourcedir))
             ## ~ [3b] Other Files ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             if self.list['OtherFiles']:
                 htm = ['<H3>Other Files</H3>','<UL>']
                 for file in self.list['OtherFiles']: htm.append('<LI>%s' % os.path.basename(file))
                 htm.append('</UL>')
-                headtabs.append(('Other files',string.join(htm,'\n'),'Other files used by python modules'))
+                headtabs.append(('Other files',rje.join(htm,'\n'),'Other files used by python modules'))
             ## ~ [3c] Updates ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             if self.list['Updates']:
                 htm = ['<H3>Updates since last release:</H3>'] + self.list['Updates']
-                headtabs.append(('Updates',string.join(htm,'\n'),'Updates since last release'))
+                headtabs.append(('Updates',rje.join(htm,'\n'),'Updates since last release'))
             ## ~ [3d] GNU License ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             htm = ['<HR>','<H2>GNU License</H2>',
                    '<P>Copyright (C) %s %s &lt;%s&gt;' % (web_defaults['Copyright'],self.getStr('Author'),self.getStr('EMail')),'</P><P>',
@@ -863,13 +870,13 @@ class PyDoc(rje_obj.RJE_Object):
                    '</P><P>','You should have received a copy of the GNU General Public License along with this program; if not, write to the Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA'
                    '</P><P>','Author contact: &lt;%s&gt; / %s' % (self.getStr('EMail'),web_defaults['Address']),
                    '</P><P>','To incorporate this module into your own programs, please see GNU Lesser General Public License disclaimer in rje.py']
-            headtabs.append(('GNU',string.join(htm,'\n'),'GNU License agreement for use'))
+            headtabs.append(('GNU',rje.join(htm,'\n'),'GNU License agreement for use'))
             ## ~ [3x] Output Summary ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             PYDOC.write(rje_html.tabberHTML('readme',headtabs,level=0))
             ### ~ [3] Output Module Details ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             PYDOC.write(self.pydocHTML(db.indexKeys('Module')))
             ### ~ [4] End ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            PYDOC.write(rje_html.htmlTail('%s %s' % (self.getStr('Author'),string.split(time.asctime(time.localtime(time.time())))[-1])))
+            PYDOC.write(rje_html.htmlTail('%s %s' % (self.getStr('Author'),rje.split(time.asctime(time.localtime(time.time())))[-1])))
             PYDOC.close()
             self.printLog('\r#HTML','HTML documentation output to %s' % filename)
         except: self.errorLog('Error in %s.htmlDocs()' % self)     
@@ -926,7 +933,7 @@ class PyDoc(rje_obj.RJE_Object):
                         HTML.write(htmlhead)
                         #HTML.write('<p><a href="%sreadme.html">Return to main %s readme.html</a></p>' % (outdir,self.getStr('Name')))
                         HTML.write(self.modHTML(pyfile,onefile=False))
-                        HTML.write(rje_html.htmlTail('%s %s' % (self.getStr('Author'),string.split(time.asctime(time.localtime(time.time())))[-1])))
+                        HTML.write(rje_html.htmlTail('%s %s' % (self.getStr('Author'),rje.split(time.asctime(time.localtime(time.time())))[-1])))
                         HTML.close()
                         html = '<p>See individual module readme pages for details.</p>'
             return html
@@ -955,9 +962,9 @@ class PyDoc(rje_obj.RJE_Object):
         else: pyhtml += '<font size=-1>[<A HREF="../readme.html">%s Readme</A>]</font></h2>\n\n' % self.getStr('Name')
         #PYDOC.write('source: %s</p><p>' % (pyfile))
         ### ~ [2] Output and format docstring ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-        docstring = string.replace(entry['DocString'],'<','&gt;')
-        docstring = string.replace(docstring,'>','&lt;')
-        docstring = string.split(docstring,'\n')
+        docstring = rje.replace(entry['DocString'],'<','&gt;')
+        docstring = rje.replace(docstring,'>','&lt;')
+        docstring = rje.split(docstring,'\n')
         htmldoc = ['<p>']
         code = False    # Whether currently in a code block
         for line in docstring:
@@ -968,16 +975,16 @@ class PyDoc(rje_obj.RJE_Object):
             if ':' in line:
                 match = (line[:line.find(':')+1],line[line.find(':')+1:])
                 #self.deBug('%s = %s' % (entry['Module'],match))
-                if string.split(match[0])[-1] in ['Function:','Functions:','Commands:','Commandline:','Options:']:
+                if rje.split(match[0])[-1] in ['Function:','Functions:','Commands:','Commandline:','Options:']:
                     htmldoc[-1] += '</p>\n\n'
-                    if reduced and string.split(match[0])[-1] in ['Function:','Functions:']: htmldoc[-1] += '<p>'
+                    if reduced and rje.split(match[0])[-1] in ['Function:','Functions:']: htmldoc[-1] += '<p>'
                     else: htmldoc.append('<p>')
                     htmldoc[-1] += '<B>%s</B>%s<BR>' % match
-                elif string.split(match[0])[-1] in ['Cite:','Citation:']:
+                elif rje.split(match[0])[-1] in ['Cite:','Citation:']:
                     if rje.matchExp('^%s\s+(\S.+)\s+\[PMID:\s*(\d+)\]' % match[0],line):
                         pmid = rje.matchExp('^%s\s+(\S.+)\s+\[PMID:\s*(\d+)\]' % match[0],line)
                         match = (match[0],' <a href="http://www.ncbi.nlm.nih.gov/pubmed/%s?dopt=Abstract" TARGET="_blank">%s</a>' % (pmid[1],pmid[0]))
-                    #else: match = (string.split(match[0])[0],'%s%s' % (string.join(string.split(match[0])[1:],match[1])))
+                    #else: match = (rje.split(match[0])[0],'%s%s' % (rje.join(rje.split(match[0])[1:],match[1])))
                     htmldoc[-1] += '<B>%s</B>%s<BR>' % match
                 elif match[0] in ['Module:','Program:','Description:','Version:','Last Edit:']:
                     htmldoc[-1] += '<B>%s</B>%s<BR>' % match
@@ -991,21 +998,21 @@ class PyDoc(rje_obj.RJE_Object):
                 if match[0] == 'Last Edit:':    # Add Imports and Imported By
                     if reduced: continue
                     htmldoc[-1] += '<B>Imports:</B> '
-                    for imod in string.split(entry['Imports'],', '):
+                    for imod in rje.split(entry['Imports'],', '):
                         aname = self.pyModLinkRef(pyfile,imod,onefile)
                         if aname: htmldoc[-1] += '<A HREF="%s">%s</A>, ' % (aname,imod)
                         else: htmldoc[-1] += '%s, ' % (imod)
                     if htmldoc[-1][-2:] == ', ': htmldoc[-1] = htmldoc[-1][:-2]
                     htmldoc[-1] += '<BR>'
                     htmldoc[-1] += '<B>Imported By:</B> '
-                    for imod in string.split(entry['Imported_By'],', '):
+                    for imod in rje.split(entry['Imported_By'],', '):
                         aname = self.pyModLinkRef(pyfile,imod,onefile)
                         if aname: htmldoc[-1] += '<A HREF="%s">%s</A>, ' % (aname,imod)
                         else: htmldoc[-1] += '%s, ' % (imod)
                     if htmldoc[-1][-2:] == ', ': htmldoc[-1] = htmldoc[-1][:-2]
                     htmldoc[-1] += '<BR>'
             elif re.search('^\S',line) or re.search('^\s*#',line):
-                htmldoc[-1] += '<B>%s</B><BR>' % string.replace(rje.chomp(line),'(C)','&copy;')
+                htmldoc[-1] += '<B>%s</B><BR>' % rje.replace(rje.chomp(line),'(C)','&copy;')
             elif re.search('^(.+\s)(\S+)=(\S+)(\s*:\s*)(\S.+)$',line):
                 match = rje.matchExp('^(.+\s)(\S+)=(\S+)(\s*:\s*)(\S.+)$',line)
                 #htmldoc[-1] += '%s<LI><B><FONT COLOR=RED>%s=</FONT><FONT COLOR=DARKRED>%s</FONT>%s</B>%s<BR>' % match
@@ -1024,8 +1031,8 @@ class PyDoc(rje_obj.RJE_Object):
         htmldoc[-1] += '</p>\n\n'
         doctab = [('Summary',htmldoc[0],'Summary of %s module' % entry['Module'])]
         for i in range(1,len(htmldoc)):
-            tabid = string.split(htmldoc[i],':')[0][6:]
-            if string.split(tabid)[0] == 'Commandline': tabid = 'Commandline'
+            tabid = rje.split(htmldoc[i],':')[0][6:]
+            if rje.split(tabid)[0] == 'Commandline': tabid = 'Commandline'
             doctab.append((tabid,htmldoc[i],'Docstring %s for %s module' % (tabid,entry['Module'])))
         if reduced: return doctab
         ### ~ [3] ~ History and ToDo docstrings ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -1047,16 +1054,16 @@ class PyDoc(rje_obj.RJE_Object):
             htm = '<h3>%s Class</h3>\n<pre>%s</pre>\n\n' % (centry['Class'],centry['DocString'])
             for mentry in mdb.indexEntries('File',pyfile):
                 if mentry['Class'] != centry['Class']: continue
-                docstring = string.replace(string.replace(mentry['DocString'],'>','&gt;'),'<','&lt;')
+                docstring = rje.replace(rje.replace(mentry['DocString'],'>','&gt;'),'<','&lt;')
                 if docstring and docstring[:4] != '    ':
                     htm += '<b>%s.%s(<i>%s</i>)</b>\n<pre><code>    %s</code></pre>\n\n' % (mentry['Class'],mentry['Method'],mentry['CallAttributes'],docstring)
-                else: htm += '<b>%s.%s(<i>%s</i>)</b>\n<pre><code>%s</code></pre>\n\n' % (mentry['Class'],mentry['Method'],mentry['CallAttributes'],string.replace(docstring,'        ','    '))
+                else: htm += '<b>%s.%s(<i>%s</i>)</b>\n<pre><code>%s</code></pre>\n\n' % (mentry['Class'],mentry['Method'],mentry['CallAttributes'],rje.replace(docstring,'        ','    '))
             doctab.append(('%s Class' % centry['Class'],htm,'Documentation for %s Class and associated methods' % centry['Class']))
         ## ~ [4b] ~ Method docstrings ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
         htm = '<h3>%s Module Methods</h3>\n\n' % entry['Module']; mx = 0
         for mentry in mdb.indexEntries('File',pyfile):
             if mentry['Class'] != 'Module' or mentry['Method'] in ['history','todo']: continue
-            docstring = string.replace(string.replace(mentry['DocString'],'>','&gt;'),'<','&lt;'); mx += 1
+            docstring = rje.replace(rje.replace(mentry['DocString'],'>','&gt;'),'<','&lt;'); mx += 1
             if docstring and docstring[:4] != '    ':
                 htm += '<b>%s.%s(<i>%s</i>)</b>\n<pre><code>    %s</code></pre>\n\n' % (entry['Module'],mentry['Method'],mentry['CallAttributes'],docstring)
             else: htm += '<b>%s.%s(<i>%s</i>)</b>\n<pre><code>%s</code></pre>\n\n' % (entry['Module'],mentry['Method'],mentry['CallAttributes'],docstring)
@@ -1095,8 +1102,8 @@ class PyDoc(rje_obj.RJE_Object):
                           '<P><B>Distribution compiled:</B> %s' % time.asctime(time.localtime(time.time())),
                           '<P><B>Questions/Comments?:</B> please contact ',
                           '<A HREF="mailto:%s">%s</A></P>' % (self.getStr('EMail'),self.getStr('EMail'))]
-            if level: htmlcode += string.join(headerhtml,'\n')
-            else: HTML.write(string.join(headerhtml,'\n'))
+            if level: htmlcode += rje.join(headerhtml,'\n')
+            else: HTML.write(rje.join(headerhtml,'\n'))
             ### ~ [3] General Information Tabs ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             headtabs = []
             ## ~ [3a] Module Tab ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
@@ -1116,7 +1123,7 @@ class PyDoc(rje_obj.RJE_Object):
                     else: htm.append('<LI><B><A HREF="%s">%s</A></B> %s' % (href,program,entry['Description']))
                     if program.lower() != module.lower(): htm[-1] += ' (%s.py)' % module
                 htm.append('</UL>')
-                headtabs.append((sourcedir,string.join(htm,'\n'),'Full list of python modules in %s/' % sourcedir))
+                headtabs.append((sourcedir,rje.join(htm,'\n'),'Full list of python modules in %s/' % sourcedir))
             ## ~ [3b] Other Files ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             if self.list['OtherFiles']:
                 docs = ['<H3>Manuals</H3>','<UL>']
@@ -1126,8 +1133,8 @@ class PyDoc(rje_obj.RJE_Object):
                     else: htm.append('<LI>%s' % os.path.basename(file))
                     if file[-4:].lower() == '.pdf': docs.append(htm.pop(-1))
                 htm.append('</UL>'); docs.append('</UL>')
-                if len(docs) > 3: headtabs.append(('docs',string.join(docs,'\n'),'Documentation (PDF Manuals)'))
-                if len(htm) > 3: headtabs.append(('files',string.join(htm,'\n'),'Other files used by python modules'))
+                if len(docs) > 3: headtabs.append(('docs',rje.join(docs,'\n'),'Documentation (PDF Manuals)'))
+                if len(htm) > 3: headtabs.append(('files',rje.join(htm,'\n'),'Other files used by python modules'))
             ## ~ [3c] Installation ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             if zipfile:
                 htm = ['<HR>','<H2>Installation Instructions</H2>','<OL>',
@@ -1135,11 +1142,11 @@ class PyDoc(rje_obj.RJE_Object):
                        '<LI>A subdirectory %s will be created containing all the files necessary to run.' % zipfile,
                        '</OL>','<P>The software should run on any system that has <A HREF="http://www.python.org">Python</A> installed.',
                        'Additional software may be necessary for full functionality. Further details can be found in the manuals supplied.</P>']
-                headtabs.append(('installation',string.join(htm,'\n'),'Installation instructions for %s' % self.getStr('Name')))
+                headtabs.append(('installation',rje.join(htm,'\n'),'Installation instructions for %s' % self.getStr('Name')))
             ## ~ [3d] Updates ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             if self.list['Updates']:
                 htm = ['<H3>Updates since last release:</H3>'] + self.list['Updates']
-                headtabs.append(('Updates',string.join(htm,'\n'),'Updates since last release'))
+                headtabs.append(('Updates',rje.join(htm,'\n'),'Updates since last release'))
             ## ~ [3e] GNU License ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             htm = ['<HR>','<H2>GNU License</H2>',
                    '<P>Copyright (C) %s %s &lt;%s&gt;' % (web_defaults['Copyright'],self.getStr('Author'),self.getStr('EMail')),'</P><P>',
@@ -1148,7 +1155,7 @@ class PyDoc(rje_obj.RJE_Object):
                    '</P><P>','You should have received a copy of the GNU General Public License along with this program; if not, write to the Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA'
                    '</P><P>','Author contact: &lt;%s&gt; / %s' % (self.getStr('EMail'),web_defaults['Address']),
                    '</P><P>','To incorporate this module into your own programs, please see GNU Lesser General Public License disclaimer in rje.py']
-            headtabs.append(('GNU',string.join(htm,'\n'),'GNU License agreement for use'))
+            headtabs.append(('GNU',rje.join(htm,'\n'),'GNU License agreement for use'))
             #!# Add citation and webserver details #!#
             ## ~ [3x] Output Summary ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             if level:
@@ -1159,7 +1166,7 @@ class PyDoc(rje_obj.RJE_Object):
                 HTML.write(self.pydocHTML(modlist,level,onefile,outdir))
             ### ~ [4] End of ReadMe ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if level: return htmlcode
-            HTML.write(rje_html.htmlTail('%s %s' % (self.getStr('Author'),string.split(time.asctime(time.localtime(time.time())))[-1])))
+            HTML.write(rje_html.htmlTail('%s %s' % (self.getStr('Author'),rje.split(time.asctime(time.localtime(time.time())))[-1])))
             HTML.close()        
             self.printLog('#HTML','Generation of readme.html for %s distribution complete.' % self.getStr('Name'))
         except: self.errorLog('Error in PyDoc.makeReadMe(%s)' % self.getStr('Name'))     
@@ -1182,12 +1189,12 @@ class PyDoc(rje_obj.RJE_Object):
             edb = db.addEmptyTable('Edge',['Hub','Spoke','Evidence','ParentType','Type','Links','Strength'],['Hub','Spoke'])
             for entry in self.db('Module').entries():
                 ptype = entry['SourceDir']
-                importlist = string.split(entry['Imports'],', ')
+                importlist = rje.split(entry['Imports'],', ')
                 for imported in importlist:
                     if imported in ['','None']: continue                    
                     try:
                         idata = ndb.data(imported)
-                        ilinks = rje.listIntersect(importlist,string.split(idata['Imported_By'],', '))
+                        ilinks = rje.listIntersect(importlist,rje.split(idata['Imported_By'],', '))
                         edb.addEntry({'Hub':entry['Module'],'Spoke':imported,'Evidence':'Imports','Type':'import','ParentType':ptype,'Links':len(ilinks),'Strength':1.0/(len(ilinks)+1)})                        
                     except:
                         self.deBug(idata)
@@ -1247,7 +1254,7 @@ class PyDoc(rje_obj.RJE_Object):
                 elif process: self._cmdReadList(line,'list',['Modules','WebTabs','Include','OtherFiles','Keywords','Manuals'])
                 if self.list['WebTabs']:
                     self.debug(self.list['WebTabs'])
-                    if '=' in self.list['WebTabs'][0]: (tabset,self.list['WebTabs'][0]) = string.split(self.list['WebTabs'][0],'=')
+                    if '=' in self.list['WebTabs'][0]: (tabset,self.list['WebTabs'][0]) = rje.split(self.list['WebTabs'][0],'=')
                     else: tabset = 'Main %s' % self.getStr('Name')
                     self.list['TabSets'].append(tabset)
                     self.dict['WebTabs'][tabset] = self.list['WebTabs'][0:]
@@ -1264,7 +1271,7 @@ class PyDoc(rje_obj.RJE_Object):
             self.deBug(self.list['Manuals'])
             for pymod in self.list['WebTabs'] + self.list['Modules']:
                 if pymod not in self.list['Keywords']: self.list['Keywords'].append(pymod)
-                for logobase in ['%s%s%s' % (self.getStr('PyPath'),rje.makePath('docs/'),pymod.lower()),'%s%s%s' % (self.getStr('PyPath'),rje.makePath('docs/'),string.split(pymod.lower(),'_')[0])]:
+                for logobase in ['%s%s%s' % (self.getStr('PyPath'),rje.makePath('docs/'),pymod.lower()),'%s%s%s' % (self.getStr('PyPath'),rje.makePath('docs/'),rje.split(pymod.lower(),'_')[0])]:
                     for imgext in ['png','gif','jpg']:
                         for ifile in ['%s_logo.%s' % (logobase,imgext),'%s.%s' % (logobase,imgext)]:
                             if os.path.exists(ifile) and ifile not in self.list['OtherFiles']: self.list['OtherFiles'].append(ifile)
@@ -1288,7 +1295,7 @@ class PyDoc(rje_obj.RJE_Object):
                 pymod = modscan.pop(0)
                 for entry in self.db('Module').indexEntries('Module',pymod):
                     self.printLog('#IMP','Module %s imports: %s' % (pymod,entry['Imports']))
-                    for imod in string.split(entry['Imports'],', '):
+                    for imod in rje.split(entry['Imports'],', '):
                         if imod and imod not in self.list['Modules']:
                             self.printLog('#ADD','%s -> %s' % (pymod,imod))
                             if imod in self.db('Module').index('Module'): self.list['Modules'].append(imod); modscan.append(imod)
@@ -1334,7 +1341,7 @@ class PyDoc(rje_obj.RJE_Object):
                 try: shutil.copy(pyfile, newfile); self.printLog('#COPY','%s -> %s' % (pyfile,newfile)); mx += 1
                 except: self.errorLog('Cannot copy "%s" to "%s"!' % (pyfile, newfile))
             ## ~ [3c] Copy other files ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-            self.list['OtherFiles'] = rje.sortUnique(string.split(string.join(self.list['OtherFiles'],','),','))
+            self.list['OtherFiles'] = rje.sortUnique(rje.split(rje.join(self.list['OtherFiles'],','),','))
             readme_others = []  # List of other files for readme file
             for file in self.list['OtherFiles'][0:]:
                 #self.deBug(file)
@@ -1369,7 +1376,7 @@ class PyDoc(rje_obj.RJE_Object):
                 mod = entry['Module']
                 history = []
                 for mentry in self.db('Method').indexEntries('File',pyfile):
-                    if mentry['Method'] == 'history': history = string.split(mentry['DocString'],'\n'); break
+                    if mentry['Method'] == 'history': history = rje.split(mentry['DocString'],'\n'); break
                 if mod not in prevmod or prevmod[mod]['Version'] != entry['Version']:
                     if mod in prevmod:
                         updates[mod] = [prevmod[mod]['Version'],entry['Version']]
@@ -1440,7 +1447,7 @@ class PyDoc(rje_obj.RJE_Object):
             htmlbody = '<a name="Top"></a><h1>%s</h1>\n\n' % title
             htmlbody += '<p>This webpage contains the latest <a href="../%s.%s.tar.gz">download</a> and documentation for the <scap>%s</scap> package.' % (distribution,self.getStr('Release'),self.getStr('Name'))
             if self.list['WebTabs']:
-                proglist = string.join(self.list['WebTabs'][:-1],', ')
+                proglist = rje.join(self.list['WebTabs'][:-1],', ')
                 if len(self.list['WebTabs']) > 1: proglist += ' and %s' % self.list['WebTabs'][-1]
                 else: proglist = self.list['WebTabs'][-1]
                 #htmlbody += 'The main programs in %s are: %s. Please see the tabs below for more details. Release notes can be found in the <b>ReadMe</b> tab.' % (self.getStr('Name'),proglist)
@@ -1450,7 +1457,7 @@ class PyDoc(rje_obj.RJE_Object):
             else: htmlbody += ' %s contains a number of functional Python modules, which are listed in the <b>ReadMe</b> tab below along with release notes.</p>\n\n' % self.getStr('Name')
             if len(self.list['Include']) > 1:
                 htmlbody += '<p>%s also includes the programs in the ' % self.getStr('Name')
-                htmlbody += '%s and %s packages. \nSee ' % (string.join(self.list['Include'][:-1],', '),self.list['Include'][-1])
+                htmlbody += '%s and %s packages. \nSee ' % (rje.join(self.list['Include'][:-1],', '),self.list['Include'][-1])
                 for include in self.list['Include'][:-1]: htmlbody += '<a href="../%s/">%s page</a>, ' % (include.lower(),include)
                 include = self.list['Include'][-1]
                 htmlbody += 'and <a href="../%s/">%s page</a> for more details.</p>\n\n' % (include.lower(),include)
@@ -1498,12 +1505,12 @@ class PyDoc(rje_obj.RJE_Object):
                     else: file = './docs/%s.pdf' % manual
                     docs.append('<LI><a href="%s" TARGET="_blank">%s</a> - %s' % (file,file,desc))
                 docs.append('</UL>')
-                htmltabs.append(('Manuals',string.join(docs,'\n'),'Documentation (PDF Manuals)'))
+                htmltabs.append(('Manuals',rje.join(docs,'\n'),'Documentation (PDF Manuals)'))
             htmlbody += rje_html.tabberHTML(self.getStr('Name'),htmltabs,level=0)
             ## ~ [5g] ~ Generate Tab per named module in WebTabs ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             for tabset in self.list['TabSets']:
                 htmlbody += '\n<h3>%s programs/modules</h3>\n' % tabset
-                tabtext = 'The %s programs/modules in %s are: %s. Click on the tabs, read the manuals, or see the <a href="./readme/readme.html">ReadMe</a> for more details.' % (tabset,self.getStr('Name'),string.join(self.dict['WebTabs'][tabset],', '))
+                tabtext = 'The %s programs/modules in %s are: %s. Click on the tabs, read the manuals, or see the <a href="./readme/readme.html">ReadMe</a> for more details.' % (tabset,self.getStr('Name'),rje.join(self.dict['WebTabs'][tabset],', '))
                 if self.getStr('Name') in ['SLiMSuite','SeqSuite']: htmlbody += '\nMore information can also be found at the <a href="https://slimsuite.blogspot.co.uk">SLiMSuite blog</a>.'
                 htmltabs = [('^', tabtext, '%s programs/modules' % tabset)]
                 for pymod in self.dict['WebTabs'][tabset][0:]:
@@ -1524,14 +1531,14 @@ class PyDoc(rje_obj.RJE_Object):
                             if tabname in images:
                                 ifile = './docs/%s' % os.path.basename(images[tabname])
                                 newtop = webtab[ix][1]
-                                newtop = string.split(newtop,'Copyright &copy;')
-                                newtop = '<table><tr align="top"><td width="300"><center><img height="120" src="%s"></center></td><td>\n%s</td></tr></table>\n\nCopyright &copy;%s' % (ifile,newtop[0],string.join(newtop[1:],'Copyright &copy;'))
+                                newtop = rje.split(newtop,'Copyright &copy;')
+                                newtop = '<table><tr align="top"><td width="300"><center><img height="120" src="%s"></center></td><td>\n%s</td></tr></table>\n\nCopyright &copy;%s' % (ifile,newtop[0],rje.join(newtop[1:],'Copyright &copy;'))
                                 webtab[ix] = (webtab[ix][0],newtop,webtab[ix][2])
                     elif pymod != '*': self.printLog('#WARN','Cannot find pyfile for "%s" (%s)' % (pymod,tabname))
                     if webtab: htmltabs.append((tabname,rje_html.tabberHTML(tabname,webtab,level=1),'Details for %s program of %s package' % (tabname,self.getStr('Name'))))
                 htmlbody += rje_html.tabberHTML('%s programs/modules' % tabset,htmltabs,level=0)
             ## ~ [5h] End of HTML code ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-            htmltail = rje_html.htmlTail('%s %s' % (self.getStr('Author'),string.split(time.asctime(time.localtime(time.time())))[-1]))
+            htmltail = rje_html.htmlTail('%s %s' % (self.getStr('Author'),rje.split(time.asctime(time.localtime(time.time())))[-1]))
             if linkhtml: htmltail = '</TD></TR></TABLE>\n\n' + htmltail
             ## ~ [5i] Save and finish ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             open(htmlfile,'w').write(htmlhead+htmlbody+htmltail)
@@ -1589,7 +1596,7 @@ class PyDoc(rje_obj.RJE_Object):
                     htmltabs.append((distribution,open('%s%s.html' % (self.getStr('WebDir'),distribution.lower())).read(),'Introduction to the %s package' % distribution))
             htmlbody += rje_html.tabberHTML(self.getStr('Name'),htmltabs,level=0)
             ## ~ [5h] End of HTML code ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-            htmltail = rje_html.htmlTail('%s %s' % (self.getStr('Author'),string.split(time.asctime(time.localtime(time.time())))[-1]))
+            htmltail = rje_html.htmlTail('%s %s' % (self.getStr('Author'),rje.split(time.asctime(time.localtime(time.time())))[-1]))
             if linkhtml: htmltail = '</TD></TR></TABLE>\n\n' + htmltail
             ## ~ [5i] Save and finish ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             open(htmlfile,'w').write(htmlhead+htmlbody+htmltail)
@@ -1601,92 +1608,92 @@ class PyDoc(rje_obj.RJE_Object):
     def formatDocString(self,docstring,outfmt=False):    ### Adds <code> formatting and page links to docstring text
         '''Adds <code> formatting and page links to docstring text.'''
         try:### ~ [1] Format docstring ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            docstring = string.replace(docstring,'<','&lt;')
-            docstring = string.replace(docstring,'>','&gt;')
-            docstring = string.replace(docstring,'&lt;=','&lt;!!*!!')
-            docstring = string.replace(docstring,'&gt;=','&gt;!!*!!')
+            docstring = rje.replace(docstring,'<','&lt;')
+            docstring = rje.replace(docstring,'>','&gt;')
+            docstring = rje.replace(docstring,'&lt;=','&lt;!!*!!')
+            docstring = rje.replace(docstring,'&gt;=','&gt;!!*!!')
             while rje.matchExp('(http:\S+)=(\S+)',docstring):
                 http = rje.matchExp('(http:\S+)=(\S+)',docstring)
-                docstring = string.replace(docstring,'%s=%s' % (http[0],http[1]),'%s!!*!!%s' % (http[0],http[1]))
+                docstring = rje.replace(docstring,'%s=%s' % (http[0],http[1]),'%s!!*!!%s' % (http[0],http[1]))
             while rje.matchExp('(http:\S+)',docstring):
                 http = rje.matchExp('(http:\S+)',docstring)[0]
-                newhttp = string.replace(http,'http','!!HTTP!!')
-                docstring = string.replace(docstring,http,'<a href!!*!!"%s">%s</a>' % (newhttp,newhttp))
+                newhttp = rje.replace(http,'http','!!HTTP!!')
+                docstring = rje.replace(docstring,http,'<a href!!*!!"%s">%s</a>' % (newhttp,newhttp))
             while rje.matchExp('(https:\S+)=(\S+)',docstring):
                 http = rje.matchExp('(https:\S+)=(\S+)',docstring)
-                docstring = string.replace(docstring,'%s=%s' % (http[0],http[1]),'%s!!*!!%s' % (http[0],http[1]))
+                docstring = rje.replace(docstring,'%s=%s' % (http[0],http[1]),'%s!!*!!%s' % (http[0],http[1]))
             while rje.matchExp('(https:\S+)',docstring):
                 http = rje.matchExp('(https:\S+)',docstring)[0]
-                newhttp = string.replace(http,'https','!!HTTPS!!')
-                docstring = string.replace(docstring,http,'<a href!!*!!"%s">%s</a>' % (newhttp,newhttp))
+                newhttp = rje.replace(http,'https','!!HTTPS!!')
+                docstring = rje.replace(docstring,http,'<a href!!*!!"%s">%s</a>' % (newhttp,newhttp))
             if outfmt:
                 while rje.matchExp('(\S+) =',docstring):    # opt=value
                     cmd = rje.matchExp('(\S+) =',docstring)[0]
-                    docstring = string.replace(docstring,'%s =' % cmd,'<code>%s</code> !!*!!' % (cmd),1)
+                    docstring = rje.replace(docstring,'%s =' % cmd,'<code>%s</code> !!*!!' % (cmd),1)
                 while rje.matchExp('(&\S+=\S*\w)',docstring):    # opt=value
                     cmdstr = rje.matchExp('(&\S+=\S*\w)',docstring)[0]
-                    [cmd,opt] = string.split(cmdstr,'=',maxsplit=1)
-                    opt = string.replace(opt,'=','!!*!!')   # For REST calls etc.
-                    docstring = string.replace(docstring,cmdstr,'<code>%s!!*!!%s</code>' % (cmd,opt),1)
+                    [cmd,opt] = rje.split(cmdstr,'=',maxsplit=1)
+                    opt = rje.replace(opt,'=','!!*!!')   # For REST calls etc.
+                    docstring = rje.replace(docstring,cmdstr,'<code>%s!!*!!%s</code>' % (cmd,opt),1)
                 pretext = rje.matchExp('(###[~]+###.*\n# OUTFMT\:.*\n\.\.\..*)',docstring)
-                if pretext: docstring = string.replace(docstring,pretext[0],'<pre>%s</pre>' % string.replace(pretext[0],'\n','<PREND>'))
+                if pretext: docstring = rje.replace(docstring,pretext[0],'<pre>%s</pre>' % rje.replace(pretext[0],'\n','<PREND>'))
                 #while rje.matchExp('\n\s*(#+)\s(\S[^~]+):.+\n',docstring):
                 #    subhead = rje.matchExp('\n\s*(#+)\s(\S[^~]+):.+\n',docstring)
                 #    subfull = rje.matchExp('\n(\s*#+\s\S[^~]+:.+)\n',docstring)[0]
-                #    docstring = string.replace(docstring,subfull,'<h%d>%s</h%d>' % (len(subhead[0]),subhead[1],len(subhead[0])),1)
-                docstring = string.replace(docstring,'### Available REST Outputs:','<h3>Available REST Outputs</h3>')
+                #    docstring = rje.replace(docstring,subfull,'<h%d>%s</h%d>' % (len(subhead[0]),subhead[1],len(subhead[0])),1)
+                docstring = rje.replace(docstring,'### Available REST Outputs:','<h3>Available REST Outputs</h3>')
                 while rje.matchExp('###\s([^:]+):\s*\n',docstring):
                     reptext = rje.matchExp('###(\s)([^:]+):\s*\n',docstring)
-                    docstring = string.replace(docstring,'###%s%s:' % reptext,'<h3>%s</h3>' % reptext[1])
-                docstring = string.replace(docstring,'#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#','<hr>')
+                    docstring = rje.replace(docstring,'###%s%s:' % reptext,'<h3>%s</h3>' % reptext[1])
+                docstring = rje.replace(docstring,'#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#','<hr>')
             while rje.matchExp('(`\w\S*=\S*\w`)',docstring):    # `opt=value`
                 cmdstr = rje.matchExp('(`\w\S*=\S*\w`)',docstring)[0]
-                [cmd,opt] = string.split(string.replace(cmdstr,'`',''),'=')
-                docstring = string.replace(docstring,cmdstr,'<code>[%s!!*!!%s]{cmd:%s}</code>' % (cmd,opt,cmd),1)
+                [cmd,opt] = rje.split(rje.replace(cmdstr,'`',''),'=')
+                docstring = rje.replace(docstring,cmdstr,'<code>[%s!!*!!%s]{cmd:%s}</code>' % (cmd,opt,cmd),1)
             while rje.matchExp('(\w\S*=\S*\w)',docstring):    # opt=value
                 cmdstr = rje.matchExp('(\w\S*=\S*\w)',docstring)[0]
                 try:
-                    [cmd,opt] = string.split(cmdstr,'=')
-                    docstring = string.replace(docstring,cmdstr,'<code>[%s!!*!!%s]{cmd:%s}</code>' % (cmd,opt,cmd),1)
-                except: docstring = string.replace(docstring,cmdstr,'<code>%s</code>' % string.replace(cmdstr,'=','!!*!!'),1)
+                    [cmd,opt] = rje.split(cmdstr,'=')
+                    docstring = rje.replace(docstring,cmdstr,'<code>[%s!!*!!%s]{cmd:%s}</code>' % (cmd,opt,cmd),1)
+                except: docstring = rje.replace(docstring,cmdstr,'<code>%s</code>' % rje.replace(cmdstr,'=','!!*!!'),1)
             while rje.matchExp('(({cmd[^\n]+)\[([^<\r\n]+)\][\r\n])',docstring):
                 codestr = rje.matchExp('(({cmd[^\n]+)\[([^<\r\n]+)\][\r\n])',docstring)
-                docstring = string.replace(docstring,codestr[0],'%s[<code>%s</code>]\n' % (codestr[1],codestr[2]),1)
+                docstring = rje.replace(docstring,codestr[0],'%s[<code>%s</code>]\n' % (codestr[1],codestr[2]),1)
             while rje.matchExp('(`[^`]+`)',docstring):    # `code`
                 codestr = rje.matchExp('(`[^`]+`)',docstring)[0]
-                docstring = string.replace(docstring,codestr,'<code>%s</code>' % (string.replace(codestr,'`','')),1)
+                docstring = rje.replace(docstring,codestr,'<code>%s</code>' % (rje.replace(codestr,'`','')),1)
             while rje.matchExp('(\*\*[^\*\n]+\*\*)',docstring):    # **Bold**
                 codestr = rje.matchExp('(\*\*[^\*\n]+\*\*)',docstring)[0]
-                docstring = string.replace(docstring,codestr,'<b>%s</b>' % (string.replace(codestr,'**','')),1)
+                docstring = rje.replace(docstring,codestr,'<b>%s</b>' % (rje.replace(codestr,'**','')),1)
                 #self.debug(codestr)
             while rje.matchExp('\W(_.+_)\W',docstring):    # `code`
                 self.bugPrint(docstring)
                 codestr = rje.matchExp('\W(_.+_)\W',docstring)[0]
-                docstring = string.replace(docstring,codestr,'<i>%s</i>' % (codestr[1:-1]))
+                docstring = rje.replace(docstring,codestr,'<i>%s</i>' % (codestr[1:-1]))
                 self.debug(codestr)
                 self.debug(codestr[1:-1])
                 self.debug(docstring)
             while rje.matchExp('(\S+)\.py',docstring):
                 docmod = rje.matchExp('(\S+)\.py',docstring)[0]
-                if self.findModule(docmod): docstring = string.replace(docstring,'%s.py' % docmod,'[%s!!.!!py]{module:%s}' % (docmod,docmod),1)
-                else: docstring = string.replace(docstring,'%s.py' % docmod,'%s!!.!!py' % docmod,1)
+                if self.findModule(docmod): docstring = rje.replace(docstring,'%s.py' % docmod,'[%s!!.!!py]{module:%s}' % (docmod,docmod),1)
+                else: docstring = rje.replace(docstring,'%s.py' % docmod,'%s!!.!!py' % docmod,1)
         except:
             self.errorLog('formatDocString error',quitchoice=False)
             docstring += '<p><i>Something went wrong with docstring formatting!</i></p>'
         ### ~ [2] Tidy and return ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-        docstring = string.replace(docstring,'!!HTTP!!','http')
-        docstring = string.replace(docstring,'!!HTTPS!!','https')
-        docstring = string.replace(docstring,'!!*!!','=')
-        docstring = string.replace(docstring,'!!.!!','.')
-        docstring = string.replace(docstring,'</code><code>','')
+        docstring = rje.replace(docstring,'!!HTTP!!','http')
+        docstring = rje.replace(docstring,'!!HTTPS!!','https')
+        docstring = rje.replace(docstring,'!!*!!','=')
+        docstring = rje.replace(docstring,'!!.!!','.')
+        docstring = rje.replace(docstring,'</code><code>','')
         if outfmt:
-            docstring = docstring.replace('\n','<br>\n')
-            docstring = docstring.replace('<PREND>','\n')
-            docstring = string.replace(docstring,'<br>\n<pre>','\n<pre>')
-            docstring = string.replace(docstring,'<br>\n<h3>','\n<h3>')
-            docstring = string.replace(docstring,'</pre><br>','</pre>')
-            docstring = string.replace(docstring,'<hr><br>','<hr width="80%">')
-            docstring = string.replace(docstring,'</h3><br>','</h3>')
+            docstring = docrje.replace('\n','<br>\n')
+            docstring = docrje.replace('<PREND>','\n')
+            docstring = rje.replace(docstring,'<br>\n<pre>','\n<pre>')
+            docstring = rje.replace(docstring,'<br>\n<h3>','\n<h3>')
+            docstring = rje.replace(docstring,'</pre><br>','</pre>')
+            docstring = rje.replace(docstring,'<hr><br>','<hr width="80%">')
+            docstring = rje.replace(docstring,'</h3><br>','</h3>')
         return docstring
 #########################################################################################################################
     def parseToDocTabs(self,pymod):    ### Parses the docstring etc. for module and returns HTML for REST docs page
@@ -1707,7 +1714,7 @@ class PyDoc(rje_obj.RJE_Object):
             if 'Uses general modules:' in docstring: docstring = docstring[:docstring.find('Uses general modules:')]
             ### [3] Convert docstring into tabs ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             #self.debug(docstring)
-            docstring = string.split(docstring,'\n')
+            docstring = rje.split(docstring,'\n')
             #self.debug(docstring)
             ## [3a] Summary Information Tab ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             infotable = '<table border=0 width="100%" id="linktab">\n'
@@ -1720,18 +1727,18 @@ class PyDoc(rje_obj.RJE_Object):
                 if not nextline: continue
                 if ':' in nextline:
                     match = [nextline[:nextline.find(':')+1],nextline[nextline.find(':')+1:]]
-                    if string.split(match[0])[-1] in ['Cite:','Citation:']:
+                    if rje.split(match[0])[-1] in ['Cite:','Citation:']:
                         if rje.matchExp('^%s\s+(\S.+)\s+\[PMID:\s*(\d+)\]' % match[0],nextline):
                             pmid = rje.matchExp('^%s\s+(\S.+)\s+\[PMID:\s*(\d+)\]' % match[0],nextline)
                             match = (match[0],' <a href="http://www.ncbi.nlm.nih.gov/pubmed/%s?dopt=Abstract" TARGET="_blank">%s</a>' % (pmid[1],pmid[0]))
                         infotable += '<tr><th id="linktab">%s</th><td id="doctab2">%s</td></tr>\n' % (match[0],match[1])
-                    elif string.split(match[0])[-1] in ['Program:']:
+                    elif rje.split(match[0])[-1] in ['Program:']:
                         infotable += '<tr><th id="linktab">%s</th><td id="doctab3">%s</td></tr>\n' % (match[0],match[1])
                     else:
                         # http now managed by formatDocString.
                         #if rje.matchExp('(http:\S+)',match[1]):
                         #    http = rje.matchExp('(http:\S+)',match[1])[0]
-                        #    match[1] = string.replace(match[1],http,'<a href="%s" TARGET="_blank">%s</a>' % (http,http))
+                        #    match[1] = rje.replace(match[1],http,'<a href="%s" TARGET="_blank">%s</a>' % (http,http))
                         infotable += '<tr><th id="linktab">%s</th><td id="doctab">%s</td></tr>\n' % (match[0],match[1])
                 elif 'Copyright' in nextline:
                     infotable += '</table>\n'
@@ -1746,7 +1753,7 @@ class PyDoc(rje_obj.RJE_Object):
                     tabhtml += '<td width=50><p></p></td>\n'
                     tabhtml += '<td>%s</td>\n' % infotable
                     tabhtml += '</tr></table>\n<!-- End of Summary Table -->\n'
-                    tabhtml += '<p>%s' % string.replace(nextline,'(C)','&copy;')
+                    tabhtml += '<p>%s' % rje.replace(nextline,'(C)','&copy;')
                     if data['Imports']:
                         tabhtml += '</p>\n<hr>\n'
                         tabhtml += '<p><b>Imported modules:</b> \n'
@@ -1768,7 +1775,7 @@ class PyDoc(rje_obj.RJE_Object):
                     tabhtml = '<h2>%s</h2>\n<p>' % (tabid)
                     tabdesc = 'Docstring %s for %s module' % (tabid,pymod)
                 else:
-                    #nextline = string.join(string.split(nextline))
+                    #nextline = rje.join(rje.split(nextline))
                     if rje.matchExp('^\s*(#+)\s~?\s?(\S[^~]+)(:|\s~)',nextline):
                         subhead = rje.matchExp('^\s*(#+)\s~?\s?(\S[^~]+)(:|\s~)',nextline)
                         nextline = '<h%d>%s</h%d>' % (len(subhead[0]),subhead[1],len(subhead[0]))
@@ -1777,25 +1784,25 @@ class PyDoc(rje_obj.RJE_Object):
                     #!# Need to add ability to deal with wrapped bullets
                     if nextline.startswith('* '):
                         try:
-                            if not string.split(tabhtml)[-1].endswith('</li>') and not string.split(tabhtml)[-1].endswith('</li><br>'): tabhtml += '<ul>'
+                            if not rje.split(tabhtml)[-1].endswith('</li>') and not rje.split(tabhtml)[-1].endswith('</li><br>'): tabhtml += '<ul>'
                         except: tabhtml += '<ul>'
                         #nextline = '<li>%s</li>' % nextline
                         nextline = '<li>%s</li>' % nextline[2:]
                         try:
-                            if string.split(docstring[0])[0].startswith('* '): nextline += '</ul>'
+                            if rje.split(docstring[0])[0].startswith('* '): nextline += '</ul>'
                         except: nextline += '</ul>'
                         #if rje.matchExp('(\* (\S+)\s+=)',nextline):
                         #    bullet = rje.matchExp('(\* (\S+)\s+=)',nextline)
-                        #    nextline = string.replace(nextline,bullet[0],'<code>%s</code> =' % bullet[1])
+                        #    nextline = rje.replace(nextline,bullet[0],'<code>%s</code> =' % bullet[1])
                         if rje.matchExp('(<li>(\S+)\s+=)',nextline):
                             bullet = rje.matchExp('(<li>(\S+)\s+=)',nextline)
-                            nextline = string.replace(nextline,bullet[0],'<li><code>%s</code> =' % bullet[1])
+                            nextline = rje.replace(nextline,bullet[0],'<li><code>%s</code> =' % bullet[1])
                     if not rje.matchExp('(\S)',nextline): nextline = ''
                     elif nextline.startswith('<h'): nextline += '<p>'
                     elif nextline.endswith(']'):
                         nextline += '<br>'
                         if docstring and not docstring[0]: docstring.pop(0)
-                    elif string.split(tabhtml)[-1].endswith('</li>'): pass
+                    elif rje.split(tabhtml)[-1].endswith('</li>'): pass
                     elif tabid.lower() not in ['function','summary','introduction'] and not nextline.endswith('</li>'): nextline += '<br>'
                     tabhtml += '%s\n' % nextline
                     #self.debug(nextline)
@@ -1807,7 +1814,7 @@ class PyDoc(rje_obj.RJE_Object):
             try:
                 for (method,mdesc,mdetail) in data['Methods']:
                     if method != 'history': continue
-                    tabhtml += '<pre>%s</pre>\n\n' % string.join(mdetail[2:-2],'')
+                    tabhtml += '<pre>%s</pre>\n\n' % rje.join(mdetail[2:-2],'')
                     tablist.append((tabid,tabhtml,tabdesc))
             except: self.errorLog('History')
             ## [3d] Add REST Tab ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
@@ -1836,20 +1843,20 @@ class PyDoc(rje_obj.RJE_Object):
         '''Performs final processing/cleanup of documentation tabhtml for parseToDocTabs.'''
         try:### ~ [1] Cleanup rogue paragraphs, headings and line endings ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             #self.debug(tabhtml)
-            tabhtml = string.replace(tabhtml,'\n\n','</p>\n\n<p>')
-            tabhtml = string.replace(tabhtml,']<br></p>',']<br>')
-            tabhtml = string.replace(tabhtml,'<br>\n  \n  <p>','<br>\n')
-            tabhtml = string.replace(tabhtml,'<br></p>','</p>')
-            tabhtml = string.replace(tabhtml,'<p><h','<h')
-            tabhtml = string.replace(tabhtml,'<p></p>','')
-            tabhtml = string.replace(tabhtml,'\n</p>','</p>\n\n')
-            tabhtml = string.replace(tabhtml,'<br>\n\n<p>','<br>\n')
+            tabhtml = rje.replace(tabhtml,'\n\n','</p>\n\n<p>')
+            tabhtml = rje.replace(tabhtml,']<br></p>',']<br>')
+            tabhtml = rje.replace(tabhtml,'<br>\n  \n  <p>','<br>\n')
+            tabhtml = rje.replace(tabhtml,'<br></p>','</p>')
+            tabhtml = rje.replace(tabhtml,'<p><h','<h')
+            tabhtml = rje.replace(tabhtml,'<p></p>','')
+            tabhtml = rje.replace(tabhtml,'\n</p>','</p>\n\n')
+            tabhtml = rje.replace(tabhtml,'<br>\n\n<p>','<br>\n')
             #self.debug([tabhtml])
             #self.debug(tabhtml.find('<br>\n  \n  <h'))
-            tabhtml = string.replace(tabhtml,'<br>\n\n<h','</p>\n\n<h')
-            tabhtml = string.replace(tabhtml,'<br>\nSee also','</p>\n\n<p>See also')
-            tabhtml = string.replace(tabhtml,'<p></p>','')
-            while '\n\n\n' in tabhtml: tabhtml = string.replace(tabhtml,'\n\n\n','\n\n')
+            tabhtml = rje.replace(tabhtml,'<br>\n\n<h','</p>\n\n<h')
+            tabhtml = rje.replace(tabhtml,'<br>\nSee also','</p>\n\n<p>See also')
+            tabhtml = rje.replace(tabhtml,'<p></p>','')
+            while '\n\n\n' in tabhtml: tabhtml = rje.replace(tabhtml,'\n\n\n','\n\n')
             while tabhtml.endswith('\n'): tabhtml = tabhtml[:-1]
             #self.debug([tabhtml])
             #self.bugPrint(tabhtml)
@@ -1896,7 +1903,7 @@ class PyDoc(rje_obj.RJE_Object):
                 pagetxt += '</p>\n'
                 pagetxt += '<p><b>Modules:</b>'
                 for ofile in odb.indexDataList('Argument',arg,'File'):
-                    omod = string.split(ofile,'/')[-1][:-3]
+                    omod = rje.split(ofile,'/')[-1][:-3]
                     pagetxt += ' <code>[%s]{module:%s}</code>' % (omod,omod)
                 pagetxt += '</p>\n\n'
                 #pagetxt += '<!-- INSERT CUSTOM TEXT HERE -->'
@@ -1906,9 +1913,9 @@ class PyDoc(rje_obj.RJE_Object):
                     prevtext = prevtext[prevtext.find('<!-- INSERT CUSTOM TEXT HERE -->'):prevtext.find('<!-- END CUSTOM TEXT -->')]
                     if not prevtext: prevtext = '<!-- INSERT CUSTOM TEXT HERE -->\n\n'
                 else: prevtext = '<!-- INSERT CUSTOM TEXT HERE -->\n\n'
-#                    prevtext = string.replace(open(prevpage,'r').read(),'\n','!!!N!!!')
+#                    prevtext = rje.replace(open(prevpage,'r').read(),'\n','!!!N!!!')
 #                    prevtext = rje.matchExp('<!-- INSERT CUSTOM TEXT HERE -->(.+)<!-- END CUSTOM TEXT -->',prevtext)
-#                    if prevtext: prevtext = string.replace(prevtext[0],'!!!N!!!','\n')
+#                    if prevtext: prevtext = rje.replace(prevtext[0],'!!!N!!!','\n')
 #                    else: prevtext = '\n\n'
 #                else: prevtext = '\n\n'
                 pagetxt += prevtext
@@ -1918,14 +1925,14 @@ class PyDoc(rje_obj.RJE_Object):
                 pagetxt += '<tr id="linktab"><th>Module</th><th>Option</th><th>Description</th><th>Default</th></tr>\n'
                 modrows = []
                 for entry in odb.indexEntries('Argument',arg):
-                    omod = string.split(entry['File'],'/')[-1][:-3]
+                    omod = rje.split(entry['File'],'/')[-1][:-3]
                     modtxt = '<tr>\n  <td id="linktab2" align=left>[%s]{module:%s}</td>\n' % (omod,omod)
                     modtxt += '  <td><code>[%s=%s]{docs:%s}</code></td>\n' % (arg,entry['ArgType'],entry['page'])
                     modtxt += '  <td>%s</td>\n' % entry['Description']
                     modtxt += '  <td><code>%s</code></td>\n</tr>\n' % entry['Default']
                     if modtxt not in modrows: modrows.append(modtxt)
                 modrows.sort()
-                pagetxt += string.join(modrows,'')
+                pagetxt += rje.join(modrows,'')
                 pagetxt += '</tr></table>\n'
                 open(apage,'w').write(pagetxt)
             ### [2] Option Type Pages ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -1945,11 +1952,11 @@ class PyDoc(rje_obj.RJE_Object):
                 pagetxt += '</p>\n'
                 pagetxt += '<p><b>Modules:</b>'
                 for ofile in odb.indexDataList('page',arg,'File'):
-                    omod = string.split(ofile,'/')[-1][:-3]
+                    omod = rje.split(ofile,'/')[-1][:-3]
                     pagetxt += ' <code>[%s]{module:%s}</code>' % (omod,omod)
                 pagetxt += '</p>\n\n'
                 #pagetxt += '<!-- INSERT CUSTOM TEXT HERE -->'
-                prevpage = string.replace(apage,pagedir,prevdir)
+                prevpage = rje.replace(apage,pagedir,prevdir)
                 if os.path.exists(prevpage):
                     prevtext = open(prevpage,'r').read()
                     prevtext = prevtext[prevtext.find('<!-- INSERT CUSTOM TEXT HERE -->'):prevtext.find('<!-- END CUSTOM TEXT -->')]
@@ -1964,7 +1971,7 @@ class PyDoc(rje_obj.RJE_Object):
                 pagetxt += '<tr id="linktab"><th>Module</th><th>Option</th><th>Description</th><th>Default</th></tr>\n'
                 modrows = []
                 for entry in odb.indexEntries('page',arg):
-                    omod = string.split(entry['File'],'/')[-1][:-3]
+                    omod = rje.split(entry['File'],'/')[-1][:-3]
                     otype = entry['Argument']
                     modtxt = '<tr>\n  <td id="linktab2" align=left>[%s]{module:%s}</td>\n' % (omod,omod)
                     modtxt += '  <td><code>[%s=%s]{cmd:%s}</code></td>\n' % (otype,entry['ArgType'],otype)
@@ -1972,7 +1979,7 @@ class PyDoc(rje_obj.RJE_Object):
                     modtxt += '  <td><code>%s</code></td>\n</tr>\n' % entry['Default']
                     modrows.append(modtxt)
                 modrows.sort()
-                pagetxt += string.join(modrows,'')
+                pagetxt += rje.join(modrows,'')
                 pagetxt += '</tr></table>\n'
                 open(apage,'w').write(pagetxt)
             ### [3] End of Page Generation ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -1985,7 +1992,7 @@ class PyDoc(rje_obj.RJE_Object):
         #pydoccmd = self.cmd_list + ['pypath=%s' % slimsuitepath,'docsource=%sdocs/' % slimsuitepath]
         #pydoccmd += ['sourcedir=tools,extras,libraries,legacy,dev','resturl=%s' % self.getStr('RestURL')]
         #pydoc = rje_pydocs.PyDoc(self.log,pydoccmd)
-        pymod = 'diploidocus' # string.split(page,'/')[-1]
+        pymod = 'diploidocus' # rje.split(page,'/')[-1]
         pydata = self.parseToDocTabs(pymod)
         print(pydata['DocString'])
         return True
@@ -2012,8 +2019,8 @@ def runMain():
     ### ~ [1] ~ Basic Setup of Program  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try: (info,out,mainlog,cmd_list) = setupProgram()
     except SystemExit: return  
-    except: print 'Unexpected error during program setup:', sys.exc_info()[0]; return
-    
+    except: rje.printf('Unexpected error during program setup:', sys.exc_info()[0]); return
+
     ### ~ [2] ~ Rest of Functionality... ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try: PyDoc(mainlog,cmd_list).run()
 
@@ -2025,7 +2032,7 @@ def runMain():
 #########################################################################################################################
 if __name__ == "__main__":      ### Call runMain 
     try: runMain()
-    except: print 'Cataclysmic run error:', sys.exc_info()[0]
+    except: rje.printf('Cataclysmic run error: {0}'.format(sys.exc_info()[0]))
     sys.exit()
 #########################################################################################################################
 ### END OF SECTION IV                                                                                                   #

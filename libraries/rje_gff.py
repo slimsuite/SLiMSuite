@@ -127,9 +127,9 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         ### ~ [2] ~ Look for help commands and print options if found ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         cmd_help = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
         if cmd_help > 0:
-            print '\n\nHelp for %s %s: %s\n' % (info.program, info.version, time.asctime(time.localtime(info.start_time)))
+            rje.printf('\n\nHelp for {0} {1}: {2}\n'.format(info.program, info.version, time.asctime(time.localtime(info.start_time))))
             out.verbose(-1,4,text=__doc__)
-            if rje.yesNo('Show general commandline options?'): out.verbose(-1,4,text=rje.__doc__)
+            if rje.yesNo('Show general commandline options?',default='N'): out.verbose(-1,4,text=rje.__doc__)
             if rje.yesNo('Quit?'): sys.exit()           # Option to quit after help
             cmd_list += rje.inputCmds(out,cmd_list)     # Add extra commands interactively.
         elif out.stat['Interactive'] > 1: cmd_list += rje.inputCmds(out,cmd_list)    # Ask for more commands
@@ -137,7 +137,7 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         return cmd_list
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Major Problem with cmdHelp()'
+    except: rje.printf('Major Problem with cmdHelp()')
 #########################################################################################################################
 def setupProgram(): ### Basic Setup of Program when called from commandline.
     '''
@@ -148,16 +148,19 @@ def setupProgram(): ### Basic Setup of Program when called from commandline.
     '''
     try:### ~ [1] ~ Initial Command Setup & Info ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         info = makeInfo()                                   # Sets up Info object with program details
+        if len(sys.argv) == 2 and sys.argv[1] in ['version','-version','--version']: rje.printf(info.version); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: rje.printf('%s v%s' % (info.program,info.version)); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['description','-description','--description']: rje.printf('%s: %s' % (info.program,info.description)); sys.exit(0)
         cmd_list = rje.getCmdList(sys.argv[1:],info=info)   # Reads arguments and load defaults from program.ini
         out = rje.Out(cmd_list=cmd_list)                    # Sets up Out object for controlling output to screen
-        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2 
+        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2
         out.printIntro(info)                                # Prints intro text using details from Info object
         cmd_list = cmdHelp(info,out,cmd_list)               # Shows commands (help) and/or adds commands from user
         log = rje.setLog(info,out,cmd_list)                 # Sets up Log object for controlling log file output
         return (info,out,log,cmd_list)                      # Returns objects for use in program
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Problem during initial setup.'; raise
+    except: rje.printf('Problem during initial setup.'); raise
 #########################################################################################################################
 ### END OF SECTION I                                                                                                    #
 #########################################################################################################################
@@ -459,7 +462,7 @@ class GFF(rje_obj.RJE_Object):
                     if seqdata: sdb.addEntry({'locus':seqdata[0],'start':int(seqdata[1]),'end':int(seqdata[2]),'sequence':''})
                     sregx = sdb.entryNum()
                     continue
-                gdata = string.split(gtext,'\t')
+                gdata = rje.split(gtext,'\t')
                 gentry = {}
                 try:
                     if ftypes and gdata[2] not in ftypes: nx +=1; continue
@@ -482,12 +485,12 @@ class GFF(rje_obj.RJE_Object):
 
                 if parseattributes:
                     if addatt:
-                        attlist = rje.longCmd(string.split(gentry['attributes'],';'))
+                        attlist = rje.longCmd(rje.split(gentry['attributes'],';'))
                         #self.debug('%s' % attlist)
                         for attdata in attlist:
                             if not attdata: continue
                             try:
-                                [att,val] = string.split(attdata,'=')
+                                [att,val] = rje.split(attdata,'=')
                                 if att not in attfields:
                                     if att.lower() in gfields:
                                         attfields[att] = 'att-{0}'.format(att.lower())
@@ -515,7 +518,7 @@ class GFF(rje_obj.RJE_Object):
                 self.progLog('#GFF','Parsing GFF fasta...')
                 glines.pop(0)
                 while glines and glines[0].startswith('>'):
-                    locus = string.split(glines.pop(0))[0][1:]
+                    locus = rje.split(glines.pop(0))[0][1:]
                     sequence = ''
                     while glines and not glines[0].startswith('>'): sequence += rje.chomp(glines.pop(0))
                     if not sequence: self.warnLog('Fasta for %s missing sequence' % locus)
@@ -714,7 +717,7 @@ class GFF(rje_obj.RJE_Object):
                         jlen = jentry['end'] - jentry['start'] + 1 + indel + jentry['shift']
                         jentry['shift'] += indel
                         #i# Need to remove previous joinseq overlaps for calculating new overlap
-                        jxx = string.split(jentry['aaseq'],'xx')
+                        jxx = rje.split(jentry['aaseq'],'xx')
                         self.bugPrint(jentry['aaseq'])
                         while len(jxx) > 1:
                             jxx = [jxx[0]+jxx[1]+jxx[3]] + jxx[4:]
@@ -790,7 +793,7 @@ class GFF(rje_obj.RJE_Object):
             if self.getBool('GFFComment'):
                 cfile = '%s.comments.txt' % self.baseFile()
                 rje.backup(self,cfile,appendable=False)
-                open(cfile,'w').write(string.join(self.list['Comments'],'\n'))
+                open(cfile,'w').write(rje.join(self.list['Comments'],'\n'))
                 self.printLog('#OUT','GFF Comments output to %s.' % cfile)
                 self.dict['Output']['comments'] = cfile    #i# Trying to fix REST output issue
             if self.getBool('GFFFasta'):
@@ -867,8 +870,8 @@ def runMain():
     ### ~ [1] ~ Basic Setup of Program  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try: (info,out,mainlog,cmd_list) = setupProgram()
     except SystemExit: return  
-    except: print 'Unexpected error during program setup:', sys.exc_info()[0]; return
-    
+    except: rje.printf('Unexpected error during program setup:', sys.exc_info()[0]); return
+
     ### ~ [2] ~ Rest of Functionality... ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try: GFF(mainlog,cmd_list).run()
 
@@ -880,7 +883,7 @@ def runMain():
 #########################################################################################################################
 if __name__ == "__main__":      ### Call runMain 
     try: runMain()
-    except: print 'Cataclysmic run error:', sys.exc_info()[0]
+    except: rje.printf('Cataclysmic run error: {0}'.format(sys.exc_info()[0]))
     sys.exit()
 #########################################################################################################################
 ### END OF SECTION IV                                                                                                   #

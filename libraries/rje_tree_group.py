@@ -864,7 +864,7 @@ def _reviewGroups(_tree,interactive=1):    ### Summarise, scan for variants (sam
                     elif choice == 'n': choice = -1
                     elif choice == 'm': break
                     else:
-                        try: choice = string.atoi(choice)
+                        try: choice = rje.atoi(choice)
                         except: continue
                 elif _tree.opt['AllowVar']: choice = len(masters)
                 elif _tree.opt['QryVar'] and query and grpmaster.info['SpecCode'] == query.info['SpecCode']: choice = len(masters)
@@ -939,7 +939,7 @@ def _reviewGroups(_tree,interactive=1):    ### Summarise, scan for variants (sam
                         elif choice == 'n':
                             if g < (_tree.groupNum() - 1): g += 1; nextbreak = True
                         else:
-                            try: choice = string.atoi(choice)
+                            try: choice = rje.atoi(choice)
                             except: continue
                     elif _tree.opt['AllowVar']: choice = len(vseq)
                     elif _tree.opt['QryVar'] and query and vseq[0].info['SpecCode'] == query.info['SpecCode']: choice = len(vseq)

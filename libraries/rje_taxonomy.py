@@ -66,6 +66,9 @@ Function:
     element if missing) and TYPE is the taxout type. If batchmode=T then a separate set of files will be made for each
     element of the TaxIn list, using BASE.TAXIN.TYPE.txt file naming.
 
+    **NOTE:** The downloading options do not currently seem to be working. It might be required to manually download and
+    rename the files as the NCBI file is giving EOF errors.
+
 Commandline:
     ### ~ SOURCE DATA OPTIONS ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     specfile=FILE       : Uniprot species code download. [speclist.txt]
@@ -136,9 +139,9 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         ### ~ [2] ~ Look for help commands and print options if found ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         cmd_help = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
         if cmd_help > 0:
-            print '\n\nHelp for %s %s: %s\n' % (info.program, info.version, time.asctime(time.localtime(info.start_time)))
+            rje.printf('\n\nHelp for {0} {1}: {2}\n'.format(info.program, info.version, time.asctime(time.localtime(info.start_time))))
             out.verbose(-1,4,text=__doc__)
-            if rje.yesNo('Show general commandline options?'): out.verbose(-1,4,text=rje.__doc__)
+            if rje.yesNo('Show general commandline options?',default='N'): out.verbose(-1,4,text=rje.__doc__)
             if rje.yesNo('Quit?'): sys.exit()           # Option to quit after help
             cmd_list += rje.inputCmds(out,cmd_list)     # Add extra commands interactively.
         elif out.stat['Interactive'] > 1: cmd_list += rje.inputCmds(out,cmd_list)    # Ask for more commands
@@ -146,7 +149,7 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         return cmd_list
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Major Problem with cmdHelp()'
+    except: rje.printf('Major Problem with cmdHelp()')
 #########################################################################################################################
 def setupProgram(): ### Basic Setup of Program when called from commandline.
     '''
@@ -157,16 +160,19 @@ def setupProgram(): ### Basic Setup of Program when called from commandline.
     '''
     try:### ~ [1] ~ Initial Command Setup & Info ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         info = makeInfo()                                   # Sets up Info object with program details
+        if len(sys.argv) == 2 and sys.argv[1] in ['version','-version','--version']: rje.printf(info.version); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: rje.printf('%s v%s' % (info.program,info.version)); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['description','-description','--description']: rje.printf('%s: %s' % (info.program,info.description)); sys.exit(0)
         cmd_list = rje.getCmdList(sys.argv[1:],info=info)   # Reads arguments and load defaults from program.ini
         out = rje.Out(cmd_list=cmd_list)                    # Sets up Out object for controlling output to screen
-        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2 
+        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2
         out.printIntro(info)                                # Prints intro text using details from Info object
         cmd_list = cmdHelp(info,out,cmd_list)               # Shows commands (help) and/or adds commands from user
         log = rje.setLog(info,out,cmd_list)                 # Sets up Log object for controlling log file output
         return (info,out,log,cmd_list)                      # Returns objects for use in program
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Problem during initial setup.'; raise
+    except: rje.printf('Problem during initial setup.'); raise
 #########################################################################################################################
 ### END OF SECTION I                                                                                                    #
 #########################################################################################################################
@@ -240,8 +246,8 @@ class Taxonomy(rje_obj.RJE_Object):
         self.list['RankTypes'] = ['species','subspecies','no rank']
         ### ~ Other Attributes ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         self.dict['SourceURL'] = {'SpecFile':'http://www.uniprot.org/docs/speclist.txt',
-             'TaxMap':'ftp://ftp.ncbi.nih.gov/pub/taxonomy/taxdump.tar.gz',
-             'NameMap':'ftp://ftp.ncbi.nih.gov/pub/taxonomy/taxdump.tar.gz'}
+             'TaxMap':'http://ftp.ncbi.nih.gov/pub/taxonomy/taxdump.tar.gz',
+             'NameMap':'http://ftp.ncbi.nih.gov/pub/taxonomy/taxdump.tar.gz'}
         self.obj['DB'] = rje_db.Database(self.log,self.cmd_list)
         self._setForkAttributes()   # Delete if no forking
 #########################################################################################################################
@@ -291,7 +297,7 @@ class Taxonomy(rje_obj.RJE_Object):
                 taxdict = self.mapTaxa(self.list['TaxIn'],self.list['TaxOut'],self.getBool('NodeOnly'),self.getBool('RankOnly'),savetaxout=not self.getBool('TaxTable'))
                 if self.getBool('TaxTable'):
                     tentry =  {'TaxIn':taxa}
-                    for tfield in taxdict: tentry[tfield] = string.join(taxdict[tfield],'|')
+                    for tfield in taxdict: tentry[tfield] = rje.join(taxdict[tfield],'|')
                     tdb.addEntry(tentry)
             self.baseFile(basefile)
             if self.getBool('TaxTable'): tdb.saveToFile()
@@ -308,7 +314,7 @@ class Taxonomy(rje_obj.RJE_Object):
             if not self.getStrLC('Basefile'):
                 if self.getBool('BatchMode'): self.setBaseFile('batch')
                 elif self.list['TaxIn']: self.setBaseFile(rje.baseFile(self.list['TaxIn'][0],strip_path=True))
-            self.list['TaxOut'] = string.join(self.list['TaxOut']).lower().split()
+            self.list['TaxOut'] = rje.join(self.list['TaxOut']).lower().split()
             if 'all' in self.list['TaxOut']: self.list['TaxOut'] = ['taxid','spcode','name','common']
             self.list['RankID'] = []
             ### ~ [2] TaxMap Dictionary ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -317,7 +323,7 @@ class Taxonomy(rje_obj.RJE_Object):
             for tline in open(self.getStr('TaxMap'),'r').readlines():
                 self.progLog('\r#TAXID','Reading %s: %s TaxID' % (self.getStr('TaxMap'),rje.iStr(tx)))
                 #try: (child,parent,taxtype) = rje.matchExp('^(\d+)\s+\|\s+(\d+)\s+\|\s+(\S+)\s+',tline)
-                try: (child,parent,taxtype) = string.split(tline,'\t|\t')[:3]
+                try: (child,parent,taxtype) = rje.split(tline,'\t|\t')[:3]
                 except: fx += 1; self.debug(tline); continue
                 self.dict['Rank'][child] = taxtype
                 if parent not in taxmap: taxmap[parent] = []
@@ -328,7 +334,7 @@ class Taxonomy(rje_obj.RJE_Object):
                 if child in self.dict['Parent']: self.warnLog('Child TaxID "%s" already has parent!' % child)
                 if parents and child != parent: self.dict['Parent'][child] = parent
             self.printLog('\r#TAXID','%s TaxID (%s parent taxa) read from %s; %s failed.' % (rje.iStr(tx),rje.iStr(px),self.getStr('TaxMap'),rje.iStr(fx)))
-            self.printLog('#SPEC','%s TaxID mapped to %s RankTypes' % (rje.iLen(self.list['RankID']),string.join(self.list['RankTypes'],'/')))
+            self.printLog('#SPEC','%s TaxID mapped to %s RankTypes' % (rje.iLen(self.list['RankID']),rje.join(self.list['RankTypes'],'/')))
             if self.test():
                 pcheck = 0
                 for tax in taxmap:
@@ -352,7 +358,7 @@ class Taxonomy(rje_obj.RJE_Object):
                 tx = 0
                 for tline in open(self.getStr('NameMap'),'r').readlines():
                     self.progLog('\r#SPEC','Reading %s species names: %s TaxID' % (self.getStr('NameMap'),rje.iStr(tx)))
-                    tdata = string.split(tline,'\t|\t')
+                    tdata = rje.split(tline,'\t|\t')
                     if not tdata[3].startswith('scientific name'): continue
                     taxid = tdata[0]
                     if taxid not in taxdict: taxdict[taxid] = {'name': tdata[1]}; tx += 1
@@ -426,7 +432,7 @@ class Taxonomy(rje_obj.RJE_Object):
                     if not taxoutlist: self.printLog('#OUT','No %s IDs to output' % taxout); continue
                     tfile = '%s.%s.txt' % (self.baseFile(),taxout)
                     rje.backup(self,tfile)
-                    open(tfile,'w').write(string.join(taxoutlist,'\n'))
+                    open(tfile,'w').write(rje.join(taxoutlist,'\n'))
                     self.printLog('#OUT','%s %s IDs output to %s.' % (rje.iLen(taxoutlist), taxout, tfile))
             if tlist: return taxoutdict
             return taxoutlist
@@ -477,13 +483,13 @@ class Taxonomy(rje_obj.RJE_Object):
                     parents += taxmap[taxa]
                 return taxid
             ## ~ [2b] Species Code ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-            if taxa == string.replace(taxa.upper(),' ',''):
+            if taxa == rje.replace(taxa.upper(),' ',''):
                 greplines = os.popen('grep "%s" %s' % (taxa, self.getStr('SpecFile'))).readlines()
                 for entry in greplines:
                     try: taxid.append(rje.matchExp('^%s\s+\S+\s+(\d+):' % taxa,entry)[0])
                     except: pass
                 if not taxid and warn: self.warnLog('Cannot find Species Code "%s"!' % taxa,'Missing_SpCode',suppress=True)
-                if len(taxid) > 1: self.warnLog('Species Code "%s" hits %d Taxa ID (%s)' % (taxa, len(taxid), string.join(taxid,'|')))
+                if len(taxid) > 1: self.warnLog('Species Code "%s" hits %d Taxa ID (%s)' % (taxa, len(taxid), rje.join(taxid,'|')))
                 return self.mapToTaxID(taxid,nodeonly,rankonly,log=False) #taxid
             ### ~ [3] Species name etc. ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             taxa = taxa.replace('_',' ')
@@ -500,9 +506,9 @@ class Taxonomy(rje_obj.RJE_Object):
             if not taxid: taxid = synid
             if not taxid and warn: self.warnLog('Cannot find Taxon name "%s" in Uniprot!' % taxa,'Missing Taxon',suppress=True)
             if len(taxid) > 1:
-                #self.bugPrint(string.join(greplines))
+                #self.bugPrint(rje.join(greplines))
                 #self.debug('%s %s %s' % (taxid,comid,synid))
-                if warn: self.warnLog('Species Code "%s" hits %d Taxa ID (%s)' % (taxa, len(taxid), string.join(taxid,'|')))
+                if warn: self.warnLog('Species Code "%s" hits %d Taxa ID (%s)' % (taxa, len(taxid), rje.join(taxid,'|')))
             if taxid: return self.mapToTaxID(taxid,nodeonly,rankonly,log=False) #taxid
             #self.debug(taxid)
             ## ~ [3b] Grep from NCBI ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
@@ -510,11 +516,11 @@ class Taxonomy(rje_obj.RJE_Object):
             for entry in greplines:
                 try:
                     #gtaxid = rje.matchExp('^(\d+)\s+\S\s+(\S.+)$',entry)
-                    gtaxid = string.split(entry,'\t|\t')
+                    gtaxid = rje.split(entry,'\t|\t')
                     if gtaxid[1].lower() == taxa.lower(): taxid.append(gtaxid[0])
                     elif gtaxid[2] and gtaxid[2].lower() == taxa.lower(): taxid.append(gtaxid[0])
                 except: pass
-            if len(taxid) > 1 and warn: self.warnLog('Species Code "%s" hits %d Taxa ID (%s)' % (taxa, len(taxid), string.join(taxid,'|')))
+            if len(taxid) > 1 and warn: self.warnLog('Species Code "%s" hits %d Taxa ID (%s)' % (taxa, len(taxid), rje.join(taxid,'|')))
             return self.mapToTaxID(taxid,nodeonly,rankonly,log=False) #taxid
         except: self.errorLog('%s.mapToTaxID() error' % (self)); raise
 #########################################################################################################################
@@ -548,7 +554,7 @@ class Taxonomy(rje_obj.RJE_Object):
             ## ~ [2b] ~ Adding missing scientific names from NameMap ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             if not taxdict:
                 for entry in os.popen('grep -i -e "^%s\t" %s' % (taxid, self.getStr('NameMap'))).readlines():
-                    tdata = string.split(entry,'\t|\t')
+                    tdata = rje.split(entry,'\t|\t')
                     if not tdata[3].startswith('scientific name'): continue
                     tname = tdata[1]
                     if 'name' in taxdict: self.warnLog('TaxID %d hits "%s" and "%s"!' % (taxid, taxdict[name],tname))
@@ -596,7 +602,7 @@ class Taxonomy(rje_obj.RJE_Object):
             if not taxa: return ''
             if rje.matchExp('^(\d+)$', taxa): taxid = [taxa]; taxa = self.getSpecies(taxa)
             else:
-                if taxa == string.replace(taxa.upper(),' ',''): return taxa
+                if taxa == rje.replace(taxa.upper(),' ',''): return taxa
                 taxid = self.mapToTaxID(taxa,nodeonly=True,rankonly=False,log=False,warn=False)
             if len(taxid) > 1 and warn: self.warnLog('"%s" maps to %d TaxIDs! (Will use %s)' % (taxa,len(taxid),taxid[0]),'SpCode Multiple TaxID',suppress=True)
             if not taxid and warn: self.warnLog('Could not find TaxID for "%s"' % taxa,'SpCode Missing TaxID',suppress=True)
@@ -611,9 +617,9 @@ class Taxonomy(rje_obj.RJE_Object):
             sdb = self.db('SpCode')
             if not sdb: sdb = self.db().addEmptyTable('SpCode',['Species','SpCode'],['Species'])
             if sdb.data(taxa): return sdb.data(taxa)['SpCode']
-            twords = string.split(taxa.replace('_',' ').upper())
+            twords = rje.split(taxa.replace('_',' ').upper())
             if 'VIRUS' in taxa.upper():
-                twords = string.split(taxa.upper().replace('_',' ').replace('VIRUS',' VIRUS').replace('-',' '))
+                twords = rje.split(taxa.upper().replace('_',' ').replace('VIRUS',' VIRUS').replace('-',' '))
                 spcode = ''; virus = False
                 for t in twords[1:]:
                     if t == 'VIRUS': virus = True
@@ -628,7 +634,7 @@ class Taxonomy(rje_obj.RJE_Object):
             else: spcode = twords[0][:6]
             if not taxa: spcode = taxid
             ## ~ [3a] Clean up SPCODE ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-            tmp = string.join(spcode); spcode = ''
+            tmp = rje.join(spcode); spcode = ''
             for x in tmp:
                 if x in string.ascii_uppercase + string.digits: spcode += x
             ## ~ [3b] Return SPCODE ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
@@ -674,8 +680,8 @@ def runMain():
     ### ~ [1] ~ Basic Setup of Program  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try: (info,out,mainlog,cmd_list) = setupProgram()
     except SystemExit: return  
-    except: print 'Unexpected error during program setup:', sys.exc_info()[0]; return
-    
+    except: rje.printf('Unexpected error during program setup:', sys.exc_info()[0]); return
+
     ### ~ [2] ~ Rest of Functionality... ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try: Taxonomy(mainlog,cmd_list).run()
 
@@ -687,7 +693,7 @@ def runMain():
 #########################################################################################################################
 if __name__ == "__main__":      ### Call runMain 
     try: runMain()
-    except: print 'Cataclysmic run error:', sys.exc_info()[0]
+    except: rje.printf('Cataclysmic run error: {0}'.format(sys.exc_info()[0]))
     sys.exit()
 #########################################################################################################################
 ### END OF SECTION IV                                                                                                   #

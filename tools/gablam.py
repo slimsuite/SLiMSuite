@@ -19,8 +19,8 @@
 """
 Program:      GABLAM
 Description:  Global Analysis of BLAST Local AlignMents
-Version:      2.30.5
-Last Edit:    13/11/19
+Version:      2.30.6
+Last Edit:    13/05/22
 Citation:     Davey, Shields & Edwards (2006), Nucleic Acids Res. 34(12):3546-54. [PMID: 16855291]
 Manual:       http://bit.ly/GABLAMManual
 Copyright (C) 2006  Richard J. Edwards - See source code for GNU License Notice
@@ -302,6 +302,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 2.30.3 - Minor tweak to NRSeq removal to work through GABLAM hits in reverse query size order.
     # 2.30.4 - Removed duplication error messages when combining fasout results.
     # 2.30.5 - Fixed missing BLAST database for sequence extraction.
+    # 2.30.6 - Py3 updates.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -348,7 +349,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo():     ### Makes Info object
     '''Makes rje.Info object for program.'''
-    (program, version, last_edit, copyyear) = ('GABLAM', '2.30.5', 'November 2019', '2006')
+    (program, version, last_edit, copyyear) = ('GABLAM', '2.30.6', 'May 2022', '2006')
     description = 'Global Analysis of BLAST Local AlignMents'
     author = 'Dr Richard J. Edwards.'
     comments = ['Please cite: Davey, Shields & Edwards (2006), Nucleic Acids Res. 34(12):3546-54. [PMID: 16855291]']
@@ -361,7 +362,7 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         if not out: out = rje.Out()
         helpx = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
         if helpx > 0:
-            print '\n\nHelp for %s %s: %s\n' % (info.program, info.version, time.asctime(time.localtime(info.start_time)))
+            rje.printf('\n\nHelp for {0} {1}: {2}\n'.format(info.program, info.version, time.asctime(time.localtime(info.start_time))))
             out.verbose(-1,4,text=__doc__)
             if rje.yesNo('Show general commandline options?'): out.verbose(-1,4,text=rje.__doc__)
             if rje.yesNo('Quit?'): sys.exit()
@@ -370,36 +371,30 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         return cmd_list
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Major Problem with cmdHelp()'
+    except: rje.printf('Major Problem with cmdHelp()')
 #########################################################################################################################
-def setupProgram(): ### Basic Setup of Program
+def setupProgram(): ### Basic Setup of Program when called from commandline.
     '''
-    Basic setup of Program:
+    Basic Setup of Program when called from commandline:
     - Reads sys.argv and augments if appropriate
     - Makes Info, Out and Log objects
     - Returns [info,out,log,cmd_list]
     '''
-    try:
-        ### Initial Command Setup & Info ###
-        info = makeInfo()
+    try:### ~ [1] ~ Initial Command Setup & Info ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+        info = makeInfo()                                   # Sets up Info object with program details
         if len(sys.argv) == 2 and sys.argv[1] in ['version','-version','--version']: rje.printf(info.version); sys.exit(0)
-        if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: rje.printf('{0} v{1}'.format(info.program,info.version)); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: rje.printf('%s v%s' % (info.program,info.version)); sys.exit(0)
         if len(sys.argv) == 2 and sys.argv[1] in ['description','-description','--description']: rje.printf('%s: %s' % (info.program,info.description)); sys.exit(0)
-        cmd_list = rje.getCmdList(sys.argv[1:],info=info)      ### Load defaults from program.ini
-        ### Out object ###
-        out = rje.Out(cmd_list=cmd_list)
-        out.verbose(2,2,cmd_list,1)
-        out.printIntro(info)
-        ### Additional commands ###
-        cmd_list = cmdHelp(info,out,cmd_list)
-        ### Log ###
-        log = rje.setLog(info=info,out=out,cmd_list=cmd_list)
-        return [info,out,log,cmd_list]
+        cmd_list = rje.getCmdList(sys.argv[1:],info=info)   # Reads arguments and load defaults from program.ini
+        out = rje.Out(cmd_list=cmd_list)                    # Sets up Out object for controlling output to screen
+        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2
+        out.printIntro(info)                                # Prints intro text using details from Info object
+        cmd_list = cmdHelp(info,out,cmd_list)               # Shows commands (help) and/or adds commands from user
+        log = rje.setLog(info,out,cmd_list)                 # Sets up Log object for controlling log file output
+        return (info,out,log,cmd_list)                      # Returns objects for use in program
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except:
-        print 'Problem during initial setup.'
-        raise
+    except: rje.printf('Problem during initial setup.'); raise
 #########################################################################################################################
 paf_defaults = {'N':'250','p':'0.0001','x':'asm20'}
 #########################################################################################################################
@@ -675,7 +670,7 @@ class GABLAM(rje.RJE_Object):
         self.printLog('#MODE','FullBLAST=%s; KeepBLAST=%s.' % (self.getBool('FullBlast'),self.getBool('KeepBlast')))
         #self.deBug(self.info)
         #self.debug(self.opt)
-        if self.debugging(): self.printLog('#CMD','GABLAM Commandlist: %s' % string.join(self.cmd_list))
+        if self.debugging(): self.printLog('#CMD','GABLAM Commandlist: %s' % rje.join(self.cmd_list))
 #########################################################################################################################
     ### <2> ### Run Setup Section                                                                                       #
 #########################################################################################################################
@@ -929,9 +924,9 @@ class GABLAM(rje.RJE_Object):
             ex = 0.0; etot = gdb.entryNum(); qx = 0; hx = 0
             for entry in gdb.entries():
                 self.progLog('\r#ACC','Checking query/hit accnum: %.1f%%' % (ex/etot)); ex += 100.0
-                qry = string.split(entry['Qry'],'__')[-1]
+                qry = rje.split(entry['Qry'],'__')[-1]
                 if qry != entry['Qry']: entry['Qry'] = qry; qx += 1
-                hit = string.split(entry['Hit'],'__')[-1]
+                hit = rje.split(entry['Hit'],'__')[-1]
                 if hit != entry['Hit']: entry['Hit'] = hit; hx += 1
             self.printLog('\r#ACC','%s entry queries converted from shortname to accnum.' % rje.iStr(qx))
             self.printLog('\r#ACC','%s entry hits converted from shortname to accnum.' % rje.iStr(hx))
@@ -1138,8 +1133,8 @@ class GABLAM(rje.RJE_Object):
                         if nextseq.info['Name'].find('%s ' % startfrom) >= 0: startfrom = None
                         else: continue
 
-                    new_fork_id = '%s.%s' % (rje.fileSafeString(nextseq.info['AccNum']),string.split(self.info['SearchDB'],os.sep)[-1])
-                    new_fork_id = string.replace(new_fork_id,'.fas','')
+                    new_fork_id = '%s.%s' % (rje.fileSafeString(nextseq.info['AccNum']),rje.split(self.info['SearchDB'],os.sep)[-1])
+                    new_fork_id = rje.replace(new_fork_id,'.fas','')
                     self.dict['NameMap'][nextseq.info['AccNum']] = self.dict['NameMap'][nextseq.shortName()] = nextseq.info['Name']
                     if self.opt['NoForks']:     ## BLAST *and* read results ##
                         self.verbose(2,3,'No forks: Straight processing of %s' % new_fork_id)
@@ -1364,8 +1359,8 @@ class GABLAM(rje.RJE_Object):
                 gstat = self.getStr('CutStat')
                 if self.getBool('QAssemble') and gstat in qfields + ['Local']: gtype = 'qassemble'
                 else:
-                    gstat = string.replace(gstat,'Ordered','O')
-                    gstat = string.replace(gstat,'Aln',' ')
+                    gstat = rje.replace(gstat,'Ordered','O')
+                    gstat = rje.replace(gstat,'Aln',' ')
                     gstat = 'GABLAM' + gstat
                     if gstat not in gdb.fields():
                         self.errorLog('GABLAM Cut-off stat "%s" not recognised. Should be generic (use with cutfocus for Query/Hit).' % gstat,False,False)
@@ -1387,7 +1382,7 @@ class GABLAM(rje.RJE_Object):
                     for entry in table.entries()[0:]:
                         (Qry,Hit) = (entry['Query'],entry['Hit'])
                         self_hit = Qry == Hit
-                        if self.getBool('QryAcc'): self_hit = self_hit or string.split(Hit,'__')[-1] == Qry
+                        if self.getBool('QryAcc'): self_hit = self_hit or rje.split(Hit,'__')[-1] == Qry
                         if self_hit: table.dropEntry(entry); hx += 1    #? Also cleanup Local and GABLAM datasets?
                     self.printLog('\r#SELF','%s %s self-hits removed: %s remain' % (rje.iStr(hx),table.name(),rje.iStr(hdb.entryNum())))
             ## [1b] Apply GABLAM Cutoffs ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
@@ -1514,7 +1509,7 @@ class GABLAM(rje.RJE_Object):
                 ## Local Unique Table output
                 if self.getBool('LocalUnique'):
                     if self.getStr('LocalSort') not in ldb.fields():
-                        raise ValueError('"%s" (localsort=X) is not a valid Local hit table field (%s)' % (self.getStr('LocalSort'),string.join(ldb.fields(),'|')))
+                        raise ValueError('"%s" (localsort=X) is not a valid Local hit table field (%s)' % (self.getStr('LocalSort'),rje.join(ldb.fields(),'|')))
                     #i# NOTE: reduceLocal will now apply localidmin cutoff.
                     udb = blast.reduceLocal(sortfield=self.getStr('LocalSort'),minloclen=self.getInt('LocalMin'),minlocid=self.getNum('LocalIDMin'),byqry=self.getBool('QryUnique'))
                     if udb:
@@ -1581,7 +1576,7 @@ class GABLAM(rje.RJE_Object):
                 if self.getBool('SelfHit') and not self.getBool('SelfSum'):
                     for entry in resdb.entries()[0:]:
                         if entry['Qry'] == entry['Hit']: resdb.dropEntry(entry)
-                        elif self.getBool('QryAcc') and string.split(entry['Hit'],'__')[-1] == entry['Qry']: resdb.dropEntry(entry)
+                        elif self.getBool('QryAcc') and rje.split(entry['Hit'],'__')[-1] == entry['Qry']: resdb.dropEntry(entry)
                 resdb.addField('HitNum',evalue=1,after='Qry')
                 resdb.compress(['Qry'],{'HitNum':'sum','Score':'max','EVal':'min'})
                 for field in headlist:
@@ -1665,12 +1660,12 @@ class GABLAM(rje.RJE_Object):
                                 sequence = fullseq[fragstart-1:fragend]
                                 #seq = hitseq[hit]
                                 #(fullseqname,sequence) = outfas.getSeqFrag(seq,fragstart+1,fragend+1)
-                                seqname = string.split(fullseqname)
+                                seqname = rje.split(fullseqname)
                                 seqname[0] = '%s.%s-%s' % (seqname[0],rje.preZero(fragstart,seqlen),rje.preZero(fragend,seqlen))
                                 if len(seqname) == 1: seqname.append('No description')
                                 seqname[-1] += '|(Pos:%s..%s)' % (rje.iStr(fragstart),rje.iStr(fragend))
                                 seqname.insert(1,'%s GABLAM Hit:' % Qry)
-                                seqname = string.join(seqname)
+                                seqname = rje.join(seqname)
                                 fragfas.append((seqname,sequence)); hfx += 1
                                 #self.debug(fullseqname)
                                 #self.debug(Qry)
@@ -1732,7 +1727,7 @@ class GABLAM(rje.RJE_Object):
                     #self.bugPrint(Qry)
                     #self.bugPrint(Hit)
                     self_hit = Qry == Hit
-                    if self.getBool('QryAcc'): self_hit = self_hit or string.split(Hit,'__')[-1] == Qry
+                    if self.getBool('QryAcc'): self_hit = self_hit or rje.split(Hit,'__')[-1] == Qry
                     #self_hit = Qry.find(Hit) >= 0 or (self.opt['QryAcc'] and Hit.find(Qry) >= 0)
                     #self.bugPrint('%s vs %s self hit: %s' % (Qry,Hit,self_hit))
                     if self_hit and not self.opt['SelfHit']:
@@ -1774,11 +1769,11 @@ class GABLAM(rje.RJE_Object):
                     if self.stat['GABLAMCut'] > 0:
                         gcut = self.stat['GABLAMCut'] 
                         gstat = self.info['CutStat']
-                        gstat = string.replace(gstat,'Ordered','O')
-                        gstat = string.replace(gstat,'Aln',' ')
+                        gstat = rje.replace(gstat,'Ordered','O')
+                        gstat = rje.replace(gstat,'Aln',' ')
                         gstat = 'GABLAM' + gstat
                         if gstat not in gdict['Query'].keys():
-                            print gstat, 'not cool. :o('
+                            #print gstat, 'not cool. :o('
                             self.errorLog('GABLAM Cut-off stat "%s" not recognised. Should be generic (use with cutfocus for Query/Hit).' % gstat,False,False)
                             self.stat['GABLAMCut'] = 0
                             self.info['CutStat'] = 'AlnLen'                       
@@ -1879,13 +1874,13 @@ class GABLAM(rje.RJE_Object):
                             sequence = fullseq[fragstart-1:fragend]
                             #seq = hitseq[hit]
                             #(fullseqname,sequence) = outfas.getSeqFrag(seq,fragstart+1,fragend+1)
-                            seqname = string.split(fullseqname)
+                            seqname = rje.split(fullseqname)
                             #x#seqname[0] = '%s-%s.%s' % (seqname[0],rje.preZero(fragstart,seqlen),rje.preZero(fragend,seqlen))
                             seqname[0] = '%s.%s-%s' % (seqname[0],rje.preZero(fragstart,seqlen),rje.preZero(fragend,seqlen))
                             if len(seqname) == 1: seqname.append('No description')
                             seqname[-1] += '|(Pos:%s..%s)' % (rje.iStr(fragstart),rje.iStr(fragend))
                             seqname.insert(1,'%s GABLAM Hit:' % Qry)
-                            seqname = string.join(seqname)
+                            seqname = rje.join(seqname)
                             fragfas.append((seqname,sequence)); hfx += 1
                             #self.debug(fullseqname)
                             #self.debug(Qry)
@@ -1912,11 +1907,11 @@ class GABLAM(rje.RJE_Object):
                             (fragstart,fragend) = gdata['Hit']['GABLAM Frag'][fx]
                             seq = hitseq[hit]
                             fullseq = seq.getSequence()
-                            seqname = string.split(seq.info['Name'])
+                            seqname = rje.split(seq.info['Name'])
                             #x#seqname[0] = '%s-%s.%s' % (seqname[0],rje.preZero(fragstart+1,seq.seqLen()),rje.preZero(fragend+1,seq.seqLen()))
                             seqname[0] = '%s.%s-%s' % (seqname[0],rje.preZero(fragstart+1,seq.seqLen()),rje.preZero(fragend+1,seq.seqLen()))
                             seqname.insert(1,'GABLAM Fragment %d of %d (%s - %s)' % (fx+1,ftot,rje.iStr(fragstart+1),rje.iStr(fragend+1)))
-                            seqname = string.join(seqname)
+                            seqname = rje.join(seqname)
                             sequence = fullseq[fragstart:fragend+1]
                             outfas._addSeq(seqname,sequence)
                     if outfas.seq: outfas.saveFasta(seqfile=bfas,append=False); #self.deBug(outfas.seq[0].info)
@@ -1992,10 +1987,8 @@ class GABLAM(rje.RJE_Object):
                             if plen[qh] <= 0:
                                 self.log.errorLog('Error in bamRead(%s, Hit %s): %s len < 1!' % (Qry,Hit,qh),printerror=False)
                                 if qh == 'Hit': self.log.errorLog('Check for multiple occurrences of %s in search database!' % (Hit),printerror=False)
-                                if self.opt['DeBug']:
-                                    #X#os.system('cp %s.blast err.%s.blast' % (new_fork_id,new_fork_id))
-                                    print hit.stat
-                                    print gdict
+                                self.bugPrint(hit.stat)
+                                self.bugPrint(gdict)
                             for order in ['GABLAM','GABLAMO']:
                                 for stat in ['Len', 'ID', 'Sim']:
                                     gstat = '%s %s' % (order,stat)
@@ -2013,11 +2006,10 @@ class GABLAM(rje.RJE_Object):
                     if self.stat['GABLAMCut'] > 0:
                         gcut = self.stat['GABLAMCut'] 
                         gstat = self.info['CutStat']
-                        gstat = string.replace(gstat,'Ordered','O')
-                        gstat = string.replace(gstat,'Aln',' ')
+                        gstat = rje.replace(gstat,'Ordered','O')
+                        gstat = rje.replace(gstat,'Aln',' ')
                         gstat = 'GABLAM' + gstat
                         if gstat not in gdict['Query'].keys():
-                            print gstat, 'not cool. :o('
                             self.log.errorLog('GABLAM Cut-off stat "%s" not recognised. Should be generic (use with cutfocus for Query/Hit).' % gstat,False,False)
                             self.stat['GABLAMCut'] = 0
                             self.info['CutStat'] = 'AlnLen'                       
@@ -2084,11 +2076,11 @@ class GABLAM(rje.RJE_Object):
                             (fragstart,fragend) = hit.dict['GABLAM']['Hit']['GABLAM Frag'][fx]
                             seq = hitseq[hit]
                             fullseq = seq.getSequence()
-                            seqname = string.split(seq.info['Name'])
+                            seqname = rje.split(seq.info['Name'])
                             #x#seqname[0] = '%s-%s.%s' % (seqname[0],rje.preZero(fragstart+1,seq.seqLen()),rje.preZero(fragend+1,seq.seqLen()))
                             seqname[0] = '%s.%s-%s' % (seqname[0],rje.preZero(fragstart+1,seq.seqLen()),rje.preZero(fragend+1,seq.seqLen()))
                             seqname.insert(1,'GABLAM Fragment %d of %d (%s - %s)' % (fx+1,ftot,rje.iStr(fragstart+1),rje.iStr(fragend+1)))
-                            seqname = string.join(seqname)
+                            seqname = rje.join(seqname)
                             sequence = fullseq[fragstart:fragend+1]
                             outfas._addSeq(seqname,sequence)
                     if outfas.seq: outfas.saveFasta(seqfile=bfas,append=False); #self.deBug(outfas.seq[0].info)
@@ -2170,11 +2162,11 @@ class GABLAM(rje.RJE_Object):
             gablam.basefile(self.basefile())
             diskey = self.getStr('DisKey')
             if diskey not in self.list['FullResHeaders']:
-                if string.replace(diskey,'Ordered','') in self.list['FullResHeaders']:
-                    diskey = string.replace(diskey,'Ordered','')
+                if rje.replace(diskey,'Ordered','') in self.list['FullResHeaders']:
+                    diskey = rje.replace(diskey,'Ordered','')
                     self.printLog('#DIS','Replaced distance matrix key (%s) with %s for output compatibility' % (self.getStr('DisKey'),diskey))
-                elif string.replace(diskey,'_','_Ordered') in self.list['FullResHeaders']:
-                    diskey = string.replace(diskey,'_','_Ordered')
+                elif rje.replace(diskey,'_','_Ordered') in self.list['FullResHeaders']:
+                    diskey = rje.replace(diskey,'_','_Ordered')
                     self.printLog('#DIS','Replaced distance matrix key (%s) with %s for output compatibility' % (self.getStr('DisKey'),diskey))
                 else: self.errorLog('#ERR','Cannot use "%s" as distance matrix key: not in output headers' % diskey); raise ValueError
             ### ~ [1] ~ Load GABLAM Data ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -2197,7 +2189,7 @@ class GABLAM(rje.RJE_Object):
             else: gablam.savePNG(upgma,savensf=self.getBool('DisTrees'),bycluster=self.getInt('ByCluster'),singletons=self.getBool('Singletons'),byclusters=gclusters)
             ## ~ [2b] ~ Generate graph outputs ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             if self.getBool('DisGraph'):
-                self.list['GraphTypes'] = string.split(string.join(self.list['GraphTypes']).lower())
+                self.list['GraphTypes'] = rje.split(rje.join(self.list['GraphTypes']).lower())
                 ppi = rje_ppi.PPI(self.log,self.cmd_list)
                 basefile = ppi.info['Basefile'] = '%s.graph' % self.basefile()
                 G = ppi.dict['PPI'] = gablam.makeGraph(cutoff=self.getNum('ClusterSplit'),singletons=False)    #self.getBool('Singletons')) Why not working?
@@ -2257,7 +2249,7 @@ class GABLAM(rje.RJE_Object):
                 self.progLog('\r#FRAG','Compiling fragments: %s redundant fragments removed' % rje.iStr(fx))
                 bugger = '1'
                 try:
-                    (name,fragstart,fragend) = rje.matchExp('^(\S+)\.(\d+)-(\d+)$',string.split(seq[0])[0])
+                    (name,fragstart,fragend) = rje.matchExp('^(\S+)\.(\d+)-(\d+)$',rje.split(seq[0])[0])
                     maxlen = int('9' * len(fragend))
                     if name not in fragdict: fragdict[name] = []
                     addfrag = True
@@ -2273,15 +2265,15 @@ class GABLAM(rje.RJE_Object):
                         if fragstart <= prevstart and fragend >= prevend:
                             fragdict[name].remove((prevstart,prevend,prevseq)); fx += 1
                             bugger = '2'
-                            prevqry = string.split(string.split(prevseq[0])[1],'|')
+                            prevqry = rje.split(rje.split(prevseq[0])[1],'|')
                             bugger = '3'
-                            for qry in string.split(string.split(seq[0])[1],'|'):
+                            for qry in rje.split(rje.split(seq[0])[1],'|'):
                                 if qry not in prevqry: prevqry.insert(1,qry)
                             prevqry.sort()
                             bugger = '4'
-                            sname = string.split(seq[0])
-                            sname[1] = string.join(prevqry,'|')
-                            seq = (string.join(sname),seq[1])
+                            sname = rje.split(seq[0])
+                            sname[1] = rje.join(prevqry,'|')
+                            seq = (rje.join(sname),seq[1])
                         # Combine overlaps! #!# Possibly combine within gabfrag distance too! #!#
                         elif prevstart <= fragstart <= prevend or prevstart <= fragend <= prevend: # Overlap
                             #i seq/prevseq are (name,seq) tuples
@@ -2295,19 +2287,19 @@ class GABLAM(rje.RJE_Object):
                             fragend = max(fragend,prevend)
                             if len(seq[1]) != fragend - fragstart + 1: raise ValueError()
                             bugger = '5'
-                            prevqry = string.split(string.split(prevseq[0])[1],'|')
+                            prevqry = rje.split(rje.split(prevseq[0])[1],'|')
                             bugger = '6'
-                            for qry in string.split(string.split(seq[0])[1],'|'):
+                            for qry in rje.split(rje.split(seq[0])[1],'|'):
                                 if qry not in prevqry: prevqry.insert(1,qry)
                             prevqry.sort()
                             bugger = '7'
-                            sname = string.split(seq[0])
-                            sname[1] = string.join(prevqry,'|')
+                            sname = rje.split(seq[0])
+                            sname[1] = rje.join(prevqry,'|')
                             bugger = '8'
-                            sname[-1] = string.split(sname[-1],'|')[0]
+                            sname[-1] = rje.split(sname[-1],'|')[0]
                             sname[-1] += '|(Pos:%s..%s)' % (rje.iStr(fragstart),rje.iStr(fragend))
-                            #seq = ('%s-%s.%s %s' % (name,rje.preZero(fragstart,maxlen),rje.preZero(fragend,maxlen),string.join(sname[1:])),seq[1])
-                            seq = ('%s.%s-%s %s' % (name,rje.preZero(fragstart,maxlen),rje.preZero(fragend,maxlen),string.join(sname[1:])),seq[1])
+                            #seq = ('%s-%s.%s %s' % (name,rje.preZero(fragstart,maxlen),rje.preZero(fragend,maxlen),rje.join(sname[1:])),seq[1])
+                            seq = ('%s.%s-%s %s' % (name,rje.preZero(fragstart,maxlen),rje.preZero(fragend,maxlen),rje.join(sname[1:])),seq[1])
                     fragdict[name].append((fragstart,fragend,seq))
                 else: hitseq.list['Seq'].remove(seq); fx += 1
             self.printLog('\r#FRAG','Compiled fragments: %s redundant fragments removed.' % rje.iStr(fx))
@@ -2318,10 +2310,10 @@ class GABLAM(rje.RJE_Object):
                 for i in range(len(fragdict[name])):
                     seq = fragdict[name][i][-1]
                     #seqname.insert(1,'GABLAM Fragment %d of %d (%s - %s)' % (fx+1,ftot,rje.iStr(fragstart+1),rje.iStr(fragend+1)))
-                    #seqname = string.split(seq[0])
+                    #seqname = rje.split(seq[0])
                     #seqname[3] = '%d' % (i + 1)
                     #seqname[5] = '%d' % (len(fragdict[name]) + 1)
-                    #newseq.append((string.join(seqname),seq[1]))
+                    #newseq.append((rje.join(seqname),seq[1]))
                     newseq.append(seq)
             hitseq.list['Seq'] = newseq
             hitseq.saveSeq(seqfile='%s.fas' % self.basefile(),append=False)
@@ -2359,7 +2351,7 @@ class GABLAM(rje.RJE_Object):
                 self.progLog('\r#FRAG','Compiling fragments: %s redundant fragments removed' % rje.iStr(fx))
                 bugger = '1'
                 try:
-                    (name,fragstart,fragend) = rje.matchExp('^(\S+)\.(\d+)-(\d+)$',string.split(seq[0])[0])
+                    (name,fragstart,fragend) = rje.matchExp('^(\S+)\.(\d+)-(\d+)$',rje.split(seq[0])[0])
                     maxlen = int('9' * len(fragend))
                     if name not in fragdict: fragdict[name] = []
                     addfrag = True
@@ -2375,15 +2367,15 @@ class GABLAM(rje.RJE_Object):
                         if fragstart <= prevstart and fragend >= prevend:
                             fragdict[name].remove((prevstart,prevend,prevseq)); fx += 1
                             bugger = '2'
-                            prevqry = string.split(string.split(prevseq[0])[1],'|')
+                            prevqry = rje.split(rje.split(prevseq[0])[1],'|')
                             bugger = '3'
-                            for qry in string.split(string.split(seq[0])[1],'|'):
+                            for qry in rje.split(rje.split(seq[0])[1],'|'):
                                 if qry not in prevqry: prevqry.insert(1,qry)
                             prevqry.sort()
                             bugger = '4'
-                            sname = string.split(seq[0])
-                            sname[1] = string.join(prevqry,'|')
-                            seq = (string.join(sname),seq[1])
+                            sname = rje.split(seq[0])
+                            sname[1] = rje.join(prevqry,'|')
+                            seq = (rje.join(sname),seq[1])
                         # Combine overlaps! #!# Possibly combine within gabfrag distance too! #!#
                         elif prevstart <= fragstart <= prevend or prevstart <= fragend <= prevend: # Overlap
                             #i seq/prevseq are (name,seq) tuples
@@ -2397,19 +2389,19 @@ class GABLAM(rje.RJE_Object):
                             fragend = max(fragend,prevend)
                             if len(seq[1]) != fragend - fragstart + 1: raise ValueError()
                             bugger = '5'
-                            prevqry = string.split(string.split(prevseq[0])[1],'|')
+                            prevqry = rje.split(rje.split(prevseq[0])[1],'|')
                             bugger = '6'
-                            for qry in string.split(string.split(seq[0])[1],'|'):
+                            for qry in rje.split(rje.split(seq[0])[1],'|'):
                                 if qry not in prevqry: prevqry.insert(1,qry)
                             prevqry.sort()
                             bugger = '7'
-                            sname = string.split(seq[0])
-                            sname[1] = string.join(prevqry,'|')
+                            sname = rje.split(seq[0])
+                            sname[1] = rje.join(prevqry,'|')
                             bugger = '8'
-                            sname[-1] = string.split(sname[-1],'|')[0]
+                            sname[-1] = rje.split(sname[-1],'|')[0]
                             sname[-1] += '|(Pos:%s..%s)' % (rje.iStr(fragstart),rje.iStr(fragend))
-                            #X#seq = ('%s-%s.%s %s' % (name,rje.preZero(fragstart,maxlen),rje.preZero(fragend,maxlen),string.join(sname[1:])),seq[1])
-                            seq = ('%s.%s-%s %s' % (name,rje.preZero(fragstart,maxlen),rje.preZero(fragend,maxlen),string.join(sname[1:])),seq[1])
+                            #X#seq = ('%s-%s.%s %s' % (name,rje.preZero(fragstart,maxlen),rje.preZero(fragend,maxlen),rje.join(sname[1:])),seq[1])
+                            seq = ('%s.%s-%s %s' % (name,rje.preZero(fragstart,maxlen),rje.preZero(fragend,maxlen),rje.join(sname[1:])),seq[1])
                     fragdict[name].append((fragstart,fragend,seq))
                 else: hitseq.list['Seq'].remove(seq); fx += 1
             self.printLog('\r#FRAG','Compiled fragments: %s redundant fragments removed.' % rje.iStr(fx))
@@ -2420,10 +2412,10 @@ class GABLAM(rje.RJE_Object):
                 for i in range(len(fragdict[name])):
                     seq = fragdict[name][i][-1]
                     #seqname.insert(1,'GABLAM Fragment %d of %d (%s - %s)' % (fx+1,ftot,rje.iStr(fragstart+1),rje.iStr(fragend+1)))
-                    #seqname = string.split(seq[0])
+                    #seqname = rje.split(seq[0])
                     #seqname[3] = '%d' % (i + 1)
                     #seqname[5] = '%d' % (len(fragdict[name]) + 1)
-                    #newseq.append((string.join(seqname),seq[1]))
+                    #newseq.append((rje.join(seqname),seq[1]))
                     newseq.append(seq)
             hitseq.list['Seq'] = newseq
             hitseq.saveSeq(seqfile='%s.fas' % self.basefile(),append=False)
@@ -2433,7 +2425,7 @@ class GABLAM(rje.RJE_Object):
         '''Generate dotplot outputs using R.'''
         try:### ~ [1] ~ Try to run R to generate PNG ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             self.printLog('#RPATH',self.info['RPath'],log=False,screen=self.v()>0)
-            self.info['PathR'] = rje.makePath(os.path.abspath(string.join(string.split(sys.argv[0],os.sep)[:-2]+['libraries','r',''],os.sep)))
+            self.info['PathR'] = rje.makePath(os.path.abspath(rje.join(rje.split(sys.argv[0],os.sep)[:-2]+['libraries','r',''],os.sep)))
             rscript = rje.makePath('%sgablam.r' % (self.info['PathR']),wholepath=True)
             rcmd = '%s --no-restore --no-save --args "%s" "%s"' % (self.info['RPath'],self.baseFile(),self.getInt('DotLocalMin'))
             rcmd += ' < "%s" > "%s.dot.r.run"' % (rscript,self.baseFile())
@@ -2469,11 +2461,10 @@ class BAM(GABLAM):
 #########################################################################################################################
 def runMain():
     ### ~ [1] ~ Basic Setup of Program  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-    try: [info,out,mainlog,cmd_list] = setupProgram()
-    except SystemExit: return  
-    except:
-        print 'Unexpected error during program setup:', sys.exc_info()[0]
-        return 
+    try: (info,out,mainlog,cmd_list) = setupProgram()
+    except SystemExit: return
+    except: rje.printf('Unexpected error during program setup:', sys.exc_info()[0]); return
+
     ### ~ [2] ~ Rest of Functionality... ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try: GABLAM(log=mainlog,cmd_list=['fullblast=T','keepblast=T']+cmd_list).run()
     ### ~ [3] ~ End ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -2484,7 +2475,7 @@ def runMain():
 #########################################################################################################################
 if __name__ == "__main__":      ### Call runMain 
     try: runMain()
-    except: print 'Cataclysmic run error:', sys.exc_info()[0]
+    except: rje.printf('Cataclysmic run error: {0}'.format(sys.exc_info()[0]))
     sys.exit()
 #########################################################################################################################
 ### END OF SECTION IV                                                                                                   #

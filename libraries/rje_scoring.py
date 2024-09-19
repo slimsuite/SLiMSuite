@@ -7,8 +7,8 @@
 """
 Module:       rje_scoring
 Description:  Scoring and Ranking Methods for RJE Python Modules
-Version:      0.1.0
-Last Edit:    21/08/20
+Version:      0.1.1
+Last Edit:    24/02/23
 Copyright (C) 2007  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -51,7 +51,8 @@ import rje
 def history():  ### Program History - only a method for PythonWin collapsing! ###
     '''
     # 0.0 - Initial Compilation.
-    # 1.10.0 - Initial Python3 code conversion.
+    # 0.1.0 - Initial Python3 code conversion.
+    # 0.1.1 - Additional Python3 bug fixing.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -132,9 +133,9 @@ def statFilter(callobj,data={},statfilter={},inverse=False,filtermissing=False):
         ### ~ [1] ~ Filter patterns ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         for stat in statfilter.keys():      # {stat:(op,cutoff,numcut)}
             (op,strcut,numcut) = statfilter[stat]
-            for key in data.keys()[0:]:
+            for key in list(data.keys())[0:]:
                 ## ~ [1a] ~ Check for stat ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-                if not data[key].has_key(stat):
+                if stat not in data[key]:
                     if filtermissing:
                         if not inverse: data.pop(key)
                     else: callobj.log.errorLog('Data for "%s" missing stat "%s"!' % (key,stat),printerror=False)
@@ -236,7 +237,7 @@ def rankObj(callobj,objlist,dkey,dlist=['stat'],case=False,default=None,rev=True
         for i in range(len(objlist)):
             obj = objlist[i]
             r = newranks[i]
-            if rankdict.has_key(r):
+            if r in rankdict:
                 rankdict[r].append(obj)
             else:
                 rankdict[r] = [obj]
@@ -326,7 +327,7 @@ def adjustedProb(scorelist,reverse=False):  ### Returns the adjust probability v
     print(looklist)
     for i in range(L):
         s = looklist[i]
-        if adj.has_key(s):
+        if s in adj:
             print(s, i, adj[s])
             continue
         j = i + 1

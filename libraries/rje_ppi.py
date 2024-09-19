@@ -137,7 +137,7 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         ### ~ [2] ~ Look for help commands and print options if found ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         help = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
         if help > 0:
-            print '\n\nHelp for %s %s: %s\n' % (info.program, info.version, time.asctime(time.localtime(info.start_time)))
+            rje.printf('\n\nHelp for {0} {1}: {2}\n'.format(info.program, info.version, time.asctime(time.localtime(info.start_time))))
             out.verbose(-1,4,text=__doc__)
             if rje.yesNo('Show general commandline options?'): out.verbose(-1,4,text=rje.__doc__)
             if rje.yesNo('Quit?'): sys.exit()           # Option to quit after help
@@ -147,7 +147,7 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         return cmd_list
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Major Problem with cmdHelp()'
+    except: rje.printf('Major Problem with cmdHelp()')
 #########################################################################################################################
 def setupProgram(): ### Basic Setup of Program when called from commandline.
     '''
@@ -158,16 +158,19 @@ def setupProgram(): ### Basic Setup of Program when called from commandline.
     '''
     try:### ~ [1] ~ Initial Command Setup & Info ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         info = makeInfo()                                   # Sets up Info object with program details
+        if len(sys.argv) == 2 and sys.argv[1] in ['version','-version','--version']: rje.printf(info.version); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: rje.printf('{0} v{1}'.format(info.program,info.version)); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['description','-description','--description']: rje.printf('%s: %s' % (info.program,info.description)); sys.exit(0)
         cmd_list = rje.getCmdList(sys.argv[1:],info=info)   # Reads arguments and load defaults from program.ini
         out = rje.Out(cmd_list=cmd_list)                    # Sets up Out object for controlling output to screen
-        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2 
+        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2
         out.printIntro(info)                                # Prints intro text using details from Info object
         cmd_list = cmdHelp(info,out,cmd_list)               # Shows commands (help) and/or adds commands from user
         log = rje.setLog(info,out,cmd_list)                 # Sets up Log object for controlling log file output
         return (info,out,log,cmd_list)                      # Returns objects for use in program
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Problem during initial setup.'; raise
+    except: rje.printf('Problem during initial setup.'); raise
 #########################################################################################################################
 ### END OF SECTION I                                                                                                    #
 #########################################################################################################################
@@ -298,7 +301,7 @@ class PPI(rje.RJE_Object):
     def test(self): ### Test code
         xfile = '%s.xgmml' % self.info['Basefile']
         if os.path.exists(xfile):
-            print 'Code up reading of XGMML!'
+            print('Code up reading of XGMML!')
         G = randomGraph(200,400,name='Gene')
         npos = self.rjeSpringLayout(G)
         self.opt['ColByDeg'] = True
@@ -527,8 +530,8 @@ class PPI(rje.RJE_Object):
                         hentry = {'Hub':hub,'Spoke':spoke}
                         if edb.data(edb.makeKey(hentry)): hentry = edb.data(edb.makeKey(hentry))
                         for field in sentry:
-                            if 'Hub' in field: symfield = string.replace(field,'Hub','Spoke')
-                            else: symfield = string.replace(field,'Spoke','Hub')
+                            if 'Hub' in field: symfield = rje.replace(field,'Hub','Spoke')
+                            else: symfield = rje.replace(field,'Spoke','Hub')
                             if symfield not in hentry or not hentry[symfield]: hentry[symfield] = sentry[field]
                         if not edb.data(edb.makeKey(hentry)): edb.addEntry(hentry)
         self.printLog('\r#SYM','Imposed PPI symmetry on %s of %s input hubs -> %s hubs.' % (rje.iStr(sx),rje.iStr(hx),rje.iLen(ppi)))
@@ -670,9 +673,9 @@ class PPI(rje.RJE_Object):
                 E = 0; N = len(complex)
                 for v in G: E += len(G[v])
                 if seed in self.dict[save]:
-                    self.printLog('\r#WARN','Cluster "%s" being overwritten! |%s| >> |%s|' % (seed,string.join(self.dict[save][seed],'|'),string.join(complex,'|')))
+                    self.printLog('\r#WARN','Cluster "%s" being overwritten! |%s| >> |%s|' % (seed,rje.join(self.dict[save][seed],'|'),rje.join(complex,'|')))
                 self.dict[save][seed] = complex
-                cdb.data()[seed] = {'Seed':seed,'Complex':string.join(complex,'|'),'Nodes':N,'Edges':E/2,'Density':E/float(N*(N-1))}
+                cdb.data()[seed] = {'Seed':seed,'Complex':rje.join(complex,'|'),'Nodes':N,'Edges':E/2,'Density':E/float(N*(N-1))}
                 cdb.data()[seed]['Score'] = cdb.data()[seed]['Nodes'] * cdb.data()[seed]['Density'] 
             self.printLog('\r#POST','Post-processing MCODE: %s total clusters.' % rje.integerString(cdb.entryNum()))
             cdb.rankField('Score',newfield='Rank',rev=True,absolute=True,lowest=True,unique=True)
@@ -764,9 +767,9 @@ class PPI(rje.RJE_Object):
                 E = 0; N = len(G)
                 for v in G: E += len(G[v])
                 if seed in self.dict['%snet' % vfield]:
-                    self.printLog('\r#WARN','Subnetwork "%s" being overwritten! |%s| >> |%s|' % (seed,string.join(self.dict[vfield][seed],'|'),string.join(complex,'|')))
+                    self.printLog('\r#WARN','Subnetwork "%s" being overwritten! |%s| >> |%s|' % (seed,rje.join(self.dict[vfield][seed],'|'),rje.join(complex,'|')))
                 self.dict['%snet' % vfield][seed] = complex
-                cdb.data()[seed] = {'Seed':seed,'Members':string.join(complex,'|'),'Nodes':N,'Edges':E/2,
+                cdb.data()[seed] = {'Seed':seed,'Members':rje.join(complex,'|'),'Nodes':N,'Edges':E/2,
                                     'Density':E/float(N*(N-1)),vfield:meanval}
                 cdb.data()[seed]['Score'] = cdb.data()[seed]['Nodes'] * cdb.data()[seed]['Density'] 
             self.printLog('\r#POST','Post-processing %s: %s total clusters.' % (vfield,rje.integerString(cdb.entryNum())))
@@ -828,9 +831,9 @@ class PPI(rje.RJE_Object):
                     self.progLog('\r#PPI','Filtering PPI according to evidence: %.2f%%' % (ex/enum)); ex += 100.0
                     ekeep = True; okeep = None
                     ekey = pdb.makeKey(entry)
-                    evlist = string.split(entry['Evidence'],'|')
+                    evlist = rje.split(entry['Evidence'],'|')
                     for ev in evlist[0:]:
-                        (spoke,link) = string.split(ev,':')
+                        (spoke,link) = rje.split(ev,':')
                         for etype in rje.sortKeys(evidence):
                             ftype = evidence[etype]
                             if (ftype[-5:] == 'exact' and link != etype) or (etype not in link):
@@ -842,7 +845,7 @@ class PPI(rje.RJE_Object):
                         if not ekeep: break
                     if okeep == False: ekeep = False
                     if not ekeep or not evlist: pdb.data().pop(ekey)
-                    else: entry['Evidence'] = string.join(evlist ,'|')
+                    else: entry['Evidence'] = rje.join(evlist ,'|')
                 self.printLog('\r#PPI','Filtered PPI according to evidence: %s of %s PPI remain' % (rje.iStr(pdb.entryNum()),rje.iStr(enum)))
                 if resave: pdb.saveToFile(resave,backup=self.opt['Backups'])
             ### ~ [1] ~ Update PPI dictionary ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -1172,7 +1175,7 @@ class PPI(rje.RJE_Object):
             if backups: rje.backup(self,pfile)
             if os.path.exists(pfile): os.unlink(pfile)
             headers = {}
-            for h in phead: headers[h] = string.replace(string.replace(h,'[','-'),']','-')
+            for h in phead: headers[h] = rje.replace(rje.replace(h,'[','-'),']','-')
             rje.delimitedFileOutput(self,pfile,phead,datadict=headers)
             for vi in rje.sortKeys(G):
                 datadict = {}
@@ -1203,10 +1206,10 @@ class PPI(rje.RJE_Object):
             if not self.saveTDT(npos,basefile,G,backups): raise ValueError
             ### ~ [3] ~ Call R to generate graphics ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             rcmd = '%s --no-restore --no-save --args "pureppi" "%s"' % (self.info['RPath'],basefile)
-            self.info['PathR'] = rje.makePath(os.path.abspath(string.join(string.split(sys.argv[0],os.sep)[:-1]+[''],os.sep)))
+            self.info['PathR'] = rje.makePath(os.path.abspath(rje.join(rje.split(sys.argv[0],os.sep)[:-1]+[''],os.sep)))
             rcall = rje.makePath('%srje.r' % self.info['PathR'],wholepath=True)
             if not os.path.exists(rcall):
-                self.info['PathR'] = rje.makePath(os.path.abspath(string.join(string.split(sys.argv[0],os.sep)[:-2]+['libraries','r',''],os.sep)))
+                self.info['PathR'] = rje.makePath(os.path.abspath(rje.join(rje.split(sys.argv[0],os.sep)[:-2]+['libraries','r',''],os.sep)))
                 rcall = rje.makePath('%srje.r' % self.info['PathR'],wholepath=True)
             #rcall = '%s/rje.r' % self.info['Path']
             rcmd += ' < "%s" > "%s.r.tmp.txt"' % (rcall,basefile)
@@ -1705,7 +1708,7 @@ def rjeSpringLayout(G,damping=0.9,klim=0.01,callobj=None,cycles=1e6,walltime=0.1
                                 npos[vj] = getSpokeXY(singles.index(vj),len(singles),scale=random.gauss(1.5,0.1))
                                 npos[vj][0] += npos[v][0]; npos[vj][1] += npos[v][1]
                         if nudged.count(v) / 2 != nudged.count(v) / 2.0: continue
-                    if callobj: callobj.progLog('\r#LAY','RJE Force directed spring embedding (%s Cyc; k = %s) >>> Nudged %s <<<     ' % (rje.iStr(i+1),rje.expectString(k),string.join(rje.sortUnique(prevpull),'|')))
+                    if callobj: callobj.progLog('\r#LAY','RJE Force directed spring embedding (%s Cyc; k = %s) >>> Nudged %s <<<     ' % (rje.iStr(i+1),rje.expectString(k),rje.join(rje.sortUnique(prevpull),'|')))
                     #if callobj and callobj.opt['Test'] and rje.yesNo('Stop here?'):  break
                     maxpull = (0.0,None)
                 elif callobj: callobj.progLog('\r#LAY','RJE Force directed spring embedding (%s Cyc; k = %s) ' % (rje.iStr(i+1),rje.expectString(k)))
@@ -1906,7 +1909,7 @@ def OLDrjeSpringLayout(G,damping=0.9,klim=0.01,callobj=None,cycles=1e6,walltime=
                         npos[vj] = getSpokeXY(vsingle.index(vj),len(vsingle),scale=1.5)
                         npos[vj][0] += npos[v][0]
                         npos[vj][1] += npos[v][1]
-                if callobj: callobj.progLog('\r#LAY','RJE Force directed spring embedding (%s Cyc; k = %s) >>> Nudged %s <<<     ' % (rje.iStr(i+1),rje.expectString(k),string.join(rje.sortUnique(prevpull),'|')))
+                if callobj: callobj.progLog('\r#LAY','RJE Force directed spring embedding (%s Cyc; k = %s) >>> Nudged %s <<<     ' % (rje.iStr(i+1),rje.expectString(k),rje.join(rje.sortUnique(prevpull),'|')))
                 #if callobj and callobj.opt['Test'] and rje.yesNo('Stop here?'):  break
                 maxpull = (0.0,None)
             elif callobj: callobj.progLog('\r#LAY','RJE Force directed spring embedding (%s Cyc; k = %s) ' % (rje.iStr(i+1),rje.expectString(k)))
@@ -1947,7 +1950,7 @@ def forceDirectedLayout(G,damping=0.5,klim=0.0001,callobj=None,walltime=1.0,kill
                 if callobj: callobj.printLog('\r#LAY','Force directed spring embedding: Walltime (%.2f hours) reached! ' % (walltime))
                 break
             looped = '%s:%s' % (looped,looping.pop(0)); looping.append('%.3e' % total_kinetic_energy)
-            if string.join(looping,':') in looped:
+            if rje.join(looping,':') in looped:
                 if callobj: callobj.printLog('\r#LAY','Force directed spring embedding: Cycle (len %d) detected! ' % (looplen))
                 break
             if callobj:
@@ -2105,7 +2108,7 @@ def combineTypes(callobj=None,ppi={},newtype=None): ### Combine PPI of different
         for hub in rje.sortKeys(ppi):
             for spoke in ppi[hub]:
                 if newtype: ppi[hub][spoke] = [newtype]   # Only one interaction type
-                else: ppi[hub][spoke] = [string.join(rje.sortUnique(ppi[hub][spoke]),'')]
+                else: ppi[hub][spoke] = [rje.join(rje.sortUnique(ppi[hub][spoke]),'')]
         if callobj: callobj.log.printLog('\r#COMBINE','PPI types combined for %d hubs' % (len(ppi)))
     except:
         if callobj: callobj.log.errorLog('Major problem during rje_ppi.combineTypes()')
@@ -2221,10 +2224,10 @@ def compressTopology(callobj=None,ppi={},safelist=[],matchtype=True):  ### Compr
         for hub in rje.sortKeys(ppi):   ## Now combine names using /
             for spoke in rje.sortKeys(ppi[hub]):
                 if spoke in sharedtopology:
-                    combo = string.join(rje.sortUnique([spoke]+sharedtopology[spoke]),'/')
+                    combo = rje.join(rje.sortUnique([spoke]+sharedtopology[spoke]),'/')
                     ppi[hub][combo] = ppi[hub].pop(spoke)
             if hub in sharedtopology: 
-                combo = string.join(rje.sortUnique([spoke]+sharedtopology[hub]),'/')
+                combo = rje.join(rje.sortUnique([spoke]+sharedtopology[hub]),'/')
                 ppi[combo] = ppi.pop(hub)
         if callobj: callobj.log.printLog('\r#TOP','%d PPI groups by shared topologies' % len(ppi))
     except:
@@ -2259,7 +2262,7 @@ def cytoscapeSave(callobj=None,basefile='ppi',ppi={},node={},edge={},bipolar=[])
                 if spoke in bipolar: continue
                 if spoke in ppi and hub in ppi[spoke]: ppi[spoke].pop(hub)
                 if spoke in ppi and not ppi[spoke]: ppi.pop(spoke)
-            for itype in rje.sortKeys(tmp_ppi): SIF.write('%s %s %s\n' % (hub,itype,string.join(tmp_ppi[itype])))
+            for itype in rje.sortKeys(tmp_ppi): SIF.write('%s %s %s\n' % (hub,itype,rje.join(tmp_ppi[itype])))
         SIF.close()
         if callobj: callobj.log.printLog('#SIF','%s output for %s hubs' % (sif,rje.integerString(len(ppi))))
 
@@ -2298,7 +2301,7 @@ def runMain():
     ### ~ [1] ~ Basic Setup of Program  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try: (info,out,mainlog,cmd_list) = setupProgram()
     except SystemExit: return  
-    except: print 'Unexpected error during program setup:', sys.exc_info()[0]; return
+    except: rje.printf('Unexpected error during program setup:', sys.exc_info()[0]); return
     
     ### ~ [2] ~ Rest of Functionality... ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try:
@@ -2313,7 +2316,7 @@ def runMain():
 #########################################################################################################################
 if __name__ == "__main__":      ### Call runMain 
     try: runMain()
-    except: print 'Cataclysmic run error:', sys.exc_info()[0]
+    except: rje.printf('Cataclysmic run error: {0}'.format(sys.exc_info()[0]))
     sys.exit()
 #########################################################################################################################
 ### END OF SECTION IV                                                                                                   #

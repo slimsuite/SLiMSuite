@@ -470,9 +470,9 @@ class HAQ(rje.RJE_Object):
             for seq in haqlist.seq:
                 block_align[seq] = [False] * seq.seqLen()
                 seq.info['PAQ'] = seq.info['Sequence'][0:]
-                if seq.info.has_key('SAQX') and len(seq.info['SAQX']) == seq.seqLen():   #!# Should no longer be issues due to length changes following realignment
+                if 'SAQX' in seq.info and len(seq.info['SAQX']) == seq.seqLen():   #!# Should no longer be issues due to length changes following realignment
                     seq.info['Sequence'] = seq.info['SAQX'][0:]
-                elif seq.info.has_key('SAQX'):
+                elif 'SAQX' in seq.info:
                     self.log.errorLog('Cannot use SAQX for %s in PAQ as wrong length.' % seq.shortName(),printerror=False)
                 for otherseq in haqlist.seq:
                     pwaq[(seq,otherseq)] = [False] * seq.seqLen()
@@ -713,10 +713,8 @@ class HAQ(rje.RJE_Object):
 ### SECTION III: MAIN PROGRAM                                                                                               #
 #############################################################################################################################
 if __name__ == "__main__":      
-    try:
-        print 'Not for standalone running.'
-    except:
-        print 'Cataclysmic run error:', sys.exc_info()[0]
+    try: rje.printf('Not for standalone running.')
+    except: rje.printf('Cataclysmic run error: {0}'.format(sys.exc_info()[0]))
     sys.exit()
 #############################################################################################################################
 ### END OF SECTION III                                                                                                      #

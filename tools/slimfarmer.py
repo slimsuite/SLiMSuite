@@ -19,8 +19,8 @@
 """
 Module:       SLiMFarmer
 Description:  SLiMSuite HPC job farming control program
-Version:      1.10.2
-Last Edit:    30/07/20
+Version:      1.11.0
+Last Edit:    02/06/22
 Citation:     Edwards et al. (2020), Methods Mol Biol. 2141:37-72. [PMID: 32696352]
 Copyright (C) 2014  Richard J. Edwards - See source code for GNU License Notice
 
@@ -97,6 +97,7 @@ Commandline:
     modpurge=T/F    : Whether to purge loaded modules in qsub job file prior to loading [True]
     precall=LIST    : List of additional commands to run between module loading and program call []
     daisychain=X    : Chain together a set of qsub runs of the same call that depend on the previous job.
+    qid=T/F         : Whether to output the qsub job ID to *.qid for reading by other processes.
 
     ### ~ Main SLiMFarmer Options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     farm=X          : Execute a special SLiMFarm analysis on HPC [batch]
@@ -166,6 +167,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 1.10.0 - Added appending contents of jobini file to slimsuite=F farm commands.
     # 1.10.1 - Added job resource summary to job stdout.
     # 1.10.2 - Fixed bug when SLiMFarmer batch run being called from another program, e.g. MultiHAQ
+    # 1.11.0 - Added *.qid output of qsub Job ID for future use.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -188,7 +190,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copy_right) = ('SLiMFarmer', '1.10.2', 'July 2020', '2014')
+    (program, version, last_edit, copy_right) = ('SLiMFarmer', '1.11.0', 'June 2022', '2014')
     description = 'SLiMSuite HPC job farming control program'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_obj.zen()]
@@ -202,7 +204,7 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         ### ~ [2] ~ Look for help commands and print options if found ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         cmd_help = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
         if cmd_help > 0:
-            print '\n\nHelp for %s %s: %s\n' % (info.program, info.version, time.asctime(time.localtime(info.start_time)))
+            rje.printf('\n\nHelp for {0} {1}: {2}\n'.format(info.program, info.version, time.asctime(time.localtime(info.start_time))))
             out.verbose(-1,4,text=__doc__)
             if rje.yesNo('Show general commandline options?'): out.verbose(-1,4,text=rje.__doc__)
             if rje.yesNo('Quit?'): sys.exit()           # Option to quit after help
@@ -212,7 +214,7 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         return cmd_list
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Major Problem with cmdHelp()'
+    except: rje.printf('Major Problem with cmdHelp()')
 #########################################################################################################################
 def setupProgram(): ### Basic Setup of Program when called from commandline.
     '''
@@ -224,18 +226,18 @@ def setupProgram(): ### Basic Setup of Program when called from commandline.
     try:### ~ [1] ~ Initial Command Setup & Info ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         info = makeInfo()                                   # Sets up Info object with program details
         if len(sys.argv) == 2 and sys.argv[1] in ['version','-version','--version']: rje.printf(info.version); sys.exit(0)
-        if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: rje.printf('{0} v{1}'.format(info.program,info.version)); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: rje.printf('%s v%s' % (info.program,info.version)); sys.exit(0)
         if len(sys.argv) == 2 and sys.argv[1] in ['description','-description','--description']: rje.printf('%s: %s' % (info.program,info.description)); sys.exit(0)
         cmd_list = rje.getCmdList(sys.argv[1:],info=info)   # Reads arguments and load defaults from program.ini
         out = rje.Out(cmd_list=cmd_list)                    # Sets up Out object for controlling output to screen
-        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2 
+        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2
         out.printIntro(info)                                # Prints intro text using details from Info object
         cmd_list = cmdHelp(info,out,cmd_list)               # Shows commands (help) and/or adds commands from user
         log = rje.setLog(info,out,cmd_list)                 # Sets up Log object for controlling log file output
         return (info,out,log,cmd_list)                      # Returns objects for use in program
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Problem during initial setup.'; raise
+    except: rje.printf('Problem during initial setup.'); raise
 #########################################################################################################################
 ### END OF SECTION I                                                                                                    #
 #########################################################################################################################
@@ -262,6 +264,7 @@ class SLiMFarmer(rje_hpc.JobFarmer):
     Bool:boolean
     - LoadBalance = Whether to split SortRun jobs equally between large & small to avoid memory issues [True]
     - Pickup = Whether to pickup previous run based on existing results and RunID [True]
+    - QID = Whether to output the qsub job ID to *.qid for reading by other processes.
     - QSub = Whether to execute QSub PDB job creation and queuing [False]
     - SeqBySeq = Activate seqbyseq mode - assumes basefile=X option used for output [False]
     - SLiMSuite = Whether program is an RJE *.py script (adds log processing) [True]
@@ -288,7 +291,7 @@ class SLiMFarmer(rje_hpc.JobFarmer):
         '''Sets Attributes of Object.'''
         ### ~ Basics ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         self.strlist = ['Farm','HPC','HPCMode','Job','JobINI','PickHead','PyPath','StartFrom','ResFile','RunID','ResDir']
-        self.boollist = ['QSub','SLiMSuite','SeqBySeq','Pickup','RjePy','SortRun','LoadBalance']
+        self.boollist = ['QID','QSub','SLiMSuite','SeqBySeq','Pickup','RjePy','SortRun','LoadBalance']
         self.intlist = ['DaisyChain','IOLimit','JobForks','KeepFree','SubSleep']
         self.numlist = ['MemFree']
         self.listlist = ['Hosts','SubJobs','OutList','Modules']
@@ -298,7 +301,7 @@ class SLiMFarmer(rje_hpc.JobFarmer):
         self._setDefaults(str='None',bool=False,int=0,num=0.0,obj=None,setlist=True,setdict=True)
         self.setStr({'Farm':'batch', 'HPC':'katana', 'HPCMode':'fork', 'Job':'', 'JobINI':'',
                      'PyPath':slimsuitepath})
-        self.setBool({'QSub':False,'SLiMSuite':True,'SeqBySeq':False,'Pickup':True,'SortRun':True,'LoadBalance':True,
+        self.setBool({'QID':False,'QSub':False,'SLiMSuite':True,'SeqBySeq':False,'Pickup':True,'SortRun':True,'LoadBalance':True,
                       'RjePy':True})
         self.setInt({'IOLimit':50,'JobForks':0,'KeepFree':1,'SubSleep':1})
         self.setNum({})
@@ -323,7 +326,7 @@ class SLiMFarmer(rje_hpc.JobFarmer):
                 self._cmdReadList(cmd,'file',['JobINI','ResFile'])  # String representing file path
                 self._cmdReadList(cmd,'basefile',['ResFile'])  # String representing file path
                 self._cmdReadList(cmd,'basepath',['ResDir'])  # String representing file path
-                self._cmdReadList(cmd,'bool',['QSub','SLiMSuite','SeqBySeq','Pickup','SortRun','LoadBalance'])  # True/False Booleans
+                self._cmdReadList(cmd,'bool',['QID','QSub','SLiMSuite','SeqBySeq','Pickup','SortRun','LoadBalance'])  # True/False Booleans
                 self._cmdReadList(cmd,'int',['DaisyChain','JobForks','KeepFree'])   # Integers
                 #self._cmdReadList(cmd,'float',['Att']) # Floats
                 #self._cmdReadList(cmd,'min',['Att'])   # Integer value part of min,max command
@@ -387,10 +390,10 @@ class SLiMFarmer(rje_hpc.JobFarmer):
         '''
         try:### ~ [1] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             self.printLog('#JOB',self.getStr('Job'))
-            sfcmd = string.join(self.cmd_list)  #!# Was sys.argv[1:] so look out for odd behaviour in v1.10.2+
+            sfcmd = rje.join(self.cmd_list)  #!# Was sys.argv[1:] so look out for odd behaviour in v1.10.2+
             qcmd = ['nodes=1','ppn=16','walltime=12','vmem=126','job=slimfarmer'] + self.cmd_list + ['rjepy=F','job=%s' % self.getStr('Job')]
             qsub = rje_qsub.QSub(self.log,qcmd)
-            farm = string.split(self.getStr('Farm'))[0]
+            farm = rje.split(self.getStr('Farm'))[0]
             if self.getBool('SLiMSuite') or farm == 'batch':
                 if farm == 'batch':
                     program = 'python %stools/slimfarmer.py %s' % (self.getStr('PyPath'),sfcmd)
@@ -448,9 +451,11 @@ class SLiMFarmer(rje_hpc.JobFarmer):
                             break
                     else:
                         qsub.list['Depend'] = [qid]
-                return qid
+            else:
+                qid = qsub.qsub()
             ## ~ [2b] Normal qsub ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-            return qsub.qsub()
+            if self.getBool('QID'): open('{0}.qid'.format(self.getStr('Job')),'w').write('{0}\n'.format(qid))
+            return qid
         except: self.errorLog('SLiMFarmer.qSub() error')
 #########################################################################################################################
     ### <4> ### SLiMFarmer Methods                                                                                      #
@@ -598,7 +603,7 @@ class SLiMFarmer(rje_hpc.JobFarmer):
                 pid = '????'
                 try:
                     pid = self.dict['Running'][j]['PID']
-                    if string.split('%s' % pid)[0] == 'WAIT':
+                    if rje.split('%s' % pid)[0] == 'WAIT':
                         pidchecklist.append('%s: %s' % (j,pid))
                         status = 1
                     else:
@@ -611,7 +616,7 @@ class SLiMFarmer(rje_hpc.JobFarmer):
                     except: pass
                 if status > 0: self.endSLiMJob(j)       # subjob on processor j has finished: can replace with processing
             PIDCHECK = open(pidcheck,'w')
-            PIDCHECK.write(string.join(pidchecklist+[''],'\n'))
+            PIDCHECK.write(rje.join(pidchecklist+[''],'\n'))
             PIDCHECK.close()
             if self.list['NewBatch'] and len(self.dict['Running']) < checkn:    ### Why are jobs missing?
                 if big_problem:
@@ -651,7 +656,7 @@ class SLiMFarmer(rje_hpc.JobFarmer):
                 if os.path.exists(jlog):
                     jloglines = open(jlog,'r').readlines()
                     if jloglines:
-                        if string.split(jloglines[-1])[0] == '#LOG' and 'End:' in string.split(jloglines[-1]):
+                        if rje.split(jloglines[-1])[0] == '#LOG' and 'End:' in rje.split(jloglines[-1]):
                             self.printLog('#END','Random job %s looks finished' % jran)
                             if os.path.exists(jcsv):
                                 if os.path.exists(self.getStr('ResFile')): open(self.getStr('ResFile'),'a').writelines(open(jcsv,'r').readlines()[1:])
@@ -705,7 +710,7 @@ class SLiMFarmer(rje_hpc.JobFarmer):
                     self.printLog('#END',etxt)
                     self.printLog('#~~#','#~~#',timeout=False)
                 #x#if 'DAT' in jdict: os.system('rm %s*' % jdict['DAT'])
-                elif 'PID' in jdict and string.split('%s' % jdict['PID'])[0] == 'WAIT': waiting = True
+                elif 'PID' in jdict and rje.split('%s' % jdict['PID'])[0] == 'WAIT': waiting = True
                 else: self.printLog('#END','Job on processor %d ended.' % host_id)
         except IOError:
             if self.int['IOError'] == 1: self.errorLog('iSLiMFinder.endSLiMJob IOError limit reached'); raise
@@ -714,7 +719,7 @@ class SLiMFarmer(rje_hpc.JobFarmer):
         self.nextSLiMJob(host_id)   # Carry on regardless
         if waiting:
             try:
-                if string.split('%s' % self.dict['Running'][host_id]['PID'])[0] == 'WAIT':
+                if rje.split('%s' % self.dict['Running'][host_id]['PID'])[0] == 'WAIT':
                     if self.test(): self.printLog('#WAIT','Resumed after waiting for memory. %d sec sleep!' % self.int['SubSleep'])
                     time.sleep(self.int['SubSleep'])
             except:
@@ -747,7 +752,7 @@ class SLiMFarmer(rje_hpc.JobFarmer):
             except: self.errorLog('Log problem. Aborting %s job.' % host_id); return self.endSLiMJob(host_id)
             #x#initial_cmds = 'cd ' + self.str['RunPath'] + ' ; echo %s as %s on `hostname` ; setenv IUPred_PATH /home/re1u06/Bioware/iupred/ ;' % (next,jran)
             initial_cmds = 'cd ' + self.str['RunPath'] + ' ; echo %s as %s on `hostname` ;' % (next,jran)  # bash: setenv: command not found
-            sfcmd = string.join(self.cmd_list)  #!# Was sys.argv[1:] so look out for odd behaviour in v1.10.2+
+            sfcmd = rje.join(self.cmd_list)  #!# Was sys.argv[1:] so look out for odd behaviour in v1.10.2+
             if next[-3:] == 'acc':
                 jdict['DAT'] = '%sdat' % next[:-3]
                 while os.path.exists(jdict['DAT']):   # No need to run - skip onto the next one
@@ -807,7 +812,7 @@ def runMain():
     ### ~ [1] ~ Basic Setup of Program  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try: (info,out,mainlog,cmd_list) = setupProgram()
     except SystemExit: return  
-    except: print 'Unexpected error during program setup:', sys.exc_info()[0]; return
+    except: rje.printf('Unexpected error during program setup:', sys.exc_info()[0]); return
     
     ### ~ [2] ~ Rest of Functionality... ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try: SLiMFarmer(mainlog,cmd_list).run()
@@ -820,7 +825,7 @@ def runMain():
 #########################################################################################################################
 if __name__ == "__main__":      ### Call runMain 
     try: runMain()
-    except: print 'Cataclysmic run error:', sys.exc_info()[0]
+    except: rje.printf('Cataclysmic run error: {0}'.format(sys.exc_info()[0]))
     sys.exit()
 #########################################################################################################################
 ### END OF SECTION IV                                                                                                   #

@@ -19,8 +19,8 @@
 """
 Program:      MultiHAQ
 Description:  Multi-Query HAQESAC controller
-Version:      1.5.0
-Last Edit:    23/09/20
+Version:      1.5.1
+Last Edit:    13/05/22
 Citation:     Jones, Edwards et al. (2011), Marine Biotechnology 13(3): 496-504. [PMID: 20924652]
 Copyright (C) 2009  Richard J. Edwards - See source code for GNU License Notice
 
@@ -93,6 +93,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 1.4.2 - Fixed issue with SLiMFarmer for i<0 runs.
     # 1.4.3 - Updated warnings if BLAST2FAS files not found.
     # 1.5.0 - Updated BLAST2FAS code to use rje_seqlist for speed up.
+    # 1.5.1 - Py3 updates.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -107,7 +108,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, cyear) = ('MULTIHAQ', '1.5.0', 'September 2021', '2009')
+    (program, version, last_edit, cyear) = ('MULTIHAQ', '1.5.1', 'May 2022', '2009')
     description = 'Multi-Query HAQESAC controller'
     author = 'Dr Richard J. Edwards.'
     comments = ['Please cite: Jones, Edwards et al. (2011), Marine Biotechnology 13(3): 496-504.',
@@ -275,7 +276,7 @@ class MultiHAQ(rje.RJE_Object):
         try:### ~ [1] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             need2blast = self.opt['Force']
             null_file = '%s.blast2fas_null.txt' % self.baseFile(); nx = 0; null_list = []
-            if os.path.exists(null_file): null_list = string.split(open(null_file,'r').read(),'\n')
+            if os.path.exists(null_file): null_list = rje.split(open(null_file,'r').read(),'\n')
             #self.debug(null_file)
             for seq in self.seqs():
                 if seq.info['AccNum'] in null_list: nx += 1; continue
@@ -326,12 +327,12 @@ class MultiHAQ(rje.RJE_Object):
                 if cmd.startswith('blast2fas'): continue
                 if cmd[:4].lower() != 'ini=': haqcmd.append(cmd)
             if self.opt['MultiHAQ']: haqcmd += ['multihaq=T','force=F']
-            open(inifile,'w').write(string.join(haqcmd,'\n'))
+            open(inifile,'w').write(rje.join(haqcmd,'\n'))
             ### ~ [2] Make Batch file ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             for seq in self.seqs():
                 acc = seq.info['AccNum']
                 haqcmd = ['seqin=%s.fas' % acc, 'query=%s' % acc, 'basefile=%s' % acc]
-                open(batfile,'a').write('python %shaqesac.py %s\n' % (self.info['Path'],string.join(haqcmd)))
+                open(batfile,'a').write('python %shaqesac.py %s\n' % (self.info['Path'],rje.join(haqcmd)))
             self.printLog('#HAQBAT','HAQESAC Batch file output to %s' % batfile)
         except: self.errorLog('Major problem with MultiHAQ.haqBatch',quitchoice=True)
 #########################################################################################################################
@@ -403,7 +404,7 @@ class MultiHAQ(rje.RJE_Object):
                 for qacc in rje_seq.SeqList(self.log,['seqin=%s' % infile,'autoload=T','autofilter=F']).accList():
                     if qacc in qryacc and qacc != acc: qacclist.append(qacc)
                     if qacc in qryacc and qacc not in processed: processed.append(qacc)
-                self.printLog('#QRY','%d other queries found in %s: [%s]' % (len(qacclist),infile,string.join(qacclist,'; ')))
+                self.printLog('#QRY','%d other queries found in %s: [%s]' % (len(qacclist),infile,rje.join(qacclist,'; ')))
                 self.printLog('#QRY','%d of %d queries processed' % (len(processed),self.seqNum()))
             ### ~ [2] MultiHAQ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if not finalrun: self.printLog('#MULTI','Executing second round of multiHAQ'); self.multiHAQ(True)

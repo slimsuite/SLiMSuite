@@ -19,8 +19,8 @@
 """
 Module:       NUMTFinder
 Description:  Nuclear mitochondrial fragment (NUMT) search tool
-Version:      0.5.1
-Last Edit:    07/04/21
+Version:      0.5.4
+Last Edit:    03/03/23
 Citation:     Edwards RJ et al. (2021), BMC Genomics [PMID: 33726677]
 GitHub:       https://github.com/slimsuite/numtfinder
 Copyright (C) 2021  Richard J. Edwards - See source code for GNU License Notice
@@ -40,7 +40,7 @@ Function:
     6. Map fragments back on to the mtDNA genome and output a coverage plot.
 
     Plans for future releases include:
-    * incorporation of additional search methods (LAST or kmers)
+    * incorporation of additional search methods (LASTZ or kmers)
     * assembly masking options
     * options to restrict NUMT blocks to fully collinear hits.
     * automated running of Diploidocus long-read regcheck on fragments and blocks
@@ -55,7 +55,7 @@ Commandline:
     ### ~ NUMTFinder search options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     circle=T/F      : Whether the mtDNA is circular [True]
     blaste=X        : BLAST+ blastn evalue cutoff for NUMT search [1e-4]
-    minfraglen=INT  : Minimum local (NUMT fragment) alignment length (sets GABLAM localmin=X) [0]
+    minfraglen=INT  : Minimum local (NUMT fragment) alignment length (sets GABLAM localmin=X) [10]
     exclude=LIST    : Exclude listed sequence names from search [mtDNA sequence name]
     mtmaxcov=PERC   : Maximum percentage coverage of mtDNA (at mtmaxid identity) to allow [99]
     mtmaxid=PERC    : Maximum percentage identity of mtDNA hits > mtmaxcov coverage to allow [99]
@@ -75,7 +75,7 @@ Commandline:
     nocovfas=T/F    : Whether to output the regions of mtDNA with no coverage & peak coverage [False]
     depthplot=T/F   : Whether to output mtDNA depth plots of sequence coverage (requires R) [True]
     depthsmooth=X   : Smooth out any read plateaus < X nucleotides in length [0]
-    peaksmooth=X    : Smooth out Xcoverage peaks < X depth difference to flanks (<1 = %Median) [0]
+    peaksmooth=X    : Smooth out Xcoverage peaks < X depth difference to flanks (<1 = %Median) [10]
     ### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
 """
 #########################################################################################################################
@@ -101,6 +101,9 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 0.4.2 - Fixed coverage output bugs for -ve strand hits over circularisation spot. Improved pickup of partial run.
     # 0.5.0 - Modified depth plot defaults to remove the smoothing.
     # 0.5.1 - Fixed bug with peak fasta output.
+    # 0.5.2 - Fixed bug with circle=F mtDNA.
+    # 0.5.3 - Tweaked defaults to put back some smoothing (10bp not 200bp) and min fragment size (10bp)
+    # 0.5.4 - Py3 bug fixes.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -109,7 +112,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
     # [Y] : Populate makeInfo() method with basic info.
     # [Y] : Add full description of program to module docstring.
     # [Y] : Create initial working version of program.
-    # [ ] : Add REST outputs to restSetup() and restOutputOrder()
+    # [X] : Add REST outputs to restSetup() and restOutputOrder()
     # [ ] : Add to SLiMSuite or SeqSuite.
     # [ ] : Add function to give other genomes to tile and then analyse for coverage with Diploidocus.
     # [ ] : Check and replace forks=INT with threads=INT.
@@ -118,11 +121,14 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
     # [Y] : Add option to exclude certain sequences (e.g. the mitochondrion!)
     # [Y] : Add option to identify and exclude hits above a certain length and identity (e.g. the mitochondrion!)
     # [ ] : Add descriptions to *.fasta outputs.
+    # [ ] : Add better filtering of short fragments and identifying/filtering of repeats from the depth analysis.
+    # [ ] : Add full length and/or percentage coverage of scaffolds to the output.
+    # [ ] : Fix bug for NUMT fragments >1 complete mitogenome copy.
     '''
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copy_right) = ('NUMTFinder', '0.5.1', 'April 2021', '2021')
+    (program, version, last_edit, copy_right) = ('NUMTFinder', '0.5.4', 'March 2023', '2021')
     description = 'Nuclear mitochondrial fragment (NUMT) search tool'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_obj.zen()]
@@ -201,7 +207,7 @@ class NUMTFinder(rje_obj.RJE_Object):
 
     Int:integer
     - FragMerge=INT   : Max Length of gaps between fragmented local hits to merge [8000]
-    - MinFragLen=INT  : Minimum local (NUMT fragment) alignment length (sets GABLAM localmin=X) [0]
+    - MinFragLen=INT  : Minimum local (NUMT fragment) alignment length (sets GABLAM localmin=X) [10]
 
     Num:float
     - MTMaxCov=PERC   : Maximum percentage coverage of mtDNA (at mtmaxid identity) to allow [99]
@@ -239,7 +245,7 @@ class NUMTFinder(rje_obj.RJE_Object):
         self._setDefaults(str='None',bool=False,int=0,num=0.0,obj=None,setlist=True,setdict=True,setfile=True)
         self.setStr({})
         self.setBool({'BlockFas':True,'Circle':True,'DocHTML':False,'FragFas':False,'FragRevComp':True,'MTMaxExclude':True,'NoCovFas':False,'Stranded':False})
-        self.setInt({'FragMerge':8000})
+        self.setInt({'FragMerge':8000,'MinFragLen':10})
         self.setNum({'MTMaxCov':99.0,'MTMaxID':99.0})
         self.list['Exclude'] = 'mtDNA'
         ### ~ Other Attributes ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -280,7 +286,6 @@ class NUMTFinder(rje_obj.RJE_Object):
         '''
         # NUMTFinder: Nuclear mitochondrial fragment (NUMT) search tool
 
-
         NUMTFinder uses a mitochondrial genome to search against genome assembly and identify putative NUMTs. NUMT fragments
         are then combined into NUMT blocks based on proximity.
 
@@ -299,6 +304,12 @@ class NUMTFinder(rje_obj.RJE_Object):
         * assembly masking options
         * options to restrict NUMT blocks to fully collinear hits.
         * automated running of Diploidocus long-read regcheck on fragments and blocks
+
+        ## Citation
+
+        If you use NUMTFinder in a publication, please cite:
+
+            Edwards RJ, Field MA, Ferguson JM, Dudchenko O, Keilwagen K, Rosen BD, Johnson GS, Rice ES, Hillier L, Hammond JM, Towarnicki SG, Omer A, Khan R, Skvortsova K, Bogdanovic O, Zammit RA, Aiden EL, Warren WC & Ballard JWO (2021): Chromosome-length genome assembly and structural variations of the primal Basenji dog (Canis lupus familiaris) genome. BMC Genomics 22:188 [PMID: [33726677](https://pubmed.ncbi.nlm.nih.gov/33726677/)]
 
         ---
 
@@ -340,7 +351,7 @@ class NUMTFinder(rje_obj.RJE_Object):
         ### ~ NUMTFinder search options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         circle=T/F      : Whether the mtDNA is circular [True]
         blaste=X        : BLAST+ blastn evalue cutoff for NUMT search [1e-4]
-        minfraglen=INT  : Minimum local (NUMT fragment) alignment length (sets GABLAM localmin=X) [0]
+        minfraglen=INT  : Minimum local (NUMT fragment) alignment length (sets GABLAM localmin=X) [10]
         exclude=LIST    : Exclude listed sequence names from search [mtDNA sequence name]
         mtmaxcov=PERC   : Maximum percentage coverage of mtDNA (at mtmaxid identity) to allow [99]
         mtmaxid=PERC    : Maximum percentage identity of mtDNA hits > mtmaxcov coverage to allow [99]
@@ -358,7 +369,7 @@ class NUMTFinder(rje_obj.RJE_Object):
         fragrevcomp=T/F : Whether to reverse-complement DNA fragments that are on reverse strand to query [True]
         blockfas=T/F    : Whether to generate a combined fasta file of NUMT block regions (positive strand) [True]
         depthplot=T/F   : Whether to output mtDNA depth plots of sequence coverage (requires R) [True]
-        depthsmooth=X   : Smooth out any read plateaus < X nucleotides in length [0]
+        depthsmooth=X   : Smooth out any read plateaus < X nucleotides in length [10]
         peaksmooth=X    : Smooth out Xcoverage peaks < X depth difference to flanks (<1 = %Median) [0]
         nocovfas=T/F    : Whether to output the regions of mtDNA with no coverage & peak coverage [False]
         ### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -467,7 +478,7 @@ class NUMTFinder(rje_obj.RJE_Object):
         smoothing is turned off for NUMTFinder. This can be set with:
 
         ```
-        depthsmooth=X   : Smooth out any read plateaus < X nucleotides in length [0]
+        depthsmooth=X   : Smooth out any read plateaus < X nucleotides in length [10]
         peaksmooth=X    : Smooth out Xcoverage peaks < X depth difference to flanks (<1 = %Median) [0]
         ```
 
@@ -603,12 +614,13 @@ class NUMTFinder(rje_obj.RJE_Object):
         If circular, generate double-length mtDNA sequence and update self.str['mtQuery']
         '''
         try:### ~ [1] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            seq = self.obj['mtDNA'].seqs()[0]
             if not self.getBool('Circle'):
                 self.setStr({'mtQuery':self.getStr('mtDNA')})
+                self.setInt({'mtLen': self.obj['mtDNA'].seqLen(seq)})
                 self.printLog('#MTQRY','Using mtdna=FILE input {0} for mtDNA query (circle=F)'.format(self.getStr('mtDNA')))
                 return True
             mt2x = rje.baseFile(self.getStr('mtDNA'),strip_path=True)+'2X.fasta'
-            seq = self.obj['mtDNA'].seqs()[0]
             self.setStr({'mtQuery':mt2x})
             self.setInt({'mtLen':self.obj['mtDNA'].seqLen(seq)})
             self.printLog('#MTDNA','Mitochondrial DNA length: {0}'.format(rje_seqlist.dnaLen(self.getInt('mtLen'))))
@@ -800,10 +812,10 @@ class NUMTFinder(rje_obj.RJE_Object):
                     prevseq = seq
                     seqlen = len(fullseq)
                 #i# New name
-                sname = string.split(seqname)
+                sname = rje.split(seqname)
                 sname[0] = '%s.%s-%s' % (sname[0],rje.preZero(entry['Start'],seqlen),rje.preZero(entry['End'],seqlen))
                 sname.insert(1,'(Pos %s - %s)' % (rje.iStr(entry['Start']),rje.iStr(entry['End'])))
-                sname = string.join(sname)
+                sname = rje.join(sname)
                 sequence = fullseq[entry['Start']-1:entry['End']]
                 #X#(sname, sequence) = seqin.getSeqFrag(seq,fragstart=entry['Start'],fragend=entry['End'])
                 SEQOUT.write('>{0}\n{1}\n'.format(sname,sequence)); outx += 1
@@ -819,7 +831,7 @@ class NUMTFinder(rje_obj.RJE_Object):
         try:### ~ [1] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             samcmd = ['seqin={0}'.format(self.getStr('mtQuery')),'basefile={0}.numtfrag'.format(self.baseFile()),
                       'minreadlen={0}'.format(self.getInt('MinFragLen'))]
-            samdefault = ['depthsmooth=0','peaksmooth=0','depthplot=T','readlen=T']
+            samdefault = ['depthsmooth=10','peaksmooth=0','depthplot=T','readlen=T']
             sam = rje_samtools.SAMtools(self.log,samdefault+self.cmd_list+samcmd)
             sam.obj['DB'] = self.obj['DB']
             mtlen = self.getInt('mtLen')

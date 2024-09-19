@@ -476,7 +476,7 @@ class SLiMCore(rje_obj.RJE_Object):
         elif self.list['FTMask'] == ['T'] or self.list['FTMask'] == ['TRUE']:
             self.list['FTMask'] = ['EM','DOMAIN','TRANSMEM']
             self.warnLog('Command ftmask=T converted to default ftmask=EM,DOMAIN,TRANSMEM.')
-        #else: self.printLog('#FTCMD',string.join(self.list['FTMask']))
+        #else: self.printLog('#FTCMD',rje.join(self.list['FTMask']))
 #########################################################################################################################
     def prog(self):
         if self.getStrLC('Prog'): return self.getStrLC('Prog')
@@ -498,7 +498,7 @@ class SLiMCore(rje_obj.RJE_Object):
     def slimNum(self): return len(self.dict['Slim'])
 #########################################################################################################################
     def slimUP(self,slim):  ### Returns UP Num for SLiM if in dictionary, else 0.
-        if self.dict['Slim'].has_key(slim): return len(self.dict['Slim'][slim]['UP'])
+        if slim in self.dict['Slim']: return len(self.dict['Slim'][slim]['UP'])
         return 0
 #########################################################################################################################
     def slimOccNum(self,slim,upc=None):    ### Returns number of occ of Slim in given UPC
@@ -506,17 +506,17 @@ class SLiMCore(rje_obj.RJE_Object):
         ## No UPC - return total! ##
         if not upc: return len(self.dict['Slim'][slim]['Occ'])
         ## See if SLiM occurs at all! ##
-        if not self.dict['SeqOcc'].has_key(slim): return 0
+        if slim not in self.dict['SeqOcc']: return 0
         ## Mean over UPC ##
         sx = 0
         for seq in upc:
-            if self.dict['SeqOcc'][slim].has_key(seq) and self.dict['SeqOcc'][slim][seq] > sx:
+            if seq in self.dict['SeqOcc'][slim] and self.dict['SeqOcc'][slim][seq] > sx:
                 sx = self.dict['SeqOcc'][slim][seq]
         return sx
 #########################################################################################################################
     def slimSeqNum(self,slim):  ### Returns the number of sequences SLiM occurs in.
         '''Returns the number of sequences SLiM occurs in.'''
-        if not self.dict['SeqOcc'].has_key(slim): return 0      ## See if SLiM occurs at all! ##
+        if slim not in self.dict['SeqOcc']: return 0      ## See if SLiM occurs at all! ##
         return len(self.dict['SeqOcc'][slim])
 #########################################################################################################################
     def UPNum(self): return len(self.list['UP'])
@@ -529,12 +529,12 @@ class SLiMCore(rje_obj.RJE_Object):
     def slimIC(self,slim,usefreq=False):   ### Returns IC of slim  #!# Add aafreq & wildcard pen etc? 
         '''Returns IC of slim. Does not account for variable length wildcards!'''
         ic = 0.0
-        slist = string.split(slim,'-')
+        slist = rje.split(slim,'-')
         if usefreq and ('SmearFreq' not in self.dict or not self.dict['SmearFreq']): self.dict['SmearFreq'] = self.smearAAFreq(False)
         i = 0
         while i < (len(slist)):     #!# Update this for new calculation and DNA?! #!#
             el = slist[i]
-            if not self.dict['ElementIC'].has_key(el):
+            if el not in self.dict['ElementIC']:
                 #x#self.dict['ElementIC'][el] = rje_motif.elementIC(el,callobj=self)
                 if usefreq: self.dict['ElementIC'][el] = rje_slim.weightedElementIC(el,self.dict['SmearFreq'])
                 elif self.getBool('DNA'): self.dict['ElementIC'][el] = rje_slim.weightedElementIC(el,rje_slim.even_ntfreq)
@@ -562,9 +562,9 @@ class SLiMCore(rje_obj.RJE_Object):
             ## ~ [1b] Equivalence Builder ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             if self.getStrLC('BlosumFile'):
                 equiv = self.BLOSUM2equiv(self.getStr('BlosumFile'),self.getNum('EquivCut'))    # getInt?
-                self.printLog('#EQUIV',string.join(equiv,', '))
+                self.printLog('#EQUIV',rje.join(equiv,', '))
                 rje.backup(self,self.getStr('EquivOut'))
-                open(self.getStr('EquivOut'),'w').write(string.join(equiv,'\n'))
+                open(self.getStr('EquivOut'),'w').write(rje.join(equiv,'\n'))
                 self.printLog('#SAVE','Equivalence list saved to %s' % self.getStr('EquivOut'))
                 return equiv
             ## ~ [1c] Setup MegaSLiM files for GABLAM and masking ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
@@ -773,7 +773,7 @@ class SLiMCore(rje_obj.RJE_Object):
             if pdb:
                 ex = pdb.entryNum()
                 if self.list['PTMList']:
-                    self.printLog('#PTM','Filter PTMData (type/code) using PTMList: %s' % string.join(rje.sortUnique(self.list['PTMList']),'|'))
+                    self.printLog('#PTM','Filter PTMData (type/code) using PTMList: %s' % rje.join(rje.sortUnique(self.list['PTMList']),'|'))
                 for entry in pdb.entries()[0:]:
                     if not entry['modtype'] or not entry['modcode'] or not entry['modaa'] or not entry['modpos']: pdb.dropEntry(entry)
                     elif self.list['PTMList']:
@@ -788,31 +788,31 @@ class SLiMCore(rje_obj.RJE_Object):
                     for code in pdb.indexDataList('modtype',ptm,'modcode'): ptmcodes.append(code)
                 else: ptmcodes.append(ptm)
             ptmcodes = rje.sortUnique(ptmcodes)
-            if self.list['PTMList']: self.printLog('#PTM','%s: %s' % (string.join(self.list['PTMList'],'|'),string.join(ptmcodes)))
+            if self.list['PTMList']: self.printLog('#PTM','%s: %s' % (rje.join(self.list['PTMList'],'|'),rje.join(ptmcodes)))
             self.list['PTMList'] = ptmcodes
             ## ~ [1c] ~ Use PTMList to update Alphabet ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             ptx = 0
             for ptm in ptmcodes:
                 if ptm not in self.list['Alphabet']: self.list['Alphabet'].append(ptm); ptx += 1
             self.list['Alphabet'] = rje.sortUnique(self.list['Alphabet'])
-            if ptx: self.printLog('#ALPH','PTM-Adjusted Alphabet: %s' % string.join(self.list['Alphabet']))
+            if ptx: self.printLog('#ALPH','PTM-Adjusted Alphabet: %s' % rje.join(self.list['Alphabet']))
         except: self.errorLog('%s.setupPTMs failure' % self.prog())
 #########################################################################################################################
     def setAlphabet(self):  ### Sets up self.list['Alphabet']
         '''Sets up self.list['Alphabet'].'''
         ### ~ [1] ~ Setup basic alphabet ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-        if len(self.list['Alphabet']) == 1: self.list['Alphabet'] = string.split(string.join(self.list['Alphabet'][0]).upper())
-        elif self.list['Alphabet']: self.list['Alphabet'] = string.split(string.join(self.list['Alphabet']).upper())
+        if len(self.list['Alphabet']) == 1: self.list['Alphabet'] = rje.split(rje.join(self.list['Alphabet'][0]).upper())
+        elif self.list['Alphabet']: self.list['Alphabet'] = rje.split(rje.join(self.list['Alphabet']).upper())
         else:
             if self.getBool('DNA'): self.list['Alphabet'] = rje_seq.alph_dna[:-1]
             else: self.list['Alphabet'] = rje_seq.alph_protx[:-1]
         self.list['Alphabet'] = rje.sortUnique(self.list['Alphabet'])
-        self.printLog('#ALPH','Alphabet: %s' % string.join(self.list['Alphabet']))
+        self.printLog('#ALPH','Alphabet: %s' % rje.join(self.list['Alphabet']))
         ### ~ [2] ~ Remove masked AAs ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         for aa in self.list['AAMask']:
             if aa in self.list['Alphabet']: self.list['Alphabet'].remove(aa)
-            self.printLog('#ALPH','AA masked alphabet: %s' % string.join(self.list['Alphabet']))
-        self.dict['Output']['alphabet'] = string.join(self.list['Alphabet'])
+            self.printLog('#ALPH','AA masked alphabet: %s' % rje.join(self.list['Alphabet']))
+        self.dict['Output']['alphabet'] = rje.join(self.list['Alphabet'])
 #########################################################################################################################
     def setQRegion(self):   ### Sets up Query Region masking
         '''Sets up Query Region masking.'''
@@ -820,7 +820,7 @@ class SLiMCore(rje_obj.RJE_Object):
         try:
             qreg = []; pairs = True
             for x in self.list['QRegion']:
-                r = string.atoi(x)
+                r = rje.atoi(x)
                 qreg.append(r)
                 pairs = not pairs
             if not pairs: qreg.append(-1)
@@ -900,7 +900,7 @@ class SLiMCore(rje_obj.RJE_Object):
                                 if relcon[i] < 0: newseq.append('X')
                                 else: newseq.append(seq.info['MaskSeq'][i])
                             maskx = newseq.count('X') - seq.info['MaskSeq'].count('X'); cmx += maskx
-                            seq.info['Sequence'] = string.join(newseq,'')
+                            seq.info['Sequence'] = rje.join(newseq,'')
                             if maskx > 0 and self.getBool('LogMask'): self.printLog('#MASK','Masked %s low relative conservation. (%d X added to %daa seq.)' % (seq.shortName(),maskx,seq.aaLen()))
                         except:
                             self.errorLog('Problem with relative conservation masking for %s' % seq.shortName())
@@ -934,9 +934,9 @@ class SLiMCore(rje_obj.RJE_Object):
                             #self.debug(seq.info[stype])
                 for (sname,pos) in rje.sortKeys(moddict): self.printLog('#PTMOD','%s %s' % (sname,moddict[(sname,pos)]))
             ### ~ [5] ~ UniProt Filtering ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            if self.list['FTMask']: ftmasktxt = 'FTMask: %s' % string.join(self.list['FTMask'],',')
+            if self.list['FTMask']: ftmasktxt = 'FTMask: %s' % rje.join(self.list['FTMask'],',')
             else: ftmasktxt = 'FTMask: None'
-            if self.list['IMask']: ftmasktxt += '; Inclusive Masking: %s' % string.join(self.list['IMask'],',')
+            if self.list['IMask']: ftmasktxt += '; Inclusive Masking: %s' % rje.join(self.list['IMask'],',')
             if self.obj['SeqList'].obj['UniProt']:
                 self.printLog('#FTMASK',ftmasktxt)
                 for entry in self.obj['SeqList'].obj['UniProt'].list['Entry']:
@@ -997,7 +997,7 @@ class SLiMCore(rje_obj.RJE_Object):
             if self.list['AAMask']:
                 mx = 0
                 for seq in self.seqs(): mx += seq.maskAA(self.list['AAMask'],log=self.getBool('LogMask'))
-                self.printLog('#MASK','AA-Masked %s: %s X added.' % (string.join(self.list['AAMask'],';'),rje.integerString(mx)))
+                self.printLog('#MASK','AA-Masked %s: %s X added.' % (rje.join(self.list['AAMask'],';'),rje.integerString(mx)))
                 self.wallTime()
             ### ~ [10] ~ QRegion ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             #try:
@@ -1291,7 +1291,7 @@ class SLiMCore(rje_obj.RJE_Object):
                     seq = seqdict[search.info['Name']]
                     updict[seq] = []
                     for hit in search.hit:
-                        if seqdict.has_key(hit.info['Name']):
+                        if hit.info['Name'] in seqdict:
                             updict[seq].append(seqdict[hit.info['Name']])
                             if seqdict[hit.info['Name']] != seq:
                                 gablam.addDis(seq,seqdict[hit.info['Name']],1 - (hit.dict['GABLAM']['Query']['GABLAM ID'] / float(seq.aaLen())))
@@ -1364,7 +1364,7 @@ class SLiMCore(rje_obj.RJE_Object):
                     self.progLog('\r#UP','%d UP clusters (%d seq remaining)     ' % (self.UPNum(),len(updict)))
                     uplen = len(self.list['UP'][-1])
                     for seq in self.list['UP'][-1]:
-                        if updict.has_key(seq):
+                        if seq in updict:
                             for p in updict.pop(seq):
                                 if p not in self.list['UP'][-1]:
                                     self.list['UP'][-1] += (p,)
@@ -1458,10 +1458,10 @@ class SLiMCore(rje_obj.RJE_Object):
             self.setNum({'MST':float(data[3])})
             ## ~ [1b] ~ UPCs ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             for u in range(upx):
-                data = string.split(ulines[u+2],'\t')
+                data = rje.split(ulines[u+2],'\t')
                 if int(data[0]) != (u+1): self.printLog('#ERR','UP identifier number wrong in file!'); raise ValueError
                 useqs = []
-                for seq in string.split(data[-1]): useqs.append(seqdict[seq])
+                for seq in rje.split(data[-1]): useqs.append(seqdict[seq])
                 if len(useqs) != int(data[1]): self.printLog('#ERR','UP SeqNum mismatch!'); raise ValueError
                 upc = (useqs[0],)
                 for seq in useqs[1:]: upc += (seq,)
@@ -1718,14 +1718,14 @@ class SLiMCore(rje_obj.RJE_Object):
                                     while '-' in [fentry['QrySeq'][alnct], fentry['SbjSeq'][alnct]]: alnct -= 1; truncx += 1
                                     for afield in ['QrySeq','SbjSeq','AlnSeq']: fentry[afield] = fentry[afield][alnnt:alnct+1]
                                     for prot in ['Qry','Sbj']:
-                                        fentry[prot+'Par'] += (alnnt - string.count(entry[prot+'Seq'][:alnnt],'-'))
-                                        fentry[prot+'Start'] += (alnnt - string.count(entry[prot+'Seq'][:alnnt],'-'))
-                                        fentry[prot+'End'] = fentry[prot+'Start'] + len(fentry[prot+'Seq']) - string.count(fentry[prot+'Seq'],'-') - 1
+                                        fentry[prot+'Par'] += (alnnt - rje.count(entry[prot+'Seq'][:alnnt],'-'))
+                                        fentry[prot+'Start'] += (alnnt - rje.count(entry[prot+'Seq'][:alnnt],'-'))
+                                        fentry[prot+'End'] = fentry[prot+'Start'] + len(fentry[prot+'Seq']) - rje.count(fentry[prot+'Seq'],'-') - 1
                                     fentry['AlnID'] = '%s.%s' % (fentry['AlnID'],fentry[sfield])
                                     # Recalculate Identity and Positives
                                     if nfield == 'Hit': fentry['Length'] = fragseq[seq][i][1] - fragseq[seq][i][0] + 1
-                                    fentry['Positives'] = len(fentry['AlnSeq']) - string.count(fentry['AlnSeq'],' ')
-                                    fentry['Identity'] = fentry['Positives'] - string.count(fentry['AlnSeq'],'+')
+                                    fentry['Positives'] = len(fentry['AlnSeq']) - rje.count(fentry['AlnSeq'],' ')
+                                    fentry['Identity'] = fentry['Positives'] - rje.count(fentry['AlnSeq'],'+')
                                     if min(fentry['Identity'],fentry['Positives']) < 0: raise ValueError('Identity/Positives calculation error!\nAlnSeq: %s\n' % fentry['AlnSeq'])
                                     if fentry['Identity']: ldb.addEntry(fentry)
                             if dropentry:
@@ -1757,7 +1757,7 @@ class SLiMCore(rje_obj.RJE_Object):
             ldb.saveToFile('%s.fupc.Local.tdt' % upcbase)
 
             if self.dev() or self.test():   # Integrity check
-                locfrag = rje.sortUnique(ldb.index('Query').keys() + ldb.index('Hit').keys()); mx = 0
+                locfrag = rje.sortUnique(list(ldb.index('Query').keys()) + list(ldb.index('Hit').keys())); mx = 0
                 for sname in locfrag:
                     if sname not in fragdb.data(): self.warnLog('Local fragment %s not found in fragdb.' % sname); mx += 1
                 if mx: raise ValueError('%s local hits missing protein fragments.' % rje.iStr(mx))
@@ -1853,7 +1853,7 @@ class SLiMCore(rje_obj.RJE_Object):
                     self.progLog('\r#FUP','%s FUP clusters (%s seq remaining)     ' % (rje.iLen(fragupc),rje.iLen(updict)))
                     uplen = len(fragupc[i])
                     for seq in fragupc[i]:
-                        if updict.has_key(seq):
+                        if seq in updict:
                             for p in updict.pop(seq):
                                 if p not in fragupc[i]: fragupc[i].append(p)
                 for sname in fragupc[i]:
@@ -1913,8 +1913,8 @@ class SLiMCore(rje_obj.RJE_Object):
                             for oldi in range(i,j+1):
                                 oldfrag = '%s.%d' % (parent,oldi)
                                 fragdb.data().pop(oldfrag)
-                                for entry in ldb.indexEntries('Query',oldfrag): entry['Query'] = string.split(sname)[0]
-                                for entry in ldb.indexEntries('Hit',oldfrag): entry['Hit'] = string.split(sname)[0]
+                                for entry in ldb.indexEntries('Query',oldfrag): entry['Query'] = rje.split(sname)[0]
+                                for entry in ldb.indexEntries('Hit',oldfrag): entry['Hit'] = rje.split(sname)[0]
                             #!# Update blast tables #!#
                             # sdb ['Query','Length','Hits'],['Query']
                             # hdb ['Query','Hit','Length','Aln','GablamFrag','LocalCut','GABLAM'],['Query','Hit']
@@ -1924,7 +1924,7 @@ class SLiMCore(rje_obj.RJE_Object):
                         fseq = seqlist._addSeq(sname,sequence)
                         if upmade: self.list['UP'][-1] += (fseq,)
                         else: self.list['UP'].append((fseq,)); upmade = True
-                        seqdict[string.split(sname)[0]] = fseq
+                        seqdict[rje.split(sname)[0]] = fseq
             fragdb.saveToFile()
             #FFAS.close()
 
@@ -2175,14 +2175,14 @@ class SLiMCore(rje_obj.RJE_Object):
                         ftxt = []
                         for f in self.list['FTMask']: ftxt.append(f[:1])
                         ftxt.sort()
-                        masking.append('FT-%s' % string.join(ftxt,''))
+                        masking.append('FT-%s' % rje.join(ftxt,''))
                     else: masking.append('FT')
                 if self.list['IMask']:
                     if self.getBool('Webserver'):
                         ftxt = []
                         for f in self.list['IMask']: ftxt.append(f[:1])
                         ftxt.sort()
-                        masking.append('Inc-%s' % string.join(ftxt,''))
+                        masking.append('Inc-%s' % rje.join(ftxt,''))
                     else: masking.append('Inc')
                 if self.getStrLC('CaseMask'): masking.append('%s%s' % (self.getStr('CaseMask')[:1].upper(),self.getStr('CaseMask')[1:3].lower()))
                 if self.getStrLC('MotifMask'): masking.append('Mot')
@@ -2192,7 +2192,7 @@ class SLiMCore(rje_obj.RJE_Object):
             self.list['MaskText'] = masking
         if freq and self.getBool('MaskFreq') and 'Freq' not in self.list['MaskText']: self.list['MaskText'].insert(0,'Freq')
         if not freq and 'Freq' in self.list['MaskText']: self.list['MaskText'].remove('Freq')
-        return string.join(self.list['MaskText'],joiner)
+        return rje.join(self.list['MaskText'],joiner)
 #########################################################################################################################
     def tidyMotifObjects(self): ### This should not be necessary but somehow is!
         '''This should not be necessary but somehow is!'''
@@ -2276,7 +2276,7 @@ class SLiMCore(rje_obj.RJE_Object):
                 if self.getInt('SaveSpace') > 1 and os.path.exists(mypickle): tarfiles.append(mypickle)
                 if self.getInt('SaveSpace') > 1 and os.path.exists(gzpickle): tarfiles.append(gzpickle)
                 if tarfiles:
-                    tcmd = 'tar -czf %s %s' % (targz,string.join(tarfiles))
+                    tcmd = 'tar -czf %s %s' % (targz,rje.join(tarfiles))
                     self.printLog('#TAR',tcmd)
                     if os.system(tcmd):
                         self.printLog('#ERR','Problem executing TarGZ option for %s!' % self.dataset())
@@ -2349,9 +2349,9 @@ class SLiMCore(rje_obj.RJE_Object):
             db = rje_db.Database(self.log,self.cmd_list)
             hdb = db.addTable('%s.hitsum.tdt' % basefile,['Qry'])
             while seqlist.nextSeq():
-                sname = string.split(seqlist.currSeq()[0])[0]   # Shortname
+                sname = rje.split(seqlist.currSeq()[0])[0]   # Shortname
                 if not hdb.data(sname): missing.append(sname)
-            if missing: return gablam.GABLAM(self.log,gcmd+['append=T','missing=%s' % string.join(missing,',')]).gablam()
+            if missing: return gablam.GABLAM(self.log,gcmd+['append=T','missing=%s' % rje.join(missing,',')]).gablam()
             self.printLog('#GABLAM','All input sequences found in %s.hitsum.tdt' % basefile)
             return True
         except: self.errorLog('%s.megaSLiMGABLAM() failure.' % self.prog()); return False
@@ -2388,14 +2388,14 @@ class SLiMCore(rje_obj.RJE_Object):
             seqlist.obj['Current'] = None
             while seqlist.nextSeq():
                 self.progLog('\r#DIS','Scanning %s for %s sequences: %.1f%% (%s missing/run)' % (readfile,rje.iStr(stot),sx/stot,rje.iStr(dx))); sx += 100.0
-                sname = string.split(seqlist.currSeq()[0])[0]   # Shortname
+                sname = rje.split(seqlist.currSeq()[0])[0]   # Shortname
                 acc = seqlist.seqAcc()
                 sequence = seqlist.currSeq()[1]
                 if force: fline = ''
                 else: fline = self.findline(dkey,sname)
                 disobj.list['ResidueDisorder'] = []
                 if fline:
-                    for dstr in string.split(fline)[1:]: disobj.list['ResidueDisorder'].append(string.atof(dstr))
+                    for dstr in rje.split(fline)[1:]: disobj.list['ResidueDisorder'].append(rje.atof(dstr))
                     if len(disobj.list['ResidueDisorder']) != len(sequence):
                         self.errorLog('Disorder score length mismatch (%d score vs %d pos)' % (len(disobj.list['ResidueDisorder']),len(sequence)),printerror=False)
                         fline = ''; disobj.list['ResidueDisorder'] = []
@@ -2407,7 +2407,7 @@ class SLiMCore(rje_obj.RJE_Object):
 
                     #ifile = '%s%s.%s.txt' % (self.getStr('IUScoreDir'),acc,dkey)
                     #if os.path.exists(ifile): fline = open(ifile,'r').readline()
-                    #for dstr in string.split(fline)[1:]: disobj.list['ResidueDisorder'].append(string.atof(dstr))
+                    #for dstr in rje.split(fline)[1:]: disobj.list['ResidueDisorder'].append(rje.atof(dstr))
                     #if len(disobj.list['ResidueDisorder']) != len(sequence):
                     #    self.errorLog('%s Disorder score length mismatch (%d score vs %d pos)' % (sname,len(disobj.list['ResidueDisorder']),len(sequence)),printerror=False)
                     #    fline = ''; disobj.list['ResidueDisorder'] = []
@@ -2421,13 +2421,13 @@ class SLiMCore(rje_obj.RJE_Object):
                         for x in disobj.list['ResidueDisorder']:
                             if dp > 0: dlist.append('%s' % rje.dp(x,dp))
                             else: dlist.append('%f' % x)
-                        RFILE.write('%s\t%s\n' % (sname,string.join(dlist))); ox += 1
+                        RFILE.write('%s\t%s\n' % (sname,rje.join(dlist))); ox += 1
                         if self.getStr('IUScoreDir'):
                             disobj.setInfo({'Name':sname,'Sequence':sequence})
                             disobj.saveDisorder()
                             #rje.mkDir(self,ifile)
-                            #open(ifile,'w').write('%s\t%s\n' % (sname,string.join(dlist)))
-                            fline = '%s\t%s\n' % (sname,string.join(dlist))
+                            #open(ifile,'w').write('%s\t%s\n' % (sname,rje.join(dlist)))
+                            fline = '%s\t%s\n' % (sname,rje.join(dlist))
                     else: raise ValueError('Disorder scoring for %s failed!' % sname)
                 if self.getStr('IUScoreDir'): self.dict['Output']['disorder'] += fline
             self.printLog('\r#DIS','Scanned %s for %s sequences: %.1f%% (%s missing/run).' % (readfile,rje.iStr(stot),sx/stot,rje.iStr(dx)))
@@ -2455,7 +2455,7 @@ class SLiMCore(rje_obj.RJE_Object):
             fline = self.findline(dkey,sname)
             if fline:
                 disobj.list['ResidueDisorder'] = []
-                for dstr in string.split(fline)[1:]: disobj.list['ResidueDisorder'].append(string.atof(dstr))
+                for dstr in rje.split(fline)[1:]: disobj.list['ResidueDisorder'].append(rje.atof(dstr))
                 if len(disobj.list['ResidueDisorder']) != len(sequence):
                     self.debug('%s: %s' % (sname,sequence))
                     self.errorLog('%s disorder score length mismatch (%d score vs %d pos)! Will regenerate.' % (sname,len(disobj.list['ResidueDisorder']),len(sequence)))
@@ -2468,7 +2468,7 @@ class SLiMCore(rje_obj.RJE_Object):
                     for x in disobj.list['ResidueDisorder']:
                         if dp > 0: dlist.append('%s' % rje.dp(x,dp))
                         else: dlist.append('%f' % x)
-                    open(dfile,'a').write('%s\t%s\n' % (sname,string.join(dlist)))
+                    open(dfile,'a').write('%s\t%s\n' % (sname,rje.join(dlist)))
                 else: raise ValueError('Disorder scoring for %s failed!' % sname)
             ## ~ [1b] Make RegionDisorder ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             disobj.makeRegions(sequence)
@@ -2503,7 +2503,7 @@ class SLiMCore(rje_obj.RJE_Object):
                 else: fline = self.findline(dkey,sname)
                 disobj.list['ResidueDisorder'] = []
                 if fline:
-                    for dstr in string.split(fline)[1:]: disobj.list['ResidueDisorder'].append(string.atof(dstr))
+                    for dstr in rje.split(fline)[1:]: disobj.list['ResidueDisorder'].append(rje.atof(dstr))
                     if len(disobj.list['ResidueDisorder']) != seq.aaLen():
                         self.errorLog('%s Disorder score length mismatch (%d score vs %d pos)' % (sname,len(disobj.list['ResidueDisorder']),seq.aaLen()),printerror=False)
                         fline = ''; disobj.list['ResidueDisorder'] = []
@@ -2515,12 +2515,12 @@ class SLiMCore(rje_obj.RJE_Object):
                         for x in disobj.list['ResidueDisorder']:
                             if dp > 0: dlist.append('%s' % rje.dp(x,dp))
                             else: dlist.append('%f' % x)
-                        fline = '%s\t%s\n' % (sname,string.join(dlist))
+                        fline = '%s\t%s\n' % (sname,rje.join(dlist))
                     #ifile = '%s%s.%s.txt' % (self.getStr('IUScoreDir'),acc,dkey)
                     #self.bugPrint(ifile)
                     #if os.path.exists(ifile):
                     #    fline = open(ifile,'r').readline()
-                    #    for dstr in string.split(fline)[1:]: disobj.list['ResidueDisorder'].append(string.atof(dstr))
+                    #    for dstr in rje.split(fline)[1:]: disobj.list['ResidueDisorder'].append(rje.atof(dstr))
                     #    if len(disobj.list['ResidueDisorder']) != seq.aaLen():
                     #        self.errorLog('%s Disorder score length mismatch (%d score vs %d pos)' % (sname,len(disobj.list['ResidueDisorder']),seq.aaLen()),printerror=False)
                     #        fline = ''; disobj.list['ResidueDisorder'] = []
@@ -2531,13 +2531,13 @@ class SLiMCore(rje_obj.RJE_Object):
                         for x in disobj.list['ResidueDisorder']:
                             if dp > 0: dlist.append('%s' % rje.dp(x,dp))
                             else: dlist.append('%f' % x)
-                        DFILE.write('%s\t%s\n' % (sname,string.join(dlist))); dx += 1
+                        DFILE.write('%s\t%s\n' % (sname,rje.join(dlist))); dx += 1
                         if self.getStr('IUScoreDir'):
                             disobj.setInfo({'Name':sname,'Sequence':seq.info['PreMask']})
                             disobj.saveDisorder()
                             #rje.mkDir(self,ifile)
-                            #open(ifile,'w').write('%s\t%s\n' % (sname,string.join(dlist)))
-                            fline = '%s\t%s\n' % (sname,string.join(dlist))
+                            #open(ifile,'w').write('%s\t%s\n' % (sname,rje.join(dlist)))
+                            fline = '%s\t%s\n' % (sname,rje.join(dlist))
                     else: raise ValueError('Disorder scoring for %s failed!' % sname)
                 #?# Not sure if this is the best way to work out with REST output is required
                 if self.getStr('IUScoreDir'): self.dict['Output']['disorder'] += fline
@@ -2593,7 +2593,7 @@ class SLiMCore(rje_obj.RJE_Object):
                 else: fline = self.findline(dkey,sname)
                 relcon = []
                 if fline:
-                    for dstr in string.split(fline)[1:]: relcon.append(string.atof(dstr))
+                    for dstr in rje.split(fline)[1:]: relcon.append(rje.atof(dstr))
                     if len(relcon) != seq.aaLen():
                         self.errorLog('MegaSLiM %s RLC score length mismatch (%d score vs %d pos)' % (sname,len(relcon),seq.aaLen()),printerror=False)
                         fline = ''; relcon = []
@@ -2601,7 +2601,7 @@ class SLiMCore(rje_obj.RJE_Object):
                     sfile = '%s.rlc.txt' % (rje.baseFile(slimcalc.loadOrthAln(seq,alnfile=True)))
                     if os.path.exists(sfile):
                         fline = open(sfile,'r').readline()
-                        for dstr in string.split(fline)[1:]: relcon.append(string.atof(dstr))
+                        for dstr in rje.split(fline)[1:]: relcon.append(rje.atof(dstr))
                         if len(relcon) != seq.aaLen():
                             self.errorLog('ProtScore %s RLC score length mismatch (%d score vs %d pos)' % (sname,len(relcon),seq.aaLen()),printerror=False)
                             fline = ''; relcon = []
@@ -2613,10 +2613,10 @@ class SLiMCore(rje_obj.RJE_Object):
                         for x in relcon:
                             if dp > 0: dlist.append('%s' % rje.dp(x,dp))
                             else: dlist.append('%f' % x)
-                        RFILE.write('%s\t%s\n' % (sname,string.join(dlist))); dx += 1
+                        RFILE.write('%s\t%s\n' % (sname,rje.join(dlist))); dx += 1
                         if self.getBool('ProtScores'):
-                            open(sfile,'w').write('%s\t%s\n' % (sname,string.join(dlist)))
-                            fline = '%s\t%s\n' % (sname,string.join(dlist))
+                            open(sfile,'w').write('%s\t%s\n' % (sname,rje.join(dlist)))
+                            fline = '%s\t%s\n' % (sname,rje.join(dlist))
                     else: raise ValueError('RLC scoring for %s failed!' % sname)
                 #?# Not sure if this is the best way to work out with REST output is required
                 if self.getBool('ProtScores'): self.dict['Output']['rlc'] += fline
@@ -2627,7 +2627,7 @@ class SLiMCore(rje_obj.RJE_Object):
                         if relcon[i] < 0: newseq.append('X')
                         else: newseq.append(seq.info['MaskSeq'][i])
                     maskx = newseq.count('X') - seq.info['MaskSeq'].count('X'); cmx += maskx
-                    seq.info['Sequence'] = string.join(newseq,'')
+                    seq.info['Sequence'] = rje.join(newseq,'')
                     if maskx > 0 and self.getBool('LogMask'): self.printLog('#MASK','Masked %s low relative conservation. (%d X added to %daa seq.)' % (seq.shortName(),maskx,seq.aaLen()))
                 except:
                     self.errorLog('Problem with relative conservation masking for %s' % seq.shortName())
@@ -2678,14 +2678,14 @@ class SLiMCore(rje_obj.RJE_Object):
             while seqlist.nextSeq():    #!# Could use sorted seqlist to accelerate process?
                 self.progLog('\r#RLC','Scanning %s for %s sequences: %.1f%% (%s missing/run)' % (readfile,rje.iStr(stot),sx/stot,rje.iStr(dx))); sx += 100.0
                 (sname,sequence) = seqlist.currSeq()
-                sname = string.split(sname)[0]   # Shortname
+                sname = rje.split(sname)[0]   # Shortname
                 if self.getBool('SLiMMutant') and rje.matchExp('^(\S+)\.p\.\D\d+\D$',sname): sname = rje.matchExp('^(\S+)\.p\.\D\d+\D$',sname)[0]
 
                 if force: fline = ''
                 else: fline = self.findline(dkey,sname)
                 relcon = []
                 if fline:
-                    for dstr in string.split(fline)[1:]: relcon.append(string.atof(dstr))
+                    for dstr in rje.split(fline)[1:]: relcon.append(rje.atof(dstr))
                     if len(relcon) != len(sequence):
                         self.errorLog('%s RLC score length mismatch (%d score vs %d pos)' % (sname,len(relcon),len(sequence)),printerror=False)
                         self.debug('%s: %s' % (sname,sequence))
@@ -2696,7 +2696,7 @@ class SLiMCore(rje_obj.RJE_Object):
                     sfile = '%s.rlc.txt' % (rje.baseFile(slimcalc.loadOrthAln(seq,alnfile=True)))
                     if os.path.exists(sfile):
                         fline = open(sfile,'r').readline()
-                        for dstr in string.split(fline)[1:]: relcon.append(string.atof(dstr))
+                        for dstr in rje.split(fline)[1:]: relcon.append(rje.atof(dstr))
                         if len(relcon) != seq.aaLen():
                             self.errorLog('ProtScore %s RLC score length mismatch (%d score vs %d pos)' % (sname,len(relcon),seq.aaLen()),printerror=False)
                             fline = ''; relcon = []
@@ -2711,10 +2711,10 @@ class SLiMCore(rje_obj.RJE_Object):
                         for x in relcon:
                             if dp > 0: dlist.append('%s' % rje.dp(x,dp))
                             else: dlist.append('%f' % x)
-                        RFILE.write('%s\t%s\n' % (sname,string.join(dlist))); ox += 1
+                        RFILE.write('%s\t%s\n' % (sname,rje.join(dlist))); ox += 1
                         if self.getBool('ProtScores'):
-                            open(sfile,'w').write('%s\t%s\n' % (sname,string.join(dlist)))
-                            fline = '%s\t%s\n' % (sname,string.join(dlist))
+                            open(sfile,'w').write('%s\t%s\n' % (sname,rje.join(dlist)))
+                            fline = '%s\t%s\n' % (sname,rje.join(dlist))
                     else: raise ValueError('RLC scoring for %s failed!' % sname)
                 if self.getBool('ProtScores'): self.dict['Output']['rlc'] += fline
 
@@ -2731,7 +2731,7 @@ class SLiMCore(rje_obj.RJE_Object):
         ### ~ [0] ~ Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         if not name: name = 'sequence'
         if not self.getBool('Masking'): return sequence
-        sname = string.split(name)[0]
+        sname = rje.split(name)[0]
         if self.getBool('SLiMMutant') and rje.matchExp('^(\S+)\.p\.\D\d+\D$',sname): sname = rje.matchExp('^(\S+)\.p\.\D\d+\D$',sname)[0]
         nomask = sequence[0:]   # Used for disorder prediction etc.
         masked = []     # List of 'Type: %d X' to be joined.
@@ -2781,7 +2781,7 @@ class SLiMCore(rje_obj.RJE_Object):
                 if rje.exists(self.getStr('rlc')): fline = self.findline('rlc',sname)
                 else: fline = ''
                 if fline:
-                    for dstr in string.split(fline)[1:]: relcon.append(string.atof(dstr))
+                    for dstr in rje.split(fline)[1:]: relcon.append(rje.atof(dstr))
                     if len(relcon) != len(sequence):
                         self.errorLog('%s RLC score length mismatch (%d score vs %d pos)' % (sname,len(relcon),len(sequence)),printerror=False)
                         fline = ''
@@ -2795,7 +2795,7 @@ class SLiMCore(rje_obj.RJE_Object):
                     for x in relcon:
                         if dp > 0: dlist.append('%s' % rje.dp(x,dp))
                         else: dlist.append('%f' % x)
-                    open(self.getStr('rlc'),'a').write('%s\t%s\n' % (sname,string.join(dlist)))
+                    open(self.getStr('rlc'),'a').write('%s\t%s\n' % (sname,rje.join(dlist)))
             if len(relcon) != len(nomask):
                 self.errorLog('%s RLC score length mismatch (%d score vs %d pos)' % (sname,len(relcon),len(nomask)),printerror=False)
                 relcon = []
@@ -2859,14 +2859,14 @@ class SLiMCore(rje_obj.RJE_Object):
             premask = sequence[0:]
             sequence = rje_sequence.maskAA(sequence,self.list['AAMask'])
             maskx = sequence.count(mask) - premask.count(mask)
-            if maskx: masked.append('AAMask (%s): %d %s' % (string.join(self.list['AAMask'],'|'),maskx,mask))
+            if maskx: masked.append('AAMask (%s): %d %s' % (rje.join(self.list['AAMask'],'|'),maskx,mask))
         ### ~ [10] ~ QRegion ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         if self.list['QRegion'] and 'Focus' in self.dict and 'Query' in self.dict['Focus']:
             self.warnLog('No QRegion masking for single sequences. Switching off.')
             self.list['QRegion'] = []
         ### ~ [11] ~ Finish ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         if log:
-            if masked: self.printLog('#MASK','%s masked: %s.' % (sname, string.join(masked,'; ')),screen=screen)
+            if masked: self.printLog('#MASK','%s masked: %s.' % (sname, rje.join(masked,'; ')),screen=screen)
             else:  self.printLog('#MASK','%s: No positions masked.' % sname,screen=screen)
         return sequence
 #########################################################################################################################
@@ -3084,7 +3084,7 @@ class SLiMCore(rje_obj.RJE_Object):
 def patternFromCode(slim):  ### Returns pattern with wildcard for iXj formatted SLiM (e.g. A-3-T-0-G becomes A...TG)
     '''Returns pattern with wildcard for iXj formatted SLiM (e.g. A-3-T-0-G becomes A...TG).'''
     pattern = ''
-    slist = string.split(slim,'-')
+    slist = rje.split(slim,'-')
     i = 0
     while i < (len(slist)):
         a = slist[i]
@@ -3098,7 +3098,7 @@ def patternFromCode(slim):  ### Returns pattern with wildcard for iXj formatted 
     return pattern
 #########################################################################################################################
 def slimPos(slim):  ### Returns the number of positions in a slim
-    return (string.count(slim,'-') / 2) + 1
+    return (rje.count(slim,'-') / 2) + 1
 #########################################################################################################################
 def slimLen(slim):  ### Returns length of slim
     return len(patternFromCode(slim))
@@ -3106,7 +3106,7 @@ def slimLen(slim):  ### Returns length of slim
 def slimDif(slim1,slim2):   ### Returns number of different positins between slim1 and slim2
     '''Returns number of different positions between slim1 and slim2.'''
     if slim1 == slim2: return 0
-    (split1,split2) = (string.split(slim1,'-'),string.split(slim2,'-'))
+    (split1,split2) = (rje.split(slim1,'-'),rje.split(slim2,'-'))
     if len(split1) != len(split2): return rje.modulus(len(split1) - len(split2))
     d = 0
     for i in range(len(split1)):

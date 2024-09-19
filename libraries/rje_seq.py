@@ -19,8 +19,8 @@
 """
 Program:      RJE_SEQ
 Description:  DNA/Protein sequence list module
-Version:      3.25.3
-Last Edit:    21/12/20
+Version:      3.25.4
+Last Edit:    14/05/22
 Copyright (C) 2005  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -206,6 +206,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 3.25.1 - Fixed -long_seqids retrieval bug.
     # 3.25.2 - Fixed 9spec filtering bug.
     # 3.25.3 - Added some bug fixes from Norman that were giving him errors.
+    # 3.25.4 - Py3 updates.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -254,7 +255,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo():     ### Makes Info object
     '''Makes rje.Info object for program.'''
-    (program, version, last_edit, cyear) = ('RJE_SEQ', '3.25.2', 'May 2019', '2005')
+    (program, version, last_edit, cyear) = ('RJE_SEQ', '3.25.4', 'May 2022', '2005')
     description = 'RJE Sequence Dataset Manipulation Module'
     author = 'Dr Richard J. Edwards.'
     comments = ['Please report bugs to r.edwards@soton.ac.uk']
@@ -267,7 +268,7 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         if not out: out = rje.Out()
         helpx = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
         if helpx > 0:
-            print '\n\nHelp for %s %s: %s\n' % (info.program, info.version, time.asctime(time.localtime(info.start_time)))
+            rje.printf('\n\nHelp for {0} {1}: {2}\n'.format(info.program, info.version, time.asctime(time.localtime(info.start_time))))
             out.verbose(-1,4,text=__doc__)
             if rje.yesNo('Show general commandline options?',default='N'): out.verbose(-1,4,text=rje.__doc__)
             if rje.yesNo('Quit?'): sys.exit()
@@ -276,33 +277,30 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         return cmd_list
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Major Problem with cmdHelp()'
+    except: rje.printf('Major Problem with cmdHelp()')
 #########################################################################################################################
-def setupProgram(): ### Basic Setup of Program
+def setupProgram(): ### Basic Setup of Program when called from commandline.
     '''
-    Basic setup of Program:
+    Basic Setup of Program when called from commandline:
     - Reads sys.argv and augments if appropriate
     - Makes Info, Out and Log objects
     - Returns [info,out,log,cmd_list]
     '''
-    try:
-        ### Initial Command Setup & Info ###
-        info = makeInfo()
-        cmd_list = rje.getCmdList(sys.argv[1:],info=info)      ### Load defaults from program.ini
-        ### Out object ###
-        out = rje.Out(cmd_list=cmd_list)
-        out.verbose(2,2,cmd_list,1)
-        out.printIntro(info)
-        ### Additional commands ###
-        cmd_list = cmdHelp(info,out,cmd_list)
-        ### Log ###
-        log = rje.setLog(info=info,out=out,cmd_list=cmd_list)
-        return [info,out,log,cmd_list]
+    try:### ~ [1] ~ Initial Command Setup & Info ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+        info = makeInfo()                                   # Sets up Info object with program details
+        if len(sys.argv) == 2 and sys.argv[1] in ['version','-version','--version']: rje.printf(info.version); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: rje.printf('%s v%s' % (info.program,info.version)); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['description','-description','--description']: rje.printf('%s: %s' % (info.program,info.description)); sys.exit(0)
+        cmd_list = rje.getCmdList(sys.argv[1:],info=info)   # Reads arguments and load defaults from program.ini
+        out = rje.Out(cmd_list=cmd_list)                    # Sets up Out object for controlling output to screen
+        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2
+        out.printIntro(info)                                # Prints intro text using details from Info object
+        cmd_list = cmdHelp(info,out,cmd_list)               # Shows commands (help) and/or adds commands from user
+        log = rje.setLog(info,out,cmd_list)                 # Sets up Log object for controlling log file output
+        return (info,out,log,cmd_list)                      # Returns objects for use in program
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except:
-        print 'Problem during initial setup.'
-        raise
+    except: rje.printf('Problem during initial setup.'); raise
 #########################################################################################################################
 ### Regular Expressions for Sequence Details Extraction
 re_acconly = re.compile('^(\S+)\s*$')
@@ -580,8 +578,8 @@ class SeqList(rje.RJE_Object):
                 self.info['Type'] = self.info['Type'].upper()
                 if self.info['Type'] == 'PROTEIN': self.info['Type'] = 'Protein'
             if self.opt['DNA']: self.info['Type'] = 'DNA'
-            if len(self.list['Alphabet']) == 1: self.list['Alphabet'] = string.split(string.join(self.list['Alphabet'][0]).upper())
-            elif self.list['Alphabet']: self.list['Alphabet'] = string.split(string.join(self.list['Alphabet']).upper())
+            if len(self.list['Alphabet']) == 1: self.list['Alphabet'] = rje.split(rje.join(self.list['Alphabet'][0]).upper())
+            elif self.list['Alphabet']: self.list['Alphabet'] = rje.split(rje.join(self.list['Alphabet']).upper())
             #if not self.list['Alphabet']:
             #    if self.info['Type'] == 'DNA': self.list['Alphabet'] = alph_dna + ['-']
             #    elif self.info['Type'] == 'RNA': self.list['Alphabet'] = alph_rna + ['-']
@@ -905,11 +903,11 @@ class SeqList(rje.RJE_Object):
                 while not os.path.exists(seqfile):
                     if ',' in seqfile or '.' not in seqfile: # Interpret as uniprot extraction list
                         self.obj['UniProt'] = uniprot = rje_uniprot.UniProt(self.log,self.cmd_list)
-                        uniprot._extractProteinsFromURL(string.split(seqfile,','))
+                        uniprot._extractProteinsFromURL(rje.split(seqfile,','))
                         sx = 0
                         for uentry in uniprot.entries(): self.seq.append(uentry.obj['Sequence'])
                         if sx:
-                            self.printLog('\r#SEQ','%s sequences loaded from Uniprot download (%s accnum).' % (rje.iStr(self.seqNum()),rje.iLen(string.split(seqfile,','))))
+                            self.printLog('\r#SEQ','%s sequences loaded from Uniprot download (%s accnum).' % (rje.iStr(self.seqNum()),rje.iLen(rje.split(seqfile,','))))
                             if self.getStrLC('Basefile'): self.setStr({'Name':self.basefile()})
                             else: self.setStr({'Name':'seqin'})
                             return True
@@ -977,10 +975,10 @@ class SeqList(rje.RJE_Object):
                         p += 1
                         physeq = rje.regExp(re_phy,line)
                         if len(physeq[1]) != int(phynum[1]):   # Wrong length!
-                            raise ValueError, "Phylip Format error: %s is not declared length of %s aa." % (physeq[1],phynum[1])
+                            raise ValueError("Phylip Format error: %s is not declared length of %s aa." % (physeq[1],phynum[1]))
                         self._addSeq(name=physeq[0], sequence=physeq[1])
                 if self.seqNum() != int(phynum[0]):   # Wrong sequence number!
-                    raise ValueError, "Phylip Format error: %s seqs declared, %d seqs read." % (physeq[0],self.seqNum())
+                    raise ValueError("Phylip Format error: %s seqs declared, %d seqs read." % (physeq[0],self.seqNum()))
                 self.printLog('\r#SEQ','%s sequences loaded from %s (Format: %s).' % (rje.integerString(self.seqNum()),seqfile,filetype))
             ##  ~ [2c] ~ Aln Format ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             elif filetype == 'aln':
@@ -993,7 +991,7 @@ class SeqList(rje.RJE_Object):
                     if re_aln.search(line):   # Sequence Line
                         p += 1
                         seq_aln = rje.regExp(re_aln,line)
-                        if alnseq.has_key(seq_aln[0]): alnseq[seq_aln[0]] = alnseq[seq_aln[0]] + seq_aln[1]
+                        if seq_aln[0] in alnseq: alnseq[seq_aln[0]] = alnseq[seq_aln[0]] + seq_aln[1]
                         else: alnseq[seq_aln[0]] = seq_aln[1]
                 for key in alnseq.keys(): self._addSeq(name=key, sequence=alnseq[key])
                 self.printLog('\r#SEQ','%s sequences loaded from %s (Format: %s).' % (rje.integerString(self.seqNum()),seqfile,filetype))
@@ -1155,7 +1153,7 @@ class SeqList(rje.RJE_Object):
                     pass
 
             if not self.obj['QuerySeq'] and rje.matchExp('^(\d+)$',rawq):
-                qx = string.atoi(rje.matchExp('^(\d+)$',rawq)[0]) - 1
+                qx = rje.atoi(rje.matchExp('^(\d+)$',rawq)[0]) - 1
                 try: seq = self.seqs()[qx]
                 except: seq = None
                 if seq:
@@ -1214,7 +1212,7 @@ class SeqList(rje.RJE_Object):
             newseq.extractDetails(gnspacc=self.opt['GeneSpAcc'])
             #self.debug(newseq.info)
             ### ~ [2] ~ Exclude sequence if appropriate ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            if self.opt['DBOnly'] and newseq.info['DBase'].lower() not in string.split(self.info['DBList'].lower(),','):
+            if self.opt['DBOnly'] and newseq.info['DBase'].lower() not in rje.split(self.info['DBList'].lower(),','):
                 self.printLog('\r#REM','Sequence %s excluded as not from given database list.' % newseq.shortName())
                 return
             elif not self.opt['UnkSpec'] and (newseq.info['SpecCode'] == 'UNK' or (newseq.getStr('SpecCode').startswith('9') and not self.getBool('9SPEC'))):
@@ -1253,21 +1251,21 @@ class SeqList(rje.RJE_Object):
             nchar = {True:'N',False:'X'}[newseq.dna()]
             if self.stat['NTrim'] and nchar in newseq.info['Sequence']:
                 nprop = self.stat['NTrim']; 
-                nsplit = string.split(newseq.info['Sequence'],nchar)
+                nsplit = rje.split(newseq.info['Sequence'],nchar)
                 while len(nsplit) > 1:
                     nx = len(nsplit) - 1
-                    if float(nx) / len(string.join(['']+nsplit[1:],nchar)) >= nprop: nsplit = nsplit[:1]
-                    else: nsplit = [string.join(nsplit[:2],nchar)] + nsplit[2:]
-                sequence = string.join(nsplit,nchar)
+                    if float(nx) / len(rje.join(['']+nsplit[1:],nchar)) >= nprop: nsplit = nsplit[:1]
+                    else: nsplit = [rje.join(nsplit[:2],nchar)] + nsplit[2:]
+                sequence = rje.join(nsplit,nchar)
                 if sequence != newseq.info['Sequence']:
                     self.printLog('#NTRIM','Trimmed %d trailing %s-rich characters from %s' % (len(newseq.info['Sequence'])-len(sequence),nchar,newseq.shortName()),screen=False)#self.opt['DeBug'])
                     newseq.info['Sequence'] = sequence
-                nsplit = string.split(newseq.info['Sequence'],nchar)
+                nsplit = rje.split(newseq.info['Sequence'],nchar)
                 while len(nsplit) > 1:
                     nx = len(nsplit) - 1
-                    if float(nx) / len(string.join(nsplit[:-1]+[''],nchar)) >= nprop: nsplit = nsplit[-1:]
-                    else: nsplit = nsplit[:-2] + [string.join(nsplit[-2:],nchar)]
-                sequence = string.join(nsplit,nchar)
+                    if float(nx) / len(rje.join(nsplit[:-1]+[''],nchar)) >= nprop: nsplit = nsplit[-1:]
+                    else: nsplit = nsplit[:-2] + [rje.join(nsplit[-2:],nchar)]
+                sequence = rje.join(nsplit,nchar)
                 if sequence != newseq.info['Sequence']:
                     self.printLog('#NTRIM','Trimmed %d leading %s-rich characters from %s' % (len(newseq.info['Sequence'])-len(sequence),nchar,newseq.shortName()),screen=False)#self.opt['DeBug'])
                     newseq.info['Sequence'] = sequence
@@ -1354,7 +1352,7 @@ class SeqList(rje.RJE_Object):
             while i < (len(unilines)-1):
                 ## ~ [2a] ~ New Line ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
                 i += 1
-                line = string.strip(unilines[i],'\r\n')
+                line = rje.strip(unilines[i],'\r\n')
                 type = line[0:2]
                 if type == '': continue
                 rest = line[5:]
@@ -1370,12 +1368,12 @@ class SeqList(rje.RJE_Object):
                     _reading = False
                     continue
                 ## ~ [2d] ~ Entry of Details ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-                if _entry.dict['Data'].has_key(type):   # Append list
+                if type in _entry.dict['Data']:   # Append list
                     if rest[0] != ' ': _entry.dict['Data'][type].append(rest)   # New entry
                     else: _entry.dict['Data'][type][-1] = '%s %s' % (_entry.dict['Data'][type][-1], rest)
                 elif type == '  ':
-                    if _entry.dict['Data'].has_key('SEQ'): _entry.dict['Data']['SEQ'][0] = '%s %s' % (_entry.dict['Data']['SEQ'][0],rest)
-                    elif _entry.dict['Data'].has_key('SQ'): _entry.dict['Data']['SEQ'] = [rest]
+                    if 'SEQ' in _entry.dict['Data']: _entry.dict['Data']['SEQ'][0] = '%s %s' % (_entry.dict['Data']['SEQ'][0],rest)
+                    elif 'SQ' in _entry.dict['Data']: _entry.dict['Data']['SEQ'] = [rest]
                 else: _entry.dict['Data'][type] = [rest]
             ### ~ [3] ~ Finish ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             self.seq.append(uniprot.list['Entry'][0].obj['Sequence'])
@@ -1433,7 +1431,7 @@ class SeqList(rje.RJE_Object):
             cmdseq = []
             try: id = id.split(); singleseq = True
             except: singleseq = False    # Already a list of IDs
-            id = string.join(id,',')
+            id = rje.join(id,',')
             if not dbase: dbase = self.info['Name']
             blastpath = rje.makePath(self.info['BLAST+ Path']) + 'blastdbcmd'
             if self.opt['Win32']: BLASTDBCMD = os.popen("%s -entry \"%s\" -db %s -long_seqids" % (blastpath,id,dbase))
@@ -1511,13 +1509,13 @@ class SeqList(rje.RJE_Object):
             if seqlist.seqNum() == self.seqNum():   # Assume 1 to 1 mapping
                 if mapx == self.seqNum(): allmapped = True
                 else:
-                    print 'No match for:'
+                    rje.printf('No match for:')
                     for mapseq in seqlist.seq:
-                        if map[mapseq]:  print mapseq.shortName(),
-                    print '\n\nNo match to:'
+                        if map[mapseq]:  rje.printf(mapseq.shortName())
+                    rje.printf('\n\nNo match to:')
                     for seq in self.seqs():
-                        if mapped[seq] == False: print seq.shortName(),
-                    print '\n'                            
+                        if mapped[seq] == False: rje.printf(seq.shortName())
+                    rje.printf('\n')
                     self.errorLog('Only %d of %d sequences mapped from %s.' % (mapx,seqlist.seqNum(),seqlist.info['Name']),printerror=False,quitchoice=True)
             else:
                 if mapx == self.seqNum(): allmapped = True
@@ -1525,8 +1523,8 @@ class SeqList(rje.RJE_Object):
             if not (allmapped and mapaln): return allmapped
             ### ~ [3] ~ Attempt to map sequence onto alignment ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             for seq in self.seqs():
-                seqlen = string.replace(seq.info['Unmapped'],'-','')
-                seq.info['Sequence'] = string.replace(seq.info['Sequence'],'-','')
+                seqlen = rje.replace(seq.info['Unmapped'],'-','')
+                seq.info['Sequence'] = rje.replace(seq.info['Sequence'],'-','')
                 maplen = seq.aaLen()
                 if seqlen == maplen:    # Simple 1to1 mapping
                     newseq = ''; i = 0
@@ -1731,7 +1729,7 @@ class SeqList(rje.RJE_Object):
                     outname = seq.getData(name,str=True,default=snum)
                 if id and outname != snum:
                     outname = '%s_%s' % (snum,outname)
-                outname = string.join(string.split(outname),'_')
+                outname = rje.join(rje.split(outname),'_')
                 NEX.write('%s %s\n' % (outname,seq.getSequence(case=self.opt['UseCase'])))
             NEX.write(';\nend;\n')
             NEX.close()
@@ -1822,7 +1820,7 @@ class SeqList(rje.RJE_Object):
             for seq in seqs:
                 try: seqtdt.append(seqdat[seq][r])
                 except: seqtdt.append('-')
-            open(seqfile,'a').write('%s\n' % string.join(seqtdt,'\t'))
+            open(seqfile,'a').write('%s\n' % rje.join(seqtdt,'\t'))
             #rje.delimitedFileOutput(self,seqfile,headers,'\t',datadict)
         if log: self.printLog('#FAS',"%d Sequences output to %s\n" % (len(seqs),seqfile),1)
 #########################################################################################################################
@@ -1859,7 +1857,7 @@ class SeqList(rje.RJE_Object):
                         try:
                             if seq.info['NCBI']: seqdic[seq.info['NCBI']] = seq
                         except: pass
-                    elif seq.info.has_key(key): seqdic[seq.info[key]] = seq
+                    elif key in seq.info: seqdic[seq.info[key]] = seq
                     #!# else will return an empty dictionary #!#
                 except:
                     pass
@@ -2031,7 +2029,7 @@ class SeqList(rje.RJE_Object):
         numlist = []
         for seq in self.seqs():
             if re.search('\D',seq.info['Name']): return False
-            if check1toN: numlist.append(string.atoi(seq.info['Name']))
+            if check1toN: numlist.append(rje.atoi(seq.info['Name']))
         numlist.sort()
         if check1toN and numlist != range(1,self.seqNum()+1): return False
         return True
@@ -2129,14 +2127,14 @@ class SeqList(rje.RJE_Object):
                 ## ~ [2b] Convert to numerical dictionary ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
                 for aa in loadfreq:     #!# At some point, read whether AA or NT and use "NT" #!#
                     try:
-                        if aa != 'Total' and (aafreq.has_key(aa) or newkeys): aafreq[aa] = string.atof(loadfreq[aa][loadkey])
-                        elif total: aafreq[aa] = string.atoi(loadfreq[aa][loadkey])
+                        if aa != 'Total' and (aa in aafreq or newkeys): aafreq[aa] = rje.atof(loadfreq[aa][loadkey])
+                        elif total: aafreq[aa] = rje.atoi(loadfreq[aa][loadkey])
                     except: self.errorLog('Problem with AA key "%s" (="%s")' % (aa,loadfreq[aa][loadkey]))
                     #X#self.log.printLog('\r#AA','Loading AA Frequencies from %s: %.1f%%' % (aafile,float(aalines.index(line))/len(aalines)),log=False,newline=False)
-                if aafreq.has_key('Total'): self.printLog('\r#AA','Loaded %d AA Frequencies from %s. %s aa total.' % (len(aafreq)-1,aafile,rje.integerString(aafreq['Total'])))
+                if 'Total' in aafreq: self.printLog('\r#AA','Loaded %d AA Frequencies from %s. %s aa total.' % (len(aafreq)-1,aafile,rje.integerString(aafreq['Total'])))
                 else: self.printLog('\r#AA','Loaded %d AA Frequencies from %s.' % (len(aafreq),aafile))
                 ## ~ [2c] Special addition of Total if desired ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-                if total and not aafreq.has_key('Total'):
+                if total and 'Total' not in aafreq:
                     if fromfile == self.info['Name']: aafreq['Total'] = self.aaTotal()
                     else: aafreq['Total'] = DBSize(self,fromfile)
                 ## ~ [2d] Normalise and reduce alphabet if necessary ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
@@ -2157,7 +2155,7 @@ class SeqList(rje.RJE_Object):
                     self.printLog('\r#AA','Calculating AA Frequencies from %s: %s aa' % (fromfile,rje.integerString(aax)),log=False,newline=False)
                     for r in range(seq.seqLen()):
                         aa = seq.info['Sequence'][r]
-                        if aafreq.has_key(aa):
+                        if aa in aafreq:
                             aafreq[aa] += 1
                             aax += 1
                         elif newkeys:
@@ -2176,7 +2174,7 @@ class SeqList(rje.RJE_Object):
                     self.printLog('\r#AA','Calculating AA Frequencies from %s seq: %s aa' % (rje.integerString(self.seqNum()),rje.integerString(aax)),log=False,newline=False)
                     for r in range(seq.seqLen()):
                         aa = seq.info['Sequence'][r]
-                        if aafreq.has_key(aa):
+                        if aa in aafreq:
                             aafreq[aa] += 1
                             aax += 1
                         elif newkeys:
@@ -2257,7 +2255,7 @@ class SeqList(rje.RJE_Object):
             for seq in self.seqs():
                 if seq == qry: continue
                 subdict[seq] = {}
-                for aa in string.split(string.join(alphabet).upper()): subdict[seq][aa] = {}
+                for aa in rje.split(rje.join(alphabet).upper()): subdict[seq][aa] = {}
 
             ### ~ [2] Make raw number dictionary ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             for r in range(len(qryseq)):
@@ -2289,7 +2287,7 @@ class SeqList(rje.RJE_Object):
             if self.stat['MaxX'] <= 0: return
             ### ~ [1] Filter ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             for seq in self.seqs()[0:]:
-                xx = string.count(seq.info['Sequence'].upper(),'X')
+                xx = rje.count(seq.info['Sequence'].upper(),'X')
                 if (float(xx) / seq.aaNum()) > self.stat['MaxX']:
                     self.removeSeq('Proportion of Xs too great for MaxX (%.2f%%)' % (100.0*self.stat['MaxX']),seq=seq)
                 elif self.stat['MaxX'] >= 1 and (xx) > self.stat['MaxX']:
@@ -2334,7 +2332,7 @@ class SeqList(rje.RJE_Object):
             ### ~ [1] ~ Gappy removal ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             for seq in self.seqs()[0:]:
                 if seq == self.obj['QuerySeq'] and keepqry: continue
-                gcount = string.count(seq.info['Sequence'],'-')
+                gcount = rje.count(seq.info['Sequence'],'-')
                 if relative == 'query':
                     if seq == self.obj['QuerySeq'] or (100.0 * float(gcount) / self.obj['QuerySeq'].aaLen()) <= gcut: continue
                     gaps = self.getDis(seq,self.obj['QuerySeq'],key='MSA Gaps')
@@ -2632,7 +2630,7 @@ class SeqList(rje.RJE_Object):
                         continue
                         
                     ## Look for 100% Redundancy
-                    nrstr = string.join(['']+nrdic[_seqspec].keys()+[''],' ')
+                    nrstr = rje.join(['']+list(nrdic[_seqspec].keys())+[''],' ')
                     while seq in self.seqs() and rje.matchExp('\s(\S*%s\S*)\s' % seq.info['Sequence'],nrstr):  # Sequence is as Fragment or has total overlap with a previous sequence
                         otherseq = nrdic[_seqspec][rje.matchExp('\s(\S*%s\S*)\s' % seq.info['Sequence'],nrstr)[0]]
                         rem = self._worstSeq(otherseq, seq, best_ann)
@@ -2647,7 +2645,7 @@ class SeqList(rje.RJE_Object):
                             if self.opt['NRKeepAnn']: seq.info['Name'] += ' >%s' % otherseq.info['Name']
                             self.removeSeq(text='100%% ID vs %s: %s' % (seq.shortName(),rem[1]),seq=otherseq)
                             nrdic[_seqspec].pop(otherseq.info['Sequence'])
-                            nrstr = string.join(['']+nrdic[_seqspec].keys()+[''],' ')
+                            nrstr = rje.join(['']+list(nrdic[_seqspec].keys())+[''],' ')
                     if seq in self.seqs():
                         #print nrdic, seq.info['SpecCode'], nrdic[seq.info['SpecCode']], seq.info['Sequence']
                         nrdic[_seqspec][seq.info['Sequence']] = seq
@@ -2679,13 +2677,13 @@ class SeqList(rje.RJE_Object):
                             continue
                     else: _seqspec = 'All'
                     ## Remove sequence to prevent self-hit
-                    if nrdic.has_key(_seqspec) and nrdic[_seqspec].has_key(seq.info['Sequence']):
+                    if _seqspec in nrdic and seq.info['Sequence'] in nrdic[_seqspec]:
                         nrdic[_seqspec].pop(seq.info['Sequence'])
                     else:
                         self.errorLog('Sequence %s missing from nrdic[%s]!' % (seq.shortName(),_seqspec),quitchoice=False,printerror=False)
                         continue
                     ## Look for sequence in later members
-                    nrstr = string.join(['']+nrdic[_seqspec].keys()+[''],' ')
+                    nrstr = rje.join(['']+list(nrdic[_seqspec].keys())+[''],' ')
                     while rje.matchExp('\s(\S*%s\S*)\s' % seq.info['Sequence'],nrstr):  # Fragment or total overlap with sequence
                         otherseq = nrdic[_seqspec][rje.matchExp('\s(\S*%s\S*)\s' % seq.info['Sequence'],nrstr)[0]]
                         rem = self._worstSeq(otherseq, seq, best_ann)
@@ -2701,7 +2699,7 @@ class SeqList(rje.RJE_Object):
                             if self.opt['NRKeepAnn']: seq.info['Name'] += ' >%s' % otherseq.info['Name']
                             self.removeSeq(text='100%% ID vs %s: %s' % (seq.shortName(),rem[1]),seq=otherseq)
                             nrdic[_seqspec].pop(otherseq.info['Sequence'])
-                            nrstr = string.join(['']+nrdic[_seqspec].keys()+[''],' ')
+                            nrstr = rje.join(['']+list(nrdic[_seqspec].keys())+[''],' ')
                 ## <d> ## Finish
                 bwdseqn = 0
                 for code in nrdic.keys(): bwdseqn += len(nrdic[code])
@@ -2890,7 +2888,7 @@ class SeqList(rje.RJE_Object):
                     return (seq2,type,seq1.shortName())
             ### <d> ### Manual Choice
             while self.stat['Interactive'] >= 1:
-                print '\n%s and %s seem equally good.' % (seq1.info['Name'],seq2.info['Name'])
+                rje.printf('\n%s and %s seem equally good.' % (seq1.info['Name'],seq2.info['Name']))
                 rem = rje.choice('<1> Remove %s, <2> Remove %s, <A>utomatic' % (seq1.shortName(),seq2.shortName()),default='A')
                 if rem == '1':
                     return (seq1, 'Manual Choice',seq2.shortName())
@@ -2917,7 +2915,7 @@ class SeqList(rje.RJE_Object):
         try:
             if dblist == None:
                 dblist = self.info['DBList']
-            dblist = string.split(dblist.lower(),',')
+            dblist = rje.split(dblist.lower(),',')
             ### <a> ### Same DBase
             db1 = seq1.info['DBase'].lower()
             db2 = seq2.info['DBase'].lower()
@@ -3186,7 +3184,7 @@ class SeqList(rje.RJE_Object):
             gx = 0
             for seq in self.seqs():
                 gx += seq.info['Sequence'].count('-')
-                seq.info['Sequence'] = string.join(string.split(seq.info['Sequence'],'-'),'')
+                seq.info['Sequence'] = rje.join(rje.split(seq.info['Sequence'],'-'),'')
             self.opt['Gapped'] = self.opt['Aligned'] = False
             if log and gx: self.printLog('#GAP','%s gaps removed from %s sequences.' % (rje.iStr(gx),rje.iStr(self.seqNum())))
         except: self.errorLog('Major Problem with degapSeq().',True)
@@ -3428,7 +3426,7 @@ class SeqList(rje.RJE_Object):
                 line = resline[i]
                 if line.find('Global alignment score:') >= 0:
                     stats = rje.matchExp('(\S+)\% identity;\s+Global alignment score:\s+(\-?\d+)',line)
-                    pwaln.setStat({'Identity': string.atof(stats[0]), 'BitScore': string.atof(stats[1])})
+                    pwaln.setStat({'Identity': rje.atof(stats[0]), 'BitScore': rje.atof(stats[1])})
                     break
                 i += 1
             ## ~ [3b] ~ Alignment ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
@@ -3461,7 +3459,7 @@ class SeqList(rje.RJE_Object):
             else: errseq = 'None'
             if seq2: errseq += ' v %s' % seq2.shortName()
             else: errseq = ' v None'
-            if command: print 'Align command: %s' % command
+            if command: rje.printf('Align command: %s' % command)
             if retry > 0:
                 self.errorLog('Problem during pwAln(%s). Trying again... (%d)' % (errseq,retry))
                 return self.pwAln(seq1,seq2,unlink=unlink,retry=(retry-1))
@@ -3776,7 +3774,7 @@ class SeqList(rje.RJE_Object):
             ### ~ [3] ~ Generate PNG files with R (optional) ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if self.opt['MakePNG']:
                 ## ~ [3a] ~ Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-                basefile = string.replace(outfile,'.rel.tdt','')
+                basefile = rje.replace(outfile,'.rel.tdt','')
                 relfile = '%s.rel.tdt' % basefile
                 alnfile = '%s.aln.tdt' % basefile
                 ## ~ [3b] ~ Sort out relfile for R ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
@@ -3928,12 +3926,12 @@ def pamDis(seqlist,pam):   ### Makes an all-by-all PAM Distance Matrix
     >> pam:rje_pam.PamCtrl Object
     '''
     ### <a> ### Check
-    print 'Calculating',
+    rje.printf('Calculating')
     if seqlist.seqNum() == 0:
-        print 'Must load (aligned) sequences using \'seqin=FILE\' command.'
+        rje.printf('Must load (aligned) sequences using \'seqin=FILE\' command.')
         sys.exit()
     elif seqlist.opt['Aligned'] == False:
-        print 'Input sequences must be aligned! Will attempt alignment.'
+        rje.printf('Input sequences must be aligned! Will attempt alignment.')
         seqlist = seqlist.align()
     ### <b> ### Make matrix
     matrix = rje_dismatrix.DisMatrix(log=seqlist.log)
@@ -3949,7 +3947,7 @@ def pamDis(seqlist,pam):   ### Makes an all-by-all PAM Distance Matrix
             p = pam.pamML(ancseq=seq1.info['Sequence'],descseq=seq2.info['Sequence'])
             matrix.addDis(seq1,seq2,p)
     seqlist.obj['PAM Dis'] = matrix
-    print '...Saving as %s.pamdis' % seqlist.info['Name']
+    rje.printf('...Saving as %s.pamdis' % seqlist.info['Name'])
     matrix.saveMatrix(seqlist.seq,filename='%s.pamdis' % seqlist.info['Name'],delimit=',')
 #########################################################################################################################
 def MWt(sequence=''):   ### Returns Molecular Weight of Sequence
@@ -4029,11 +4027,11 @@ def rna2dna(seqs=[]):    ### Converts sequences in list from RNA to DNA (U -> T)
     >> seq:list of Sequence Objects
     '''
     for seq in seqs:
-        seq.info['Sequence'] = string.replace(seq.info['Sequence'],'U','T')
+        seq.info['Sequence'] = rje.replace(seq.info['Sequence'],'U','T')
 #########################################################################################################################
 def deGap(seqstring):    ### Degaps sequence
     '''Degaps sequence.'''
-    return string.join(string.split(seqstring,'-'),'')
+    return rje.join(rje.split(seqstring,'-'),'')
 #########################################################################################################################
 def pwIDGapExtra(seq1,seq2,nomatch=['X']):    ### Returns a dictionary of stats: 'ID','Gaps','Extra'
     '''
@@ -4046,7 +4044,7 @@ def pwIDGapExtra(seq1,seq2,nomatch=['X']):    ### Returns a dictionary of stats:
     id = [0,0]
     gaps = [0,0]
     extra = [0,0]
-    seqlen = [len(seq1) - string.count(seq1,'-'),len(seq2) - string.count(seq2,'-')]
+    seqlen = [len(seq1) - rje.count(seq1,'-'),len(seq2) - rje.count(seq2,'-')]
     if seq[0] == seq[1]:
         id[0:] = seqlen[0:]
     else:
@@ -4248,14 +4246,12 @@ def DBSize(callobj,filename,seqsize=False,nonx=False):   ### Zips through file a
 ### SECTION IV: MAIN PROGRAM                                                                                            #
 #########################################################################################################################
 def runMain():
-    ### Basic Setup of Program ###
-    try: [info,out,mainlog,cmd_list] = setupProgram()
-    except SystemExit: return  
-    except:
-        print 'Unexpected error during program setup:', sys.exc_info()[0]
-        return 
-        
-    ### Rest of Functionality... ###
+    ### ~ [1] ~ Basic Setup of Program  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+    try: (info,out,mainlog,cmd_list) = setupProgram()
+    except SystemExit: return
+    except: rje.printf('Unexpected error during program setup:', sys.exc_info()[0]); return
+
+    ### ~ [2] ~ Rest of Functionality... ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try:
         ## Create SeqList ##
         cmd_list = ['i=1'] + cmd_list
@@ -4341,7 +4337,7 @@ def runMain():
 #########################################################################################################################
 if __name__ == "__main__":      ### Call runMain 
     try: runMain()
-    except: print 'Cataclysmic run error:', sys.exc_info()[0]
+    except: rje.printf('Cataclysmic run error: {0}'.format(sys.exc_info()[0]))
     sys.exit()
 #########################################################################################################################
 ### END OF SECTION IV

@@ -79,47 +79,46 @@ def makeInfo():     ### Makes Info object
 #########################################################################################################################
 def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for more sys.argv commands
     '''Prints *.__doc__ and asks for more sys.argv commands.'''
-    try:
+    try:### ~ [1] ~ Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         if not info: info = makeInfo()
         if not out: out = rje.Out()
-        help = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
-        if help > 0:
-            print '\n\nHelp for %s %s: %s\n' % (info.program, info.version, time.asctime(time.localtime(info.start_time)))
+        ### ~ [2] ~ Look for help commands and print options if found ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+        cmd_help = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
+        if cmd_help > 0:
+            rje.printf('\n\nHelp for {0} {1}: {2}\n'.format(info.program, info.version, time.asctime(time.localtime(info.start_time))))
             out.verbose(-1,4,text=__doc__)
-            if rje.yesNo('Show general commandline options?'): out.verbose(-1,4,text=rje.__doc__)
-            if rje.yesNo('Quit?'): sys.exit()
-            cmd_list += rje.inputCmds(out,cmd_list)
-        elif out.stat['Interactive'] > 1: cmd_list += rje.inputCmds(out,cmd_list)
+            if rje.yesNo('Show general commandline options?',default='N'): out.verbose(-1,4,text=rje.__doc__)
+            if rje.yesNo('Quit?'): sys.exit()           # Option to quit after help
+            cmd_list += rje.inputCmds(out,cmd_list)     # Add extra commands interactively.
+        elif out.stat['Interactive'] > 1: cmd_list += rje.inputCmds(out,cmd_list)    # Ask for more commands
+        ### ~ [3] ~ Return commands ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         return cmd_list
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Major Problem with cmdHelp()'
+    except: rje.printf('Major Problem with cmdHelp()')
 #########################################################################################################################
-def setupProgram(): ### Basic Setup of Program
+def setupProgram(): ### Basic Setup of Program when called from commandline.
     '''
-    Basic setup of Program:
+    Basic Setup of Program when called from commandline:
     - Reads sys.argv and augments if appropriate
     - Makes Info, Out and Log objects
     - Returns [info,out,log,cmd_list]
     '''
-    try:
-        ### Initial Command Setup & Info ###
-        info = makeInfo()
-        cmd_list = rje.getCmdList(sys.argv[1:],info=info)      ### Load defaults from program.ini
-        ### Out object ###
-        out = rje.Out(cmd_list=cmd_list)
-        out.verbose(2,2,cmd_list,1)
-        out.printIntro(info)
-        ### Additional commands ###
-        cmd_list = cmdHelp(info,out,cmd_list)
-        ### Log ###
-        log = rje.setLog(info=info,out=out,cmd_list=cmd_list)
-        return [info,out,log,cmd_list]
+    try:### ~ [1] ~ Initial Command Setup & Info ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+        info = makeInfo()                                   # Sets up Info object with program details
+        if len(sys.argv) == 2 and sys.argv[1] in ['version','-version','--version']: rje.printf(info.version); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: rje.printf('%s v%s' % (info.program,info.version)); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['description','-description','--description']: rje.printf('%s: %s' % (info.program,info.description)); sys.exit(0)
+        cmd_list = rje.getCmdList(sys.argv[1:],info=info)   # Reads arguments and load defaults from program.ini
+        out = rje.Out(cmd_list=cmd_list)                    # Sets up Out object for controlling output to screen
+        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2
+        out.printIntro(info)                                # Prints intro text using details from Info object
+        cmd_list = cmdHelp(info,out,cmd_list)               # Shows commands (help) and/or adds commands from user
+        log = rje.setLog(info,out,cmd_list)                 # Sets up Log object for controlling log file output
+        return (info,out,log,cmd_list)                      # Returns objects for use in program
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except:
-        print 'Problem during initial setup.'
-        raise
+    except: rje.printf('Problem during initial setup.'); raise
 #########################################################################################################################
 ### END OF SECTION I                                                                                                    #
 #########################################################################################################################
@@ -225,9 +224,9 @@ class TM(rje.RJE_Object):
                         if rje.matchExp('^\S+__(\S+)',acc):
                             acc = rje.matchExp('^\S+__(\S+)',acc)[0]
                         self.tmhmm[acc] = {}
-                        reslist = string.split(tmres[1])
+                        reslist = rje.split(tmres[1])
                         for res in reslist:
-                            split = string.split(res,'=')
+                            split = rje.split(res,'=')
                             self.tmhmm[acc][split[0]] = split[1]
                 else:
                     break
@@ -252,7 +251,7 @@ class TM(rje.RJE_Object):
                 dom = 'EXTRACELLULAR'
             domains = re.sub('o', '-', domains)
             domains = re.sub('i', '-', domains)
-            domains = string.split('1' + domains + self.tmhmm[acc]['len'],'-')
+            domains = rje.split('1' + domains + self.tmhmm[acc]['len'],'-')
             started = False
             while len(domains) > 1:
                 _stage = '<b-i> TM Dom Write'
@@ -263,15 +262,11 @@ class TM(rje.RJE_Object):
                 else:
                     type = dom
                     if started:
-                        #print start,
-                        start = '%d' % (string.atoi(start) + 1)
-                        #print start
+                        start = '%d' % (rje.atoi(start) + 1)
                     else:
                         started = True
                     if len(domains) > 1:
-                        #print end,
-                        end = '%d' % (string.atoi(end) - 1)
-                        #print end
+                        end = '%d' % (rje.atoi(end) - 1)
                 domainlist.append({'Type':type,'Start':start,'End':end})
                 if tm:
                     tm = False
@@ -398,7 +393,7 @@ class TM(rje.RJE_Object):
                     TMFILE.write('acc_num\ttm\tnterm\tcterm\n')
                 else:
                     TMFILE = open(tmfile, 'a')
-            if domfile and (self.tmhmm.keys()+self.signalp.keys()):
+            if domfile and (list(self.tmhmm.keys())+list(self.signalp.keys())):
                 _stage = '<a-ii> Dom File'
                 if makenew or os.access(domfile, os.F_OK) == False:
                     DOMFILE = open(domfile, 'w')
@@ -409,7 +404,7 @@ class TM(rje.RJE_Object):
                 _stage = '<a-iii> Sig File'
                 if makenew or os.access(sigfile, os.F_OK) == False:
                     SIGFILE = open(sigfile, 'w')
-                    sheader = string.join(siglist,'\t')
+                    sheader = rje.join(siglist,'\t')
                     SIGFILE.write('acc_num\t%s\n' % sheader)
                 else:
                     SIGFILE = open(sigfile, 'a')
@@ -425,7 +420,7 @@ class TM(rje.RJE_Object):
                     dom = 'EXTRACELLULAR'
                 domains = re.sub('o', '-', domains)
                 domains = re.sub('i', '-', domains)
-                domains = string.split('1' + domains + self.tmhmm[acc]['len'],'-')
+                domains = rje.split('1' + domains + self.tmhmm[acc]['len'],'-')
                 started = False
                 while len(domains) > 1:
                     _stage = '<b-i> TM Dom Write'
@@ -436,16 +431,12 @@ class TM(rje.RJE_Object):
                     else:
                         type = dom
                         if started:
-                            #print start,
-                            start = '%d' % (string.atoi(start) + 1)
-                            #print start
+                            start = '%d' % (rje.atoi(start) + 1)
                         else:
                             started = True
                         if len(domains) > 1:
-                            #print end,
-                            end = '%d' % (string.atoi(end) - 1)
-                            #print end
-                    DOMFILE.write('%s\n' % string.join([acc,type,start,end,self.info['Source']],'\t'))
+                            end = '%d' % (rje.atoi(end) - 1)
+                    DOMFILE.write('%s\n' % rje.join([acc,type,start,end,self.info['Source']],'\t'))
                     if tm:
                         tm = False
                         if dom == 'CYTOPLASMIC':
@@ -472,25 +463,25 @@ class TM(rje.RJE_Object):
                 for stat in siglist:
                     #print accout, stat
                     writelist.append(self.signalp[acc][sigdic[stat]])
-                #print '%s\n' % string.join(writelist,'\t')
-                SIGFILE.write('%s\n' % string.join(writelist,'\t'))
+                #print '%s\n' % rje.join(writelist,'\t')
+                SIGFILE.write('%s\n' % rje.join(writelist,'\t'))
                 _stage = '<c-ii> SingalP domains'
-                nn_y = string.atoi(self.signalp[acc]['nn_ymaxpos']) - 1
-                hmm_c = string.atoi(self.signalp[acc]['hmm_cmaxpos']) - 1
+                nn_y = rje.atoi(self.signalp[acc]['nn_ymaxpos']) - 1
+                hmm_c = rje.atoi(self.signalp[acc]['hmm_cmaxpos']) - 1
                 if self.signalp[acc]['nn_d?'] == 'Y':
-                    DOMFILE.write('%s\n' % string.join([accout,'SIGNALP','1','%d' % nn_y,'signalp-NN'],'\t'))
+                    DOMFILE.write('%s\n' % rje.join([accout,'SIGNALP','1','%d' % nn_y,'signalp-NN'],'\t'))
                 if self.signalp[acc]['nn_ymax?'] == 'Y':
-                    DOMFILE.write('%s\n' % string.join([accout,'CLEAVAGE','%d' % nn_y,'%d' % (nn_y+1),'signalp-NN'],'\t'))
+                    DOMFILE.write('%s\n' % rje.join([accout,'CLEAVAGE','%d' % nn_y,'%d' % (nn_y+1),'signalp-NN'],'\t'))
                 if self.signalp[acc]['hmm_sprob?'] == 'Y':
-                    DOMFILE.write('%s\n' % string.join([accout,'SIGNALP','1','%d' % hmm_c,'signalp-HMM'],'\t'))
+                    DOMFILE.write('%s\n' % rje.join([accout,'SIGNALP','1','%d' % hmm_c,'signalp-HMM'],'\t'))
                 if self.signalp[acc]['hmm_cmax?'] == 'Y':
-                    DOMFILE.write('%s\n' % string.join([accout,'CLEAVAGE','%d' % hmm_c,'%d' % (hmm_c+1),'signalp-HMM'],'\t'))
+                    DOMFILE.write('%s\n' % rje.join([accout,'CLEAVAGE','%d' % hmm_c,'%d' % (hmm_c+1),'signalp-HMM'],'\t'))
                     
             ### <d> ### Finish
             _stage = '<d> Finish'
             if tmfile and self.tmhmm.keys():
                 TMFILE.close()
-            if domfile and (self.tmhmm.keys()+self.signalp.keys()):
+            if domfile and (list(self.tmhmm.keys())+list(self.signalp.keys())):
                 DOMFILE.close()
             if sigfile and self.signalp.keys():
                 SIGFILE.close()
@@ -524,9 +515,9 @@ class TM(rje.RJE_Object):
                 else:
                     continue
                 if sigp['nn_ymax?'] == 'Y':
-                    cpos = string.atoi(sigp['nn_ymaxpos']) 
+                    cpos = rje.atoi(sigp['nn_ymaxpos']) 
                 if sigp['hmm_cmax?'] == 'Y':
-                    hmm_c = string.atoi(sigp['hmm_cmaxpos'])
+                    hmm_c = rje.atoi(sigp['hmm_cmaxpos'])
                     if cpos==0 or (cpos > 0 and hmm_c < cpos):
                         cpos = hmm_c
                 if cpos > 0:
@@ -558,10 +549,10 @@ class TM(rje.RJE_Object):
 #########################################################################################################################
 def parseTMHMM(tmline):     ### Returns a dictionary of TMHMM data from a TMHMM line
     '''Returns a dictionary of TMHMM data from a TMHMM line.'''
-    tmdata = string.split(rje.chomp(tmline))
+    tmdata = rje.split(rje.chomp(tmline))
     tmdict = {'Seq':tmdata.pop(0)}
     for tm in tmdata:
-        (tkey,tval) = string.split(tm,'=')
+        (tkey,tval) = rje.split(tm,'=')
         tmdict[tkey] = tval
     return tmdict
 #########################################################################################################################
@@ -578,7 +569,7 @@ def domainList(tmdict):   ### Returns list of TMHMM domain dictionaries {Type/St
     if domains[0] == 'o': dom = 'EXTRACELLULAR'
     domains = re.sub('o', '-', domains)
     domains = re.sub('i', '-', domains)
-    domains = string.split('1' + domains + tmdict['len'],'-')
+    domains = rje.split('1' + domains + tmdict['len'],'-')
 
     ### ~ [3] Parse domains ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     while len(domains) > 1:
@@ -587,9 +578,9 @@ def domainList(tmdict):   ### Returns list of TMHMM domain dictionaries {Type/St
         if tm: type = 'TRANSMEMBRANE'
         else:
             type = dom
-            if started: start = '%d' % (string.atoi(start) + 1)
+            if started: start = '%d' % (rje.atoi(start) + 1)
             else: started = True
-            if len(domains) > 1: end = '%d' % (string.atoi(end) - 1)
+            if len(domains) > 1: end = '%d' % (rje.atoi(end) - 1)
         domainlist.append({'Type':type,'Start':start,'End':end})
         if tm:
             if dom == 'CYTOPLASMIC': dom = 'EXTRACELLULAR'
@@ -608,14 +599,12 @@ def domainList(tmdict):   ### Returns list of TMHMM domain dictionaries {Type/St
 ### SECTION IV: MAIN PROGRAM                                                                                            #
 #########################################################################################################################
 def runMain():
-    ### Basic Setup of Program ###
-    try: [info,out,mainlog,cmd_list] = setupProgram()
-    except SystemExit: return  
-    except:
-        print 'Unexpected error during program setup:', sys.exc_info()[0]
-        return 
-        
-    ### Rest of Functionality... ###
+    ### ~ [1] ~ Basic Setup of Program  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+    try: (info,out,mainlog,cmd_list) = setupProgram()
+    except SystemExit: return
+    except: rje.printf('Unexpected error during program setup:', sys.exc_info()[0]); return
+
+    ### ~ [2] ~ Rest of Functionality... ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try:
         tm = TM(log=mainlog,cmd_list=cmd_list)
         tm.parseSignalP()
@@ -631,7 +620,7 @@ def runMain():
 #########################################################################################################################
 if __name__ == "__main__":      ### Call runMain 
     try: runMain()
-    except: print 'Cataclysmic run error:', sys.exc_info()[0]
+    except: rje.printf('Cataclysmic run error: {0}'.format(sys.exc_info()[0]))
     sys.exit()
 #########################################################################################################################
 ### END OF SECTION IV                                                                                                   #

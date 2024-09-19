@@ -164,12 +164,12 @@ class Sequence(rje.RJE_ObjectLite):
     '''
     ### Attributes
     def seqLen(self): return len(self.getInfo('Sequence'))
-    def aaLen(self): return len(self.getInfo('Sequence')) - string.count(self.getInfo('Sequence'),'-')
+    def aaLen(self): return len(self.getInfo('Sequence')) - rje.count(self.getInfo('Sequence'),'-')
     def aaNum(self): return self.aaLen()
     def nonX(self):
         if self.dna(): return self.nonN()
-        return self.aaLen() - string.count(self.getInfo('Sequence').upper(),'X')
-    def nonN(self): return self.aaLen() - string.count(self.getInfo('Sequence').upper(),'N')
+        return self.aaLen() - rje.count(self.getInfo('Sequence').upper(),'X')
+    def nonN(self): return self.aaLen() - rje.count(self.getInfo('Sequence').upper(),'N')
     def dna(self): return self.seqType() in ['RNA','DNA']   # Whether a DNA (or RNA) sequence
     def unit(self): {True:'nt',False:'aa'}[self.dna()]      # Return appropriate unit
     def MWt(self): return MWt(self.getSequence(gaps=False))
@@ -217,9 +217,9 @@ class Sequence(rje.RJE_ObjectLite):
         >> stripnum:boolean [False] = whether to strip numbers from sequences
         '''
         try:### ~ [0] ~ Strip Space and Numbers ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            sequence = string.join(string.split(sequence),'')
+            sequence = rje.join(rje.split(sequence),'')
             if stripnum:
-                for badness in ['0','1','2','3','4','5','6','7','8','9']: sequence = string.replace(sequence,badness,'')
+                for badness in ['0','1','2','3','4','5','6','7','8','9']: sequence = rje.replace(sequence,badness,'')
             ### ~ [1] ~ Update Info ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             self.setInfo({'Sequence':sequence.upper()})
             ## ~ [1a] ~ Case Dictionary ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
@@ -229,7 +229,7 @@ class Sequence(rje.RJE_ObjectLite):
                 seq = {'Upper':sequence.upper(),'Lower':sequence.lower()}
                 clist = [0]
                 for i in caselist:
-                    try: clist.append(string.atoi(i))
+                    try: clist.append(rje.atoi(i))
                     except: self.errorLog('Cannot use "%s" from caselist!' % i)
                 c = 'Upper'
                 while clist:
@@ -280,7 +280,7 @@ class Sequence(rje.RJE_ObjectLite):
             for (start,stop) in self.dict['Case']['Lower']:
                 sequence = sequence[:start] + sequence[start:(stop+1)].lower() + sequence[(stop+1):]
         if gaps: return sequence
-        else: return string.replace(self.info[ikey],'-','')
+        else: return rje.replace(self.info[ikey],'-','')
 #########################################################################################################################
     def reverseComplement(self,rna=False):  ### Converts to reverse complement of sequence (upper case)
         '''Converts to reverse complement of sequence (upper case).'''
@@ -298,7 +298,7 @@ class Sequence(rje.RJE_ObjectLite):
         try:
             self.setInfo(extractNameDetails(self.info['Name'],self))
             if self.info['Format'] == 'gn_sp__acc':
-                self.info['Name'] = string.join(['%s__%s' % (self.info['ID'],self.info['AccNum'])] + string.split(self.info['Name'])[1:])
+                self.info['Name'] = rje.join(['%s__%s' % (self.info['ID'],self.info['AccNum'])] + rje.split(self.info['Name'])[1:])
         except: self.errorLog('Error extracting basic sequence name information.'); return 0
         ### ~ [2] ~ Special details ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         if self.getAtt('opt','Special',default=False) or self.getAtt('opt','Yeast',default=False): self.specialDetails()
@@ -307,7 +307,7 @@ class Sequence(rje.RJE_ObjectLite):
         ### ~ [3] ~ Gene_Species__Acc formatting ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         try:
             for g in self.gene()[0:]:
-                if not rje.matchExp('([A-Za-z0-9_-])',g) and g not in ['.','#']: self.gene(string.replace(self.gene(),g,''))
+                if not rje.matchExp('([A-Za-z0-9_-])',g) and g not in ['.','#']: self.gene(rje.replace(self.gene(),g,''))
             if gnspacc and self.info['Format'] != 'gn_sp__acc':
                 if self.gene().lower() in ['','none']:
                     self.setInfo({'ID':'%s_%s' % (self.getInfo('AccNum'),self.getInfo('SpecCode'))})
@@ -331,7 +331,7 @@ class Sequence(rje.RJE_ObjectLite):
                     #gi|768457878|gb|CP006507.1| Saccharomyces cerevisiae YJM996 mitochondrion, complete genome
                     #gi|763972742|gb|CP006294.1| Saccharomyces cerevisiae YJM1342 chromosome III
                     ydata = rje.matchExp('gi\|\d+\|gb\|(\S+)\| Saccharomyces cerevisiae (\S+) (\S.+\S)$',self.info['Name'])
-                    gene = string.split(string.split(ydata[2],',')[0])
+                    gene = rje.split(rje.split(ydata[2],',')[0])
                     if len(gene) > 1: gene = gene[0][:3] + gene[1]
                     else: gene = gene[0][:3]
                     self.setInfo({'Gene':gene,'SpecCode':ydata[1],'AccNum':ydata[0],'Description':self.info['Name']})
@@ -373,8 +373,8 @@ class Sequence(rje.RJE_ObjectLite):
                 elif self.shortName()[:4] == 'Scas': self.setInfo({'SpecCode':'SACCA','Gene':'Scas'})
                 elif rje.matchExp('(Y\S+\d+[WC])',self.shortName()): self.setInfo({'SpecCode':'YEAST','Gene':'Scer','AccNum':self.shortName()})
                 elif rje.matchExp('(A\S+\d+[WC])',self.shortName()): self.setInfo({'SpecCode':'ASHGO','Gene':'Egos','AccNum':self.shortName()})
-                self.info['AccNum'] = string.replace(self.info['AccNum'],'YGOB_','')
-                self.info['AccNum'] = string.replace(self.info['AccNum'],'Anc_','Anc-')
+                self.info['AccNum'] = rje.replace(self.info['AccNum'],'YGOB_','')
+                self.info['AccNum'] = rje.replace(self.info['AccNum'],'Anc_','Anc-')
                 self.info['ID'] = '%s_%s' % (self.info['Gene'],self.info['SpecCode'])
                 self.obj['Parent'].deBug('%s -> %s %s' % (self.shortName(),self.info['ID'],self.info['AccNum']))
                 return
@@ -450,14 +450,14 @@ class Sequence(rje.RJE_ObjectLite):
                 if sp == 'XIP': species = 'Xiphinema index'
                 if sp == 'ZPP': species = 'Zeldia punctata'
                 if sp == species: species = 'Nematode sp.'
-                if spcode == sp: spcode = species[:3].upper() + string.split(species)[-1][:2].upper()
+                if spcode == sp: spcode = species[:3].upper() + rje.split(species)[-1][:2].upper()
                 self.info['Gene'] = 'nem'   #sp.lower()
                 self.info['Species'] = species
                 self.info['SpecCode'] = spcode
                 self.info['ID'] = '%s_%s' % (self.info['Gene'],self.info['SpecCode'])
                 self.info['AccNum'] = acc
                 self.info['DBase'] = 'NEMBASE4'
-                self.info['Description'] = string.replace(self.info['Name'],'->',' ')
+                self.info['Description'] = rje.replace(self.info['Name'],'->',' ')
                 return
             ### ~ [3] ~ Special E hux EST translation consensi ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if (self.shortName()[:3] == 'EHC' or self.shortName()[:4] == 'EHUX') and self.shortName() == self.info['Name']:
@@ -469,10 +469,10 @@ class Sequence(rje.RJE_ObjectLite):
             eorf_re = '^(\S+.+)\s(\S+\|.+)gene:(\S+)'
             if rje.matchExp(eorf_re,self.info['Name']):
                 eorf = rje.matchExp(eorf_re,self.info['Name'])
-                acc = string.split(eorf[0])[0]
-                if len(string.split(acc,'_')) > 2: return
-                gene = string.split(eorf[1],'|')[0]
-                if '_CAEEL' in gene: (gene,spcode) = string.split(gene,'_')
+                acc = rje.split(eorf[0])[0]
+                if len(rje.split(acc,'_')) > 2: return
+                gene = rje.split(eorf[1],'|')[0]
+                if '_CAEEL' in gene: (gene,spcode) = rje.split(gene,'_')
                 elif 'WS200' in eorf[1]: spcode = 'CAEEL'
                 elif acc[:7] == 'ENSGALT': spcode = 'CHICK'
                 elif acc[:7] == 'ENSBTAT': spcode = 'BOVIN'
@@ -498,7 +498,7 @@ class Sequence(rje.RJE_ObjectLite):
                 if not cdata: cdata = rje.matchExp(chlam_re3,self.info['Name'])
                 if not cdata: print(self.info['Name'], cdata); raw_input('???'); return
                 self.info['Gene'] = cdata[1]
-                if not rje.matchExp(chlam_re,self.info['Name']) and string.split(cdata[2])[-1][:2] == 'CT': self.info['Gene'] = string.split(cdata[2])[-1]; self.info['DBase'] = 'ct'
+                if not rje.matchExp(chlam_re,self.info['Name']) and rje.split(cdata[2])[-1][:2] == 'CT': self.info['Gene'] = rje.split(cdata[2])[-1]; self.info['DBase'] = 'ct'
                 elif rje.matchExp(chlam_re,self.info['Name']): self.info['DBase'] = 'gene'
                 else: self.info['DBase'] = 'gb'
                 self.info['AccNum'] = self.info['Gene'] # cdata[0]
@@ -528,7 +528,7 @@ class Sequence(rje.RJE_ObjectLite):
 #########################################################################################################################
     def deGap(self):    ### Degaps sequence
         '''Degaps sequence.'''
-        self.info['Sequence'] = string.join(string.split(self.info['Sequence'],'-'),'')
+        self.info['Sequence'] = rje.join(rje.split(self.info['Sequence'],'-'),'')
 #########################################################################################################################
     ### <3> ### Sequence information methods                                                                            #
 #########################################################################################################################
@@ -543,14 +543,14 @@ class Sequence(rje.RJE_ObjectLite):
                 name = '%s/%s %s' % (self.info['ID'],isoform,self.info['Description'])
             elif self.info['Format'] in ['gn_sp__acc','uniprot2'] or re_gn_sp__acc.match(self.name()):
                 name = '%s__%s %s' % (self.info['ID'],isoform,self.info['Description'])
-            else: name = '%s %s' % (string.replace(self.shortName(),self.info['AccNum'],isoform),self.info['Description'])
+            else: name = '%s %s' % (rje.replace(self.shortName(),self.info['AccNum'],isoform),self.info['Description'])
             name += ' SpliceVar: isoform %s' % self.dict['SpliceVar'][isoform]
             return name
         return self.getInfo('Name')
 #########################################################################################################################
     def shortName(self):    ### Returns short name.
         '''Returns short name = first word of name.'''
-        try: return string.split(self.info['Name'])[0]
+        try: return rje.split(self.info['Name'])[0]
         except:
             self.log.errorLog('Major problem with shortName(%s)' % self.info['Name'])
             raise
@@ -624,7 +624,7 @@ class Sequence(rje.RJE_ObjectLite):
                 ## ~ [2a] Try forwards ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
                 fudged = True
                 for pos in posdict:
-                    if wildcards: pos_re = string.replace(posdict[pos],'X','\S')
+                    if wildcards: pos_re = rje.replace(posdict[pos],'X','\S')
                     else: pos_re = posdict[pos]
                     if not re.search('^%s' % pos_re,sequence[pos-1+f:]):
                         fudged = False
@@ -633,7 +633,7 @@ class Sequence(rje.RJE_ObjectLite):
                 ## ~ [2b] Try backwards ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
                 fudged = True
                 for pos in posdict:
-                    if wildcards: pos_re = string.replace(posdict[pos],'X','\S')
+                    if wildcards: pos_re = rje.replace(posdict[pos],'X','\S')
                     else: pos_re = posdict[pos]
                     if not re.search('^%s' % pos_re,sequence[pos-1-f:]):
                         fudged = False
@@ -729,7 +729,7 @@ class Sequence(rje.RJE_ObjectLite):
             for aa in maskaa:
                 mx += self.info['Sequence'].count(aa)
                 self.info['Sequence'] = self.info['Sequence'].replace(aa,mask)
-            if log: self.printLog('#MASK','AA Mask (%s): %s %s added to %s' % (string.join(maskaa,';'),rje.integerString(mx),mask,self.shortName()))
+            if log: self.printLog('#MASK','AA Mask (%s): %s %s added to %s' % (rje.join(maskaa,';'),rje.integerString(mx),mask,self.shortName()))
             return mx
         except: self.errorLog('Problem masking AAs in %s' % (self.shortName())); return 0
 #########################################################################################################################
@@ -783,8 +783,8 @@ class Sequence(rje.RJE_ObjectLite):
                     if (r+i) >= len(oldseq): break
                     if self.info['Sequence'][r+i] == a: x += 1
                     if x >= lowfreq:
-                        oldseq = oldseq[:r+1] + string.replace(oldseq[r+1:r+i],a,mask) + oldseq[r+i:]
-                        #X#self.deBug('%s => %s' % (self.info['Sequence'][r+1:r+i],string.replace(oldseq[r+1:r+i],a,mask)))
+                        oldseq = oldseq[:r+1] + rje.replace(oldseq[r+1:r+i],a,mask) + oldseq[r+i:]
+                        #X#self.deBug('%s => %s' % (self.info['Sequence'][r+1:r+i],rje.replace(oldseq[r+1:r+i],a,mask)))
                         break
                 
             ### Update ###
@@ -895,12 +895,12 @@ def specCodeFromName(name):  ### Returns the species code from a sequence name
     >> name:str = Sequence name
     << spcode:str = Species code
     '''
-    seqname = string.replace(name,'||','|')  #!# Dodgy!
+    seqname = rje.replace(name,'||','|')  #!# Dodgy!
     accnum = seqname
     spcode = 'UNK'
-    if rje.regExp(re_gnspacc,seqname) and '|' not in string.split(seqname,'_')[0]:
+    if rje.regExp(re_gnspacc,seqname) and '|' not in rje.split(seqname,'_')[0]:
         (gene,spcode,accnum) = rje.regExp(re_gnspacc,seqname)
-    elif rje.regExp(re_gn_sp__acc,seqname) and '|' not in string.split(seqname,'_')[0]:
+    elif rje.regExp(re_gn_sp__acc,seqname) and '|' not in rje.split(seqname,'_')[0]:
         (gene,spcode,accnum) = rje.regExp(re_gn_sp__acc,seqname)
     elif rje.regExp(re_uniprot,seqname):
         (db,accnum,gene,spcode) = rje.regExp(re_uniprot,seqname)
@@ -976,7 +976,7 @@ def specCodeFromName(name):  ### Returns the species code from a sequence name
 def extractNameDetails(name,callobj=None):   ### Extracts details from sequence name and returns as dictionary
     '''Extracts details from sequence name and returns as dictionary.'''
     ### ~ [0] ~ Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-    name = string.replace(name,'||','|')
+    name = rje.replace(name,'||','|')
     data = {'Name':name,'SpecCode':'UNK'}
     ### ~ [1] ~ General Case ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     if re_plain.match(name):
@@ -999,16 +999,16 @@ def extractNameDetails(name,callobj=None):   ### Extracts details from sequence 
         raise ValueError
     ### ~ [2] ~ Special Formats ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try:
-        if re_gn_sp__acc.match(name) and '|' not in string.split(name,'_')[0]:
+        if re_gn_sp__acc.match(name) and '|' not in rje.split(name,'_')[0]:
             data['Format'] = 'gn_sp__acc'
-            [data['Gene'],data['SpecCode']] = string.split(name,'_')[:2]
-            data['AccNum'] = string.join(string.split(string.split(name)[0],'__')[1:],'-')
+            [data['Gene'],data['SpecCode']] = rje.split(name,'_')[:2]
+            data['AccNum'] = rje.join(rje.split(rje.split(name)[0],'__')[1:],'-')
             data['ID'] = '%s_%s' % (data['Gene'],data['SpecCode'])
             if data['Gene'].upper() == data['Gene']:
                 if name.find('acc:%s' % data['Gene']) > 0: data['DBase'] = 'trembl'
                 elif data['Gene'] != data['AccNum']: data['DBase'] = 'sprot'
                 else: data['DBase'] = 'trembl'
-        elif re_gnspacc.match(name) and '|' not in string.split(name,'_')[0]:
+        elif re_gnspacc.match(name) and '|' not in rje.split(name,'_')[0]:
             data['Format'] = 'gnspacc'
             match = re_gnspacc.match(name)
             grp = match.groups()
@@ -1021,7 +1021,7 @@ def extractNameDetails(name,callobj=None):   ### Extracts details from sequence 
                 elif data['Gene'] != data['AccNum']: data['DBase'] = 'sprot'
                 else: data['DBase'] = 'trembl'
         elif re_enst.match(name):
-            details = string.split(name,'|')   # re_jgi = re.compile('^jgi\|Thaps3\|(\d+)\|(\S+)')
+            details = rje.split(name,'|')   # re_jgi = re.compile('^jgi\|Thaps3\|(\d+)\|(\S+)')
             data['DBase'] = data['Format'] = 'ENST'
             data['Gene'] = details[-1].lower()
             data['AccNum'] = details[0]
@@ -1030,7 +1030,7 @@ def extractNameDetails(name,callobj=None):   ### Extracts details from sequence 
             data['SpecCode'] = details[0][3:6]
             data['ID'] = '%s_%s' % (data['Gene'],data['SpecCode'])
         elif re_jgi.match(name):
-            details = string.split(name,'|')   # re_jgi = re.compile('^jgi\|Thaps3\|(\d+)\|(\S+)')
+            details = rje.split(name,'|')   # re_jgi = re.compile('^jgi\|Thaps3\|(\d+)\|(\S+)')
             data['Gene'] = 'jgi'
             if details[1] == 'Thaps3':
                 data['SpecCode'] = 'THAPS'
@@ -1079,7 +1079,7 @@ def extractNameDetails(name,callobj=None):   ### Extracts details from sequence 
         elif re_uniref.match(name):    # re.compile('^(UniRef\S+)_(\S+)\s.*\Tax=(\S.+)\sRepID=(\S+)')
             data['Format'] = 'uniref'
             detail = rje.regExp(re_uniref,name)
-            if detail[3].find('_') > 0: [data['Gene'],data['SpecCode']] = string.split(detail[3],'_')
+            if detail[3].find('_') > 0: [data['Gene'],data['SpecCode']] = rje.split(detail[3],'_')
             else:
                 data['Gene'] = 'uref90'
                 data['SpecCode'] = getSpecCode(detail[2])
@@ -1122,7 +1122,7 @@ def extractNameDetails(name,callobj=None):   ### Extracts details from sequence 
                 data['Gene'] = 'tr'
             else:
                 data['DBase'] = 'sprot'
-            data['Description'] = string.join(string.split(data['Description'])[1:])
+            data['Description'] = rje.join(rje.split(data['Description'])[1:])
         elif re_ipi.match(name):
             data['DBase'] = data['Format'] = 'IPI'
             data['ID'] = rje.regExp(re_ipi,name)[0]
@@ -1138,7 +1138,7 @@ def extractNameDetails(name,callobj=None):   ### Extracts details from sequence 
             data['AccNum'] = data['ID']
             data['SpecCode'] = 'HUMAN'
             if gene == '-': data['Gene'] = 'ipi'
-            else: data['Gene'] = string.split(gene,';')[0]
+            else: data['Gene'] = rje.split(gene,';')[0]
         elif re_gnspacc.match(data['Description']): #!# This could cause problems - try other databases first?
             data['Format'] = 'gnspacc fragment'
             match = re_gnspacc.match(data['Description'])
@@ -1165,9 +1165,9 @@ def extractNameDetails(name,callobj=None):   ### Extracts details from sequence 
                     while re.search('\[(.+)$',data['Species']):
                         data['Species'] = rje.matchExp('\[(.+)$',data['Species'])[0]
                     data['SpecCode'] = getSpecCode(data['Species'])
-            data['Description'] = string.split(name)
-            data['Description'][0] = string.split(data['Description'][0],'|')[-1]
-            data['Description'] = string.join(data['Description'])
+            data['Description'] = rje.split(name)
+            data['Description'][0] = rje.split(data['Description'][0],'|')[-1]
+            data['Description'] = rje.join(data['Description'])
             data['Description'] = 'gi:%s %s' % (data['NCBI'],data['Description'])
         elif re_ncbi2.match(name):
             data['Format'] = 'NCBI'
@@ -1193,7 +1193,7 @@ def extractNameDetails(name,callobj=None):   ### Extracts details from sequence 
             data['DBase'] = 'FlyBase'
             data['ID'] = data['AccNum'] = acc
             if gene[-3:] in ['-RA','-PA']: gene = gene[:-3]
-            data['Gene'] = string.split(gene,'\\')[-1]
+            data['Gene'] = rje.split(gene,'\\')[-1]
             data['SpecCode'] = '%sRO%s' % (spec[0].upper(),spec[1:3].upper())
         elif re_ensemblpep.match(name):
             data['Format'] = 'ensemblpep'
@@ -1286,12 +1286,12 @@ def getSpecCode(species):   ### Returns spec_code for given species
                 'Human immunodeficiency virus 1':'HIV1','Human immunodeficiency virus 2':'HIV2'
                 }
     if species in spec_dic.keys(): return spec_dic[species]
-    tax = string.split(species.upper()); t = 1
+    tax = rje.split(species.upper()); t = 1
     while t < len(tax):
         if tax[t][:1] == '(': tax.pop(t)
         else: t += 1
     if len(tax) > 1: return tax[0][:3] + tax[1][:2]
-    else: return string.replace(species,' ','').upper()[:10]
+    else: return rje.replace(species,' ','').upper()[:10]
 #########################################################################################################################
 def eisenbergHydropathy(sequence,returnlist=False):  ### Returns the Eisenberg Hydropathy for the sequence
     '''
@@ -1319,7 +1319,7 @@ def aaFreq(sequence,aafreq={},newkeys=True):    ### Adds to aafreq dictionary (i
     << aafreq:new dictionary of values
     '''
     for aa in sequence:
-        if aafreq.has_key(aa): aafreq[aa] += 1
+        if aa in aafreq: aafreq[aa] += 1
         elif newkeys: aafreq[aa] = 1.0
     return aafreq
 #########################################################################################################################
@@ -1333,21 +1333,21 @@ def codons(sequence,codonfreq={},newkeys=True,rna=True,code_only=True): ### Adds
     >> code_only:bool [True] = whether to only allow codons in (RNA!) Genetic Code (True)
     << codonfreq:new dictionary of values
     '''
-    if rna: sequence = string.replace(sequence.upper(),'T','U')
-    else: sequence = string.replace(sequence.upper(),'U','T')
+    if rna: sequence = rje.replace(sequence.upper(),'T','U')
+    else: sequence = rje.replace(sequence.upper(),'U','T')
     while sequence:
         codon = sequence[:3]; sequence = sequence[3:]
         if len(codon) < 3: break
         if rna and code_only and codon not in genetic_code: continue
-        if codonfreq.has_key(codon): codonfreq[codon] += 1
+        if codon in codonfreq: codonfreq[codon] += 1
         elif newkeys: codonfreq[codon] = 1
     return codonfreq
 #########################################################################################################################
 def trypDigest(sequence=''):    ### Returns trypsin digestion of sequence
     '''Returns trypsin digestion of sequence.'''
-    digest = string.join(string.split(sequence.upper(),'K'),'K ')
-    digest = string.join(string.split(digest,'R'),'R ')
-    digest = string.split(digest)
+    digest = rje.join(rje.split(sequence.upper(),'K'),'K ')
+    digest = rje.join(rje.split(digest,'R'),'R ')
+    digest = rje.split(digest)
     return digest
 #########################################################################################################################
 def MWt(sequence='',type='raw'):   ### Returns Molecular Weight of Sequence
@@ -1411,8 +1411,8 @@ def peptideDetails(sequence,callobj=None):  ### Returns OK if sequence alright, 
     try:
         bad_combo = []
         for combo in ['DP','DC','DG','NG','NS','PPP']:
-            if string.strip(sequence.upper(),'-').find(combo) >= 0: bad_combo.append(combo)
-        if bad_combo: return 'Warning: %s' % string.join(bad_combo,', ')
+            if rje.strip(sequence.upper(),'-').find(combo) >= 0: bad_combo.append(combo)
+        if bad_combo: return 'Warning: %s' % rje.join(bad_combo,', ')
         else: return 'OK'
     except:
         if callobj:
@@ -1458,18 +1458,18 @@ def dna2prot(dnaseq,case=False,transl='1',warnobj=None):   ### Returns a protein
         i += 3
         lowc = case and codon == codon.lower()
         if lowc:
-            try: prot.append(gencode[string.replace(codon.upper(),'T','U')].lower())
+            try: prot.append(gencode[rje.replace(codon.upper(),'T','U')].lower())
             except: prot.append('x')
         else:
-            try: prot.append(gencode[string.replace(codon.upper(),'T','U')])
+            try: prot.append(gencode[rje.replace(codon.upper(),'T','U')])
             except: prot.append('X')
-    return string.join(prot,'')
+    return rje.join(prot,'')
 #########################################################################################################################
 def codonKs(codon,mutdict={}): ### Returns the proportion of substitutions that would be synonymous
     '''
     Returns the proportion of substitutions that would be synonymous.
     '''
-    codon = string.replace(codon.upper(),'T','U')
+    codon = rje.replace(codon.upper(),'T','U')
     try: aa = genetic_code[codon]
     except: raise ValueError('%s not an acceptable codon' % codon)
     Ks = 0.0
@@ -1533,7 +1533,7 @@ def sequenceKs(sequence,callobj=None,ksdict={},mutdict={}):    ### Returns the p
     if not ksdict and callobj and 'Ks' in callobj.dict: ksdict = callobj.dict['Ks']
     if not ksdict: ksdict = kSDict(callobj,mutdict)
     ks = 0.0; ki = 0.0
-    sequence = string.replace(sequence.upper(),'T','U')
+    sequence = rje.replace(sequence.upper(),'T','U')
     while sequence:
         codon = sequence[:3]
         sequence = sequence[3:]
@@ -1554,45 +1554,45 @@ def complement(dnaseq,rna=False):  ### Returns the complement of the DNA sequenc
     '''Returns the complement of the DNA sequence given.'''
     revcomp = dnaseq
     pairs = [('C','G'),('A','T')]
-    if rna: revcomp = string.replace(revcomp,'U','T')
-    if rna: revcomp = string.replace(revcomp,'u','t')
+    if rna: revcomp = rje.replace(revcomp,'U','T')
+    if rna: revcomp = rje.replace(revcomp,'u','t')
     for (n1,n2) in pairs:
-        revcomp = string.replace(revcomp,n1,'!')
-        revcomp = string.replace(revcomp,n2,n1)
-        revcomp = string.replace(revcomp,'!',n2)
+        revcomp = rje.replace(revcomp,n1,'!')
+        revcomp = rje.replace(revcomp,n2,n1)
+        revcomp = rje.replace(revcomp,'!',n2)
         n1 = n1.lower(); n2 = n2.lower()
-        revcomp = string.replace(revcomp,n1,'!')
-        revcomp = string.replace(revcomp,n2,n1)
-        revcomp = string.replace(revcomp,'!',n2)
-    if rna: revcomp = string.replace(revcomp,'T','U')
-    if rna: revcomp = string.replace(revcomp,'t','u')
+        revcomp = rje.replace(revcomp,n1,'!')
+        revcomp = rje.replace(revcomp,n2,n1)
+        revcomp = rje.replace(revcomp,'!',n2)
+    if rna: revcomp = rje.replace(revcomp,'T','U')
+    if rna: revcomp = rje.replace(revcomp,'t','u')
     return revcomp
 #########################################################################################################################
 def reverseComplement(dnaseq,rna=False):  ### Returns the reverse complement of the DNA sequence given (mixed case)
     '''Returns the reverse complement of the DNA sequence given.'''
     revcomp = rje.strReverse(dnaseq)
     pairs = [('C','G'),('A','T')]
-    if rna: revcomp = string.replace(revcomp,'U','T')
-    if rna: revcomp = string.replace(revcomp,'u','t')
+    if rna: revcomp = rje.replace(revcomp,'U','T')
+    if rna: revcomp = rje.replace(revcomp,'u','t')
     for (n1,n2) in pairs:
-        revcomp = string.replace(revcomp,n1,'!')
-        revcomp = string.replace(revcomp,n2,n1)
-        revcomp = string.replace(revcomp,'!',n2)
+        revcomp = rje.replace(revcomp,n1,'!')
+        revcomp = rje.replace(revcomp,n2,n1)
+        revcomp = rje.replace(revcomp,'!',n2)
         n1 = n1.lower(); n2 = n2.lower()
-        revcomp = string.replace(revcomp,n1,'!')
-        revcomp = string.replace(revcomp,n2,n1)
-        revcomp = string.replace(revcomp,'!',n2)
-    if rna: revcomp = string.replace(revcomp,'T','U')
-    if rna: revcomp = string.replace(revcomp,'t','u')
+        revcomp = rje.replace(revcomp,n1,'!')
+        revcomp = rje.replace(revcomp,n2,n1)
+        revcomp = rje.replace(revcomp,'!',n2)
+    if rna: revcomp = rje.replace(revcomp,'T','U')
+    if rna: revcomp = rje.replace(revcomp,'t','u')
     return revcomp
 #########################################################################################################################
 def OLDreverseComplement(dnaseq,rna=False):  ### Returns the reverse complement of the DNA sequence given (upper case)
     '''Returns the reverse complement of the DNA sequence given.'''
     revcomp = ''
-    #!# Use rje.strReverse() followed by string.replace!
+    #!# Use rje.strReverse() followed by rje.replace!
     repdict = {'G':'C','C':'G','T':'A','A':'T'}
     if rna: repdict['A'] = 'U'
-    for aa in string.replace(dnaseq.upper(),'U','T'):   # Convert RNA to DNA
+    for aa in rje.replace(dnaseq.upper(),'U','T'):   # Convert RNA to DNA
         try: revcomp = '%s%s' % (repdict[aa],revcomp)    
         except: revcomp = '%s%s' % ('N',revcomp)    
     return revcomp 
@@ -1623,11 +1623,11 @@ def bestORF(protseq,startm=False,nonx=True):  ### Returns longest ORF (or first 
     >> nonx:bool [True] = Whether ORFs should only be assessed in terms of their non-X content.
     '''
     (bestorf,bestlen) = ('',0)
-    for orf in string.split(protseq,'*'):
+    for orf in rje.split(protseq,'*'):
         if startm and orf.count('M') < 1: continue
         if startm and orf.find('M') >= 0: orf = orf[orf.find('M'):]
         orflen = len(orf)
-        if nonx: orflen -= string.count(orf.upper(),'X')
+        if nonx: orflen -= rje.count(orf.upper(),'X')
         if orflen > bestlen: (bestorf,bestlen) = (orf,orflen)
     return bestorf
 #########################################################################################################################
@@ -1655,7 +1655,7 @@ def estTranslation(dnaseq,minpoly=10,fwdonly=False):  ### Returns translations o
         for rf in rje.sortKeys(sixrf):
             if rf > 0  and poly == 'T': sixrf.pop(rf)
             elif rf < 0  and (fwdonly or poly == 'A'): sixrf.pop(rf)
-            elif poly: sixrf[rf] = '%s*' % string.join(string.split(sixrf[rf],'*')[:-1],'*')
+            elif poly: sixrf[rf] = '%s*' % rje.join(rje.split(sixrf[rf],'*')[:-1],'*')
     return sixrf
 #########################################################################################################################
 def estTrunc(dnaseq,minpoly=10,fwdonly=False):  ### Returns truncation of EST along with poly-AT as tuple (5',seq,3')
@@ -1710,7 +1710,7 @@ def maskLowComplexity(sequence,lowfreq=5,winsize=10,mask='X'):     ### Masks low
             if (r+i) >= len(sequence): break
             if sequence[r+i] == a: x += 1
             if x >= lowfreq:
-                maskseq = maskseq[:r+1] + string.replace(maskseq[r+1:r+i],a,mask) + maskseq[r+i:]
+                maskseq = maskseq[:r+1] + rje.replace(maskseq[r+1:r+i],a,mask) + maskseq[r+i:]
                 break
     if len(maskseq) != len(sequence): raise ValueError('Masked sequence length != input sequence length!')
     return maskseq

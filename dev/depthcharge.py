@@ -19,8 +19,8 @@
 """
 Module:       DepthCharge
 Description:  Genome assembly quality control and misassembly repair
-Version:      0.2.0
-Last Edit:    20/01/21
+Version:      0.3.0
+Last Edit:    24/07/24
 Copyright (C) 2021  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -51,13 +51,14 @@ Commandline:
     breakgaps=T/F   : Whether to break at gaps where coverage drops if breakmode=fragment [False]
     gapsize=INT     : Size of gaps to insert when breakmode=gap [100]
     mindepth=INT    : Minimum depth to class as OK [1]
+    minspan=INT     : Minimum spanning bp at end of reads (trims from PAF alignments) [0]
     ### ~ PAF file generation options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     reads=FILELIST  : List of fasta/fastq files containing reads. Wildcard allowed. Can be gzipped. []
     readtype=LIST   : List of ont/pb/hifi file types matching reads for minimap2 mapping [ont]
     minimap2=PROG   : Full path to run minimap2 [minimap2]
     mapopt=CDICT    : Dictionary of minimap2 options [N:100,p:0.0001,x:asm5]
     ### ~ Additional options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-    dochtml=T/F     : Generate HTML Diploidocus documentation (*.docs.html) instead of main run [False]
+    dochtml=T/F     : Generate HTML DepthCharge documentation (*.docs.html) instead of main run [False]
     logfork=T/F     : Whether to log forking in main log [False]
     tmpdir=PATH     : Path for temporary output files during forking (not all modes) [./tmpdir/]
     ### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -77,6 +78,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 0.0.0 - Initial Compilation.
     # 0.1.0 - Removed endbuffer and gapbuffer in favour of straight overlap assignment.
     # 0.2.0 - Added HiFi read type.
+    # 0.3.0 - Added minspan=INT : Minimum spanning bp at end of reads (trims from PAF alignments). Fixed forcing. [0]
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -89,11 +91,12 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
     # [ ] : Add to SLiMSuite or SeqSuite.
     # [ ] : Add minlen=INT setting to cull short outputs (and merge gaps?)
     # [ ] : Add sequence summary to follow sequence output.
+    # [ ] : Add PE filter charge mode using TLEN filter.
     '''
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copy_right) = ('DepthCharge', '0.2.0', 'January 2021', '2021')
+    (program, version, last_edit, copy_right) = ('DepthCharge', '0.3.0', 'July 2024', '2021')
     description = 'Genome assembly quality control and misassembly repair'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_obj.zen()]
@@ -136,7 +139,7 @@ def setupProgram(): ### Basic Setup of Program when called from commandline.
         out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2 
         out.printIntro(info)                                # Prints intro text using details from Info object
         cmd_list = cmdHelp(info,out,cmd_list)               # Shows commands (help) and/or adds commands from user
-        log = rje.setLog(info,out,cmd_list)                 # Sets up Log object for controlling log file output
+        log = rje.setLog(info,out,cmd_list,py3warn=False)   # Sets up Log object for controlling log file output
         return (info,out,log,cmd_list)                      # Returns objects for use in program
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
@@ -168,6 +171,7 @@ class DepthCharge(rje_forker.Forker):
     - GapBuffer=INT   : Buffer size for sequence ends and gaps to avoid breakage [100]
     - GapSize=INT     : Size of gaps to insert when breakmode=gap [100]
     - MinDepth=INT    : Minimum depth to class as OK [1]
+    - MinSpan=INT     : Minimum spanning bp at end of reads (trims from PAF alignments) [0]
 
     Num:float
 
@@ -189,7 +193,7 @@ class DepthCharge(rje_forker.Forker):
         ### ~ Basics ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         self.strlist = ['BreakMode','PAF','SeqIn']
         self.boollist = ['BreakGaps','DocHTML']
-        self.intlist = ['EndBuffer','GapBuffer','GapSize','MinDepth']
+        self.intlist = ['EndBuffer','GapBuffer','GapSize','MinDepth','MinSpan']
         self.numlist = []
         self.filelist = []
         self.listlist = []
@@ -227,7 +231,7 @@ class DepthCharge(rje_forker.Forker):
                 self._cmdReadList(cmd,'file',['PAF','SeqIn'])  # String representing file path
                 #self._cmdReadList(cmd,'date',['Att'])  # String representing date YYYY-MM-DD
                 self._cmdReadList(cmd,'bool',['BreakGaps','DocHTML'])  # True/False Booleans
-                self._cmdReadList(cmd,'int',['EndBuffer','GapBuffer','GapSize','MinDepth'])   # Integers
+                self._cmdReadList(cmd,'int',['EndBuffer','GapBuffer','GapSize','MinDepth','MinSpan'])   # Integers
                 #self._cmdReadList(cmd,'float',['Att']) # Floats
                 #self._cmdReadList(cmd,'min',['Att'])   # Integer value part of min,max command
                 #self._cmdReadList(cmd,'max',['Att'])   # Integer value part of min,max command
@@ -305,6 +309,7 @@ class DepthCharge(rje_forker.Forker):
         breakgaps=T/F   : Whether to break at gaps where coverage drops if breakmode=fragment [False]
         gapsize=INT     : Size of gaps to insert when breakmode=gap [100]
         mindepth=INT    : Minimum depth to class as OK [1]
+        minspan=INT     : Minimum spanning bp at end of reads (trims from PAF alignments) [0]
         ### ~ PAF file generation options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         reads=FILELIST  : List of fasta/fastq files containing reads. Wildcard allowed. Can be gzipped. []
         readtype=LIST   : List of ont/pb/hifi file types matching reads for minimap2 mapping [ont]
@@ -344,7 +349,7 @@ class DepthCharge(rje_forker.Forker):
             seqx = 0
             for seq in seqin.seqs():
                 (seqname,sequence) = seqin.getSeq(seq)
-                sname = string.split(seqname)[0]
+                sname = rje.split(seqname)[0]
                 seqlen = len(sequence)
                 regions = []
                 for entry in ddb.indexEntries('seqname',sname):
@@ -404,11 +409,11 @@ class DepthCharge(rje_forker.Forker):
             if not self.getStrLC('PAF'):
                 self.setStr({'PAF':self.baseFile()+'.paf'})
             pfile = self.getStr('PAF')
-            if self.force() or not rje.exists(pfile):
+            if self.fullForce() or not rje.exists(pfile):
                 paf = rje_paf.PAF(self.log,self.cmd_list)
                 paf.longreadMinimapPAF(pfile)
             if not rje.exists(self.getStr('PAF')):
-                raise IOError('Unable to read or create PAF file: {0}'.format(pfile))
+                raise IOError('Unable to read or create PAF file (fullforce={1}): {0}'.format(pfile,self.fullForce()))
             return True
         except: self.errorLog('Problem during %s setup.' % self.prog()); return False  # Setup failed
 #########################################################################################################################
@@ -471,8 +476,11 @@ class DepthCharge(rje_forker.Forker):
             seqin = self.seqinObj()
             self.list['ToFork'] = seqin.list['Seq'][0:]
             resfile = '{0}.depthcharge.tdt'.format(self.baseFile())
-            if self.force(): rje.backup(resfile,appendable=False)
+            self.printLog('#MINX','Minimum X depth: mindepth={0}'.format(self.getInt('MinDepth')))
+            self.printLog('#SPAN','Minimum bp spanning at end of reads: minspan={0}'.format(self.getInt('MinSpan')))
+            if self.force(): rje.backup(self,resfile,appendable=False)
             elif rje.exists(resfile):
+                self.warnLog('Results exist and force=F. Check that mindepth=INT and minspan=INT settings are unchanged.')
                 ddb = self.db().addTable(resfile,['seqname','start','end','type'])
                 ddb.dataFormat({'start':'int','end':'int'})
                 complete = ddb.indexDataList('type','all','seqname')
@@ -540,7 +548,7 @@ class DepthCharge(rje_forker.Forker):
         '''
         sname = sequence
         try:### ~ [1] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            sname = string.split(seqname)[0]
+            sname = rje.split(seqname)[0]
             seqlen = len(sequence)
             reads = []      # list of (start,end) positions for seqname
             badpos = []     # list of bad positions for sequence
@@ -564,10 +572,16 @@ class DepthCharge(rje_forker.Forker):
             #!# grep seqname and use awk to read in (start,end) tuples -> sort().
             for pafline in os.popen("grep {0} {1} | awk '{{print $8,$9;}}'".format(sname,self.getStr('PAF'))).readlines():
                 try:
-                    [x,y] = string.split(pafline)[:2]
-                    reads.append((int(x),int(y)))
+                    [x,y] = rje.split(pafline)[:2]
+                    [x,y] = [int(x),int(y)]
+                    if self.getInt('MinSpan') > 0:
+                        x += self.getInt('MinSpan')
+                        y -= self.getInt('MinSpan')
+                    if y > x:
+                        reads.append((x,y))
                 except: pass
             reads.sort()
+            self.printLog('#READS','{0} reads parsed for {1}.'.format(rje.iLen(reads),sname))
             ### ~ [3] Charge! ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             #i# 1. Until start>pos, pop from tuples.
             #i# 2. If end <=pos, dump, else add end to span.
@@ -586,8 +600,14 @@ class DepthCharge(rje_forker.Forker):
                 else:
                     # if pos not in ends:
                     badpos.append(pos)
-                    pos += 1
+                    # Jump to next read
+                    if reads: # NB reads[0][0] > pos
+                        badpos += list(range(pos+1,reads[0][0]))
+                    else:
+                        badpos += list(range(pos+1,seqlen+1))
+                    pos = badpos[-1] + 1
                     while span and span[0] <= pos: span.pop(0)
+            px = len(badpos); self.progLog('#BAD','{0} bad positions for {1}.'.format(rje.iLen(badpos),sname))
             #i# 5. Collapse to report and/or fragment.
             #gaptuples = []
             #gappos = rje.listIntersect(badpos,gapbuffer)
@@ -599,23 +619,25 @@ class DepthCharge(rje_forker.Forker):
                 i = j = badpos.pop(0)
                 while badpos and badpos[0] in [j,j+1]: j = badpos.pop(0)
                 badtuples.append((i,j))
+            self.progLog('\r#BAD','{0} bad positions for {1} => {2} bad regions.'.format(rje.iStr(px),sname,rje.iLen(badtuples)))
             # while gappos:
             #     i = j = gappos.pop(0)
             #     while gappos and gappos[0] in [j,j+1]: j = gappos.pop(0)
             #     gaptuples.append((i,j))
             #i# 6. Save to *.depthcharge.tdt : seqname, start, end, type
             ddb = self.db().addEmptyTable('depthcharge',['seqname','start','end','type'],['seqname','type','start','end'],log=False)
-            btype = 'all'; i = 1; j = seqlen
+            btype = 'all'; i = 1; j = seqlen; bx =0; ex = 0; gx = 0
             ddb.dict['Data'][(sname,i,j,btype)] = {'seqname':sname,'start':i,'end':j,'type':btype}
             for (i,j) in badtuples:
                 #if j <= endbuffer or i >= (seqlen-endbuffer+1):
                 if i == 1 or j == seqlen:   # End of sequence
-                    btype = 'end'
+                    btype = 'end'; ex += 1
                 elif rje.listIntersect(range(i,j+1),gapbuffer):     # Overlaps a gap
-                    btype = 'gap'
+                    btype = 'gap'; gx += 1
                 else:
-                    btype = 'bad'
+                    btype = 'bad'; bx += 1
                 ddb.dict['Data'][(sname,i,j,btype)] = {'seqname':sname,'start':i,'end':j,'type':btype}
+            self.printLog('\r#BAD','{0} bad positions for {1} => {2} bad regions; {3} gaps; {4} ends.'.format(rje.iStr(px),sname,rje.iStr(bx),rje.iStr(gx),rje.iStr(ex)))
             # btype = 'gap'
             # for (i,j) in gaptuples:
             #     ddb.dict['Data'][(sname,i,j,btype)] = {'seqname':sname,'start':i,'end':j,'type':btype}

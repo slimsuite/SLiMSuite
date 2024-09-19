@@ -73,8 +73,12 @@ sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)),'../lib
 sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)),'../tools/'))
 sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)),'../legacy/'))
 ### User modules - remember to add *.__doc__ to cmdHelp() below ###
-import rje, rje_seq, rje_slimlist, rje_uniprot, rje_zen
-import gopher_V2 as gopher
+import rje, rje_zen
+try: import rje_seq, rje_slimlist, rje_uniprot
+except: pass
+try:
+    import gopher_V2 as gopher
+except: gopher = None
 #########################################################################################################################
 def history():  ### Program History - only a method for PythonWin collapsing! ###
     '''
@@ -119,7 +123,7 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         if not out: out = rje.Out()
         help = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
         if help > 0:
-            print '\n\nHelp for %s %s: %s\n' % (info.program, info.version, time.asctime(time.localtime(info.start_time)))
+            rje.printf('\n\nHelp for {0} {1}: {2}\n'.format(info.program, info.version, time.asctime(time.localtime(info.start_time))))
             out.verbose(-1,4,text=__doc__)
             if rje.yesNo('Show general commandline options?'): out.verbose(-1,4,text=rje.__doc__)
             if rje.yesNo('Quit?'): sys.exit()
@@ -128,33 +132,30 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         return cmd_list
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Major Problem with cmdHelp()'
+    except: rje.printf('Major Problem with cmdHelp()')
 #########################################################################################################################
-def setupProgram(): ### Basic Setup of Program
+def setupProgram(): ### Basic Setup of Program when called from commandline.
     '''
-    Basic setup of Program:
+    Basic Setup of Program when called from commandline:
     - Reads sys.argv and augments if appropriate
     - Makes Info, Out and Log objects
     - Returns [info,out,log,cmd_list]
     '''
-    try:
-        ### Initial Command Setup & Info ###
-        info = makeInfo()
-        cmd_list = rje.getCmdList(sys.argv[1:],info=info)      ### Load defaults from program.ini
-        ### Out object ###
-        out = rje.Out(cmd_list=cmd_list)
-        out.verbose(2,2,cmd_list,1)
-        out.printIntro(info)
-        ### Additional commands ###
-        cmd_list = cmdHelp(info,out,cmd_list)
-        ### Log ###
-        log = rje.setLog(info=info,out=out,cmd_list=cmd_list)
-        return [info,out,log,cmd_list]
+    try:### ~ [1] ~ Initial Command Setup & Info ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+        info = makeInfo()                                   # Sets up Info object with program details
+        if len(sys.argv) == 2 and sys.argv[1] in ['version','-version','--version']: rje.printf(info.version); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: rje.printf('%s v%s' % (info.program,info.version)); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['description','-description','--description']: rje.printf('%s: %s' % (info.program,info.description)); sys.exit(0)
+        cmd_list = rje.getCmdList(sys.argv[1:],info=info)   # Reads arguments and load defaults from program.ini
+        out = rje.Out(cmd_list=cmd_list)                    # Sets up Out object for controlling output to screen
+        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2
+        out.printIntro(info)                                # Prints intro text using details from Info object
+        cmd_list = cmdHelp(info,out,cmd_list)               # Shows commands (help) and/or adds commands from user
+        log = rje.setLog(info,out,cmd_list)                 # Sets up Log object for controlling log file output
+        return (info,out,log,cmd_list)                      # Returns objects for use in program
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except:
-        print 'Problem during initial setup.'
-        raise
+    except: rje.printf('Problem during initial setup.'); raise
 #########################################################################################################################
 ### END OF SECTION I                                                                                                    #
 #########################################################################################################################
@@ -288,7 +289,7 @@ class IRIDIS(rje.RJE_Object):
             else:
                 self.errorLog('No Hosts identified for IRIDIS run',printerror=False)
                 sys.exit()
-        self.printLog('#HOSTS','%d hosts: %s.' % (self.nprocs(),string.join(self.list['Hosts'],'; ')))
+        self.printLog('#HOSTS','%d hosts: %s.' % (self.nprocs(),rje.join(self.list['Hosts'],'; ')))
 #########################################################################################################################
     def checkMemory(self,node): ### Checks free memory on node and returns True/False if OK to run
         '''Checks free memory on node and returns True/False if OK to run.'''
@@ -300,9 +301,9 @@ class IRIDIS(rje.RJE_Object):
         except: self.errorLog('Problem with checkMemory(%s)' % node); return False
 #########################################################################################################################
     def freeMem(self,node):
-        try: memdata = string.split(os.popen('rsh %s free' % node).readlines()[1])
+        try: memdata = rje.split(os.popen('rsh %s free' % node).readlines()[1])
         except: self.errorLog('Unable to read %s free memory' % node,printerror=False); return 0.0
-        return string.atof(memdata[3]) / string.atof(memdata[1])
+        return rje.atof(memdata[3]) / rje.atof(memdata[1])
 #########################################################################################################################
     def runJobs(self):  ### Runs all the jobs in self.list['SubJobs']
         '''Runs all the jobs in self.list['SubJobs'].'''
@@ -317,7 +318,7 @@ class IRIDIS(rje.RJE_Object):
                 try:
                     pid = self.dict['Running'][j]['PID']
                     PIDCHECK.write('%s: %s\n' % (j,pid))
-                    if string.split('%s' % pid)[0] == 'WAIT': status = 1
+                    if rje.split('%s' % pid)[0] == 'WAIT': status = 1
                     else: (status,exit_stat) = os.waitpid(pid,os.WNOHANG)
                 except: status = 1
                 if status > 0: self.endJob(j)       # subjob on processor j has finished: can replace with processing
@@ -368,7 +369,7 @@ class IRIDIS(rje.RJE_Object):
                 self.printLog('#END','Job on processor %d ended: log content transferred' % host_id)
                 self.printLog('#~~#','#~~#',timeout=False)
                 os.unlink(jdict['Log'])
-            elif 'PID' in jdict and string.split('%s' % jdict['PID'])[0] == 'WAIT': pass
+            elif 'PID' in jdict and rje.split('%s' % jdict['PID'])[0] == 'WAIT': pass
             else: self.printLog('#END','Job on processor %d ended.' % host_id)
         except IOError:
             if self.stat['IOError'] == 1: self.errorLog('IRIDIS.endJob IOError limit reached'); raise
@@ -447,7 +448,7 @@ class IRIDIS(rje.RJE_Object):
                 for out in self.list['OutList']:
                     resfile = '%s.%s' % (self.info['Basefile'],out)
                     if os.path.exists(jdict[out]):
-                        if os.path.exists(resfile) and string.split(resfile,'.')[-1] in ['tdt','csv']: open(resfile,'a').writelines(open(jdict[out],'r').readlines()[1:])
+                        if os.path.exists(resfile) and rje.split(resfile,'.')[-1] in ['tdt','csv']: open(resfile,'a').writelines(open(jdict[out],'r').readlines()[1:])
                         else: open(resfile,'a').writelines(open(jdict[out],'r').readlines())
                         os.unlink(jdict[out])
                     else: self.errorLog('Output %s file "%s" missing' % (out,jdict[out]),printerror=False)
@@ -457,7 +458,7 @@ class IRIDIS(rje.RJE_Object):
                     self.printLog('#END','Job on processor %d ended: log content transferred' % host_id)
                     self.printLog('#~~#','#~~#',timeout=False)
                     os.unlink(jdict['Log'])
-                elif 'PID' in jdict and string.split('%s' % jdict['PID'])[0] == 'WAIT': pass
+                elif 'PID' in jdict and rje.split('%s' % jdict['PID'])[0] == 'WAIT': pass
                 else: self.printLog('#END','Job on processor %d ended: already complete' % host_id)
                 os.system('rm %s*' % jdict['Qry'])
         except: self.errorLog('IRIDIS.endJob error')
@@ -471,7 +472,7 @@ class IRIDIS(rje.RJE_Object):
             resfile = '%s.%s' % (self.info['Basefile'],out)
             try: pickdat = rje.dataDict(self,resfile,[self.info['Pickup']])
             except: pickdat = {}
-            picklist = picklist + pickdat.keys()
+            picklist = picklist + list(pickdat.keys())
         return picklist
 #########################################################################################################################
     ### <4> ### Testing Methods                                                                                         #
@@ -613,7 +614,7 @@ class iSLiMFinder(IRIDIS):  ### Farms a SLiMFinder run out over hosts
                 pid = '????'
                 try:
                     pid = self.dict['Running'][j]['PID']
-                    if string.split('%s' % pid)[0] == 'WAIT':
+                    if rje.split('%s' % pid)[0] == 'WAIT':
                         pidchecklist.append('%s: %s' % (j,pid))
                         status = 1
                     else:
@@ -626,7 +627,7 @@ class iSLiMFinder(IRIDIS):  ### Farms a SLiMFinder run out over hosts
                     except: pass
                 if status > 0: self.endJob(j)       # subjob on processor j has finished: can replace with processing
             PIDCHECK = open(pidcheck,'w')
-            PIDCHECK.write(string.join(pidchecklist+[''],'\n'))
+            PIDCHECK.write(rje.join(pidchecklist+[''],'\n'))
             PIDCHECK.close()
             if self.list['NewBatch'] and len(self.dict['Running']) < checkn:    ### Why are jobs missing?
                 if big_problem:
@@ -666,7 +667,7 @@ class iSLiMFinder(IRIDIS):  ### Farms a SLiMFinder run out over hosts
                 if os.path.exists(jlog):
                     jloglines = open(jlog,'r').readlines()
                     if jloglines:
-                        if string.split(jloglines[-1])[0] == '#LOG' and 'End:' in string.split(jloglines[-1]):
+                        if rje.split(jloglines[-1])[0] == '#LOG' and 'End:' in rje.split(jloglines[-1]):
                             self.printLog('#END','Random job %s looks finished' % jran)
                             if os.path.exists(jcsv):
                                 if os.path.exists(self.info['ResFile']): open(self.info['ResFile'],'a').writelines(open(jcsv,'r').readlines()[1:])
@@ -715,7 +716,7 @@ class iSLiMFinder(IRIDIS):  ### Farms a SLiMFinder run out over hosts
                     self.printLog('#END',etxt)
                     self.printLog('#~~#','#~~#',timeout=False)
                 #x#if 'DAT' in jdict: os.system('rm %s*' % jdict['DAT'])
-                elif 'PID' in jdict and string.split('%s' % jdict['PID'])[0] == 'WAIT': waiting = True
+                elif 'PID' in jdict and rje.split('%s' % jdict['PID'])[0] == 'WAIT': waiting = True
                 else: self.printLog('#END','Job on processor %d ended.' % host_id)
         except IOError:
             if self.stat['IOError'] == 1: self.errorLog('iSLiMFinder.endJob IOError limit reached'); raise
@@ -724,7 +725,7 @@ class iSLiMFinder(IRIDIS):  ### Farms a SLiMFinder run out over hosts
         self.nextJob(host_id)   # Carry on regardless
         if waiting:
             try:
-                if string.split('%s' % self.dict['Running'][host_id]['PID'])[0] == 'WAIT':
+                if rje.split('%s' % self.dict['Running'][host_id]['PID'])[0] == 'WAIT':
                     if self.opt['Test']: self.printLog('#WAIT','Resumed after waiting for memory. %d sec sleep!' % self.stat['SubSleep'])
                     time.sleep(self.stat['SubSleep'])
             except:
@@ -839,7 +840,7 @@ class iSLiMSearch(IRIDIS):  ### Farms a SLiMSearch run out over hosts
                     self.printLog('#END','Job on processor %d ended: results & log content transferred' % host_id)
                     self.printLog('#~~#','#~~#',timeout=False)
                     os.unlink(jdict['Log'])
-                elif 'PID' in jdict and string.split('%s' % jdict['PID'])[0] == 'WAIT': pass
+                elif 'PID' in jdict and rje.split('%s' % jdict['PID'])[0] == 'WAIT': pass
                 else: self.printLog('#END','Job on processor %d ended.' % host_id)
                 if 'Motif' in jdict: os.unlink(jdict['Motif'])
         except IOError:
@@ -900,7 +901,7 @@ class iGopher(IRIDIS):  ### Farms a GOPHER run out over hosts
             while self.info['StartFrom'] and self.list['Seq']:
                 if self.list['Seq'][0].shortName() != self.info['StartFrom']: self.list['Seq'] = self.list['Seq'][1:]
                 else: self.info['StartFrom'] = ''
-            #x#open('igopher.ini','w').write(string.join(self.cmd_list+['i=-1','v=-1'],'\n'))
+            #x#open('igopher.ini','w').write(rje.join(self.cmd_list+['i=-1','v=-1'],'\n'))
             self.runJobs()
             return True        
         except SystemExit: raise    # Child
@@ -921,7 +922,7 @@ class iGopher(IRIDIS):  ### Farms a GOPHER run out over hosts
                     else: self.printLog('#END','Job on processor %d ended: GOPHER already complete' % host_id)
                     os.unlink(jdict['Log'])
                     os.system('rm %s*' % jdict['Qry'])
-                elif 'PID' in jdict and string.split('%s' % jdict['PID'])[0] == 'WAIT': pass
+                elif 'PID' in jdict and rje.split('%s' % jdict['PID'])[0] == 'WAIT': pass
                 else: self.printLog('#END','Job on processor %d ended.' % host_id)
         except IOError:
             if self.stat['IOError'] == 1: self.errorLog('iGOPHER.endJob IOError limit reached'); raise
@@ -1033,7 +1034,7 @@ class iUniFake(IRIDIS):  ### Farms a UniFake run out over hosts
                     else: self.printLog('#END','Job on processor %d ended: GOPHER already complete' % host_id)
                     os.unlink(jdict['Log'])
                     os.system('rm %s*' % jdict['Qry'])
-                elif 'PID' in jdict and string.split('%s' % jdict['PID'])[0] == 'WAIT': pass
+                elif 'PID' in jdict and rje.split('%s' % jdict['PID'])[0] == 'WAIT': pass
                 else: self.printLog('#END','Job on processor %d ended.' % host_id)
             ### ~ [2] ~ Cleanup TMHMM Crap ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
                 self.stat['Counter'] += 1
@@ -1094,13 +1095,12 @@ class iUniFake(IRIDIS):  ### Farms a UniFake run out over hosts
 #########################################################################################################################
 def runMain():
     ### ~ [1] ~ Basic Setup of Program  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-    try: [info,out,mainlog,cmd_list] = setupProgram()
-    except SystemExit: return  
-    except:
-        print 'Unexpected error during program setup:', sys.exc_info()[0]
-        return 
+    try: (info,out,mainlog,cmd_list) = setupProgram()
+    except SystemExit: return
+    except: rje.printf('Unexpected error during program setup:', sys.exc_info()[0]); return
+
     ### ~ [2] ~ Rest of Functionality... ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-    try:IRIDIS(mainlog,cmd_list).iridisRun()
+    try: IRIDIS(mainlog,cmd_list).iridisRun()
     ### ~ [3] ~ End ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     except SystemExit: os._exit(0)  # Fork exit etc.
     except KeyboardInterrupt: mainlog.errorLog('User terminated.')
@@ -1109,7 +1109,7 @@ def runMain():
 #########################################################################################################################
 if __name__ == "__main__":      ### Call runMain 
     try: runMain()
-    except: print 'Cataclysmic run error:', sys.exc_info()[0]
+    except: rje.printf('Cataclysmic run error: {0}'.format(sys.exc_info()[0]))
     sys.exit()
 #########################################################################################################################
 ### END OF SECTION IV                                                                                                   #

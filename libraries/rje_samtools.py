@@ -19,8 +19,8 @@
 """
 Module:       rje_samtools
 Description:  RJE SAMtools parser and processor
-Version:      1.21.0
-Last Edit:    24/03/21
+Version:      1.21.1
+Last Edit:    29/04/22
 Copyright (C) 2013  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -213,6 +213,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 1.20.2 - Fixed readlen coverage bug and acut bug.
     # 1.20.3 - Fixed RLen bug.
     # 1.21.0 - Added readnames=T/F : Output the read names to the RID file (SAM parsing only) [False]
+    # 1.21.1 - Fixed bug that is over-writing clip5 with clip3. Fixed readnames=T.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -261,7 +262,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copyyear) = ('rje_samtools', '1.21.0', 'March 2021', '2013')
+    (program, version, last_edit, copyyear) = ('rje_samtools', '1.21.1', 'April 2022', '2013')
     description = 'RJE SAMtools parser and processor'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_zen.Zen().wisdom()]
@@ -273,11 +274,11 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         if not info: info = makeInfo()
         if not out: out = rje.Out()
         ### ~ [2] ~ Look for help commands and print options if found ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-        helpx = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
-        if helpx > 0:
-            print '\n\nHelp for %s %s: %s\n' % (info.program, info.version, time.asctime(time.localtime(info.start_time)))
+        cmd_help = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
+        if cmd_help > 0:
+            rje.printf('\n\nHelp for {0} {1}: {2}\n'.format(info.program, info.version, time.asctime(time.localtime(info.start_time))))
             out.verbose(-1,4,text=__doc__)
-            if rje.yesNo('Show general commandline options?'): out.verbose(-1,4,text=rje.__doc__)
+            if rje.yesNo('Show general commandline options?',default='N'): out.verbose(-1,4,text=rje.__doc__)
             if rje.yesNo('Quit?'): sys.exit()           # Option to quit after help
             cmd_list += rje.inputCmds(out,cmd_list)     # Add extra commands interactively.
         elif out.stat['Interactive'] > 1: cmd_list += rje.inputCmds(out,cmd_list)    # Ask for more commands
@@ -285,7 +286,7 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         return cmd_list
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Major Problem with cmdHelp()'
+    except: rje.printf('Major Problem with cmdHelp()')
 #########################################################################################################################
 def setupProgram(): ### Basic Setup of Program when called from commandline.
     '''
@@ -296,16 +297,19 @@ def setupProgram(): ### Basic Setup of Program when called from commandline.
     '''
     try:### ~ [1] ~ Initial Command Setup & Info ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         info = makeInfo()                                   # Sets up Info object with program details
+        if len(sys.argv) == 2 and sys.argv[1] in ['version','-version','--version']: rje.printf(info.version); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: rje.printf('%s v%s' % (info.program,info.version)); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['description','-description','--description']: rje.printf('%s: %s' % (info.program,info.description)); sys.exit(0)
         cmd_list = rje.getCmdList(sys.argv[1:],info=info)   # Reads arguments and load defaults from program.ini
         out = rje.Out(cmd_list=cmd_list)                    # Sets up Out object for controlling output to screen
-        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2 
+        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2
         out.printIntro(info)                                # Prints intro text using details from Info object
         cmd_list = cmdHelp(info,out,cmd_list)               # Shows commands (help) and/or adds commands from user
         log = rje.setLog(info,out,cmd_list)                 # Sets up Log object for controlling log file output
         return (info,out,log,cmd_list)                      # Returns objects for use in program
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Problem during initial setup.'; raise
+    except: rje.printf('Problem during initial setup.'); raise
 #########################################################################################################################
 ### END OF SECTION I                                                                                                    #
 #########################################################################################################################
@@ -388,7 +392,7 @@ class SAMtools(rje_obj.RJE_Object):
         ### ~ Basics ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         self.strlist = ['AltControl','AltTreatment','CheckPos','Control','ReadCheck','SNPTable','Treatment']
         self.boollist = ['Biallelic','Child','DepthPlot','ReadLen','RGraphics','IgnoreN','IgnoreRef','Indels','MajDif',
-                         'MajFocus','MajMut','MajRef','RID','SNPOnly','SNPFreq','SNPTableOut']
+                         'MajFocus','MajMut','MajRef','RID','SNPOnly','SNPFreq','SNPTableOut','ReadNames']
         self.intlist = ['AbsMinCut','CheckFlanks','DepthSmooth','DirnLen','MaxSoftClip','MinSoftClip','MinQN','PeakSmooth','QCut']
         self.numlist = ['FDRCut','FullCut','MinCut','MinFreq','SigCut']
         self.listlist = ['Batch','CheckFields','CheckFlanks','Labels','SkipLoci','SNPTabKeys','SNPTabMap']
@@ -425,7 +429,7 @@ class SAMtools(rje_obj.RJE_Object):
                 #self._cmdReadList(cmd,'path',['Att'])  # String representing directory path 
                 self._cmdReadList(cmd,'file',['AltControl','AltTreatment','CheckPos','Control','ReadCheck','SNPTable','Treatment'])  # String representing file path
                 self._cmdReadList(cmd,'bool',['Biallelic','DepthPlot','IgnoreN','IgnoreRef','Indels','MajDif','MajFocus',
-                                              'MajMut','MajRef','ReadLen','RGraphics','RID','SNPOnly','SNPTableOut'])  # True/False Booleans
+                                              'MajMut','MajRef','ReadLen','ReadNames','RGraphics','RID','SNPOnly','SNPTableOut'])  # True/False Booleans
                 self._cmdReadList(cmd,'int',['AbsMinCut','DepthSmooth','DirnLen','MaxSoftClip','MinSoftClip','MinReadLen','PeakSmooth','QCut','MinQN'])   # Integers
                 self._cmdReadList(cmd,'float',['FullCut','MinCut','FDRCut','MajCut','MinFreq','SigCut']) # Floats
                 #self._cmdReadList(cmd,'min',['Att'])   # Integer value part of min,max command
@@ -585,8 +589,8 @@ class SAMtools(rje_obj.RJE_Object):
                 if not entry: break
                 snpx += 1
                 alleles = {}
-                for aseq in string.split(entry['Seq'],'|'):
-                    [a,n] = string.split(aseq,':')
+                for aseq in rje.split(entry['Seq'],'|'):
+                    [a,n] = rje.split(aseq,':')
                     n = int(n)
                     #!# Add filtering criteria
                     #if self.getNum('PhaseCut') < 1.0:
@@ -648,17 +652,17 @@ class SAMtools(rje_obj.RJE_Object):
             for line in SAM:
                 ## ~ [2a] Parse pileup data into dictionary ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
                 if line.startswith('@'): continue
-                samdata = string.split(line)
+                samdata = rje.split(line)
                 if len(samdata) < 11: continue
                 self.progLog('\r#PARSE','Parsing %s: %s reads (+ %s unmapped)...' % (filename,rje.iStr(rid),rje.iStr(unmappedx)),rand=0.1)
                 cigstr = samdata[5]
                 if cigstr == '*': unmappedx += 1; continue
                 rid += 1
                 rname = samdata[0]
-                zdata = string.split(string.replace(rname,'/',' '))
+                zdata = rje.split(rje.replace(rname,'/',' '))
                 try:
                     [smrt,zmw,pos] = zdata[:3]
-                    [beg,end] = string.split(pos,'_')
+                    [beg,end] = rje.split(pos,'_')
                     rlen = int(end) - int(beg) + 1
                 except: rlen = 0
                 locus = samdata[2]
@@ -666,7 +670,7 @@ class SAMtools(rje_obj.RJE_Object):
                 clip5 = 0
                 if rje.matchExp('^(\d+)S',cigstr): clip5 = int(rje.matchExp('^(\d+)S',cigstr)[0])
                 clip3 = 0
-                if rje.matchExp('(\d+)S$',cigstr): clip5 = int(rje.matchExp('(\d+)S$',cigstr)[0])
+                if rje.matchExp('(\d+)S$',cigstr): clip3 = int(rje.matchExp('(\d+)S$',cigstr)[0])
                 mlen = len(samdata[9]) - clip5 - clip3
                 if len(samdata) > 22:
                     oldblasr = samdata[13].startswith('XS:i:')
@@ -754,7 +758,7 @@ class SAMtools(rje_obj.RJE_Object):
             # Currently this is based on unfiltered 'N' values.
             PILEUP = open(filename,'r'); px = 0; rx = 0
             for line in PILEUP:
-                data = string.split(rje.chomp(line))
+                data = rje.split(rje.chomp(line))
                 if not data: break
                 if data[0] in self.list['SkipLoci']:
                     self.progLog('\r#DEPTH','Skipping %s depth: %s pos; %s read bases' % (filename,rje.iStr(px),rje.iStr(rx)),rand=0.001)
@@ -932,12 +936,12 @@ class SAMtools(rje_obj.RJE_Object):
                 if len(aseq) == 1:
                     if self.getBool('IgnoreRef') or aseq[0][0] == entry['Ref']: return False         # Not a SNP
                 elif self.getBool('Biallelic') and len(aseq) > 2: return False     # Not a biallelic SNP
-            entry['Seq'] = string.join(aseq,'|')
+            entry['Seq'] = rje.join(aseq,'|')
             entry['RID'] = []
             akept.sort()
             for allele in akept:    #rje.sortKeys(allrid):
-                entry['RID'].append('%s:%s' % (allele,string.join(allrid[allele],',')))
-            entry['RID'] = string.join(entry['RID'],'|')
+                entry['RID'].append('%s:%s' % (allele,rje.join(allrid[allele],',')))
+            entry['RID'] = rje.join(entry['RID'],'|')
             if acheckx != entry['QN']:  #!# Convert these to test statements?
                 self.errorLog('Allele versus Quality count mismatch for %s Pos %s' % (entry['Locus'],entry['Pos']),printerror=False)
             self.deBug(entry)
@@ -954,7 +958,7 @@ class SAMtools(rje_obj.RJE_Object):
         >> qc:list [] = Optional QC score value counter. (**Updated in place**)
         '''
         try:### ~ [0] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            data = string.split(rje.chomp(line))
+            data = rje.split(rje.chomp(line))
             if not data: return False
             ### ~ [1] Extract Read Data ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             entry = {'Locus':data[0],'Pos':int(data[1]),'Ref':data[2].upper(),'N':int(data[3]),'QN':0}
@@ -990,7 +994,7 @@ class SAMtools(rje_obj.RJE_Object):
                             entry['Start'].append(ri)
                             #self.bugPrint('Read %d start @ %s:%s' % (ri,data[0],data[1]))
                     elif rseq[:1] in ['-','+']:
-                        ilen = string.atoi(rje.matchExp('^(\d+)',rseq[1:])[0])
+                        ilen = rje.atoi(rje.matchExp('^(\d+)',rseq[1:])[0])
                         indel = rseq[len('%s' % ilen)+1:][:ilen]    # Just the indel sequences
                         if rseq[:1] == '-':     # Deletion
                             if ri > -1:     # Otherwise will just trust the * characters in later lines.
@@ -1008,7 +1012,8 @@ class SAMtools(rje_obj.RJE_Object):
                             entry['End'].append(rid)
                             #self.deBug('Read %d end @ %s:%s' % (rid,data[0],data[1]))
                     else:
-                        if rseq[0].upper() not in 'ATGCN': print ' ???', rseq[0].upper(), '???'
+                        if rseq[0].upper() not in 'ATGCN':
+                            self.warnLog('Odd base: %s' % rseq[0].upper())
                         reads.append(rseq[0].upper()); rseq = rseq[1:]
                 except:
                     self.bugPrint(reads)
@@ -1124,7 +1129,7 @@ class SAMtools(rje_obj.RJE_Object):
                 line = 'Parsing'# Contents of last line
                 while line:
                     line = PILEUP.readline()
-                    data = string.split(rje.chomp(line))
+                    data = rje.split(rje.chomp(line))
                     if locus and (not data or data[0] != locus):    # Forking entry for previous locus
                         forkdict = {'File':filename,'Locus':locus,'Alt':alt,'FPos':fpos,'RIDStart':prex+1,'Pos':px-prep,
                                     'Out':'%s.%s.tdt' % (outbase[filename],locus),
@@ -1299,7 +1304,7 @@ class SAMtools(rje_obj.RJE_Object):
             while sposlist:
                 ## ~ [2a] Check next locus and end if move on ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
                 line = PILEUP.readline()
-                if line: nextlocus = string.split(line)[0]
+                if line: nextlocus = rje.split(line)[0]
                 else: nextlocus = None
                 if not nextlocus or nextlocus != slocus:   # Reached end of locus
                     if ridlist: self.warnLog('Reached end of locus %s but %s unfinished reads!' % (slocus,rje.iLen(ridlist)))
@@ -1400,11 +1405,11 @@ class SAMtools(rje_obj.RJE_Object):
             if alt: self.file['Control'] = open(self.getStr('AltControl'),'r')
             else: self.file['Control'] = open(self.getStr('Control'),'r')
             cfields = self.readDelimit('Control')
-            if not cfields == infields: raise ValueError('Control data field error! Expect: %s; Read: %s' % (string.join(infields),string.join(cfields)))
+            if not cfields == infields: raise ValueError('Control data field error! Expect: %s; Read: %s' % (rje.join(infields),rje.join(cfields)))
             if alt: self.file['Treatment'] = open(self.getStr('AltTreatment'),'r')
             else: self.file['Treatment'] = open(self.getStr('Treatment'),'r')
             tfields = self.readDelimit('Treatment')
-            if not tfields == infields: raise ValueError('Treatment data field error! Expect: %s; Read: %s' % (string.join(infields),string.join(tfields)))
+            if not tfields == infields: raise ValueError('Treatment data field error! Expect: %s; Read: %s' % (rje.join(infields),rje.join(tfields)))
             OUTFILE = open(outfile,'w')
             rje.writeDelimit(OUTFILE,outlist=outfields,delimit='\t')
 
@@ -1433,7 +1438,7 @@ class SAMtools(rje_obj.RJE_Object):
                         self.warnLog('No %s reads in %s!' % (locus,self.getStr('Treatment')))
                         while cdata and cdata[0] == locus: cdata = self.readDelimit('Control'); cx += 1
                         continue
-                    tdata = string.split(tline); tx += 1
+                    tdata = rje.split(tline); tx += 1
                     #self.bugPrint('TData: %s' % tdata)
                     #?# Why is the next readDelimit the same?!
                     #self.deBug(self.readDelimit('Treatment'))
@@ -1495,8 +1500,8 @@ class SAMtools(rje_obj.RJE_Object):
                         continue
                 #i# If no SNPDB, build completely from data
                 elif not self.getBool('IgnoreRef'): alleles[refseq] = 0
-                for allele in string.split('%s|%s' % (cdict['Seq'],tdict['Seq']),'|'):
-                    adata = string.split(allele,':')
+                for allele in rje.split('%s|%s' % (cdict['Seq'],tdict['Seq']),'|'):
+                    adata = rje.split(allele,':')
                     if self.getBool('IgnoreN') and adata[0] == 'N': continue    # Skip N alleles
                     ax = int(adata[1])
                     if adata[0] not in alleles:
@@ -1533,28 +1538,28 @@ class SAMtools(rje_obj.RJE_Object):
                 sx += 1
                 # Basic Output data with new allele frequencies
                 #!# Need to fix this for depth! (Make more versatile)
-                major = string.split(tdict['Seq'],':')[0]
+                major = rje.split(tdict['Seq'],':')[0]
                 cfreq = 0.0; ctot = 0
                 #odata = cdata[:-1] + [0,[]] # Add AN and Allele data
                 odata = rje.dict2list(cdict,['Locus','Pos','Ref','N','Dep','QN'])
                 odata += [0,[]] # Add AN and Allele data
-                for callele in string.split(cdict['Seq'],'|'):
-                    if string.split(callele,':')[0] in alleles:
+                for callele in rje.split(cdict['Seq'],'|'):
+                    if rje.split(callele,':')[0] in alleles:
                         odata[-1].append(callele)
-                        ctot += int(string.split(callele,':')[1])
-                        if string.split(callele,':')[0] == major: cfreq += int(string.split(callele,':')[1])
-                odata[-1] = string.join(odata[-1],'|') # Revised alleles
+                        ctot += int(rje.split(callele,':')[1])
+                        if rje.split(callele,':')[0] == major: cfreq += int(rje.split(callele,':')[1])
+                odata[-1] = rje.join(odata[-1],'|') # Revised alleles
                 odata[-2] = ctot    # AN
                 tfreq = 0.0; ttot = 0
                 #odata += tdata[-3:-1] + [0,[]]
                 odata += rje.dict2list(tdict,['N','Dep','QN'])
                 odata += [0,[]]   # Add AN and Allele data
-                for tallele in string.split(tdict['Seq'],'|'):
-                    if string.split(tallele,':')[0] in alleles:
+                for tallele in rje.split(tdict['Seq'],'|'):
+                    if rje.split(tallele,':')[0] in alleles:
                         odata[-1].append(tallele)
-                        ttot += int(string.split(tallele,':')[1])
-                        if string.split(tallele,':')[0] == major: tfreq += int(string.split(tallele,':')[1])
-                odata[-1] = string.join(odata[-1],'|')
+                        ttot += int(rje.split(tallele,':')[1])
+                        if rje.split(tallele,':')[0] == major: tfreq += int(rje.split(tallele,':')[1])
+                odata[-1] = rje.join(odata[-1],'|')
                 odata[-2] = ttot
                 # Allele frequencies
                 if not ctot:
@@ -1601,12 +1606,12 @@ class SAMtools(rje_obj.RJE_Object):
             if self.getBool('MajMut'):
                 mx = 0
                 for entry in snpdb.entries():
-                    if string.split(entry['Seq|%s' % tlabel],':')[0] == entry['Ref']: snpdb.dropEntry(entry); mx += 1
+                    if rje.split(entry['Seq|%s' % tlabel],':')[0] == entry['Ref']: snpdb.dropEntry(entry); mx += 1
                 self.printLog('#DROP','Dropped %s entries with Major %s allele matching Ref' % (rje.iStr(mx),tlabel))
             elif self.getBool('MajRef'):
                 mx = 0
                 for entry in snpdb.entries():
-                    if string.split(entry['Seq|%s' % tlabel],':')[0] != entry['Ref']: snpdb.dropEntry(entry); mx += 1
+                    if rje.split(entry['Seq|%s' % tlabel],':')[0] != entry['Ref']: snpdb.dropEntry(entry); mx += 1
                 self.printLog('#DROP','Dropped %s entries with Major %s allele NOT matching Ref' % (rje.iStr(mx),tlabel))
             ### ~ [2] Calculate FDR ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             fdrx = snpdb.entryNum()     # Total for FDR correction.
@@ -1626,7 +1631,7 @@ class SAMtools(rje_obj.RJE_Object):
             if self.getBool('MajDif'):
                 mx = 0
                 for entry in snpdb.entries():
-                    if string.split(entry['Seq|%s' % tlabel],':')[0] == string.split(entry['Seq|%s' % clabel],':')[0]: snpdb.dropEntry(entry); mx += 1
+                    if rje.split(entry['Seq|%s' % tlabel],':')[0] == rje.split(entry['Seq|%s' % clabel],':')[0]: snpdb.dropEntry(entry); mx += 1
                 self.printLog('#DROP','Dropped %s entries with Major %s allele matching %s' % (rje.iStr(mx),tlabel,clabel))
             snpdb.dropEntries(['MajFreq<%s' % self.getNum('MajCut')],inverse=False,logtxt='MajFreq < majcut=%s' % self.getNum('MajCut'))
             snpdb.dropEntries(['MajDiff<0'],inverse=False,logtxt='%s > %s' % (tlabel,clabel))
@@ -1649,7 +1654,7 @@ class SAMtools(rje_obj.RJE_Object):
             for field in ['Pos','Locus']:
                 if field in snpkeys: snpkeys.remove(field)
                 snpkeys.insert(0,field)
-            self.printLog('#KEYS','Loading %s with keys: %s' % (snptable,string.join(snpkeys,'; ')))
+            self.printLog('#KEYS','Loading %s with keys: %s' % (snptable,rje.join(snpkeys,'; ')))
             ### ~ [1] Load SNP Table ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             snpdb = self.db().addTable(snptable,name=name,expect=True,mainkeys=snpkeys)
             ## ~ [1a] Reformat data ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
@@ -1709,7 +1714,7 @@ class SAMtools(rje_obj.RJE_Object):
             fdb.remakeKeys()   #!# Delete once tuple thing OK
             fdbkeys = fdb.dataKeys()
             if len(self.list['SNPTabMap']) > 2:
-                self.warnLog('#SNPMAP','SNPTabMap %s reduced to %s.' % (string.join(self.list['SNPTabMap'],','),string.join(self.list['SNPTabMap'][:2],',')))
+                self.warnLog('#SNPMAP','SNPTabMap %s reduced to %s.' % (rje.join(self.list['SNPTabMap'],','),rje.join(self.list['SNPTabMap'][:2],',')))
                 self.list['SNPTabMap'] = self.list['SNPTabMap'][:2]
             elif not self.list['SNPTabMap']: self.list['SNPTabMap'] = ['Locus','Pos']
             elif len(self.list['SNPTabMap']) == 1:
@@ -1834,11 +1839,11 @@ class SAMtools(rje_obj.RJE_Object):
                     except: self.warnLog('Cannot RevComp "%s"' % altentry['Ref'])
                     for ct in [clabel,tlabel]:
                         revcompalleles = []
-                        for allele in string.split(altentry['Seq|%s' % ct],'|'):
-                            [nt,ntx] = string.split(allele,':')
+                        for allele in rje.split(altentry['Seq|%s' % ct],'|'):
+                            [nt,ntx] = rje.split(allele,':')
                             nt = rje_sequence.reverseComplement(nt)
-                            revcompalleles.append(string.join([nt,ntx],':'))
-                        altentry['Seq|%s' % ct] = string.join(revcompalleles,'|')
+                            revcompalleles.append(rje.join([nt,ntx],':'))
+                        altentry['Seq|%s' % ct] = rje.join(revcompalleles,'|')
                     revx += 1
                 elif entry['ALT'] == '-': continue
                 elif altentry['Ref'] != entry['ALT']: self.warnLog('Alt Sequence mismatch: %s' % entry)
@@ -1849,8 +1854,8 @@ class SAMtools(rje_obj.RJE_Object):
                     asort = []  # List of tuples for sorting
                     mutallele = None
                     refallele = None
-                    for aseq in string.split(refentry['Seq|%s' % ct],'|') + string.split(altentry['Seq|%s' % ct],'|'):
-                        adata = string.split(aseq,':')  # Allele:count
+                    for aseq in rje.split(refentry['Seq|%s' % ct],'|') + rje.split(altentry['Seq|%s' % ct],'|'):
+                        adata = rje.split(aseq,':')  # Allele:count
                         asort.append((int(adata[1]),adata[0]))
                         if adata[0] == entry['Alt']: mutallele = asort[-1]
                         if adata[0] == entry['Ref']: refallele = asort[-1]
@@ -1877,11 +1882,11 @@ class SAMtools(rje_obj.RJE_Object):
                         acount += asort[i][0]
                         alleles[asort[i][1]] = asort[i][0]
                         aseq.append('%s:%d' % (asort[i][1],asort[i][0]))
-                    entry['Seq|%s' % ct] = string.join(aseq,'|')
+                    entry['Seq|%s' % ct] = rje.join(aseq,'|')
                     entry['AN|%s' % ct] = acount
                     # Calculate 'MajFreq','MajDiff','MajProb'
                     # The Major Allele is the main one present in the Treatment group!
-                    major = string.split(entry['Seq|%s' % tlabel],':')[0]
+                    major = rje.split(entry['Seq|%s' % tlabel],':')[0]
                     if ct == clabel:
                         cfreq = 0.0
                         if major in alleles: cfreq = float(alleles[major])/acount
@@ -1930,11 +1935,11 @@ class SAMtools(rje_obj.RJE_Object):
                 npos += len(self.dict['RefSeq'][locus]) - self.dict['RefSeq'][locus].count('?')
             ### ~ [1] Parse out stats ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             SAMSIG = open('%s.pdiff.tdt' % self.baseFile(),'r')
-            headers = string.split(SAMSIG.readline()) + ['p.FDR']
+            headers = rje.split(SAMSIG.readline()) + ['p.FDR']
             fpos = SAMSIG.tell(); fline = SAMSIG.readline(); px = 0
             while fline:
                 self.progLog('\r#SIG','Reading Pvalues: %s p <= 0.05...' % rje.iStr(px))
-                try: pval = float(string.split(fline)[-1])
+                try: pval = float(rje.split(fline)[-1])
                 except: break
                 if pval <= 0.05:
                     if pval not in sigpval: sigpval[pval] = []
@@ -2027,9 +2032,9 @@ class SAMtools(rje_obj.RJE_Object):
                 shared = rje.listIntersect(rdb.indexKeys('Locus'),cdb.indexKeys(locusfield))
                 if not shared:
                     self.warnLog('No overlapping Loci in RID file and CheckPos file. Will attempt AccNum conversion.')
-                    for entry in rdb.entries(): entry['Locus'] = string.split(entry['Locus'],'__')[-1]
+                    for entry in rdb.entries(): entry['Locus'] = rje.split(entry['Locus'],'__')[-1]
                     rdb.remakeKeys()
-                    for entry in cdb.entries(): entry[locusfield] = string.split(entry[locusfield],'__')[-1]
+                    for entry in cdb.entries(): entry[locusfield] = rje.split(entry[locusfield],'__')[-1]
                     cdb.remakeKeys()
                     shared = rje.listIntersect(rdb.indexKeys('Locus'),cdb.indexKeys(locusfield))
                 self.printLog('#LOCI','%s shared loci between RID and CheckPos files.' % rje.iLen(shared))
@@ -2065,7 +2070,7 @@ class SAMtools(rje_obj.RJE_Object):
                 covdb.addFields(['MinX','MaxX','MedianX','Coverage'])
                 rje.backup(self,depfile)
                 DEPFILE = open(depfile,'w')
-                DEPFILE.write('%s\n' % string.join(depfields,'\t'))
+                DEPFILE.write('%s\n' % rje.join(depfields,'\t'))
                 if readlen and dirfile: dirdb = db.addEmptyTable('dirnlenplot',['Locus','Pos','Len5','Len3'],['Locus','Pos'])
             minfiltx = 0
             for locus in rdb.indexKeys('Locus'):
@@ -2160,8 +2165,8 @@ class SAMtools(rje_obj.RJE_Object):
                     medlen = len(median)
                     #self.debug('%s >> %d' % (locus,medlen))
                     if medlen:
-                        if rje.isOdd(medlen): centry['MedianX'] = median[medlen/2]
-                        else: centry['MedianX'] = (median[medlen/2] + median[(medlen-1)/2]) / 2.0
+                        if rje.isOdd(medlen): centry['MedianX'] = median[int(medlen/2)]
+                        else: centry['MedianX'] = (median[int(medlen/2)] + median[int((medlen-1)/2)]) / 2.0
                     else: centry['MedianX'] = 0.0
                     peakx = maxsmooth
                     if peakx < 1: peakx *= centry['MedianX']
@@ -2228,7 +2233,7 @@ class SAMtools(rje_obj.RJE_Object):
                             while partpos[1] and partpos[1][0] <= pos: partx -= 1; partpos[1].pop(0)
                             posdata += [str(fullx),str(partx)]
                             #self.debug('%s: %s -> %s | %s -> %s' % (pos,fullpos[0][:10],fullpos[1][:10],partpos[0][:10],partpos[1][:10]))
-                        DEPFILE.write('%s\n' % string.join(posdata,'\t'))
+                        DEPFILE.write('%s\n' % rje.join(posdata,'\t'))
                 covdb.addEntry(centry)
             self.printLog('\r#COV','Calculating %s coverage: complete (%d of %d loci)' % (readdesc,lx,ltot))
             if self.getInt('MinReadLen') > 0: self.printLog('#MINLEN','%s reads filtered (< %s bp)' % (rje.iStr(minfiltx),rje.iStr(self.getInt('MinReadLen'))))
@@ -2276,7 +2281,7 @@ class SAMtools(rje_obj.RJE_Object):
             if rtype == 'snpfreq':
                 rcmd += ' freqpath=./ freqcomp=%s multiplot=T' % basename
                 snapbase = self.getStr('SNPTable') # *.snpmap.tdt
-                snapbase = string.join(string.split(snapbase,'.')[:-2],'.')
+                snapbase = rje.join(rje.split(snapbase,'.')[:-2],'.')
                 rcmd += ' snapbase=%s' % snapbase
             if rargs: rcmd += ' %s' % rargs
             rcmd += ' "rdir=%s"' % rdir
@@ -2349,8 +2354,8 @@ def runMain():
     ### ~ [1] ~ Basic Setup of Program  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try: (info,out,mainlog,cmd_list) = setupProgram()
     except SystemExit: return  
-    except: print 'Unexpected error during program setup:', sys.exc_info()[0]; return
-    
+    except: rje.printf('Unexpected error during program setup:', sys.exc_info()[0]); return
+
     ### ~ [2] ~ Rest of Functionality... ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try: SAMtools(mainlog,cmd_list).run()
 
@@ -2362,7 +2367,7 @@ def runMain():
 #########################################################################################################################
 if __name__ == "__main__":      ### Call runMain 
     try: runMain()
-    except: print 'Cataclysmic run error:', sys.exc_info()[0]
+    except: rje.printf('Cataclysmic run error: {0}'.format(sys.exc_info()[0]))
     sys.exit()
 #########################################################################################################################
 ### END OF SECTION IV                                                                                                   #

@@ -349,18 +349,18 @@ class PamCtrl(rje.RJE_Object):
             wlines = self.loadFromFile(self.info['AltPam'])
             if not wlines:
                 raise IOError
-            aas = string.split(wlines[0].upper())
-            codes = string.split(wlines[1])
-            rawfreqs = string.split(wlines[2])
+            aas = rje.split(wlines[0].upper())
+            codes = rje.split(wlines[1])
+            rawfreqs = rje.split(wlines[2])
             freq = {}
             for i in range(len(rawfreqs)):
-                freq[aas[i]] = string.atof(rawfreqs[i])
+                freq[aas[i]] = rje.atof(rawfreqs[i])
             prob = {}
             for r in range(3,22):
-                subs = string.split(wlines[r])
+                subs = rje.split(wlines[r])
                 for i in range(len(subs)):
-                    prob['%s%s' % (aas[i],aas[r-2])] = string.atof(subs[i])
-                    prob['%s%s' % (aas[r-2],aas[i])] = string.atof(subs[i])
+                    prob['%s%s' % (aas[i],aas[r-2])] = rje.atof(subs[i])
+                    prob['%s%s' % (aas[r-2],aas[i])] = rje.atof(subs[i])
 
             ### Alternative freqs ###
             if self.info['SeqIn'].lower() not in ['','none'] and os.path.exists(self.info['SeqIn']):
@@ -374,7 +374,7 @@ class PamCtrl(rje.RJE_Object):
                     if line[:1] == '>':
                         continue
                     for a in aas:
-                        freq[a] += string.count(line.upper(),a)
+                        freq[a] += rje.count(line.upper(),a)
                 ## Convert to freq ##
                 total = sum(freq.values())
                 if total > 0:

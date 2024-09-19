@@ -19,8 +19,8 @@
 """
 Module:       rje_kat
 Description:  KAT wrapper and parser
-Version:      0.1.0
-Last Edit:    27/09/21
+Version:      0.2.0
+Last Edit:    12/09/24
 Copyright (C) 2021  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -48,6 +48,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     '''
     # 0.0.0 - Initial Compilation.
     # 0.1.0 - Fixed _setKatAttributes bug.
+    # 0.2.0 - Added altKat() function for comparing two assemblies. (For DepthKopy v1.6.0)
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -62,7 +63,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copy_right) = ('RJE_KAT', '0.0.0', 'September 2021', '2021')
+    (program, version, last_edit, copy_right) = ('RJE_KAT', '0.2.0', 'September 2024', '2021')
     description = 'KAT wrapper and parser'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_obj.zen()]
@@ -304,6 +305,25 @@ class KAT(rje_obj.RJE_Object):
             basefile = '{0}.self'.format(self.basefile())
             return self.katKmers(assembly=assembly,basefile=basefile,kmerfiles=[assembly],trim10x=False)
         except: self.errorLog('%s.selfKat error' % self.prog())
+#########################################################################################################################
+    def altKat(self,assembly=None,altassembly=None): ### Performs self KAT search
+        '''
+        Performs self KAT search.
+        >> assembly:str [None] = Assembly file. Will use self.getStr('SeqIn') if None
+        '''
+        try:### ~ [1] Assembly versus self ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            if not assembly: assembly = self.getStr('SeqIn')
+            if not altassembly: altassembly = self.getStr('KmerAlt')
+            basefile = self.baseFile(return_none=None)
+            if not basefile: self.baseFile(rje.baseFile(assembly, strip_path=True))
+            basefile = '{0}.alt'.format(self.basefile())
+            katfile = '{}.kat-stats.tsv'.format(basefile)
+            katcvg =  '{}.kat-counts.cvg'.format(basefile)
+            if altassembly == katcvg and rje.exists(altassembly): 
+                if rje.exists(katfile): return katfile
+                else: return False
+            return self.katKmers(assembly=assembly,basefile=basefile,kmerfiles=[altassembly],trim10x=False)
+        except: self.errorLog('%s.altKat error' % self.prog())
 #########################################################################################################################
     ### <4> ### KAT Parse Methods                                                                                       #
 #########################################################################################################################

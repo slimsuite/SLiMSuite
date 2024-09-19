@@ -74,7 +74,9 @@ Other modules needed: None
 #########################################################################################################################
 ### SECTION I: GENERAL SETUP & PROGRAM DETAILS                                                                          #
 #########################################################################################################################
-import copy, glob, os, string, sys, time, urllib2
+import copy, glob, os, string, sys, time
+try: import urllib2 as urllib2
+except: import urllib.request as urllib2
 import xml.sax
 sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)),'../libraries/'))
 sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)),'../tools/'))
@@ -104,47 +106,46 @@ def makeInfo():     ### Makes Info object
 #########################################################################################################################
 def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for more sys.argv commands
     '''Prints *.__doc__ and asks for more sys.argv commands.'''
-    try:
+    try:### ~ [1] ~ Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         if not info: info = makeInfo()
         if not out: out = rje.Out()
-        help = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
-        if help > 0:
-            print '\n\nHelp for %s %s: %s\n' % (info.program, info.version, time.asctime(time.localtime(info.start_time)))
+        ### ~ [2] ~ Look for help commands and print options if found ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+        cmd_help = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
+        if cmd_help > 0:
+            rje.printf('\n\nHelp for {0} {1}: {2}\n'.format(info.program, info.version, time.asctime(time.localtime(info.start_time))))
             out.verbose(-1,4,text=__doc__)
-            if rje.yesNo('Show general commandline options?'): out.verbose(-1,4,text=rje.__doc__)
-            if rje.yesNo('Quit?'): sys.exit()
-            cmd_list += rje.inputCmds(out,cmd_list)
+            if rje.yesNo('Show general commandline options?',default='N'): out.verbose(-1,4,text=rje.__doc__)
+            if rje.yesNo('Quit?'): sys.exit()           # Option to quit after help
+            cmd_list += rje.inputCmds(out,cmd_list)     # Add extra commands interactively.
         elif out.stat['Interactive'] > 1: cmd_list += rje.inputCmds(out,cmd_list)    # Ask for more commands
+        ### ~ [3] ~ Return commands ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         return cmd_list
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Major Problem with cmdHelp()'
+    except: rje.printf('Major Problem with cmdHelp()')
 #########################################################################################################################
-def setupProgram(): ### Basic Setup of Program
+def setupProgram(): ### Basic Setup of Program when called from commandline.
     '''
-    Basic setup of Program:
+    Basic Setup of Program when called from commandline:
     - Reads sys.argv and augments if appropriate
     - Makes Info, Out and Log objects
     - Returns [info,out,log,cmd_list]
     '''
-    try:
-        ### Initial Command Setup & Info ###
-        info = makeInfo()
-        cmd_list = rje.getCmdList(sys.argv[1:],info=info)      ### Load defaults from program.ini
-        ### Out object ###
-        out = rje.Out(cmd_list=cmd_list)
-        out.verbose(2,2,cmd_list,1)
-        out.printIntro(info)
-        ### Additional commands ###
-        cmd_list = cmdHelp(info,out,cmd_list)
-        ### Log ###
-        log = rje.setLog(info=info,out=out,cmd_list=cmd_list)
-        return [info,out,log,cmd_list]
+    try:### ~ [1] ~ Initial Command Setup & Info ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+        info = makeInfo()                                   # Sets up Info object with program details
+        if len(sys.argv) == 2 and sys.argv[1] in ['version','-version','--version']: rje.printf(info.version); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: rje.printf('%s v%s' % (info.program,info.version)); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['description','-description','--description']: rje.printf('%s: %s' % (info.program,info.description)); sys.exit(0)
+        cmd_list = rje.getCmdList(sys.argv[1:],info=info)   # Reads arguments and load defaults from program.ini
+        out = rje.Out(cmd_list=cmd_list)                    # Sets up Out object for controlling output to screen
+        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2
+        out.printIntro(info)                                # Prints intro text using details from Info object
+        cmd_list = cmdHelp(info,out,cmd_list)               # Shows commands (help) and/or adds commands from user
+        log = rje.setLog(info,out,cmd_list)                 # Sets up Log object for controlling log file output
+        return (info,out,log,cmd_list)                      # Returns objects for use in program
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except:
-        print 'Problem during initial setup.'
-        raise
+    except: rje.printf('Problem during initial setup.'); raise
 #########################################################################################################################
 ### END OF SECTION I                                                                                                    #
 #########################################################################################################################
@@ -242,7 +243,7 @@ class XML(rje.RJE_Object):
         except:
             self.log.errorLog('Error in XML.parseXML(%s)' % self.info['Name'],printerror=True,quitchoice=True)
             self.obj['Handler'].makeSchema()
-            print self.dict['Schema']
+            print( self.dict['Schema'])
             self.outputSchema()
             return None
 #########################################################################################################################
@@ -255,15 +256,15 @@ class XML(rje.RJE_Object):
             while intags:
                 tag = intags.pop(0)
                 for child in myxml.list['XML']:             #!# Should make a list! #!#
-                    print tag, child.info['Name'], '?'
+                    #print tag, child.info['Name'], '?'
                     if child.info['Name'] == tag:
                         myxml = child
                         break
                 if myxml.info['Name'] == tag: continue
-                self.log.errorLog('Cannot find "%s" object from %s' % (tag,string.join(taglist,' > ')),printerror=False)
-                print self.info
-                print self.list
-                print self.dict
+                self.log.errorLog('Cannot find "%s" object from %s' % (tag,rje.join(taglist,' > ')),printerror=False)
+                #print self.info
+                #print self.list
+                #print self.dict
                 return None
             return myxml
         except: self.log.errorLog('Problem with XML.getXML()')            
@@ -285,13 +286,13 @@ class XML(rje.RJE_Object):
 
         except:
             self.log.errorLog('Problem outputting schema')
-            print schema
+            print( schema)
 #########################################################################################################################
     def schedict(self,schema,filename,level,tag='xml'):
         children = schema['<>']
         atts = schema[':']
-        print '%s%s [%d] : %s' % ('|--' * level,tag,level,string.join(atts,','))
-        open(filename,'a').write('%s%s [%d] : %s\n' % ('|--' * level,tag,level,string.join(atts,',')))
+        print( '%s%s [%d] : %s' % ('|--' * level,tag,level,rje.join(atts,',')))
+        open(filename,'a').write('%s%s [%d] : %s\n' % ('|--' * level,tag,level,rje.join(atts,',')))
         for child in children: self.schedict(schema[child],filename,level+1,child)
 #########################################################################################################################
 ### End of SECTION II: XML Class                                                                                        #
@@ -330,7 +331,7 @@ class XMLHandler(xml.sax.ContentHandler):   ### Adapted from Python in a Nutshel
         schema = {'<>':[],':':[]}
         for slist in self.schemalist:
             sdict = schema
-            schjoin = string.join(slist,':')
+            schjoin = rje.join(slist,':')
             while slist:
                 tag = slist.pop(0)
                 if tag not in sdict['<>']: sdict['<>'].append(tag)
@@ -358,7 +359,7 @@ class XMLHandler(xml.sax.ContentHandler):   ### Adapted from Python in a Nutshel
         self.parsing.append(myxml)
         myxml.stat['Level'] = len(self.parsing)
         ### ~ [2] Update Attributes ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-        schjoin = string.join(myxml.list['ParentTags'],':')
+        schjoin = rje.join(myxml.list['ParentTags'],':')
         if schjoin not in self.schatts: self.schatts[schjoin] = []
         for q in attributes.getQNames():
             if q in self.xml.list['Attributes'] or not self.xml.list['Attributes']:   # Only add if wanted
@@ -382,8 +383,8 @@ class XMLHandler(xml.sax.ContentHandler):   ### Adapted from Python in a Nutshel
     def characters(self,data):  ### Process text content
         '''Process text content.'''
         myxml = self.parsing[-1]
-        content = string.join(string.split(data))
-        if content and myxml.info['Content']: myxml.info['Content'] = string.join([myxml.info['Content'],content],'\n')
+        content = rje.join(rje.split(data))
+        if content and myxml.info['Content']: myxml.info['Content'] = rje.join([myxml.info['Content'],content],'\n')
         elif content: myxml.info['Content'] = content
 #########################################################################################################################
 ### END OF SECTION III                                                                                                  #
@@ -396,11 +397,10 @@ class XMLHandler(xml.sax.ContentHandler):   ### Adapted from Python in a Nutshel
 #########################################################################################################################
 def runMain():
     ### ~ [1] ~ Basic Setup of Program  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-    try: [info,out,mainlog,cmd_list] = setupProgram()
-    except SystemExit: return  
-    except:
-        print 'Unexpected error during program setup:', sys.exc_info()[0]
-        return 
+    try: (info,out,mainlog,cmd_list) = setupProgram()
+    except SystemExit: return
+    except: rje.printf('Unexpected error during program setup:', sys.exc_info()[0]); return
+
     ### ~ [2] ~ Rest of Functionality... ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try: XML(mainlog,cmd_list).parseXML()
     ### ~ [3] ~ End ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -411,7 +411,7 @@ def runMain():
 #########################################################################################################################
 if __name__ == "__main__":      ### Call runMain 
     try: runMain()
-    except: print 'Cataclysmic run error:', sys.exc_info()[0]
+    except: rje.printf('Cataclysmic run error: {0}'.format(sys.exc_info()[0]))
     sys.exit()
 #########################################################################################################################
 ### END OF SECTION IV                                                                                                   #

@@ -99,9 +99,9 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         ### ~ [2] ~ Look for help commands and print options if found ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         cmd_help = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
         if cmd_help > 0:
-            print '\n\nHelp for %s %s: %s\n' % (info.program, info.version, time.asctime(time.localtime(info.start_time)))
+            rje.printf('\n\nHelp for {0} {1}: {2}\n'.format(info.program, info.version, time.asctime(time.localtime(info.start_time))))
             out.verbose(-1,4,text=__doc__)
-            if rje.yesNo('Show general commandline options?'): out.verbose(-1,4,text=rje.__doc__)
+            if rje.yesNo('Show general commandline options?',default='N'): out.verbose(-1,4,text=rje.__doc__)
             if rje.yesNo('Quit?'): sys.exit()           # Option to quit after help
             cmd_list += rje.inputCmds(out,cmd_list)     # Add extra commands interactively.
         elif out.stat['Interactive'] > 1: cmd_list += rje.inputCmds(out,cmd_list)    # Ask for more commands
@@ -109,7 +109,7 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         return cmd_list
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Major Problem with cmdHelp()'
+    except: rje.printf('Major Problem with cmdHelp()')
 #########################################################################################################################
 def setupProgram(): ### Basic Setup of Program when called from commandline.
     '''
@@ -120,16 +120,19 @@ def setupProgram(): ### Basic Setup of Program when called from commandline.
     '''
     try:### ~ [1] ~ Initial Command Setup & Info ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         info = makeInfo()                                   # Sets up Info object with program details
+        if len(sys.argv) == 2 and sys.argv[1] in ['version','-version','--version']: rje.printf(info.version); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: rje.printf('%s v%s' % (info.program,info.version)); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['description','-description','--description']: rje.printf('%s: %s' % (info.program,info.description)); sys.exit(0)
         cmd_list = rje.getCmdList(sys.argv[1:],info=info)   # Reads arguments and load defaults from program.ini
         out = rje.Out(cmd_list=cmd_list)                    # Sets up Out object for controlling output to screen
-        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2 
+        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2
         out.printIntro(info)                                # Prints intro text using details from Info object
         cmd_list = cmdHelp(info,out,cmd_list)               # Shows commands (help) and/or adds commands from user
         log = rje.setLog(info,out,cmd_list)                 # Sets up Log object for controlling log file output
         return (info,out,log,cmd_list)                      # Returns objects for use in program
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Problem during initial setup.'; raise
+    except: rje.printf('Problem during initial setup.'); raise
 #########################################################################################################################
 ### END OF SECTION I                                                                                                    #
 #########################################################################################################################
@@ -267,7 +270,7 @@ class MITAB(rje_obj.RJE_Object):
     def setup(self):    ### Main class setup method.
         '''Main class setup method.'''
         try:### ~ [1] Setup Objects ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            if not self.getStrLC('DBSource'): self.setStr({'DBSource':string.split(rje.stripPath(self.getStr('MITAB')),'.')[0]})
+            if not self.getStrLC('DBSource'): self.setStr({'DBSource':rje.split(rje.stripPath(self.getStr('MITAB')),'.')[0]})
             if not self.obj['DB']: self.obj['DB'] = rje_db.Database(self.log,self.cmd_list)
             pdb = self.db('pairwise',add=False)
             pfields = ['#','Hub','Spoke','HubUni','SpokeUni','HubTaxID','SpokeTaxID','Evidence','IType']
@@ -299,8 +302,8 @@ class MITAB(rje_obj.RJE_Object):
             for hfield in headers:
                 #self.bugPrint(hfield.upper())
                 for idfield in rje.sortUnique(self.list['IDField'])[0:]:
-                    idfield = string.replace(idfield.upper(),'(','\(')
-                    idfield = string.replace(idfield,')','\)')
+                    idfield = rje.replace(idfield.upper(),'(','\(')
+                    idfield = rje.replace(idfield,')','\)')
                     idmatch = rje.matchExp('^(%s\s?[AB])$' % idfield.upper(),hfield.upper())
                     if not idmatch: idmatch = rje.matchExp('^(%s\s?[AB]) \(\S+\)$' % idfield.upper(),hfield.upper())
                     if idmatch and hfield not in idfields:
@@ -418,15 +421,15 @@ class MITAB(rje_obj.RJE_Object):
                     ab = ifield[-1:].upper()
                     if ab == ')': ab = rje.matchExp('([AB]) \(\S+\)$',ifield.upper())[0]
                     # Split IDs on | then db:id vs self.list['MapDB']
-                    for pid in string.split(mline[headers[ifield]],'|'):
-                        try: (db,dbid) = string.split(pid,':',1)
+                    for pid in rje.split(mline[headers[ifield]],'|'):
+                        try: (db,dbid) = rje.split(pid,':',1)
                         except: continue
                         if db.lower() in ['uniprotkb'] and '(' in dbid: continue    # Only map uniprotkb accnum
-                        dbid = string.split(dbid,'(')[0]
-                        dbid = string.split(dbid,';')[0]
+                        dbid = rje.split(dbid,'(')[0]
+                        dbid = rje.split(dbid,';')[0]
                         if db.lower() in ['uniprotkb']:
                             svid = dbid
-                            dbid = string.split(svid,'-')[0]
+                            dbid = rje.split(svid,'-')[0]
                         if ab not in complexid:     # First identifier for A/B
                             if db.lower() in self.list['Complex']: complexid[ab] = pid; ids[ab].append(pid)
                             else: complexid[ab] = ''
@@ -498,28 +501,28 @@ class MITAB(rje_obj.RJE_Object):
                 #self.bugPrint(mline)
                 evidence = []
                 for tfield in self.list['MethodField']:
-                    #self.bugPrint(string.split(mline[headers[tfield]],'|'))
-                    for etype in string.split(mline[headers[tfield]],'|'):
+                    #self.bugPrint(rje.split(mline[headers[tfield]],'|'))
+                    for etype in rje.split(mline[headers[tfield]],'|'):
                         ematch = rje.matchExp('MI:\d+"?\((.+)\)',etype)
                         if ematch: evidence.append('%s:%s' % (dbsource,ematch[0]))
                 if not evidence: evidence.append('%s:unknown' % (self.getStr('DBSource')))
                 evidence = rje.sortUnique(evidence)
                 #self.debug(evidence)
-                entry['Evidence'] = string.join(evidence,'|')
+                entry['Evidence'] = rje.join(evidence,'|')
                 ## ~ [2d] Parse interaction types ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
                 itypes = []
                 for tfield in self.list['TypeField']:
-                    #self.bugPrint(string.split(mline[headers[tfield]],'|'))
-                    for etype in string.split(mline[headers[tfield]],'|'):
+                    #self.bugPrint(rje.split(mline[headers[tfield]],'|'))
+                    for etype in rje.split(mline[headers[tfield]],'|'):
                         ematch = rje.matchExp('MI:\d+"?\((.+)\)',etype)
                         if ematch: itypes.append(ematch[0])
                 if not itypes: itypes.append('unknown')
                 itypes = rje.sortUnique(itypes)
                 #self.debug(itypes)
-                entry['IType'] = string.join(itypes,'|')
+                entry['IType'] = rje.join(itypes,'|')
                 pdb.addEntry(entry); ex += 1
                 if self.dev() and entry['Hub'] in ['KLF3']:#,'WDR5']:
-                    self.printLog('#DEV',string.join(mline,'\t'))
+                    self.printLog('#DEV',rje.join(mline,'\t'))
                     #self.bugPrint(uni); self.debug(entry)
                 if self.getBool('Symmetry') and not complexid['A'] and not complexid['B']:
                     pdb.addEntry({'#':pdb.entryNum(),'Hub':entry['Spoke'],'Spoke':entry['Hub'],
@@ -533,7 +536,7 @@ class MITAB(rje_obj.RJE_Object):
                 baduni.sort()
                 accout = '%s.%s.unmapped.uniacc' % (self.baseFile(),dbsource)
                 self.warnLog('%s unmapped UniprotKB IDs used: output to %s.' % (rje.iLen(baduni),accout))
-                open(accout,'w').write(string.join(baduni,'\n'))
+                open(accout,'w').write(rje.join(baduni,'\n'))
 
             ### ~ [3] Convert complexes to pairwise PPIs ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if not complexidlist: return pdb
@@ -576,8 +579,8 @@ class MITAB(rje_obj.RJE_Object):
                     citypes.pop(cid)
                     rx += 1; continue
                 complexes[cid].sort()
-                #cevidence[cid] = string.join(rje.sortUnique(cevidence[cid]),'|')
-                #citypes[cid] = string.join(rje.sortUnique(citypes[cid]),'|')
+                #cevidence[cid] = rje.join(rje.sortUnique(cevidence[cid]),'|')
+                #citypes[cid] = rje.join(rje.sortUnique(citypes[cid]),'|')
                 cmax = max(cmax,len(complexes[cid]))
                 #px += (len(complexes[cid]) * (len(complexes[cid])-1))
                 members = complexes[cid][0:]
@@ -605,11 +608,11 @@ class MITAB(rje_obj.RJE_Object):
                     for cid in cppi[hub][spoke]:
                         evidence += cevidence[cid]
                         itypes += citypes[cid]
-                        ctypes += string.split(cid,':')[0]
-                    ctype = string.join(rje.sortUnique(ctypes),'|')
-                    evidence = string.join(rje.sortUnique(evidence),'|')
+                        ctypes += rje.split(cid,':')[0]
+                    ctype = rje.join(rje.sortUnique(ctypes),'|')
+                    evidence = rje.join(rje.sortUnique(evidence),'|')
                     if not evidence: evidence = '%s:%s' % (dbsource,ctype)
-                    itypes = string.join(rje.sortUnique(itypes),'|')
+                    itypes = rje.join(rje.sortUnique(itypes),'|')
                     if not itypes: itypes = ctype
                     #newentry = {'#':cix,'Spoke':spoke,'SpokeUni':xref.xref(spoke,self.getStr('UniField'),unique=True,usedict=True),'SpokeTaxID':ctaxa[spoke]}
                     newentry = {'#':cix,'Spoke':spoke,'SpokeUni':self.getUniXRef(spoke),'SpokeTaxID':ctaxa[spoke]}
@@ -658,8 +661,8 @@ def runMain():
     ### ~ [1] ~ Basic Setup of Program  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try: (info,out,mainlog,cmd_list) = setupProgram()
     except SystemExit: return  
-    except: print 'Unexpected error during program setup:', sys.exc_info()[0]; return
-    
+    except: rje.printf('Unexpected error during program setup:', sys.exc_info()[0]); return
+
     ### ~ [2] ~ Rest of Functionality... ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try: MITAB(mainlog,cmd_list).run()
 
@@ -671,7 +674,7 @@ def runMain():
 #########################################################################################################################
 if __name__ == "__main__":      ### Call runMain 
     try: runMain()
-    except: print 'Cataclysmic run error:', sys.exc_info()[0]
+    except: rje.printf('Cataclysmic run error: {0}'.format(sys.exc_info()[0]))
     sys.exit()
 #########################################################################################################################
 ### END OF SECTION IV                                                                                                   #

@@ -391,13 +391,13 @@ class SLiMCalc(rje.RJE_Object):
             if 'hyd' in calc: calcdict['hyd'] = rje_seq.eisenbergHydropathy(sequence,returnlist=True)
             ## ~ [1b] Disorder ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             if 'iup' in calc:
-                if Seq.list.has_key('IUPred'): calcdict['iup'] = Seq.list['IUPred'][0:]
+                if 'IUPred' in Seq.list: calcdict['iup'] = Seq.list['IUPred'][0:]
                 else:
                     self.obj['IUPred'].disorder(sequence=sequence,name=Seq.shortName())
                     calcdict['iup'] = self.obj['IUPred'].list['ResidueDisorder'][0:]
                     Seq.list['IUPred'] = self.obj['IUPred'].list['ResidueDisorder'][0:]
             if 'fold' in calc:
-                if Seq.list.has_key('FoldIndex'): calcdict['fold'] = Seq.list['FoldIndex'][0:]
+                if 'FoldIndex' in Seq.list: calcdict['fold'] = Seq.list['FoldIndex'][0:]
                 else:
                     self.obj['FoldIndex'].disorder(sequence=sequence,name=Seq.shortName())
                     calcdict['fold'] = self.obj['FoldIndex'].list['ResidueDisorder'][0:]
@@ -557,7 +557,7 @@ class SLiMCalc(rje.RJE_Object):
                     locid[seq] = float(igedic['ID'][0]) / igedic['Len'][0]
                     alnfrag[seq] = seq.info['Sequence'][start:end]
                     seqfrag[seq] = rje_seq.deGap(seq.info['Sequence'][start:end])
-                    if (len(seqfrag[seq]) >= 1 or self.opt['AlnGap']) and len(seqfrag[seq]) > string.count(seqfrag[seq].upper(),'X'):
+                    if (len(seqfrag[seq]) >= 1 or self.opt['AlnGap']) and len(seqfrag[seq]) > rje.count(seqfrag[seq].upper(),'X'):
                         for taxa in conseqs.keys():
                             if seq in conseqs[taxa]:
                                 hithom[taxa].append(seq)    # Seq only in hithom if right taxa and not all gap/X
@@ -634,7 +634,7 @@ class SLiMCalc(rje.RJE_Object):
                 else: vlist = [Occ['Variant']]                      # Search with matched variant
                 ## ~ [1b] Look for matching variants ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
                 for variant in vlist:
-                    searchvar = '(%s)' % string.replace(variant,'X','[A-Z]')
+                    searchvar = '(%s)' % rje.replace(variant,'X','[A-Z]')
                     if rje.matchExp(searchvar,seqfrag[seq]):
                         hitcon[seq] = 1.0
                         break
@@ -686,7 +686,7 @@ class SLiMCalc(rje.RJE_Object):
                     el = searchvar[:1]
                     searchvar = searchvar[1:]
                 if el not in ['(',')']:
-                    if not self.dict['ElementIC'].has_key(el): self.dict['ElementIC'][el] = rje_slim.elementIC(el)
+                    if el not in self.dict['ElementIC']: self.dict['ElementIC'][el] = rje_slim.elementIC(el)
                     infowt.append(self.dict['ElementIC'][el])
             infosum = sum(infowt)
             if len(infowt) != len(Occ['Match']):
@@ -723,7 +723,7 @@ class SLiMCalc(rje.RJE_Object):
                     el = searchvar[:1]
                     searchvar = searchvar[1:]
                 if el not in ['(',')']:
-                    if not self.dict['ElementIC'].has_key(el): self.dict['ElementIC'][el] = rje_slim.elementIC(el)
+                    if el not in self.dict['ElementIC']: self.dict['ElementIC'][el] = rje_slim.elementIC(el)
                     infowt.append(self.dict['ElementIC'][el])
             infosum = sum(infowt)
             ## ~ [1b] Setup VarList ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
@@ -788,8 +788,8 @@ class SLiMCalc(rje.RJE_Object):
         if aa in aalist: return 1.0
         best = 0.0
         for a in aalist:
-            if posmatrix.has_key('%s%s' % (aa,a)) and posmatrix['%s%s' % (aa,a)] > best: best = posmatrix['%s%s' % (aa,a)]
-            elif posmatrix.has_key('%s%s' % (a,aa)) and posmatrix['%s%s' % (a,aa)] > best: best = posmatrix['%s%s' % (a,aa)]
+            if '%s%s' % (aa,a) in posmatrix and posmatrix['%s%s' % (aa,a)] > best: best = posmatrix['%s%s' % (aa,a)]
+            elif '%s%s' % (a,aa) in posmatrix and posmatrix['%s%s' % (a,aa)] > best: best = posmatrix['%s%s' % (a,aa)]
         return best
 #########################################################################################################################
     def probCons(self,Occ,hithom,red_aln,seqwt,subdict):    ### Probabilistic conservation score.
@@ -970,16 +970,16 @@ class SLiMCalc(rje.RJE_Object):
 
             ### ~ [2] Assess whether hit is right! ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             #!# Can this be replaced with the rje_sequence method? #!#
-            amatch = string.replace(qry.info['Sequence'][start:end],'-','')
+            amatch = rje.replace(qry.info['Sequence'][start:end],'-','')
             #x#if amatch == qmatch: return (start,end)     # Everything is OK!
-            if re.search('^%s$' % string.replace(qmatch,'X','\S'),amatch): return (start,end) 
+            if re.search('^%s$' % rje.replace(qmatch,'X','\S'),amatch): return (start,end) 
             if fudge != 0: raise ValueError             # Problem: already fudging!
 
             ### ~ [3] Something is wrong! Try to find real match! ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             etxt = 'Alignment sequence (%s) does not match occurrence (%s)' % (amatch,qmatch)
             ## Try to find match by moving start (using fudge) ##
             if self.stat['Interactive'] < 1 or rje.yesNo('%s. Try to find closest correct match?' % etxt):
-                fudge = self.findFudge(string.replace(qry.info['Sequence'],'-',''),qmatch,Occ['Pos']-1)
+                fudge = self.findFudge(rje.replace(qry.info['Sequence'],'-',''),qmatch,Occ['Pos']-1)
                 if fudge:
                     if self.stat['Verbose'] > 0: self.warnLog('%s in alignment differs from input: Fudged %s by %d aa!' % (qry.shortName(),qmatch,fudge),'fudge')
                     else: self.warnLog('%s in alignment differs from input: Fudged %s by %d aa!' % (qry.shortName(),qmatch,fudge),'fudge',screen=False)
@@ -1000,7 +1000,7 @@ class SLiMCalc(rje.RJE_Object):
         << fudge:int = amount to move pos to find match in qryseq. 0 = not there!
         '''
         ### No match! ###
-        rmatch = string.replace(match,'X','\S')
+        rmatch = rje.replace(match,'X','\S')
         #x#if qryseq.find(match) < 0: return 0
         if not re.search(rmatch,qryseq): return 0
         f = 1
@@ -1113,10 +1113,10 @@ class SLiMCalc(rje.RJE_Object):
                     i += 1
                 aln.list['WinTuple'].append([max(0,start-wintuple),min(qry.seqLen(),end+wintuple),w])
                 aln.list['WinTuple'][-1].append(start-aln.list['WinTuple'][-1][0])
-            aln._addSeq('Motifs',string.join(motifseq,''))
+            aln._addSeq('Motifs',rje.join(motifseq,''))
             aln.seq = aln.seq[-1:] + aln.seq[:-1]
             if savefasta:
-                if qry.info.has_key(hitname): aln.saveFasta(seqfile='%s%s.proteinaln.fas' % (alndir,qry.info[hitname]),log=False)
+                if hitname in qry.info: aln.saveFasta(seqfile='%s%s.proteinaln.fas' % (alndir,qry.info[hitname]),log=False)
                 else: aln.saveFasta(seqfile='%s%s.proteinaln.fas' % (alndir,qry.shortName()),log=False)
             return aln
 
@@ -1313,14 +1313,14 @@ class SLiMCalc(rje.RJE_Object):
             ### ~ [2] ~ Read in BLOSUM matrix ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             aalist = blosum.pop(0)
             while aalist[0] == ' ': aalist = aalist[1:]
-            aalist = string.split(aalist)
+            aalist = rje.split(aalist)
             #x#self.deBug(aalist)
             for aa in aalist:
                 self.dict['BLOSUM'][aa] = {}
-                val = string.split(blosum.pop(0))
+                val = rje.split(blosum.pop(0))
                 if val[0] == '': val = val[1:]
                 #x#self.deBug('%s::%s' % (aa,val))
-                for j in range(len(aalist)): self.dict['BLOSUM'][aa][aalist[j]] = string.atof(val[j])
+                for j in range(len(aalist)): self.dict['BLOSUM'][aa][aalist[j]] = rje.atof(val[j])
             #self.deBug(self.dict['BLOSUM'])
         except:
             self.errorLog('Problem loading BLOSUM matrix "%s". Will not use VNE.' % self.info['VNEMatrix'])

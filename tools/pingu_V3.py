@@ -211,7 +211,7 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         if not out: out = rje.Out()
         help = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
         if help > 0:
-            print '\n\nHelp for %s %s: %s\n' % (info.program, info.version, time.asctime(time.localtime(info.start_time)))
+            rje.printf('\n\nHelp for {0} {1}: {2}\n'.format(info.program, info.version, time.asctime(time.localtime(info.start_time))))
             out.verbose(-1,4,text=__doc__)
             if rje.yesNo('Show GeneMap commandline options?'): out.verbose(-1,4,text=rje_genemap.__doc__)
             if rje.yesNo('Show BLAST commandline options (for GABLAM)?'): out.verbose(-1,4,text=gablam.__doc__)
@@ -222,36 +222,30 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         return cmd_list
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Major Problem with cmdHelp()'
+    except: rje.printf('Major Problem with cmdHelp()')
 #########################################################################################################################
-def setupProgram(): ### Basic Setup of Program
+def setupProgram(): ### Basic Setup of Program when called from commandline.
     '''
-    Basic setup of Program:
+    Basic Setup of Program when called from commandline:
     - Reads sys.argv and augments if appropriate
     - Makes Info, Out and Log objects
     - Returns [info,out,log,cmd_list]
     '''
-    try:
-        ### Initial Command Setup & Info ###
-        info = makeInfo()
+    try:### ~ [1] ~ Initial Command Setup & Info ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+        info = makeInfo()                                   # Sets up Info object with program details
         if len(sys.argv) == 2 and sys.argv[1] in ['version','-version','--version']: rje.printf(info.version); sys.exit(0)
         if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: rje.printf('{0} v{1}'.format(info.program,info.version)); sys.exit(0)
         if len(sys.argv) == 2 and sys.argv[1] in ['description','-description','--description']: rje.printf('%s: %s' % (info.program,info.description)); sys.exit(0)
-        cmd_list = rje.getCmdList(sys.argv[1:],info=info)      ### Load defaults from program.ini
-        ### Out object ###
-        out = rje.Out(cmd_list=cmd_list)
-        out.verbose(2,2,cmd_list,1)
-        out.printIntro(info)
-        ### Additional commands ###
-        cmd_list = cmdHelp(info,out,cmd_list)
-        ### Log ###
-        log = rje.setLog(info=info,out=out,cmd_list=cmd_list)
-        return [info,out,log,cmd_list]
+        cmd_list = rje.getCmdList(sys.argv[1:],info=info)   # Reads arguments and load defaults from program.ini
+        out = rje.Out(cmd_list=cmd_list)                    # Sets up Out object for controlling output to screen
+        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2
+        out.printIntro(info)                                # Prints intro text using details from Info object
+        cmd_list = cmdHelp(info,out,cmd_list)               # Shows commands (help) and/or adds commands from user
+        log = rje.setLog(info,out,cmd_list)                 # Sets up Log object for controlling log file output
+        return (info,out,log,cmd_list)                      # Returns objects for use in program
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except:
-        print 'Problem during initial setup.'
-        raise
+    except: rje.printf('Problem during initial setup.'); raise
 #########################################################################################################################
 ### END OF SECTION I                                                                                                    #
 #########################################################################################################################
@@ -428,8 +422,8 @@ class PINGU(rje.RJE_Object):
                                               'GOExcept'])
                 self._cmdReadList(cmd,'glist',['Data'])
             except: self.log.errorLog('Problem with cmd:%s' % cmd)
-        if self.list['PPIType']: self.list['PPIType'] = string.split(string.join(self.list['PPIType'],'|').lower(),'|')
-        if self.list['BadType']: self.list['BadType'] = string.split(string.join(self.list['BadType'],'|').lower(),'|')
+        if self.list['PPIType']: self.list['PPIType'] = rje.split(rje.join(self.list['PPIType'],'|').lower(),'|')
+        if self.list['BadType']: self.list['BadType'] = rje.split(rje.join(self.list['BadType'],'|').lower(),'|')
 #########################################################################################################################
     ### <2> ### Main Class Run Methods                                                                                  #
 #########################################################################################################################
@@ -571,7 +565,7 @@ class PINGU(rje.RJE_Object):
                 ix += len(idlist)
             ### ~ [3] Summarise Read Data ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             self.printLog('#DATA','%s: %s protein IDs read for %d samples' % (base,rje.integerString(ix),len(self.dict['Samples'])))
-            self.printLog('#SAMPLE','%d %s samples: %s.' % (len(self.dict['Samples']),base,string.join(rje.sortKeys(self.dict['Samples']),'; ')))
+            self.printLog('#SAMPLE','%d %s samples: %s.' % (len(self.dict['Samples']),base,rje.join(rje.sortKeys(self.dict['Samples']),'; ')))
         except: self.errorLog('Problem loading data from "%s"' % filename); raise
 #########################################################################################################################
     def addBaits(self): ### Adds PPI of baits as new samples (named after bait genes)
@@ -605,9 +599,9 @@ class PINGU(rje.RJE_Object):
         for ipi in ipidata:
             ## ~ [1a] ~ Parse line of IPI ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             self.progLog('\r#IPI','Mapping IPI: %.1f%%' % (ix/len(ipidata))); ix += 100.0
-            genelist = string.split(ipidata[ipi]['EnsG'],',')
+            genelist = rje.split(ipidata[ipi]['EnsG'],',')
             while '' in genelist: genelist.remove('')
-            hgnclist = string.split(ipidata[ipi]['Symbol'].upper(),',')     #!# Upper case GeneList #!#
+            hgnclist = rje.split(ipidata[ipi]['Symbol'].upper(),',')     #!# Upper case GeneList #!#
             while '' in hgnclist: hgnclist.remove('')
             ## ~ [1b] ~ Update GeneMap object ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             for gene in hgnclist + genelist: genemap.addAlias(gene,ipi)
@@ -650,10 +644,10 @@ class PINGU(rje.RJE_Object):
             self.obj['GeneMap'].dict['BestMap'] = {}
             ### ~ [2] ~ Add Aliases ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             for line in self.loadFromFile(self.info['AddAlias'],chomplines=True):
-                ids = string.split(line,' = ')
+                ids = rje.split(line,' = ')
                 if len(ids) < 2: continue
                 alias = ids[0]
-                for id in string.split(ids[1]): self.obj['GeneMap'].addAlias(id,alias)
+                for id in rje.split(ids[1]): self.obj['GeneMap'].addAlias(id,alias)
             self.printLog('#ALIAS','Added aliases from %s' % self.info['AddAlias'])
         except: self.errorLog('Pingu.addAlias error')
 #########################################################################################################################
@@ -701,7 +695,7 @@ class PINGU(rje.RJE_Object):
                     ## Check for duplicity ##
                     if gene not in self.dict['BackMap']: self.dict['BackMap'][gene] = [prot]
                     elif prot not in self.dict['BackMap'][gene]:
-                        self.printLog('\r#DUP','%s %s = Gene %s - already mapped to %s.' % (sample,prot,gene,string.join(self.dict['BackMap'][gene],', ')))
+                        self.printLog('\r#DUP','%s %s = Gene %s - already mapped to %s.' % (sample,prot,gene,rje.join(self.dict['BackMap'][gene],', ')))
                         self.dict['BackMap'][gene].append(prot)
                     ## Add to dataset ##
                     if gene not in self.list['Genes']: self.list['Genes'].append(gene)
@@ -711,7 +705,7 @@ class PINGU(rje.RJE_Object):
                 self.printLog('#SAMPLE','%s proteins from "%s" mapped onto %s genes.' % (len(self.dict['Samples'][sample]),sample,len(self.dict['Datasets'][sample])))
                 if self.opt['GeneLists'] or self.opt['FullOutput']:
                     gfile = '%s.%s.nrgenes.txt' % (self.info['Basefile'],sample)
-                    open(gfile,'w').write(string.join(self.dict['Datasets'][sample],'\n'))
+                    open(gfile,'w').write(rje.join(self.dict['Datasets'][sample],'\n'))
                     self.printLog('#GFILE','%d %s genes output to %s' % (len(self.dict['Datasets'][sample]),sample,gfile))
             self.list['Genes'].sort()
         except: self.errorLog('Pingu.makeNRGenes() Error')
@@ -778,7 +772,7 @@ class PINGU(rje.RJE_Object):
                     data = {'Gene':hgnc}    #,'GO_C':0,'GO_F':0,'GO_P':0,'GO_X':0}
                     rje.combineDict(data,self.obj['GeneMap'].getGeneData(hgnc),overwrite=False,replaceblanks=True)
                     if rje.dictValues(data,'EnsDesc',valtype='str'): data['Desc'] = data['EnsDesc']
-                    data['Aliases'] = string.join(rje.sortUnique(self.mapper().redundancy(hgnc)),',')
+                    data['Aliases'] = rje.join(rje.sortUnique(self.mapper().redundancy(hgnc)),',')
                     if self.dict['Families']:
                         data['Family'] = self.dict['FamMap'][hgnc]
                         if data['Family'] in self.dict['PPI']: data['PPI'] = len(self.dict['PPI'][data['Family']])
@@ -788,7 +782,7 @@ class PINGU(rje.RJE_Object):
                         peplist = []
                         for pep in self.dict['BackMap'][hgnc]:
                             if pep in self.dict['Samples'][sample]: peplist.append(pep)
-                        data[sample] = string.join(rje.sortUnique(peplist),',')
+                        data[sample] = rje.join(rje.sortUnique(peplist),',')
                     ## ~ [1c] ~ Output ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
                     rje.delimitedFileOutput(self,hfile,headers,datadict=data)
                 except: self.errorLog('SummaryHGNC Problem with gene "%s" (= "%s")' % (hgnc,self.geneMap(hgnc)))
@@ -816,7 +810,7 @@ class PINGU(rje.RJE_Object):
                 data = {'Protein':pept,'Gene':self.geneMap(pept),'Family':''}
                 data['Gene'] = self.geneMap(pept)
                 try:
-                    data['BackMap'] = string.join(self.dict['BackMap'][data['Gene']],',')
+                    data['BackMap'] = rje.join(self.dict['BackMap'][data['Gene']],',')
                     data['Redundancy'] = len(self.dict['BackMap'][data['Gene']])
                 except: data['Redundancy'] = 'N/A'
                 if data['Gene'] in self.dict['FamMap']: data['Family'] = self.dict['FamMap'][data['Gene']]
@@ -881,7 +875,7 @@ class PINGU(rje.RJE_Object):
             fmhead = ['Family','Genes','PPI']
             fmdata = {}
             for fam in rje.sortKeys(self.dict['Families']):
-                fmdata[fam] = {'Family':fam, 'Genes':string.join(self.dict['Families'][fam])}
+                fmdata[fam] = {'Family':fam, 'Genes':rje.join(self.dict['Families'][fam])}
                 if fam in self.dict['FamPPI']: fmdata[fam]['PPI'] = len(self.dict['FamPPI'][fam])
                 else: fmdata[fam]['PPI'] = 0
                 for sample in rje.sortKeys(self.dict['Samples']): fmdata[fam][sample] = []
@@ -892,7 +886,7 @@ class PINGU(rje.RJE_Object):
                 for gene in sgenes:
                     try: ppifam = self.dict['FamMap'][gene]
                     except:
-                        print self.dict['FamMap']
+                        print( self.dict['FamMap'])
                         self.deBug(gene)
                         self.deBug(rje.sortKeys(self.dict['FamMap']))
                         ppifam = gene
@@ -905,7 +899,7 @@ class PINGU(rje.RJE_Object):
             for fam in rje.sortKeys(self.dict['Families']):
                 for sample in rje.sortKeys(self.dict['Samples']):
                     fmdata[fam][sample].sort()
-                    fmdata[fam][sample] = string.join(fmdata[fam][sample])
+                    fmdata[fam][sample] = rje.join(fmdata[fam][sample])
                 rje.delimitedFileOutput(self,fmfile,fmhead,datadict=fmdata[fam])
             self.printLog('#FAM','Family-Gene mapping output to %s' % fmfile)
             fmfile = '%s.Families.tdt' % self.info['Basefile']
@@ -942,7 +936,7 @@ class PINGU(rje.RJE_Object):
                         self.dict['Datasets'][sample].remove(hub)
                         samples.append(sample)
                 if samples:
-                    self.printLog('\r#STICKY','Removed "sticky" hub gene "%s" from: %s' % (hub,string.join(samples,'; '))); rx += 1
+                    self.printLog('\r#STICKY','Removed "sticky" hub gene "%s" from: %s' % (hub,rje.join(samples,'; '))); rx += 1
                     if hub in self.list['Genes']: self.list['Genes'].remove(hub)
                     elif hub in self.dict['Families']:
                         for gene in self.dict['Families'].pop(hub): self.list['Genes'].remove(gene)
@@ -995,8 +989,8 @@ class PINGU(rje.RJE_Object):
             goexcept = self.list['GOExcept']
             ### ~ [2] ~ Output list of filtered genes ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             GFILE = open('%s.gofilter.txt' % self.info['Basefile'],'w')
-            GFILE.write('### GO Filter ###\n%s\n\n' % string.join(gofilter,'\n'))
-            if goexcept: GFILE.write('### GO Exceptions ###\n%s\n\n' % string.join(goexcept,'\n'))
+            GFILE.write('### GO Filter ###\n%s\n\n' % rje.join(gofilter,'\n'))
+            if goexcept: GFILE.write('### GO Exceptions ###\n%s\n\n' % rje.join(goexcept,'\n'))
             GFILE.write('### Filtered Genes ###\n')
             for gene in rje.sortKeys(filtered):
                 try: desc = self.obj['GeneMap'].getGeneData(gene)['Desc']
@@ -1073,7 +1067,7 @@ class PINGU(rje.RJE_Object):
         '''
         try:### ~ [1] ~ Setup dictionary ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             pgo = {}                # Dictionary of {GO ID:{Sample:Count}}
-            if not subset: subset = self.go().keys()
+            if not subset: subset = list(self.go().keys())
             for id in subset + ['n','bp','cc','mf']:
                 pgo[id] = {}
                 for sample in self.samples() + ['Pingu','EnsEMBL']: pgo[id][sample] = 0
@@ -1237,7 +1231,7 @@ class PINGU(rje.RJE_Object):
             self.progLog('\r#PPI','Processing %s: 0.00%%' % (self.info['AddPPI']))
             pdata = rje.dataDict(self,self.info['AddPPI'],['IDA','IDB','Evidence'],datakeys=['IDA','IDB','Evidence'])
             (px,ptot) = (0.0,len(pdata))
-            for pkey in pdata.keys()[0:]:
+            for pkey in list(pdata.keys())[0:]:
                 self.progLog('\r#PPI','Processing %s: %.2f%%' % (self.info['AddPPI'],(px/ptot))); px += 100.0
                 idata = pdata.pop(pkey)
                 p1 = self.geneMap(idata.pop('IDA'))
@@ -1250,7 +1244,7 @@ class PINGU(rje.RJE_Object):
                 if p2 not in self.dict['Evidence']: self.dict['Evidence'][p2] = {}
                 if p2 not in self.dict['Evidence'][p1]: self.dict['Evidence'][p1][p2] = []
                 if p1 not in self.dict['Evidence'][p2]:self.dict['Evidence'][p2][p1] = []
-                for type in string.split(idata['Evidence'],'|'):
+                for type in rje.split(idata['Evidence'],'|'):
                     if (db,type) not in self.dict['Evidence'][p1][p2]: self.dict['Evidence'][p1][p2].append((db,type))
                     if (db,type) not in self.dict['Evidence'][p2][p1]: self.dict['Evidence'][p2][p1].append((db,type))
             self.printLog('\r#PPI','Processing %s: %s hubs; %s PPI read.' % (self.info['AddPPI'],rje.integerString(len(self.dict['PPI'])),rje.integerString(ptot/2)))
@@ -1268,7 +1262,7 @@ class PINGU(rje.RJE_Object):
                 pdata = rje.dataDict(self,self.info['Pairwise'],['Hub','Spoke'],datakeys=['Hub','HubUni','Spoke','SpokePPI','SpokeUni','SpokeSeq','Evidence'],headers=['Hub','HubUni','Spoke','SpokePPI','SpokeUni','SpokeSeq','Evidence'])
             else: pdata = rje.dataDict(self,self.info['Pairwise'],['Hub','Spoke'],datakeys=['Hub','HubUni','Spoke','SpokeUni','SpokeSeq','Evidence'],headers=['Hub','HubUni','Spoke','SpokeUni','SpokeSeq','Evidence'])
             (px,ptot) = (0.0,len(pdata))
-            for pkey in pdata.keys()[0:]:
+            for pkey in list(pdata.keys())[0:]:
                 self.progLog('\r#PPI','Processing %s: %.2f%%' % (self.info['Pairwise'],(px/ptot))); px += 100.0
                 idata = pdata.pop(pkey)
                 p1 = idata.pop('Hub')
@@ -1281,9 +1275,9 @@ class PINGU(rje.RJE_Object):
                 if p2 not in self.dict['Evidence']: self.dict['Evidence'][p2] = {}
                 if p2 not in self.dict['Evidence'][p1]: self.dict['Evidence'][p1][p2] = []
                 if p1 not in self.dict['Evidence'][p2]:self.dict['Evidence'][p2][p1] = []
-                for evidence in string.split(idata['Evidence'],'|'):
+                for evidence in rje.split(idata['Evidence'],'|'):
                     try:
-                        [db,type] = string.split(evidence,':')
+                        [db,type] = rje.split(evidence,':')
                         if (db,type) not in self.dict['Evidence'][p1][p2]: self.dict['Evidence'][p1][p2].append((db,type))
                         if (db,type) not in self.dict['Evidence'][p2][p1]: self.dict['Evidence'][p2][p1].append((db,type))
                     except: self.errorLog('Problem with %s<->%s evidence "%s"' % (p1,p2,evidence))
@@ -1378,7 +1372,7 @@ class PINGU(rje.RJE_Object):
                 self.printLog('\r#SEQ','Mapping missing proteins to UniProt complete: %s missing' % (rje.integerString(len(missing))))
             if rejected:
                 rejfile = '%s.spec-rejected.txt' % self.info['Basefile']
-                open(rejfile,'w').write('%s\n' % string.join(rejected,'\n'))
+                open(rejfile,'w').write('%s\n' % rje.join(rejected,'\n'))
                 self.printLog('#SPEC','%s sequences rejected - not %s: see %s' % (rje.integerString(len(rejected)),species,rejfile))
 
             ### ~ [3] ~ Update TempData given new links from databases ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -1394,19 +1388,19 @@ class PINGU(rje.RJE_Object):
         try:### ~ [1] Get Evidence, join and return ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             elist = []
             if g1 in self.dict['Evidence'] and g2 in self.dict['Evidence'][g1]:
-                try: elist = string.split(self.dict['Evidence'][g1][g2],'|')
+                try: elist = rje.split(self.dict['Evidence'][g1][g2],'|')
                 except: elist = self.dict['Evidence'][g1][g2]
                 for ev in elist:
                     if ev not in elist: elist.append(ev)
             if g2 in self.dict['Evidence'] and g1 in self.dict['Evidence'][g2]:
-                try: elist = string.split(self.dict['Evidence'][g2][g1],'|')
+                try: elist = rje.split(self.dict['Evidence'][g2][g1],'|')
                 except: elist = self.dict['Evidence'][g2][g1]
                 for ev in elist:
                     if ev not in elist: elist.append(ev)
             ## ~ [1a] Convert if not already converted ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             for i in range(len(elist)):
-                if len(elist[i]) == 2: elist[i] = string.join(elist[i],':')
-            if elist: return string.join(elist,'|')
+                if len(elist[i]) == 2: elist[i] = rje.join(elist[i],':')
+            if elist: return rje.join(elist,'|')
             else: return 'Unknown'
         except KeyboardInterrupt: raise
         except SystemExit: raise
@@ -1419,8 +1413,8 @@ class PINGU(rje.RJE_Object):
             headers = ['Interaction_Type'] + rje.sortKeys(self.dict['PPIDB'])
             efile = '%s%s.evidence.tdt' % (self.info['ResDir'],self.info['Basefile'])
             edata = {}
-            if self.list['BadType']: self.list['BadType'] = string.split(string.join(self.list['BadType'],';').lower(),';')
-            if self.list['PPIType']: self.list['PPIType'] = string.split(string.join(self.list['PPIType'],';').lower(),';')
+            if self.list['BadType']: self.list['BadType'] = rje.split(rje.join(self.list['BadType'],';').lower(),';')
+            if self.list['PPIType']: self.list['PPIType'] = rje.split(rje.join(self.list['PPIType'],';').lower(),';')
             self.deBug('BadType: %s' % self.list['BadType'])
             self.deBug('PPIType: %s' % self.list['PPIType'])
             ## ~ [1a] ~ Load conversion data ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
@@ -1513,7 +1507,7 @@ class PINGU(rje.RJE_Object):
                 if g1: alias.append(g1)
                 alias += rje.getFromDict(dbdata[p1],'Alias',returnkey=False,case=False,default=[])
                 for id in alias:
-                    id = string.join(string.split(id,':'),'')
+                    id = rje.join(rje.split(id,':'),'')
                     kids = map.getKeyID(id)     # List of GeneMap IDs matching given alias
                     if kids: break              # Successful mappings of ID
                 ## ~ [1c] ~ Store linked IDs for later replacement, or add to missing ~~~~~~~~~~~~~ ##
@@ -1561,7 +1555,7 @@ class PINGU(rje.RJE_Object):
                 if p1 in unmapped and p1 not in missing: missing.append(p1)
                 ## ~ [1b] ~ Get gene for p1 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
                 if db in ['HPRD']: i1 = 'HPRD%s' % p1
-                else: i1 = string.join(string.split(p1,':'),'')
+                else: i1 = rje.join(rje.split(p1,':'),'')
                 ga = map.getKeyID(i1,restricted=False)               # ga is now a list of gene IDs
                 if not ga: ga = [self.geneMap(i1)]
                 ## ~ [1c] ~ Convert spokes ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
@@ -1570,7 +1564,7 @@ class PINGU(rje.RJE_Object):
                     if p2 in rejected: continue
                     if p2 in unmapped and p2 not in missing: missing.append(p2)
                     if db in ['HPRD']: i2 = 'HPRD%s' % p2
-                    else: i2 = string.join(string.split(p2,':'),'')
+                    else: i2 = rje.join(rje.split(p2,':'),'')
                     gb = map.getKeyID(i2,restricted=False)           # gb is now a list of gene IDs
                     if not gb: gb = [self.geneMap(i2)]
                     for g1 in ga:
@@ -1605,7 +1599,7 @@ class PINGU(rje.RJE_Object):
 
             ### ~ Output Missing ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             self.log.printLog('#MAP','%s IDs: %s missing' % (db,rje.integerString(len(missing))))
-            if missing: open('%s%s.%s.missing.txt' % (self.info['ResDir'],self.info['Basefile'],db),'w').write(string.join(missing,'\n'))
+            if missing: open('%s%s.%s.missing.txt' % (self.info['ResDir'],self.info['Basefile'],db),'w').write(rje.join(missing,'\n'))
 
         except:
             self.log.errorLog('Pingu.geneMapConvertPPI is stuffed!')
@@ -1654,7 +1648,7 @@ class PINGU(rje.RJE_Object):
                         if self.dict['Evidence'] and not new_evi[g1][g2]:
                             new_ppi[g1].remove(g2); ix -= 1
                             self.progLog('\r#PPI','Filtering PPI: %s genes -> %s PPI' % (rje.integerString(len(new_ppi)),rje.integerString(ix)))
-                        new_evi[g1][g2] = string.join(new_evi[g1][g2],'|')
+                        new_evi[g1][g2] = rje.join(new_evi[g1][g2],'|')
                     except: self.errorLog('Shiiiite: %s-%s="%s"' % (g1,g2,new_evi[g1][g2]))
             for g1 in new_ppi: new_ppi[g1].sort()
             self.dict['PPI'] = new_ppi
@@ -1671,7 +1665,7 @@ class PINGU(rje.RJE_Object):
             for g1 in rje.sortKeys(new_ppi):
                 if len(new_ppi[g1]) not in ppinum: ppinum[len(new_ppi[g1])] = []
                 ppinum[len(new_ppi[g1])].append(g1)
-                cdata = {'Gene':g1,'PPI':string.join(new_ppi[g1],','),'PPINum':len(new_ppi[g1])}
+                cdata = {'Gene':g1,'PPI':rje.join(new_ppi[g1],','),'PPINum':len(new_ppi[g1])}
                 try: cdata['EnsLoci'] = self.obj['GeneMap'].getGeneData(g1)['EnsLoci']
                 except: cdata['EnsLoci'] = '-'
                 rje.delimitedFileOutput(self,cfile,chead,datadict=cdata)
@@ -1881,9 +1875,9 @@ class PINGU(rje.RJE_Object):
                     ## ~ [2b] Bad evidence filter ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
                     goodspoke = False
                     if self.list['BadType']:
-                        evlist = string.split(evidence,'|')
+                        evlist = rje.split(evidence,'|')
                         for ev in evlist:
-                            if string.split(ev,':')[1] not in self.list['BadType']: goodspoke = True; break
+                            if rje.split(ev,':')[1] not in self.list['BadType']: goodspoke = True; break
                     if not goodspoke: continue
                     ## ~ [2c] Complex filtering ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
                     if not self.opt['NoComplex']: goodspoke = True     # GoodPPI only
@@ -2057,7 +2051,7 @@ class PINGU(rje.RJE_Object):
 
             ### ~ [2] Cut down Experiments ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             experiments = self.list['Experiments']
-            if string.join(experiments).lower() == 'all' and experiments[0] not in self.dict['Samples']:
+            if rje.join(experiments).lower() == 'all' and experiments[0] not in self.dict['Samples']:
                 experiments = rje.sortKeys(self.dict['Samples'])
             for sample in self.list['Experiments']:
                 if sample not in self.dict['Datasets']:
@@ -2136,14 +2130,14 @@ class PINGU(rje.RJE_Object):
                 targets[gene].remove(gene)
                 deadends[gene] = [gene]       
                 if gene in self.dict['PPI'] and gene in self.dict['PPI'][gene]:
-                    open(pfile,'a').write('%s\n' % string.join([gene,gene,'1',self.getEvidence(gene,gene)],'\t'))
+                    open(pfile,'a').write('%s\n' % rje.join([gene,gene,'1',self.getEvidence(gene,gene)],'\t'))
                 elif gene in self.dict['PPI']:
-                    open(pfile,'a').write('%s\n' % string.join([gene,gene,'0','Self'],'\t'))
+                    open(pfile,'a').write('%s\n' % rje.join([gene,gene,'0','Self'],'\t'))
             ## ~ [1c] ~ Account for no-PPI genes ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             ax = len(alltargets)
             for gene in alltargets[0:]:
                 if gene not in self.dict['PPI']:
-                    open(pfile,'a').write('%s\n' % string.join([gene,'N/A','N/A','NoPPI'],'\t'))
+                    open(pfile,'a').write('%s\n' % rje.join([gene,'N/A','N/A','NoPPI'],'\t'))
                     alltargets.remove(gene)
                     if gene in pathqry: pathqry.remove(gene)
                     if gene in targets: targets.pop(gene)
@@ -2157,20 +2151,20 @@ class PINGU(rje.RJE_Object):
                         for target in targets.pop(gene):
                             if target not in self.dict['PPI']: ev = 'NoHubPPI|NoSpokePPI'
                             else: ev = 'NoHubPPI'
-                            open(pfile,'a').write('%s\n' % string.join([gene,target,'-1',ev],'\t'))
+                            open(pfile,'a').write('%s\n' % rje.join([gene,target,'-1',ev],'\t'))
                     for qry in pathqry:
                         try: targets[qry].remove(gene)
                         except: self.errorLog('%s from %s - %s' % (gene,qry,targets))
                         if qry not in self.dict['PPI']: ev = 'NoHubPPI|NoSpokePPI'
                         else: ev = 'NoSpokePPI'
-                        open(pfile,'a').write('%s\n' % string.join([qry,gene,'-1',ev],'\t'))
+                        open(pfile,'a').write('%s\n' % rje.join([qry,gene,'-1',ev],'\t'))
             ## ~ [1d] ~ Create first-order links ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             for gene in pathqry:   #ppgenes:
                 for ppi in self.dict['PPI'][gene]:
                     linked[gene][ppi] = [ppi]
                     if gene in targets and ppi in targets[gene]:
                         path = '%s::%s' % (ppi,self.getEvidence(gene,ppi))
-                        open(pfile,'a').write('%s\n' % string.join([gene,ppi,'1',path],'\t'))
+                        open(pfile,'a').write('%s\n' % rje.join([gene,ppi,'1',path],'\t'))
                         targets[gene].remove(ppi)
                         if not targets[gene]: targets.pop(gene); linked.pop(gene)
 
@@ -2195,19 +2189,19 @@ class PINGU(rje.RJE_Object):
                         deadends[gene].append(linker)
                         ## ~ [2a] ~ Expand into PPIs of linker ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##                        
                         for ppi in self.dict['PPI'][linker]:
-                            if ppi not in linked[gene].keys() + deadends[gene]:  # Not looked at before
+                            if ppi not in list(linked[gene].keys()) + deadends[gene]:  # Not looked at before
                                 linked[gene][ppi] = linkpath + [ppi]
                                 if ppi in targets[gene]:
                                     path = [gene] + linked[gene][ppi]
                                     for i in range(len(path),0,-1)[1:]:
                                         if path[i] not in pathfinder + self.list['Genes']: pathfinder.append(path[i])
                                         path[i] = '%s::%s' % (path[i],self.getEvidence(path[i-1],path[i]))
-                                    path = string.join(path[1:],'|>>|')
-                                    open(pfile,'a').write('%s\n' % string.join([gene,ppi,'%d' % px,path],'\t'))
+                                    path = rje.join(path[1:],'|>>|')
+                                    open(pfile,'a').write('%s\n' % rje.join([gene,ppi,'%d' % px,path],'\t'))
                                     targets[gene].remove(ppi)
                                     if not targets[gene]: targets.pop(gene); linked.pop(gene); break
                     if gene in linked and not linked[gene]:    # Run out of places to go
-                        for target in targets[gene]: open(pfile,'a').write('%s\n' % string.join([gene,target,'-1','NoLinkage[%d]' % px],'\t'))
+                        for target in targets[gene]: open(pfile,'a').write('%s\n' % rje.join([gene,target,'-1','NoLinkage[%d]' % px],'\t'))
                         targets.pop(gene); linked.pop(gene); deadends.pop(gene)
             self.printLog('\r#PATH','Pathfinder gene links complete: <=%d linking genes.' % (px))
         except: self.log.errorLog(rje_zen.Zen().wisdom())            
@@ -2254,8 +2248,8 @@ class PINGU(rje.RJE_Object):
                     ## Get genelist 2 ##
                     if comp in self.dict['Samples']: cgenes = self.dict['Datasets'][comp]
                     elif comp == 'Combined': cgenes = self.identifiers()
-                    elif comp == 'PPI': cgenes = self.dict['PPI'].keys()
-                    else: cgenes = self.dict['PPIDB'][comp].dict['PPI'].keys()
+                    elif comp == 'PPI': cgenes = list(self.dict['PPI'].keys())
+                    else: cgenes = list(self.dict['PPIDB'][comp].dict['PPI'].keys())
                     ## Calculate ##
                     for g1 in genes:
                         if g1 in cgenes: overlap[comp] += 1
@@ -2272,7 +2266,7 @@ class PINGU(rje.RJE_Object):
                 grp = []
                 for sample in self.samples():
                     if gene in self.dict['Datasets'][sample]: grp.append(sample)
-                group = string.join(grp,'::')
+                group = rje.join(grp,'::')
                 if group not in vdata:
                     vdata[group] = {'Grouping':group,'Count':0}
                     for sample in grp: vdata[group][sample] = 0
@@ -2334,7 +2328,7 @@ class PINGU(rje.RJE_Object):
             seqdict = self.dict['EnsSeqNameDict']
             xgmml = rje_xgmml.XGMML(self.log,self.cmd_list)
             experiments = self.list['Experiments']
-            if string.join(experiments).lower() == 'all' and experiments[0] not in self.dict['Samples']:
+            if rje.join(experiments).lower() == 'all' and experiments[0] not in self.dict['Samples']:
                 experiments = rje.sortKeys(self.dict['Samples'])
             ## ~ [1a] Node attributes ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             nodeatt = xgmml.dict['NodeAtt'] = {'SAMPLE':'string','CONTROL':'string','HUBSIZE':'real',
@@ -2424,7 +2418,7 @@ class PINGU(rje.RJE_Object):
                     if not samples:
                         nodes[gene]['SAMPLE'] = 'extras'
                         nodes[gene]['node.fillColor'] = '153,255,153'
-                    elif not self.opt['CompressPP'] or len(samples) == 1: nodes[gene]['SAMPLE'] = string.join(samples,'-')
+                    elif not self.opt['CompressPP'] or len(samples) == 1: nodes[gene]['SAMPLE'] = rje.join(samples,'-')
                     else: nodes[gene]['SAMPLE'] = 'Share%d' % len(samples)
                 ## ~ [2b-ii] Additional Cytoscape details ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
                 # Colours: Pale yellow = 255,255,153; pale blue = 153,153,255; green = 0,255,0; [RGB]
@@ -2475,7 +2469,7 @@ class PINGU(rje.RJE_Object):
             for s in samples[0:]:
                 if s not in experiments: samples.remove(s)
         if not samples: return default
-        elif not self.opt['CompressPP'] or len(samples) == 1: return string.join(samples,'-')
+        elif not self.opt['CompressPP'] or len(samples) == 1: return rje.join(samples,'-')
         else: return 'Share%d' % len(samples)
 #########################################################################################################################
     def simpleSampleXGMML(self):    ### Outputs XGMML format file for Cytoscape with formatting (use Styles)
@@ -2485,7 +2479,7 @@ class PINGU(rje.RJE_Object):
             seqdict = self.dict['EnsSeqNameDict']
             xgmml = rje_xgmml.XGMML(self.log,self.cmd_list)
             experiments = self.list['Experiments']
-            if string.join(experiments).lower() == 'all' and experiments[0] not in self.dict['Samples']:
+            if rje.join(experiments).lower() == 'all' and experiments[0] not in self.dict['Samples']:
                 experiments = rje.sortKeys(self.dict['Samples'])
             if 'Links' in self.dict['Datasets'] and 'Links' not in experiments: experiments.append('Links') 
             ## ~ [1a] Node attributes ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
@@ -2557,7 +2551,7 @@ class PINGU(rje.RJE_Object):
                             if s not in experiments: samples.remove(s)
                     if not samples:
                         nodes[gene]['SAMPLE'] = 'extras'
-                    elif not self.opt['CompressPP'] or len(samples) == 1: nodes[gene]['SAMPLE'] = string.join(samples,'-')
+                    elif not self.opt['CompressPP'] or len(samples) == 1: nodes[gene]['SAMPLE'] = rje.join(samples,'-')
                     else: nodes[gene]['SAMPLE'] = 'Share%d' % len(samples)
                 ## ~ [2b-ii] Add Seconday/Tertiary etc. interactors ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
                 next = xnodes = sgenes[0:]
@@ -2694,7 +2688,7 @@ class PINGU(rje.RJE_Object):
                         for e in exptgene: elist += [e] * len(exptgene[e])
                         self.deBug(elist)
                         elist = rje.randomList(elist)
-                        glist = rje.randomList(geneexpt.keys())
+                        glist = rje.randomList(list(geneexpt.keys()))
                         self.deBug(elist); self.deBug(glist); self.deBug(shareprofile)
                         newgeneexpt = {}
                         newexptgene = {}
@@ -2751,7 +2745,7 @@ class PINGU(rje.RJE_Object):
             rje.delimitedFileOutput(self,outfile,outhead,rje_backup=True)
             ### ~ [1] ~ Redefine ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             for gene in rje.sortKeys(geneexpt):
-                geneexpt[gene].sort(); expt = string.join(geneexpt[gene],'|')
+                geneexpt[gene].sort(); expt = rje.join(geneexpt[gene],'|')
                 geneexpt[gene] = [expt]
                 if expt not in newexptgene: newexptgene[expt] = []
                 newexptgene[expt].append(gene)
@@ -2860,7 +2854,7 @@ class PINGU(rje.RJE_Object):
 
             ### ~ [2] Generate Fasta Files ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             for hub in rje.sortKeys(self.dict['DomPPI']):
-                sfile = self.info['DomPPIDir'] + '%s.%sdom.fas' % (string.replace(hub,'/','-'),self.info['FasID'])
+                sfile = self.info['DomPPIDir'] + '%s.%sdom.fas' % (rje.replace(hub,'/','-'),self.info['FasID'])
                 sseqs = []
                 data = {'Domain':hub,'Hubs':len(self.dict['DomHubs'][hub]),'PPI':len(self.dict['DomPPI'][hub]),'Missing':[]}
                 for gene in self.dict['DomPPI'][hub]:
@@ -2872,7 +2866,7 @@ class PINGU(rje.RJE_Object):
                 for gene in data['Missing']:
                     if gene not in missing: missing.append(gene)
                 data['Missing'].sort()
-                data['Missing'] = string.join(data['Missing'],',')
+                data['Missing'] = rje.join(data['Missing'],',')
                 rje.delimitedFileOutput(self,sumfile,shead,datadict=data)
                 self.log.printLog('#SEQ','%d %s genes mapped to %d EnsLoci proteins (%d hubs)' % (len(self.dict['DomPPI'][hub]),hub,len(sseqs),len(self.dict['DomHubs'][hub])))
                 if sseqs:
@@ -2912,7 +2906,7 @@ class PINGU(rje.RJE_Object):
 
             ### ~ [2] Generate Fasta Files ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             for hub in rje.sortKeys(self.dict['PPI']):
-                sfile = self.info['PPIOutDir'] + '%s.%s.fas' % (string.replace(hub,'/','-'),self.info['FasID'])
+                sfile = self.info['PPIOutDir'] + '%s.%s.fas' % (rje.replace(hub,'/','-'),self.info['FasID'])
                 sseqs = []
                 data = {'Gene':hub,'PPI':len(self.dict['PPI'][hub]),'Missing':[]}
                 for gene in self.dict['PPI'][hub]:
@@ -2924,7 +2918,7 @@ class PINGU(rje.RJE_Object):
                 for gene in data['Missing']:
                     if gene not in missing: missing.append(gene)
                 data['Missing'].sort()
-                data['Missing'] = string.join(data['Missing'],',')
+                data['Missing'] = rje.join(data['Missing'],',')
                 rje.delimitedFileOutput(self,sumfile,shead,datadict=data)
                 self.log.printLog('#SEQ','%d %s genes mapped to %d EnsLoci proteins' % (len(self.dict['PPI'][hub]),hub,len(sseqs)))
                 if sseqs:
@@ -2935,7 +2929,7 @@ class PINGU(rje.RJE_Object):
             if missing:
                 missing.sort()
                 self.log.errorLog('Problem mapping %s PPI genes onto EnsLoci' % rje.integerString(len(missing)),printerror=False)
-                open('%s%s.no_ensloci.txt' % (self.info['ResDir'],self.info['Basefile']),'w').write(string.join(missing,'\n'))
+                open('%s%s.no_ensloci.txt' % (self.info['ResDir'],self.info['Basefile']),'w').write(rje.join(missing,'\n'))
         except: self.log.errorLog(rje_zen.Zen().wisdom())            
 #########################################################################################################################
     def combinedPPIDatFiles(self):   ### Generates a DAT file per combined PPI dataset *.ppi.dat
@@ -3019,7 +3013,7 @@ class PINGU(rje.RJE_Object):
             ### ~ [2] Make Files ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             for sample in rje.sortKeys(self.dict['Samples']):
                 sfcmd = ['resdir=%s' % sfdir,'batch=%s*.%s.fas' % (sfdir,sample),'query=%s' % sample,'pickle=T']
-                open('%s_qslimfinder.ini' % sample,'w').write(string.join(sfcmd,'\n'))
+                open('%s_qslimfinder.ini' % sample,'w').write(rje.join(sfcmd,'\n'))
                 if sample not in qdict:
                     if sample in ['Control','PathFinder']: continue
                     self.log.errorLog('Cannot find %s in %s' % (sample,self.info['QSLiMFinder']),printerror=False)
@@ -3081,15 +3075,15 @@ class PINGU(rje.RJE_Object):
             upcfile = '%s.upc' % basefile           # Get UPC from this
             uplist = []
             for uline in open(upcfile,'r').readlines()[2:]:
-                upc = string.split(uline)[3:]
+                upc = rje.split(uline)[3:]
                 upc.sort()
-                uplist.append(string.join(upc))
+                uplist.append(rje.join(upc))
             uplist.sort()
             reorder = []
             upx = 1             # UP identifier counter
             upid = {}           # Dictionary of prot:UP_ID
             for upc in uplist:
-                uprots = string.split(upc)
+                uprots = rje.split(upc)
                 reorder += uprots     #!# Then reorder sequences! #!#
                 if len(uprots) > 1:
                     for u in uprots: upid[self.geneMap(u)] = upx
@@ -3167,14 +3161,12 @@ class GeneMap(rje_genemap.GeneMap):
 ### SECTION IV: MAIN PROGRAM                                                                                            #
 #########################################################################################################################
 def runMain():
-    ### Basic Setup of Program ###
-    try: [info,out,mainlog,cmd_list] = setupProgram()
-    except SystemExit: return  
-    except:
-        print 'Unexpected error during program setup:', sys.exc_info()[0]
-        return 
-        
-    ### Rest of Functionality... ###
+    ### ~ [1] ~ Basic Setup of Program  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+    try: (info,out,mainlog,cmd_list) = setupProgram()
+    except SystemExit: return
+    except: rje.printf('Unexpected error during program setup:', sys.exc_info()[0]); return
+
+    ### ~ [2] ~ Rest of Functionality... ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try: PINGU(mainlog,cmd_list).run()
         
     ### End ###
@@ -3185,7 +3177,7 @@ def runMain():
 #########################################################################################################################
 if __name__ == "__main__":      ### Call runMain 
     try: runMain()
-    except: print 'Cataclysmic run error:', sys.exc_info()[0]
+    except: rje.printf('Cataclysmic run error: {0}'.format(sys.exc_info()[0]))
     sys.exit()
 #########################################################################################################################
 ### END OF SECTION IV                                                                                                   #

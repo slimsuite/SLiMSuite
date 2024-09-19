@@ -102,11 +102,11 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         if not info: info = makeInfo()
         if not out: out = rje.Out()
         ### ~ [2] ~ Look for help commands and print options if found ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-        helpx = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
-        if helpx > 0:
-            print '\n\nHelp for %s %s: %s\n' % (info.program, info.version, time.asctime(time.localtime(info.start_time)))
+        cmd_help = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
+        if cmd_help > 0:
+            rje.printf('\n\nHelp for {0} {1}: {2}\n'.format(info.program, info.version, time.asctime(time.localtime(info.start_time))))
             out.verbose(-1,4,text=__doc__)
-            if rje.yesNo('Show general commandline options?'): out.verbose(-1,4,text=rje.__doc__)
+            if rje.yesNo('Show general commandline options?',default='N'): out.verbose(-1,4,text=rje.__doc__)
             if rje.yesNo('Quit?'): sys.exit()           # Option to quit after help
             cmd_list += rje.inputCmds(out,cmd_list)     # Add extra commands interactively.
         elif out.stat['Interactive'] > 1: cmd_list += rje.inputCmds(out,cmd_list)    # Ask for more commands
@@ -114,7 +114,7 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         return cmd_list
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Major Problem with cmdHelp()'
+    except: rje.printf('Major Problem with cmdHelp()')
 #########################################################################################################################
 def setupProgram(): ### Basic Setup of Program when called from commandline.
     '''
@@ -125,16 +125,19 @@ def setupProgram(): ### Basic Setup of Program when called from commandline.
     '''
     try:### ~ [1] ~ Initial Command Setup & Info ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         info = makeInfo()                                   # Sets up Info object with program details
+        if len(sys.argv) == 2 and sys.argv[1] in ['version','-version','--version']: rje.printf(info.version); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: rje.printf('%s v%s' % (info.program,info.version)); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['description','-description','--description']: rje.printf('%s: %s' % (info.program,info.description)); sys.exit(0)
         cmd_list = rje.getCmdList(sys.argv[1:],info=info)   # Reads arguments and load defaults from program.ini
         out = rje.Out(cmd_list=cmd_list)                    # Sets up Out object for controlling output to screen
-        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2 
+        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2
         out.printIntro(info)                                # Prints intro text using details from Info object
         cmd_list = cmdHelp(info,out,cmd_list)               # Shows commands (help) and/or adds commands from user
         log = rje.setLog(info,out,cmd_list)                 # Sets up Log object for controlling log file output
         return (info,out,log,cmd_list)                      # Returns objects for use in program
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Problem during initial setup.'; raise
+    except: rje.printf('Problem during initial setup.'); raise
 #########################################################################################################################
 nonsplit_features = ['proviral','pseudo','gene','focus','ribosomal_slippage','trans_splicing']
 #########################################################################################################################
@@ -201,7 +204,7 @@ class GenBank(rje_obj.RJE_Object):
         self.setBool({})
         self.setInt({})
         self.setNum({})
-        #self.list['FasOut'] = string.split('full,gene,cds,prot',',')
+        #self.list['FasOut'] = rje.split('full,gene,cds,prot',',')
         self.list['DetailSkip'] = ['translation']
         ### ~ Other Attributes ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         self.obj['DB'] = rje_db.Database(self.log,self.cmd_list+['tuplekeys=T'])
@@ -249,7 +252,7 @@ class GenBank(rje_obj.RJE_Object):
                     tables.remove(ldb)
                     ldb.saveToFile()
                     self.db().saveDB(tables,splitfield='locus',outdir=self.getStr('LocusDir'),logskip=self.v()>0,replace=self.force(),log=self.v()>0)
-                    self.printLog('#OUT','%s tables output to %s for %s loci' % (string.join(self.db().tableNames(),', '),self.getStr('LocusDir'),ldb.entryNum()))
+                    self.printLog('#OUT','%s tables output to %s for %s loci' % (rje.join(self.db().tableNames(),', '),self.getStr('LocusDir'),ldb.entryNum()))
                 else: self.db().saveDB(logskip=self.v()>0,replace=self.force())
             if self.list['FasOut']: self.saveFasta(logskip=self.v()>0)
         except:
@@ -262,9 +265,9 @@ class GenBank(rje_obj.RJE_Object):
             if self.getStr('Basefile').lower() in ['','none']:
                 self.setBasefile(rje.baseFile(self.getStr('SeqIn'),strip_path=False,extlist=['gbk','gb','gbff']))
                 self.cmd_list.append('basefile=%s' % self.getStr('Basefile'))
-            self.list['Features'] = string.split(string.join(self.list['Features']).lower())
+            self.list['Features'] = rje.split(rje.join(self.list['Features']).lower())
             locdb = self.db().addEmptyTable('Locus',['locus','length','type','definition','accession','version','gi','organism','spcode'],['locus'])
-            #self.list['Details'] = string.split(string.join(self.list['Details']).lower())
+            #self.list['Details'] = rje.split(rje.join(self.list['Details']).lower())
             if self.getStr('GeneAcc') and self.getStr('GeneAcc') not in self.list['Details']: self.list['Details'].append(self.getStr('GeneAcc'))
             if self.getStr('ProtAcc') and self.getStr('ProtAcc') not in self.list['Details']: self.list['Details'].append(self.getStr('ProtAcc'))
             ftfields = ['locus','feature','position','start','end'] + self.list['Details'] + ['details']
@@ -295,10 +298,10 @@ class GenBank(rje_obj.RJE_Object):
             if len(uid) != len(uidunique):
                 self.warnLog('%s duplicate UID identified. Download order may change.' % (len(uid) - len(uidunique)))
                 uid = uidunique
-            uidstr = string.join(uid,',')
-            if len(string.split(uidstr)) > 1:
+            uidstr = rje.join(uid,',')
+            if len(rje.split(uidstr)) > 1:
                 self.warnLog('Spaces found in 1+ FetchUID accession numbers and will be removed.')
-                uidstr = string.join(string.split(uidstr),'')
+                uidstr = rje.join(rje.split(uidstr),'')
             if not self.getStrLC('SeqIn'):
                 if not self.getStrLC('Basefile'):
                     if rje.exists(self.getStr('FetchUID')): self.setBasefile(rje.baseFile(self.getStr('FetchUID'),strip_path=True))
@@ -314,7 +317,7 @@ class GenBank(rje_obj.RJE_Object):
             if len(uid) > 200: return self.fetchSplitGenbank(uid)
             baseurl = 'https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nuccore&rettype=gb&retmode=text&id='
             fullurl = baseurl + uidstr
-            if len(string.split(fullurl)) > 1:
+            if len(rje.split(fullurl)) > 1:
                 self.errorLog('Spaces present in UIDs. Cannot fetch.',printerror=False); return False
             ### ~ [2a] Fetch UID into file ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if self.getBool('OSX'): os.system('curl "%s" -k -o "%s"' % (fullurl,self.getStr('SeqIn')))
@@ -404,7 +407,7 @@ class GenBank(rje_obj.RJE_Object):
             FILE = open(filename,'r'); line = FILE.readline(); nx = 0; features = False; readft = False; fentry = {}
             while line:
                 self.progLog('#GB','Loading %s: %s entries; %s features; %s nt' % (loadtxt,rje.iStr(ex),rje.iStr(fx),rje.iStr(nx)))
-                data = string.split(rje.chomp(line))
+                data = rje.split(rje.chomp(line))
                 if not data: line = FILE.readline(); continue
                 cntd = line[:12] == '            '
                 if not cntd: ltype = data[0]
@@ -415,17 +418,17 @@ class GenBank(rje_obj.RJE_Object):
                         self.debug(locus)
                         self.debug(self.dict['Sequence'])
                         raise ValueError
-                    entry = {'locus':data[1],'length':string.atoi(data[2]),'type':data[4]}
+                    entry = {'locus':data[1],'length':rje.atoi(data[2]),'type':data[4]}
                     if features or fentry: raise ValueError('Feature processing error')
                 elif ltype in ['DEFINITION','ACCESSION']:
-                    if cntd: entry[ltype.lower()] = string.join([entry[ltype.lower()]] + data)
-                    else: entry[ltype.lower()] = string.join(data[1:])
+                    if cntd: entry[ltype.lower()] = rje.join([entry[ltype.lower()]] + data)
+                    else: entry[ltype.lower()] = rje.join(data[1:])
                 elif ltype == 'VERSION' and not cntd:
                     try: entry['version'] = data[1]
                     except: entry['version'] = ''; self.warnLog('No version for %s!' % entry['locus'])
-                    try: entry['gi'] = string.split(data[2],'GI:')[1]
+                    try: entry['gi'] = rje.split(data[2],'GI:')[1]
                     except: entry['gi'] = '-'
-                elif ltype in ['ORGANISM'] and not cntd: entry[ltype.lower()] = string.join(data[1:])
+                elif ltype in ['ORGANISM'] and not cntd: entry[ltype.lower()] = rje.join(data[1:])
                 elif ltype == 'FEATURES': features = True; readft = True; ftentry = {}
                 elif ltype == 'ORIGIN': self.dict['Sequence'][locus] = ''
                 elif ltype == '//':
@@ -433,15 +436,15 @@ class GenBank(rje_obj.RJE_Object):
                     elif self.obj['Taxonomy'].getBool('Setup'): entry['spcode'] = self.obj['Taxonomy'].getSpCode(entry['organism'])
                     else: entry['spcode'] = rje_sequence.getSpecCode(entry['organism'])
                     if features and ftentry:
-                        while string.count(ftentry['position'],'(') != string.count(ftentry['position'],')'):
+                        while rje.count(ftentry['position'],'(') != rje.count(ftentry['position'],')'):
                             if ftentry['locus'] in ['NC_006146','NC_007044'] and ftentry['details'].find('CeHV15gLMP1')>0:
                                 self.debug('Pos continued: "%s"' % ftentry['details'])
-                            details = string.split(ftentry['details'],' /')
+                            details = rje.split(ftentry['details'],' /')
                             if '..' not in details[0]: break
-                            ftentry['position'] += string.replace(details.pop(0),' ','')
-                            ftentry['details'] = string.join(['']+details,' /')
+                            ftentry['position'] += rje.replace(details.pop(0),' ','')
+                            ftentry['details'] = rje.join(['']+details,' /')
                             #if ftentry['locus'] in ['NC_006146','NC_007044']: self.debug(ftentry)
-                        if string.count(ftentry['position'],'(') != string.count(ftentry['position'],')'):
+                        if rje.count(ftentry['position'],'(') != rje.count(ftentry['position'],')'):
                             self.warnLog('Unmatched parentheses in Feature position: %s' % ftentry['position'])
                         if ftentry['locus'] in ['NC_006146','NC_007044'] and ftentry['details'].find('CeHV15gLMP1')>0: self.debug(ftentry)
                         ftdb.addEntry(ftentry); fx += 1
@@ -450,23 +453,23 @@ class GenBank(rje_obj.RJE_Object):
                         ftentry = {}
                     locdb.addEntry(entry); ex += 1; locus = ''; features = False; entry = {}
                 elif locus in self.dict['Sequence']:
-                    seqline = string.join(data[1:],'')
+                    seqline = rje.join(data[1:],'')
                     self.dict['Sequence'][locus] += seqline
                     nx += len(seqline)
                 elif readft:
                     if cntd and ftentry:
-                        ftentry['details'] = string.join([ftentry['details']] + data)
+                        ftentry['details'] = rje.join([ftentry['details']] + data)
                         #self.debug('"%s"' % ftentry['details'])
                     elif ftentry:
-                        while string.count(ftentry['position'],'(') != string.count(ftentry['position'],')'):
+                        while rje.count(ftentry['position'],'(') != rje.count(ftentry['position'],')'):
                             if ftentry['locus'] in ['NC_006146','NC_007044'] and ftentry['details'].find('CeHV15gLMP1')>0:
                                 self.debug('Pos continued: "%s"' % ftentry['details'])
-                            details = string.split(ftentry['details'],' /')
+                            details = rje.split(ftentry['details'],' /')
                             if '..' not in details[0]: break
-                            ftentry['position'] += string.replace(details.pop(0),' ','')
-                            ftentry['details'] = string.join(['']+details,' /')
+                            ftentry['position'] += rje.replace(details.pop(0),' ','')
+                            ftentry['details'] = rje.join(['']+details,' /')
                             #if ftentry['locus'] in ['NC_006146','NC_007044']: self.debug(ftentry)
-                        if string.count(ftentry['position'],'(') != string.count(ftentry['position'],')'):
+                        if rje.count(ftentry['position'],'(') != rje.count(ftentry['position'],')'):
                             self.warnLog('Unmatched parentheses in Feature position: %s' % ftentry['position'])
                         if ftentry['locus'] in ['NC_006146','NC_007044'] and ftentry['details'].find('CeHV15gLMP1')>0: self.debug(ftentry)
                         ftdb.addEntry(ftentry); fx += 1
@@ -512,7 +515,7 @@ class GenBank(rje_obj.RJE_Object):
             ftdic['details'] = []
             ftdata = []
             #self.debug('"%s"' % details)
-            datasplit = string.split(details,' /')
+            datasplit = rje.split(details,' /')
             #self.debug(datasplit)
             if datasplit[0]: self.warnLog('%s %s feature details "%s" not properly recognised for parsing.' % (locus,ftdic['feature'],details))
             else: datasplit = datasplit[1:]
@@ -526,10 +529,10 @@ class GenBank(rje_obj.RJE_Object):
                 if data in nonsplit_features: dtype = content = data
                 else:
                     try:
-                        sdata = string.split(data,'=')
-                        (dtype,content) = (sdata[0],string.join(sdata[1:],'='))
+                        sdata = rje.split(data,'=')
+                        (dtype,content) = (sdata[0],rje.join(sdata[1:],'='))
                     except: self.errorLog('Problem with detail: %s' % data); continue
-                content = string.join(string.split(content))
+                content = rje.join(rje.split(content))
                 if content[:1] == '"': content = content[1:]
                 if content[-1:] == '"': content = content[:-1]
                 if dtype in self.list['DetailSkip']:
@@ -540,7 +543,7 @@ class GenBank(rje_obj.RJE_Object):
                 if dtype not in self.list['Details']:
                     if dtype in nonsplit_features: ftdic['details'].append('/%s' % (dtype))
                     else: ftdic['details'].append('/%s="%s"' % (dtype,content))
-            ftdic['details'] = string.join(ftdic['details'])
+            ftdic['details'] = rje.join(ftdic['details'])
             ## ~ [1a] ~ Special Protein feature details ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             if ftdic['feature'] == 'Protein':
                 if 'protein_id' not in ftdic or not ftdic['protein_id']: ftdic['protein_id'] = locus
@@ -565,7 +568,7 @@ class GenBank(rje_obj.RJE_Object):
             except: ftstart = ftend = 0
             ftdic['sequence'] = ''
             locus = ftdic['locus']
-            if locus not in self.dict['Sequence']: ftlocus = string.split(locus,'_')[-1]
+            if locus not in self.dict['Sequence']: ftlocus = rje.split(locus,'_')[-1]
             else: ftlocus = locus
             ### ~ [1] Generate list of positions to stick together ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             pos = ftdic['position'][0:]
@@ -575,14 +578,14 @@ class GenBank(rje_obj.RJE_Object):
             else: complement = False
             if pos.find('order') == 0: pos = pos[len('order('):-1]
             if pos.find('join') == 0: pos = pos[len('join('):-1]
-            pos = string.split(pos,',')
+            pos = rje.split(pos,',')
             ### ~ [2] Process list ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             try:
                 if '..' not in pos[0]:
-                    if '^' in pos[0]: (ftdic['start'],ftdic['end']) = string.split(pos[0],'^')
+                    if '^' in pos[0]: (ftdic['start'],ftdic['end']) = rje.split(pos[0],'^')
                     elif pos[0][:1] in '<>': ftdic['start'] = ftdic['end'] = pos[0][1:]
-                    else: ftdic['start'] = ftdic['end'] = '%d' % string.atoi(pos[0])
-                else: (ftdic['start'],ftdic['end']) = string.split(pos[0],'..')
+                    else: ftdic['start'] = ftdic['end'] = '%d' % rje.atoi(pos[0])
+                else: (ftdic['start'],ftdic['end']) = rje.split(pos[0],'..')
             except: self.debug('%s\n-> %s' % (ftdic['position'],pos)); raise
             if ftdic['start'][:1] in '<>': ftdic['start'] = ftdic['start'][1:] # Adjust for exons outside coding region
             if ftdic['end'][:1] in '<>': ftdic['end'] = ftdic['end'][1:]       # Adjust for exons outside coding region
@@ -593,20 +596,20 @@ class GenBank(rje_obj.RJE_Object):
                     if fragcomp: self.warnLog('Odd complementation for %s %s' % (ftdic['locus'],ftdic['position']))
                 else: fragcomp = False #complement
                 if '..' not in frag:
-                    if '^' in frag: (start,end) = string.split(frag,'^')
+                    if '^' in frag: (start,end) = rje.split(frag,'^')
                     elif frag[:1] in '<>': start = end = frag[1:]
-                    else: start = end = '%d' % string.atoi(frag)
-                else: (start,end) = string.split(frag,'..')
+                    else: start = end = '%d' % rje.atoi(frag)
+                else: (start,end) = rje.split(frag,'..')
                 if start[:1] in ['<','>']: start = start[1:]
                 if end[:1] in ['>','>']: end = end[1:]
-                try: string.atoi(end); ftdic['end'] = end
+                try: rje.atoi(end); ftdic['end'] = end
                 except:
                     self.debug('%s\n-> %s' % (ftdic['position'],pos))
                     self.printLog('#ERR','Problem with locus %s position: %s' % (ftdic['locus'],ftdic['position']))
                     ftdic['end'] = rje.matchExp('(\d+)',end)[0]
-                    self.printLog('#END','Corrected end position: %s -> %d' % (end,string.atoi(ftdic['end'])))
-                if fragcomp: ftdic['sequence'] += rje_sequence.reverseComplement(self.dict['Sequence'][ftlocus][string.atoi(start)-1:string.atoi(ftdic['end'])])
-                else: ftdic['sequence'] += self.dict['Sequence'][ftlocus][string.atoi(start)-1:string.atoi(ftdic['end'])]
+                    self.printLog('#END','Corrected end position: %s -> %d' % (end,rje.atoi(ftdic['end'])))
+                if fragcomp: ftdic['sequence'] += rje_sequence.reverseComplement(self.dict['Sequence'][ftlocus][rje.atoi(start)-1:rje.atoi(ftdic['end'])])
+                else: ftdic['sequence'] += self.dict['Sequence'][ftlocus][rje.atoi(start)-1:rje.atoi(ftdic['end'])]
             if complement: ftdic['sequence'] = rje_sequence.reverseComplement(ftdic['sequence'])
             #x# V1.3.1: Complement was always handled for each fragment - this would give sequences stuck together
             #X# in the wrong order!
@@ -632,7 +635,7 @@ class GenBank(rje_obj.RJE_Object):
         '''
         try:### ~ [0] ~ Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             locus = ftdic['locus']
-            if locus not in self.dict['Sequence']: ftlocus = string.split(locus,'_')[-1]
+            if locus not in self.dict['Sequence']: ftlocus = rje.split(locus,'_')[-1]
             else: ftlocus = locus
             ftseq = '' #self.featureSequence(ftdic)
             if ftdic['start'] < ftdic['end'] and (genpos < ftdic['start'] or genpos > ftdic['end']): return 0
@@ -644,7 +647,7 @@ class GenBank(rje_obj.RJE_Object):
             else: complement = False
             if pos.find('order') == 0: pos = pos[len('order('):-1]
             if pos.find('join') == 0: pos = pos[len('join('):-1]
-            pos = string.split(pos,',')
+            pos = rje.split(pos,',')
             if 'join' in ftdic['position']: self.debug(pos)
             # NB. start and end are sorted by featurePos even for strange positions
             ### ~ [1] ~ Work through fragments ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -655,17 +658,17 @@ class GenBank(rje_obj.RJE_Object):
                     if fragcomp: self.warnLog('Odd complementation for %s %s' % (ftdic['locus'],ftdic['position']))
                 else: fragcomp = False #complement
                 if '..' not in frag:
-                    if '^' in frag: (start,end) = string.split(frag,'^')
+                    if '^' in frag: (start,end) = rje.split(frag,'^')
                     elif frag[:1] in '<>': start = end = frag[1:]
-                    else: start = end = '%d' % string.atoi(frag)
-                else: (start,end) = string.split(frag,'..')
+                    else: start = end = '%d' % rje.atoi(frag)
+                else: (start,end) = rje.split(frag,'..')
                 if start[:1] in ['<','>']: start = start[1:]
                 if end[:1] in ['>','>']: end = end[1:]
-                try: end = string.atoi(end)
+                try: end = rje.atoi(end)
                 except:
                     self.debug('%s\n-> %s' % (ftdic['position'],pos))
                     self.printLog('#ERR','Problem with locus %s position: %s' % (ftdic['locus'],ftdic['position']))
-                    end = string.atoi(rje.matchExp('(\d+)',end)[0])
+                    end = rje.atoi(rje.matchExp('(\d+)',end)[0])
                 ## Map position
                 start = int(start); end = int(end)
                 #!# might struggle with features spanning split circles. (Check and debug)
@@ -771,7 +774,7 @@ class GenBank(rje_obj.RJE_Object):
                         if 'transl_table' in ftdic['details']: self.debug(ftdic['details'])
                         if 'transl_table' in ftentry['details']: self.debug(ftentry['details'])
                     try:
-                        name = '%s_%s' % (string.split(seqtype.lower(),'_')[0],ftdic['spcode'])
+                        name = '%s_%s' % (rje.split(seqtype.lower(),'_')[0],ftdic['spcode'])
                         if seqtype in ['prot','CDS'] and self.getStr('ProtAcc') in ftdic and ftdic[self.getStr('ProtAcc')]:
                             accnum = ftdic[self.getStr('ProtAcc')]
                         elif seqtype == 'gene' and self.getStr('GeneAcc') in ftdic and ftdic[self.getStr('GeneAcc')]:
@@ -793,7 +796,7 @@ class GenBank(rje_obj.RJE_Object):
                     addorg = '[%s]' % ftdic['organism']
                     if addorg not in name: name = '%s %s' % (name,addorg)
                     if seqtype == 'prot' and ftype == 'CDS':
-                        try: sequence = string.join(ftdic['translation'],'')
+                        try: sequence = rje.join(ftdic['translation'],'')
                         except: sequence = rje_sequence.dna2prot(ftdic['sequence'],transl=transl,warnobj=self)
                         if self.test() and transl != '1':
                             translseq = rje_sequence.dna2prot(ftdic['sequence'],transl=transl,warnobj=self)
@@ -885,8 +888,8 @@ def runMain():
     ### ~ [1] ~ Basic Setup of Program  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try: (info,out,mainlog,cmd_list) = setupProgram()
     except SystemExit: return  
-    except: print 'Unexpected error during program setup:', sys.exc_info()[0]; return
-    
+    except: rje.printf('Unexpected error during program setup:', sys.exc_info()[0]); return
+
     ### ~ [2] ~ Rest of Functionality... ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try: GenBank(mainlog,cmd_list).run()
 
@@ -898,7 +901,7 @@ def runMain():
 #########################################################################################################################
 if __name__ == "__main__":      ### Call runMain 
     try: runMain()
-    except: print 'Cataclysmic run error:', sys.exc_info()[0]
+    except: rje.printf('Cataclysmic run error: {0}'.format(sys.exc_info()[0]))
     sys.exit()
 #########################################################################################################################
 ### END OF SECTION IV                                                                                                   #

@@ -93,11 +93,11 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         if not info: info = makeInfo()
         if not out: out = rje.Out()
         ### ~ [2] ~ Look for help commands and print options if found ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-        help = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
-        if help > 0:
-            print '\n\nHelp for %s %s: %s\n' % (info.program, info.version, time.asctime(time.localtime(info.start_time)))
+        cmd_help = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
+        if cmd_help > 0:
+            rje.printf('\n\nHelp for {0} {1}: {2}\n'.format(info.program, info.version, time.asctime(time.localtime(info.start_time))))
             out.verbose(-1,4,text=__doc__)
-            if rje.yesNo('Show general commandline options?'): out.verbose(-1,4,text=rje.__doc__)
+            if rje.yesNo('Show general commandline options?',default='N'): out.verbose(-1,4,text=rje.__doc__)
             if rje.yesNo('Quit?'): sys.exit()           # Option to quit after help
             cmd_list += rje.inputCmds(out,cmd_list)     # Add extra commands interactively.
         elif out.stat['Interactive'] > 1: cmd_list += rje.inputCmds(out,cmd_list)    # Ask for more commands
@@ -105,7 +105,7 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         return cmd_list
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Major Problem with cmdHelp()'
+    except: rje.printf('Major Problem with cmdHelp()')
 #########################################################################################################################
 def setupProgram(): ### Basic Setup of Program when called from commandline.
     '''
@@ -116,16 +116,19 @@ def setupProgram(): ### Basic Setup of Program when called from commandline.
     '''
     try:### ~ [1] ~ Initial Command Setup & Info ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         info = makeInfo()                                   # Sets up Info object with program details
+        if len(sys.argv) == 2 and sys.argv[1] in ['version','-version','--version']: rje.printf(info.version); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: rje.printf('%s v%s' % (info.program,info.version)); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['description','-description','--description']: rje.printf('%s: %s' % (info.program,info.description)); sys.exit(0)
         cmd_list = rje.getCmdList(sys.argv[1:],info=info)   # Reads arguments and load defaults from program.ini
         out = rje.Out(cmd_list=cmd_list)                    # Sets up Out object for controlling output to screen
-        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2 
+        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2
         out.printIntro(info)                                # Prints intro text using details from Info object
         cmd_list = cmdHelp(info,out,cmd_list)               # Shows commands (help) and/or adds commands from user
         log = rje.setLog(info,out,cmd_list)                 # Sets up Log object for controlling log file output
         return (info,out,log,cmd_list)                      # Returns objects for use in program
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Problem during initial setup.'; raise
+    except: rje.printf('Problem during initial setup.'); raise
 #########################################################################################################################
 ### END OF SECTION I                                                                                                    #
 #########################################################################################################################
@@ -325,14 +328,14 @@ class Markov(rje.RJE_Object):
                 MARKOV.write('aacount=%d\n' % self.suftree()['='])
                 MARKOV.write('seqnum=%d\n' % sx)
                 outlist = ['xmer','obs','pref_obs','suff_obs','comm_obs']
-                MARKOV.write('%s\n' % string.join(outlist,delimit))
+                MARKOV.write('%s\n' % rje.join(outlist,delimit))
                 MARKOV.close()
             else:
                 for x in range(max_xmer):
                     xfile = '%s.%dmer%s' % (rje.baseFile(filename),(x+1),os.path.splitext(filename)[1])
                     MARKOV = open(xfile,'w')
                     outlist = ['xmer','obs','f_obs','f_exp']
-                    MARKOV.write('%s\n' % string.join(outlist,delimit))
+                    MARKOV.write('%s\n' % rje.join(outlist,delimit))
                     MARKOV.close()
             self._markovSufTree(self.suftree(),'',filename,delimit,seqlist.seqNum(),partial)  # sufdic,xmer,filename,delimit,seqnum,partial,typex=0)
             self.verbose(0,1,'Done!',1)
@@ -372,9 +375,9 @@ class Markov(rje.RJE_Object):
         for a in range(len(xmer)):   # Expanding Xmer
             aa = xmer[a].upper()
             if aa not in self.list['Alphabet']: return
-            if _sufdic.has_key(a+1): _sufdic[a+1]['='] += count
+            if (a+1) in _sufdic: _sufdic[a+1]['='] += count
             else: _sufdic[a+1] = {'=':count,'X':0}
-            if _subdic.has_key(aa):     # Xmer exists - add count
+            if aa in _subdic:     # Xmer exists - add count
                 _subdic[aa]['='] += count
             else:                       # New xmer of length a+1
                 _subdic[aa] = {'=':count}
@@ -415,7 +418,7 @@ class Markov(rje.RJE_Object):
                 readlist = rje.readDelimit(line,delimit)
                 line = XFILE.readline()
                 xmer = readlist[0]
-                count = string.atoi(readlist[1])
+                count = rje.atoi(readlist[1])
                 ## Build suftree ##
                 self._addXmerToSufTree(xmer,count)
                 ## Next seq
@@ -443,7 +446,7 @@ class Markov(rje.RJE_Object):
         self.dict['SufTree'] = {'=':0,'X':len(self.list['Alphabet'])}
         total = 0.0
         for aa in self.list['Alphabet']:
-            if self.dict['AAFreq'].has_key(aa):
+            if aa in self.dict['AAFreq']:
                 total += float(self.dict['AAFreq'][aa])
             else:
                 self.dict['AAFreq'][aa] = 0.0
@@ -478,7 +481,7 @@ class Markov(rje.RJE_Object):
                 aa = xmer[a].upper()
                 self.suftree()[(a+1)]['='] -= 1
                 #print aa, 'in', _sufdic.keys(), '?'
-                if _sufdic.has_key(aa): # Xmer exists - reduce count
+                if aa in _sufdic: # Xmer exists - reduce count
                     #print aa, _sufdic[aa]['='], '=>',
                     _sufdic[aa]['='] -= 1
                     #print _sufdic[aa]['=']
@@ -505,7 +508,7 @@ class Markov(rje.RJE_Object):
             sufdic = {'=':sufdic['=']}
         else:
             for aa in self.list['Alphabet']:
-                if sufdic.has_key(aa):
+                if aa in sufdic:
                     self.stripToX(sufdic[aa],maxmer,xlen+1)
         #print xlen,sufdic
 #########################################################################################################################
@@ -517,7 +520,7 @@ class Markov(rje.RJE_Object):
         >> suftree:suffix tree dictionary
         '''
         max = 0
-        while suftree.has_key(max+1): max += 1
+        while (max+1) in suftree: max += 1
         return max
 #########################################################################################################################
     def xmerCount(self,xmer,prefix=False,prob=False):    ### Returns count for given xmer from self.dict tree
@@ -576,7 +579,7 @@ class Markov(rje.RJE_Object):
                 outlist = [_xmer]
                 for _str in [_xmer,pref,suff,comm]:
                     outlist.append('%d' % num[_str])
-                MARKOV.write('%s\n' % string.join(outlist,delimit))
+                MARKOV.write('%s\n' % rje.join(outlist,delimit))
                 MARKOV.close()
             else:
                 xfile = '%s.%dmer%s' % (rje.baseFile(filename),len(_xmer),os.path.splitext(filename)[1])
@@ -615,7 +618,7 @@ class Markov(rje.RJE_Object):
         if len(xmer) > 1:
             f_expected = freq[pref] * freq[suff] / freq[comm]
         else:
-            if self.dict['AAFreq'].has_key(xmer):
+            if xmer in self.dict['AAFreq']:
                 f_expected = self.dict['AAFreq'][xmer]
             else:
                 f_expected = freq[xmer] #!# Add expected AA freq option later
@@ -626,7 +629,7 @@ class Markov(rje.RJE_Object):
         outlist.append('%.3e' % freq[xmer])
         outlist.append('%.3e' % f_expected)
         #outlist.append('%f' % (freq[xmer] / f_expected))
-        MARKOV.write('%s\n' % string.join(outlist,delimit))
+        MARKOV.write('%s\n' % rje.join(outlist,delimit))
         MARKOV.close()
 #########################################################################################################################
     ### <6> ### Suffix Tree => Markov Probability Tree Methods                                                          #
@@ -672,7 +675,7 @@ class Markov(rje.RJE_Object):
         if xlen not in self.suftree().keys():
             self.suftree()[xlen] = {'=':0,'X':0}
         for a in self.list['Alphabet']:
-            if sufdic.has_key(a):
+            if a in sufdic:
                 self.suftree()[xlen]['X'] += 1
                 self.suftree()[xlen]['='] += sufdic[a]['=']
                 self._xmerCountPerLen(sufdic[a],xlen)
@@ -695,13 +698,13 @@ class Markov(rje.RJE_Object):
             rounded = {}    # Dictionary of integer occurrances
             remainders= {}  # Dictionary of AAs per given remainder
             for a in self.list['Alphabet']:
-                if probdic.has_key(a):
+                if a in probdic:
                     exact[a] = probdic[a]['='] * sufdic['=']
                 else:
                     exact[a] = 0.0
                 rounded[a] = int(exact[a])
                 remainder = exact[a] - rounded[a]
-                if remainders.has_key(remainder):
+                if remainder in remainders:
                     remainders[remainder].append(a)
                 else:
                     remainders[remainder] = [a]
@@ -734,7 +737,7 @@ class Markov(rje.RJE_Object):
                     elif typex/1000 ==typex/1000.0:
                         self.verbose(0,4,'.',0)
                     ## Extend further ##
-                    if probdic.has_key(aa): # Longer chains to look at!
+                    if aa in probdic: # Longer chains to look at!
                         typex = self.sufFromProb(sufdic[aa],probdic[aa],typex)
             return typex
         except:
@@ -775,8 +778,8 @@ class Markov(rje.RJE_Object):
             # Setup Input files #
             for splitfile in resfiles:
                 SPLITFILES.append(open(splitfile,'r'))
-                aacount += string.atoi(rje.matchExp('^aacount=(\d+)',SPLITFILES[-1].readline())[0])
-                seqnum += string.atoi(rje.matchExp('^seqnum=(\d+)',SPLITFILES[-1].readline())[0])
+                aacount += rje.atoi(rje.matchExp('^aacount=(\d+)',SPLITFILES[-1].readline())[0])
+                seqnum += rje.atoi(rje.matchExp('^seqnum=(\d+)',SPLITFILES[-1].readline())[0])
                 SPLITFILES[-1].readline()   # Remaining header line
                 lastline[SPLITFILES[-1]] = SPLITFILES[-1].readline()    # First xmer line
             # Setup Output file #
@@ -786,7 +789,7 @@ class Markov(rje.RJE_Object):
                 filename = '%s.%dmer.%s' % (filebase,x,rje.delimitExt(delimit))
                 MARKOV = open(filename,'w')
                 outlist = ['xmer','obs','f_obs','f_exp']
-                MARKOV.write('%s\n' % string.join(outlist,delimit))
+                MARKOV.write('%s\n' % rje.join(outlist,delimit))
                 MARKOV.close()
             # Work through possible Xmers #
             types = self._combineSplits(filebase,'',lastline,aacount,seqnum,delimit)
@@ -833,10 +836,10 @@ class Markov(rje.RJE_Object):
             for SPLIT in lastline.keys():
                 line = lastline[SPLIT].split(delimit)
                 if line[0] == _xmer:    # Found it!
-                    num[_xmer] += string.atoi(line[1])
-                    num[pref] += string.atoi(line[2])
-                    num[suff] += string.atoi(line[3])
-                    num[comm] += string.atoi(line[4])
+                    num[_xmer] += rje.atoi(line[1])
+                    num[pref] += rje.atoi(line[2])
+                    num[suff] += rje.atoi(line[3])
+                    num[comm] += rje.atoi(line[4])
                     lastline[SPLIT] = SPLIT.readline()  # Advance to next line
             ## Counts ##
             if num[_xmer] == 0:     # This xmer and all descendants absent from dataset
@@ -959,8 +962,8 @@ def runMain():
     ### ~ [1] ~ Basic Setup of Program  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try: (info,out,mainlog,cmd_list) = setupProgram()
     except SystemExit: return  
-    except: print 'Unexpected error during program setup:', sys.exc_info()[0]; return
-    
+    except: rje.printf('Unexpected error during program setup:', sys.exc_info()[0]); return
+
     ### ~ [2] ~ Rest of Functionality... ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try: Markov(mainlog,cmd_list).run()
 
@@ -968,11 +971,11 @@ def runMain():
     except SystemExit: return  # Fork exit etc.
     except KeyboardInterrupt: mainlog.errorLog('User terminated.')
     except: mainlog.errorLog('Fatal error in main %s run.' % info.program)
-    mainlog.printLog('#LOG', '%s V:%s End: %s\n' % (info.program,info.version,time.asctime(time.localtime(time.time()))))
+    mainlog.endLog(info)
 #########################################################################################################################
-if __name__ == "__main__":      ### Call runMain 
+if __name__ == "__main__":      ### Call runMain
     try: runMain()
-    except: print 'Cataclysmic run error:', sys.exc_info()[0]
+    except: rje.printf('Cataclysmic run error: {0}'.format(sys.exc_info()[0]))
     sys.exit()
 #########################################################################################################################
 ### END OF SECTION IV                                                                                                   #

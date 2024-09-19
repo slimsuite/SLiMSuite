@@ -148,7 +148,7 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         ### ~ [2] ~ Look for help commands and print options if found ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         cmd_help = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
         if cmd_help > 0:
-            print '\n\nHelp for %s %s: %s\n' % (info.program, info.version, time.asctime(time.localtime(info.start_time)))
+            rje.printf('\n\nHelp for {0} {1}: {2}\n'.format(info.program, info.version, time.asctime(time.localtime(info.start_time))))
             out.verbose(-1,4,text=__doc__)
             if rje.yesNo('Show general commandline options?'): out.verbose(-1,4,text=rje.__doc__)
             if rje.yesNo('Quit?'): sys.exit()           # Option to quit after help
@@ -158,7 +158,7 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         return cmd_list
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Major Problem with cmdHelp()'
+    except: rje.printf('Major Problem with cmdHelp()')
 #########################################################################################################################
 def setupProgram(): ### Basic Setup of Program when called from commandline.
     '''
@@ -170,18 +170,18 @@ def setupProgram(): ### Basic Setup of Program when called from commandline.
     try:### ~ [1] ~ Initial Command Setup & Info ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         info = makeInfo()                                   # Sets up Info object with program details
         if len(sys.argv) == 2 and sys.argv[1] in ['version','-version','--version']: rje.printf(info.version); sys.exit(0)
-        if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: rje.printf('{0} v{1}'.format(info.program,info.version)); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: rje.printf('%s v%s' % (info.program,info.version)); sys.exit(0)
         if len(sys.argv) == 2 and sys.argv[1] in ['description','-description','--description']: rje.printf('%s: %s' % (info.program,info.description)); sys.exit(0)
         cmd_list = rje.getCmdList(sys.argv[1:],info=info)   # Reads arguments and load defaults from program.ini
         out = rje.Out(cmd_list=cmd_list)                    # Sets up Out object for controlling output to screen
-        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2 
+        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2
         out.printIntro(info)                                # Prints intro text using details from Info object
         cmd_list = cmdHelp(info,out,cmd_list)               # Shows commands (help) and/or adds commands from user
         log = rje.setLog(info,out,cmd_list)                 # Sets up Log object for controlling log file output
         return (info,out,log,cmd_list)                      # Returns objects for use in program
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Problem during initial setup.'; raise
+    except: rje.printf('Problem during initial setup.'); raise
 #########################################################################################################################
 ### END OF SECTION I                                                                                                    #
 #########################################################################################################################
@@ -403,7 +403,7 @@ class SLiMMutant(rje_slimcore.SLiMCore):
                     pfamdb = pingu.db().addEmptyTable('Pfam',['Uniprot','Pfam'],['Uniprot'])
                     for entry in ppuni.entries():
                         if 'Pfam' in entry.dict['DB'] and entry.dict['DB']['Pfam']:
-                            pfamdb.addEntry({'Uniprot':entry.accNum(),'Pfam':string.join(rje.sortKeys(entry.dict['DB']['Pfam']),'|')})
+                            pfamdb.addEntry({'Uniprot':entry.accNum(),'Pfam':rje.join(rje.sortKeys(entry.dict['DB']['Pfam']),'|')})
                     pfamdb.saveToFile(pfamfile)
                 self.printLog('#PFAM','%s %s Uniprot entries with Pfam domains.' % (rje.iStr(pfamdb.entryNum()),spec))
                 self.printLog('#PFAM','%s different Pfam domains mapped to %s Uniprot.' % (rje.iLen(pfamdb.index('Pfam',splitchar='|')),spec))
@@ -570,11 +570,11 @@ class SLiMMutant(rje_slimcore.SLiMCore):
                         self.progLog('\r#MUT','Saving mutant sequences: %.2f%%' % (ox/otot)); ox += 100.0
                         entry = mdb.data(mkey)
                         seq = seqlist.getSeq(seqdict[entry[pfield]])
-                        name = string.split(seq[0])
+                        name = rje.split(seq[0])
                         mut = '%s.%s' % (name[0],entry[mfield])
                         if mut in muts: continue
                         else: muts.append(mut)
-                        MUT.write('>%s.%s %s\n%s\n' % (name[0],entry[mfield],string.join(name[1:]),entry['SLiMMutantSequence']))
+                        MUT.write('>%s.%s %s\n%s\n' % (name[0],entry[mfield],rje.join(name[1:]),entry['SLiMMutantSequence']))
                     self.printLog('\r#MUT','Saved %s mutant %s sequences to %s' % (rje.iLen(muts),split,mutfile))
                     MUT.close()
             ## ~ [3b] Full data ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
@@ -602,11 +602,11 @@ class SLiMMutant(rje_slimcore.SLiMCore):
                     self.progLog('\r#MUT','Saving mutant sequences: %.2f%%' % (ox/otot)); ox += 100.0
                     entry = mdb.data(mkey)
                     seq = seqlist.getSeq(seqdict[entry[pfield]])
-                    name = string.split(seq[0])
+                    name = rje.split(seq[0])
                     mut = '%s.%s' % (name[0],entry[mfield])
                     if mut in muts: continue
                     else: muts.append(mut)
-                    MUT.write('>%s.%s %s\n%s\n' % (name[0],entry[mfield],string.join(name[1:]),entry['SLiMMutantSequence']))
+                    MUT.write('>%s.%s %s\n%s\n' % (name[0],entry[mfield],rje.join(name[1:]),entry['SLiMMutantSequence']))
                 self.printLog('\r#MUT','Saved mutant sequences to %s' % (mutfile))
                 MUT.close()
 
@@ -674,14 +674,14 @@ class SLiMMutant(rje_slimcore.SLiMCore):
             seqlist = self.obj['SeqList'] = rje_seqlist.SeqList(self.log,seqcmd)
             seqdict = seqlist.makeSeqNameDic('max')
             ## ~ [1d] Setup MutOcc table ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-            ofields = string.split('RunID,Motif,Start_Pos,End_Pos,Pattern,Desc,UPC,Uniprot,Mut,Mutants,WT,Mutations',',')  # *.MutOcc.csv
+            ofields = rje.split('RunID,Motif,Start_Pos,End_Pos,Pattern,Desc,UPC,Uniprot,Mut,Mutants,WT,Mutations',',')  # *.MutOcc.csv
             odb = self.db().addEmptyTable('MutOcc',ofields,['RunID','Motif','Uniprot','Start_Pos','End_Pos'])
             odb.setStr({'Delimit':','})
             ## ~ [1e] Setup MutExp table ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             # eGOF and eLOF are expected GOF and LOF given that number of mutations in THAT protein
             # Uses total RunID mutation frequency to establish expected numbers of mutations
             #!# Consider adding additional output using overall mutation numbers?
-            efields = string.split('RunID,Motif,Uniprot,eGOF,eLOF,Mutations',',')  # *.MutOcc.csv
+            efields = rje.split('RunID,Motif,Uniprot,eGOF,eLOF,Mutations',',')  # *.MutOcc.csv
             odb = self.db().addEmptyTable('MutOcc',ofields,['RunID','Motif','Uniprot','Start_Pos','End_Pos'])
             odb.setStr({'Delimit':','})
 
@@ -708,7 +708,7 @@ class SLiMMutant(rje_slimcore.SLiMCore):
                 for prot in mdb.indexKeys(self.getStr('ProtField')):
                     self.progLog('\r#MASK','%s Masking %s input sequences: %.2f%%' % (slimcore.maskText(),runid,sx/stot)); sx += 100.0
                     (name,sequence) = seqlist.getSeq(seqdict[prot])
-                    sname = string.split(name)[0]
+                    sname = rje.split(name)[0]
                     maskseq = slimcore.maskSequence(sequence,name,log=self.getBool('LogMask'),screen=False)
                     maskedseq[prot] = maskseq
                     mutations[prot] = []
@@ -717,7 +717,7 @@ class SLiMMutant(rje_slimcore.SLiMCore):
                         pos = int(pos) - 1
                         if maskseq[pos] == 'X': continue    # Affects masked sequence: ignore.
                         mutations[prot].append(mutant)
-                    mutations[prot]  = string.replace(string.join(mutations[prot],';'),'p.','')
+                    mutations[prot]  = rje.replace(rje.join(mutations[prot],';'),'p.','')
                 self.printLog('\r#MASK','%s Masked %s %s input sequences.' % (slimcore.maskText(),rje.iStr(stot),runid))
                 self.printLog('#MUT','Generated mutation lists for %s proteins.' % rje.iLen(mutations))
                 self.mutFreqDict(mutations)
@@ -728,7 +728,7 @@ class SLiMMutant(rje_slimcore.SLiMCore):
                 sx = 0.0; stot = len(self.slims()) * len(mdb.indexKeys(self.getStr('ProtField')))
                 for prot in mdb.indexKeys(self.getStr('ProtField')):
                     (name,sequence) = seqlist.getSeq(seqdict[prot])
-                    sname = string.split(name)[0]
+                    sname = rje.split(name)[0]
                     maskseq = slimcore.maskSequence(sequence,name,log=self.getBool('LogMask'),screen=False)
 
                     #!# Strip away the motif extra _1a etc. before combining.
@@ -759,18 +759,18 @@ class SLiMMutant(rje_slimcore.SLiMCore):
                                     occpos = occ['Pos']
                                     if occpos not in mutocc: mutocc[occpos] = []
                                     if mutant not in mutocc[occpos]: mutocc[occpos].append(mutant)
-                            mutations.append(string.split(mutant,'.')[-1])  # All unmasked mutations
+                            mutations.append(rje.split(mutant,'.')[-1])  # All unmasked mutations
                         if not mutations: continue  # No unmasked mutations. Do not waste processing.
                         # Now have list of wtpos and a mutpos dictionary
-                        allpos = rje.sortUnique(wtocc+mutocc.keys())   # All unique positions to check for GOF/LOF
+                        allpos = rje.sortUnique(wtocc+list(mutocc.keys()))   # All unique positions to check for GOF/LOF
                         if not allpos: continue     # No occurrences. Do not waste processing.
                         entrycore = {'RunID':slimcore.getStr('RunID'),'Motif':slim.name(),'Pattern':slim.pattern(),
-                                     'Desc':string.join(string.split(name)[1:]),'Uniprot':sname,
+                                     'Desc':rje.join(rje.split(name)[1:]),'Uniprot':sname,
                                      'End_Pos':0,'UPC':0,   #!# Drop these!
-                                     'Mutations':string.join(mutations,';')}
+                                     'Mutations':rje.join(mutations,';')}
                         for occpos in allpos:
                             if occpos not in mutocc: mutocc[occpos] = []
-                            entry = rje.combineDict({'Start_Pos':occpos,'Mut':len(mutocc[occpos]),'Mutants':string.replace(string.join(mutocc[occpos],';'),'p.',''),'WT':len(mutations)},entrycore)
+                            entry = rje.combineDict({'Start_Pos':occpos,'Mut':len(mutocc[occpos]),'Mutants':rje.replace(rje.join(mutocc[occpos],';'),'p.',''),'WT':len(mutations)},entrycore)
                             if occpos not in wtocc: entry['WT'] = 0
                             if entry['WT'] != entry['Mut']: odb.addEntry(entry)
                 self.printLog('\r#SEARCH','Searching for SLiMs complete.')
@@ -797,8 +797,8 @@ class SLiMMutant(rje_slimcore.SLiMCore):
             if not self.getStrLC('ResFile'): resfile = '%s.slimmutant.occ.csv' % self.basefile()
             else:
                 resfile = self.getStrLC('ResFile')
-                rsplit = string.split(resfile,'.')
-                if rsplit[-2] != 'occ': resfile = string.join(rsplit[:-1]+['occ']+rsplit[-1:],'.')
+                rsplit = rje.split(resfile,'.')
+                if rsplit[-2] != 'occ': resfile = rje.join(rsplit[:-1]+['occ']+rsplit[-1:],'.')
             if not rje.exists(resfile) and not self.dev():
                 self.errorLog('Cannot find SLiMProb results file "%s"!' % resfile,printerror=False)
                 raise IOError
@@ -809,14 +809,14 @@ class SLiMMutant(rje_slimcore.SLiMCore):
             seqlist = rje_seqlist.SeqList(self.log,self.cmd_list+['autoload=T','seqin=%s.fas' % mutfile])
             for seq in seqlist.seqs():
                 name = seqlist.shortName(seq)
-                nsplit = string.split(name,'.')
-                if nsplit[-2] == 'p': prot = string.join(nsplit[:-2],'.')
-                else: prot = string.join(nsplit[:-1],'.')
+                nsplit = rje.split(name,'.')
+                if nsplit[-2] == 'p': prot = rje.join(nsplit[:-2],'.')
+                else: prot = rje.join(nsplit[:-1],'.')
                 if prot not in mutations: mutations[prot] = []
                 mutations[prot].append(nsplit[-1])
             for prot in mutations:
                 mutations[prot].sort()
-                mutations[prot] = string.join(mutations[prot],';')
+                mutations[prot] = rje.join(mutations[prot],';')
             self.printLog('#MUT','Generated mutation lists for %s proteins.' % rje.iLen(mutations))
 
             ### ~ [2] Load Occ Data ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -842,9 +842,9 @@ class SLiMMutant(rje_slimcore.SLiMCore):
                 odb.dropFields(['Match','Variant','MisMatch','Masking','Prot_Len'])
                 odb.makeField('#Seq#','Uniprot'); odb.addField('Mutation',evalue='')
                 for entry in odb.indexEntries('Dataset','Mut'):
-                    msplit = string.split(entry['Seq'],'.')
-                    if msplit[-2] == 'p': entry['Uniprot'] = string.join(msplit[:-2],'.')
-                    else: entry['Uniprot'] = string.join(msplit[:-1],'.')
+                    msplit = rje.split(entry['Seq'],'.')
+                    if msplit[-2] == 'p': entry['Uniprot'] = rje.join(msplit[:-2],'.')
+                    else: entry['Uniprot'] = rje.join(msplit[:-1],'.')
                     entry['Mutation'] = msplit[-1]
 
             ### ~ [3] Reshape Data ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -861,8 +861,8 @@ class SLiMMutant(rje_slimcore.SLiMCore):
                     #self.debug('%s' % entry)
                     if not entry['Mutants']: entry['Mutants'] = ''
                     entry['Mutations'] = mutations[entry['Uniprot']]
-                    if entry['WT'] == 1 and entry['Mut'] == len(string.split(entry['Mutations'],';')): odb.dropEntry(entry)
-                    if entry['WT'] == 1: entry['WT'] = len(string.split(entry['Mutations'],';'))
+                    if entry['WT'] == 1 and entry['Mut'] == len(rje.split(entry['Mutations'],';')): odb.dropEntry(entry)
+                    if entry['WT'] == 1: entry['WT'] = len(rje.split(entry['Mutations'],';'))
                 self.printLog('#DROP','Purged unaffected occurrences: %s -> %s entries.' % (rje.iStr(prex),rje.iStr(odb.entryNum())))
                 odb.dropField('Unaffected')
                 odb.saveToFile()
@@ -934,7 +934,7 @@ class SLiMMutant(rje_slimcore.SLiMCore):
                 occdb.addField('DomLink',evalue=0)
                 # Motif field should match Motif in other tables
                 # Uniprot is full name and should be reduced to accnum
-                for entry in occdb.entries(): entry['Uniprot'] = string.split(entry['Uniprot'],'__')[-1]
+                for entry in occdb.entries(): entry['Uniprot'] = rje.split(entry['Uniprot'],'__')[-1]
                 ## ~ [5a] Merge mutation gain/loss table with ELM-Pfam-PPI data ~~~~~~~~~~~~~~~~~~~~~~~ ##
                 motlist = occdb.indexKeys('Motif'); mx = 0.0; mtot = len(motlist); dx = mtot
                 for motif in motlist[0:]:
@@ -1033,7 +1033,7 @@ class SLiMMutant(rje_slimcore.SLiMCore):
                     mutfreq['*'] = mutdict[prot]    # This should contain total unmasked aa counts
                     mdb.addEntry(entry)
                     continue
-                for mut in string.split(mutdict[prot],';'):
+                for mut in rje.split(mutdict[prot],';'):
                     (xfrom, xto) = rje.matchExp('^(\D)\d+(\D)$',mut)
                     if xfrom not in mutfreq: mutfreq[xfrom] = {'X':0}
                     if xto not in mutfreq[xfrom]: mutfreq[xfrom][xto] = 0
@@ -1074,8 +1074,8 @@ def runMain():
     ### ~ [1] ~ Basic Setup of Program  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try: (info,out,mainlog,cmd_list) = setupProgram()
     except SystemExit: return  
-    except: print 'Unexpected error during program setup:', sys.exc_info()[0]; return
-    
+    except: rje.printf('Unexpected error during program setup:', sys.exc_info()[0]); return
+
     ### ~ [2] ~ Rest of Functionality... ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try: SLiMMutant(mainlog,cmd_list).run()
 
@@ -1087,7 +1087,7 @@ def runMain():
 #########################################################################################################################
 if __name__ == "__main__":      ### Call runMain 
     try: runMain()
-    except: print 'Cataclysmic run error:', sys.exc_info()[0]
+    except: rje.printf('Cataclysmic run error: {0}'.format(sys.exc_info()[0]))
     sys.exit()
 #########################################################################################################################
 ### END OF SECTION IV                                                                                                   #

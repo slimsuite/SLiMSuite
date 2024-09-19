@@ -162,9 +162,9 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         ### ~ [2] ~ Look for help commands and print options if found ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         cmd_help = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
         if cmd_help > 0:
-            print '\n\nHelp for %s %s: %s\n' % (info.program, info.version, time.asctime(time.localtime(info.start_time)))
+            rje.printf('\n\nHelp for {0} {1}: {2}\n'.format(info.program, info.version, time.asctime(time.localtime(info.start_time))))
             out.verbose(-1,4,text=__doc__)
-            if rje.yesNo('Show general commandline options?'): out.verbose(-1,4,text=rje.__doc__)
+            if rje.yesNo('Show general commandline options?',default='N'): out.verbose(-1,4,text=rje.__doc__)
             if rje.yesNo('Quit?'): sys.exit()           # Option to quit after help
             cmd_list += rje.inputCmds(out,cmd_list)     # Add extra commands interactively.
         elif out.stat['Interactive'] > 1: cmd_list += rje.inputCmds(out,cmd_list)    # Ask for more commands
@@ -172,7 +172,7 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         return cmd_list
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Major Problem with cmdHelp()'
+    except: rje.printf('Major Problem with cmdHelp()')
 #########################################################################################################################
 def setupProgram(): ### Basic Setup of Program when called from commandline.
     '''
@@ -183,16 +183,19 @@ def setupProgram(): ### Basic Setup of Program when called from commandline.
     '''
     try:### ~ [1] ~ Initial Command Setup & Info ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         info = makeInfo()                                   # Sets up Info object with program details
+        if len(sys.argv) == 2 and sys.argv[1] in ['version','-version','--version']: rje.printf(info.version); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: rje.printf('%s v%s' % (info.program,info.version)); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['description','-description','--description']: rje.printf('%s: %s' % (info.program,info.description)); sys.exit(0)
         cmd_list = rje.getCmdList(sys.argv[1:],info=info)   # Reads arguments and load defaults from program.ini
         out = rje.Out(cmd_list=cmd_list)                    # Sets up Out object for controlling output to screen
-        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2 
+        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2
         out.printIntro(info)                                # Prints intro text using details from Info object
         cmd_list = cmdHelp(info,out,cmd_list)               # Shows commands (help) and/or adds commands from user
         log = rje.setLog(info,out,cmd_list)                 # Sets up Log object for controlling log file output
         return (info,out,log,cmd_list)                      # Returns objects for use in program
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Problem during initial setup.'; raise
+    except: rje.printf('Problem during initial setup.'); raise
 #########################################################################################################################
 default_contexts = {'XXXG':'Strong','RnnXXXH':'Mid','CnnXXXU':'Mid','UnnXXXC':'Mid','CnnXXXM':'Weak','UnnXXXW':'Weak',
                     '^XXXH':'Unknown','^nXXXH':'Unknown','^nnXXXH':'Unknown'}
@@ -344,7 +347,7 @@ class ExTATIC(rje_obj.RJE_Object):
         try:### ~ [1] Setup File Names ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             need_cds = self.getBool('CDSOnly')
             if self.getStrLC('SingleSeq'):
-                basefile = string.split(self.getStr('SingleSeq'))[0]
+                basefile = rje.split(self.getStr('SingleSeq'))[0]
                 if not self.getStrLC('SeqIn'): raise ValueError('No SeqIn cDNA sequence given!')
                 if need_cds and not self.getStrLC('CDSIn'): raise ValueError('No CDSIn CDS sequence given (cdsonly=T)!')
             else:
@@ -384,7 +387,7 @@ class ExTATIC(rje_obj.RJE_Object):
             conlen = [0,0]    # Length of [5',3'] context
             for ckey in cdb.dataKeys():
                 entry = cdb.data(ckey)
-                consplit = string.split(entry['Context'].upper(),'XXX')
+                consplit = rje.split(entry['Context'].upper(),'XXX')
                 if len(consplit) != 2: raise ValueError('Context "%s" format error!' %  entry['Context'])
                 consplit[0] = rje_slim.patternFromCode(rje_slim.slimFromPattern(consplit[0],dna=True),dna=True)
                 conlen[0] = max(conlen[0],rje_slim.slimLen(consplit[0]))
@@ -392,8 +395,8 @@ class ExTATIC(rje_obj.RJE_Object):
                 conlen[1] = max(conlen[1],rje_slim.slimLen(consplit[1]))
                 self.printLog('#START','%s = %s.' % (entry['Context'],entry['Strength']))
             self.printLog('#START','Start site context ranges from -%d to +%d' % (conlen[0],conlen[1]))
-            #self.printLog('#AIC','Alternative codons %s allowed in %s context.' % (string.join(self.list['AltCodons'],'/'),string.join(self.list['AltContext'],'/')))
-            self.dict['Output']['altcodons'] = string.join(self.list['AltCodons'],'\n')
+            #self.printLog('#AIC','Alternative codons %s allowed in %s context.' % (rje.join(self.list['AltCodons'],'/'),rje.join(self.list['AltContext'],'/')))
+            self.dict['Output']['altcodons'] = rje.join(self.list['AltCodons'],'\n')
             #?# Add check of integrity of cdb, i.e. non-overlapping contexts? Do during analysis?
             return True
         except: self.errorLog('Problem during %s.setupCodons().' % self.prog()); return False  # Setup failed
@@ -438,7 +441,7 @@ class ExTATIC(rje_obj.RJE_Object):
                         self.progLog('\r#SEQ','Processing transcript %s: %.1f%%' % (stype,px/ptot)); px += 100.0
                         (name,sequence) = sobj.currSeq()
                         if 'Sequence unavailable' in sequence: continue
-                        namedata = string.split(name,'|',3)
+                        namedata = rje.split(name,'|',3)
                         if len(namedata) < 3: enst = ensg = gene = namedata[0]
                         else: [enst,ensg,gene] = namedata[:3]
                         if len(namedata) > 3: desc = namedata[3]
@@ -570,7 +573,7 @@ class ExTATIC(rje_obj.RJE_Object):
                 for otype in 'tdaoeu':  # Will go in order and over-write to most 5'
                     if otype not in ['a']+self.list['ORFTypes']: continue
                     ox = 0
-                    for pos in string.split('%s' % entry['%sORF' % otype],'|'):
+                    for pos in rje.split('%s' % entry['%sORF' % otype],'|'):
                         try: entry['Pos'].append(int(pos)); entry['Type'] = '%sORF' % otype; ox += 1
                         except: pass
                     entry['%sORF' % otype] = ox
@@ -578,10 +581,10 @@ class ExTATIC(rje_obj.RJE_Object):
                 entry['ORFPos'] = entry['Pos'][0:]
                 entry['Start'] = entry['Pos'][0]
                 # Convert Pos to AA pos
-                entry['ORFLen'] = (entry['Stop'] - entry['Start']) / 3
-                for i in range(len(entry['ORFPos'])): entry['ORFPos'][i] = 1 + (entry['Pos'][i] - entry['Start']) / 3
-                entry['Pos'] = string.replace('%s' % entry['Pos'],', ','|')[1:-1]
-                entry['ORFPos'] = string.replace('%s' % entry['ORFPos'],', ','|')[1:-1]
+                entry['ORFLen'] = (entry['Stop'] - entry['Start']) // 3
+                for i in range(len(entry['ORFPos'])): entry['ORFPos'][i] = 1 + (entry['Pos'][i] - entry['Start']) // 3
+                entry['Pos'] = rje.replace('%s' % entry['Pos'],', ','|')[1:-1]
+                entry['ORFPos'] = rje.replace('%s' % entry['ORFPos'],', ','|')[1:-1]
             ## ~ [2c] Convert to use Start as Key and create ORF identifiers ~~~~~~~~~~~~~~~~~~~~~~ ##
             odb.newKey(['ENST','Type','Start'],startfields=True)    # Include Type for sorting
             odb.addField('ORF')     # ORF Identifier (numbered within Type in position order)
@@ -597,8 +600,8 @@ class ExTATIC(rje_obj.RJE_Object):
             adb.addField('ORF'); adb.addField('ORFPos'); adb.addField('ORFLen')
             for entry in odb.entries():
                 orf = entry['ORF']
-                orfpos = string.split(entry['ORFPos'],'|')
-                dnapos = string.split(entry['Pos'],'|')
+                orfpos = rje.split(entry['ORFPos'],'|')
+                dnapos = rje.split(entry['Pos'],'|')
                 for i in range(len(dnapos)):
                     akey = adb.makeKey({'ENST':entry['ENST'],'Pos':dnapos[i]})
                     try:
@@ -625,7 +628,7 @@ class ExTATIC(rje_obj.RJE_Object):
                     self.progLog('\r#NR','Generating nrflanks: %.1f%%' % (px/ptot)); px += 100.0
                     (name,sequence) = sobj.currSeq()
                     if 'Sequence unavailable' in sequence: continue
-                    enst = string.split(name,'|',3)[0]
+                    enst = rje.split(name,'|',3)[0]
                     for entry in gdb.indexEntries('ENST',enst):
                         entry['NRFlanks'] = sequence[max(0,entry['Pos']-self.getInt('NRFlanks')-1):entry['Pos']+self.getInt('NRFlanks')+3]
                 self.printLog('\r#NR','Generated nrflanks +/- %d nt' % self.getInt('NRFlanks'))
@@ -641,10 +644,10 @@ class ExTATIC(rje_obj.RJE_Object):
             gdb.index('AIC',splitchar='|')
             adb.addField('NR'); adb.addField('NRX')
             for entry in adb.entries():
-                nkey = string.join([entry['ENST'],entry['ORF'],entry['Type'],entry['ORFPos']],':')
+                nkey = rje.join([entry['ENST'],entry['ORF'],entry['Type'],entry['ORFPos']],':')
                 try: nentry = gdb.indexEntries('AIC',nkey)[0]
                 except: self.bugPrint(nkey); continue
-                aiclist = string.split(nentry['AIC'],'|')
+                aiclist = rje.split(nentry['AIC'],'|')
                 entry['NRX'] = len(aiclist)     # This might be enough!
                 # Rate as NR, Redundant, Internal ...?
                 if len(aiclist) == 1: entry['NR'] = 'NR'            # NR = Unique
@@ -652,7 +655,7 @@ class ExTATIC(rje_obj.RJE_Object):
                 else:
                     entry['NR'] = 'Redundant'                       # ORF internal that is same as a start is also "Redundant"
                     for aic in aiclist:                             # Internal = ORF start that is inside another ORF
-                        if int(string.split(aic,':')[-1]) > 1: entry['NR'] = 'Internal'
+                        if int(rje.split(aic,':')[-1]) > 1: entry['NR'] = 'Internal'
                 #X#self.debug(entry)
 
             #?# Add AIC number to AIC output, e.g. 1 to N in 5' to 3' order: get from odb. key = 'ENST','ORF'
@@ -726,7 +729,7 @@ class ExTATIC(rje_obj.RJE_Object):
                     if (tss - cpos) % 3: continue   # Wrong frame
                     if cpos >= tss: end = cpos; break   # Found an in-frame 3' strong ATG
             ## ~ [1c] Add alternative codon positions ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-            for codon in self.list['AltCodons']:    # Could combine with: '(%s)' % string.join(self.list['AltCodons'])
+            for codon in self.list['AltCodons']:    # Could combine with: '(%s)' % rje.join(self.list['AltCodons'])
                 if codon not in codons: codons[codon] = {} # If combined, extract actual codon using position and remake dictionary
                 for context in self.list['AltContext']:
                     rje.combineDict(codons[codon],self.codonPositions(codon,cdnaseq[:end],context),overwrite=False)
@@ -771,7 +774,7 @@ class ExTATIC(rje_obj.RJE_Object):
                     if ctype == 'uORF' and stop > 0 and stop == cdstop: ctype = 'eORF'  # Extended ORF
                     elif ctype == 'uORF' and stop > tss and cpos < tss: ctype = 'oORF'  # Overlapping ORF
                     if ctype[:1] not in self.list['ORFTypes']+['a']: continue
-                    if (stop - cpos) / 3 < self.getInt('MinORF'): continue
+                    if (stop - cpos) // 3 < self.getInt('MinORF'): continue
                     ## ~ [2d] Update table ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
                     entry = {'ENST':enst,'Pos':cpos+1,'RF':rf,'Codon':cdnaseq[cpos:][:3],'Type':ctype,'Strength':strength,'Stop':stop+1,'Context':codons[strength][cpos]}
                     #ekey = '%s\t%s' % (enst,cpos)
@@ -816,7 +819,7 @@ class ExTATIC(rje_obj.RJE_Object):
                     else: context_regex.append(base)
                 except: context_regex.append(n)
             if 'X' in context_regex: offset = context_regex.index('X')      # Position of codon within match
-            context_regex = '(%s)' % string.join(context_regex,'')
+            context_regex = '(%s)' % rje.join(context_regex,'')
             if 'XXX' not in context_regex: raise ValueError('Cannot find XXX for codon in context %s -> %s' % (context,context_regex))
             context_regex = context_regex.replace('XXX',codon)
             if 'X' in context_regex: raise ValueError('Too many X in codon context %s -> %s' % (context,context_regex))
@@ -852,7 +855,7 @@ class ExTATIC(rje_obj.RJE_Object):
                 self.progLog('\r#FAS','Generating ORFs: %.1f%%' % (px/ptot)); px += 100.0
                 (name,sequence) = sobj.currSeq()
                 if 'Sequence unavailable' in sequence: continue
-                enst = string.split(name,'|',3)[0]
+                enst = rje.split(name,'|',3)[0]
                 if enst not in odb.index('ENST'): continue
                 for okey in odb.index('ENST')[enst]:
                     entry = odb.data(okey)
@@ -860,7 +863,7 @@ class ExTATIC(rje_obj.RJE_Object):
                     try:
                         orfseq = rje_sequence.dna2prot(sequence[entry['Start']-1:entry['Stop']+3]).lower()
                         i = -1
-                        for pos in string.split(entry['ORFPos'],'|'):
+                        for pos in rje.split(entry['ORFPos'],'|'):
                             i = int(pos)-1
                             try: orfseq = orfseq[:i] + orfseq[i].upper() + orfseq[i+1:]
                             except:
@@ -897,8 +900,8 @@ def runMain():
     ### ~ [1] ~ Basic Setup of Program  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try: (info,out,mainlog,cmd_list) = setupProgram()
     except SystemExit: return  
-    except: print 'Unexpected error during program setup:', sys.exc_info()[0]; return
-    
+    except: rje.printf('Unexpected error during program setup:', sys.exc_info()[0]); return
+
     ### ~ [2] ~ Rest of Functionality... ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try: ExTATIC(mainlog,cmd_list).run()
 
@@ -910,7 +913,7 @@ def runMain():
 #########################################################################################################################
 if __name__ == "__main__":      ### Call runMain 
     try: runMain()
-    except: print 'Cataclysmic run error:', sys.exc_info()[0]
+    except: rje.printf('Cataclysmic run error: {0}'.format(sys.exc_info()[0]))
     sys.exit()
 #########################################################################################################################
 ### END OF SECTION IV                                                                                                   #

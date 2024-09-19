@@ -191,47 +191,46 @@ def makeInfo():     ### Makes Info object
 #########################################################################################################################
 def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for more sys.argv commands
     '''Prints *.__doc__ and asks for more sys.argv commands.'''
-    try:
+    try:### ~ [1] ~ Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         if not info: info = makeInfo()
         if not out: out = rje.Out()
-        chelp = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
-        if chelp > 0:
-            print '\n\nHelp for %s %s: %s\n' % (info.program, info.version, time.asctime(time.localtime(info.start_time)))
+        ### ~ [2] ~ Look for help commands and print options if found ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+        cmd_help = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
+        if cmd_help > 0:
+            rje.printf('\n\nHelp for {0} {1}: {2}\n'.format(info.program, info.version, time.asctime(time.localtime(info.start_time))))
             out.verbose(-1,4,text=__doc__)
-            if rje.yesNo('Show general commandline options?'): out.verbose(-1,4,text=rje.__doc__)
-            if rje.yesNo('Quit?'): sys.exit()
-            cmd_list += rje.inputCmds(out,cmd_list)
-        elif out.stat['Interactive'] > 1: cmd_list += rje.inputCmds(out,cmd_list)
+            if rje.yesNo('Show general commandline options?',default='N'): out.verbose(-1,4,text=rje.__doc__)
+            if rje.yesNo('Quit?'): sys.exit()           # Option to quit after help
+            cmd_list += rje.inputCmds(out,cmd_list)     # Add extra commands interactively.
+        elif out.stat['Interactive'] > 1: cmd_list += rje.inputCmds(out,cmd_list)    # Ask for more commands
+        ### ~ [3] ~ Return commands ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         return cmd_list
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Major Problem with cmdHelp()'
+    except: rje.printf('Major Problem with cmdHelp()')
 #########################################################################################################################
-def setupProgram(): ### Basic Setup of Program
+def setupProgram(): ### Basic Setup of Program when called from commandline.
     '''
-    Basic setup of Program:
+    Basic Setup of Program when called from commandline:
     - Reads sys.argv and augments if appropriate
     - Makes Info, Out and Log objects
     - Returns [info,out,log,cmd_list]
     '''
-    try:
-        ### Initial Command Setup & Info ###
-        info = makeInfo()
-        cmd_list = rje.getCmdList(sys.argv[1:],info=info)      ### Load defaults from program.ini
-        ### Out object ###
-        out = rje.Out(cmd_list=cmd_list)
-        out.verbose(2,2,cmd_list,1)
-        out.printIntro(info)
-        ### Additional commands ###
-        cmd_list = cmdHelp(info,out,cmd_list)
-        ### Log ###
-        log = rje.setLog(info=info,out=out,cmd_list=cmd_list)
-        return [info,out,log,cmd_list]
+    try:### ~ [1] ~ Initial Command Setup & Info ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+        info = makeInfo()                                   # Sets up Info object with program details
+        if len(sys.argv) == 2 and sys.argv[1] in ['version','-version','--version']: rje.printf(info.version); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: rje.printf('%s v%s' % (info.program,info.version)); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['description','-description','--description']: rje.printf('%s: %s' % (info.program,info.description)); sys.exit(0)
+        cmd_list = rje.getCmdList(sys.argv[1:],info=info)   # Reads arguments and load defaults from program.ini
+        out = rje.Out(cmd_list=cmd_list)                    # Sets up Out object for controlling output to screen
+        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2
+        out.printIntro(info)                                # Prints intro text using details from Info object
+        cmd_list = cmdHelp(info,out,cmd_list)               # Shows commands (help) and/or adds commands from user
+        log = rje.setLog(info,out,cmd_list)                 # Sets up Log object for controlling log file output
+        return (info,out,log,cmd_list)                      # Returns objects for use in program
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except:
-        print 'Problem during initial setup.'
-        raise
+    except: rje.printf('Problem during initial setup.'); raise
 #########################################################################################################################
 ### END OF SECTION I                                                                                                    #
 #########################################################################################################################
@@ -693,7 +692,7 @@ class EnsEMBL(rje.RJE_Object):
                       'PFam':'/home/richard/Databases/PFam/Pfam_ls','DatPickup':'ensdat.txt'})
         self.setStat({'MinGO':0,'SpecSleep':60})
         self.setOpt({'SpeedSkip':True})
-        self.list['ChromSpec'] = string.split('HUMAN,DROME,CAEEL,YEAST,MOUSE,DANRE,CHICK,XENTR',',')
+        self.list['ChromSpec'] = rje.split('HUMAN,DROME,CAEEL,YEAST,MOUSE,DANRE,CHICK,XENTR',',')
         self.list['SpecList'] = []  #rje.sortKeys(enspec)
         self.dict['EnsTaxID'] = {'Saccharomyces_cerevisiae':'559292','Oryza_indica':'39946','Gorilla_gorilla':'9595',
                                  'Pyrenophora_triticirepentis':'426418'}
@@ -723,7 +722,7 @@ class EnsEMBL(rje.RJE_Object):
                 self._cmdReadList(cmd,'cdict',['EnsTaxID'])
             except: self.log.errorLog('Problem with cmd:%s' % cmd)
         if not self.getStr('UniPath'): self.setStr({'UniPath':rje.makePath('%suniprot/' % self.getStr('EnsPath'))})
-        self.list['ChromSpec'] = string.split(string.join(self.list['ChromSpec']).upper())
+        self.list['ChromSpec'] = rje.split(rje.join(self.list['ChromSpec']).upper())
 #########################################################################################################################
     ### <2> ### Main Run Methods                                                                                        #
 #########################################################################################################################
@@ -776,7 +775,7 @@ class EnsEMBL(rje.RJE_Object):
         '''Returns species code from Species = self.info['Name'].'''
         ### ~ [1] Try to pull from dictionaries ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         if not getspecies: getspecies = self.info['Name']
-        if self.dict['EnsSpec'].has_key(getspecies): return self.dict['EnsSpec'][getspecies]
+        if getspecies in self.dict['EnsSpec']: return self.dict['EnsSpec'][getspecies]
         elif self.db('release') and self.db('release').data(getspecies) and self.db('release').data(getspecies)['spcode']:
             return self.db('release').data(getspecies)['spcode']
         elif self.obj['Taxonomy']:
@@ -790,7 +789,7 @@ class EnsEMBL(rje.RJE_Object):
                 self.printLog('\n#CODE','Species code "%s" created for "%s".' % (code,getspecies))
                 open('rje_ensembl.newspec','a').write("'%s':'%s',\t# Not in UniProt\n" % (getspecies,code))
             return self.dict['EnsSpec'][getspecies]
-        elif enspec.has_key(getspecies):
+        elif getspecies in enspec:
             self.dict['EnsSpec'][getspecies] = enspec[getspecies]
             return enspec[getspecies]
         else:
@@ -810,9 +809,9 @@ class EnsEMBL(rje.RJE_Object):
             return self.db('release').indexEntries('spcode',species)[0]['species']
         elif self.obj['Taxonomy']:
             species = self.obj['Taxonomy'].getSpecies(species)
-            species = string.join(species.split()[:2],'_')
+            species = rje.join(species.split()[:2],'_')
             return species
-        elif enspec.has_key(species): return species          # Species is OK as it is.
+        elif species in enspec: return species          # Species is OK as it is.
         else:
             for spec in enspec.keys():
                 if enspec[spec] == species: return spec     # Species code converted
@@ -891,7 +890,7 @@ class EnsEMBL(rje.RJE_Object):
                 release[esite] = 10
                 for line in urllib.urlopen('ftp://ftp.ensemblgenomes.org/pub/%s/' % esite).readlines():
                     if rje.matchExp('release-(\d+)',line):
-                        r = string.atoi(rje.matchExp('release-(\d+)',line)[0])
+                        r = rje.atoi(rje.matchExp('release-(\d+)',line)[0])
                         release[esite] = max(r,release[esite])
                 self.printLog('#REL','Ensembl %s Release %d' % (esite,release[esite]))
                 for line in urllib.urlopen('ftp://ftp.ensemblgenomes.org/pub/%s/release-%d/fasta/' % (esite,release[esite])).readlines():
@@ -934,12 +933,12 @@ class EnsEMBL(rje.RJE_Object):
                             for tax in taxid[0:]:
                                 if tax in tobj.dict['TaxDict']: self.debug(tobj.dict['TaxDict'][tax])
                                 tspec = tobj.taxDict(tax,skipuni=True)['name']
-                                if tspec and tspec.startswith(string.replace(entry['species'],'_',' ')):
+                                if tspec and tspec.startswith(rje.replace(entry['species'],'_',' ')):
                                     taxid.remove(tax)
                                     taxid.insert(0,tax)
                                     self.printLog('#TAXID','TaxID %s = "%s" in NCBI.' % (tax,tspec))
                                     break
-                            self.printLog('#TAXID','Using %s (not %s) for "%s" TaxID.' % (taxid[0],string.join(taxid[1:],'|'),entry['species']))
+                            self.printLog('#TAXID','Using %s (not %s) for "%s" TaxID.' % (taxid[0],rje.join(taxid[1:],'|'),entry['species']))
                         if taxid: taxid = taxid[0]
                         else: taxid = ''
                     except:
@@ -971,7 +970,7 @@ class EnsEMBL(rje.RJE_Object):
                 if spec in rdb.index('section'):
                     sections.append(spec)
             if sections:    # Reduce species to these sections
-                self.printLog('#SPEC','Reduce processing to %s species.' % string.join(sections,'/'))
+                self.printLog('#SPEC','Reduce processing to %s species.' % rje.join(sections,'/'))
                 rdb.dropEntriesDirect('section',sections,inverse=True)
                 self.dict['SiteSpec'] = rdb.index('section')
             return rdb
@@ -1013,7 +1012,7 @@ class EnsEMBL(rje.RJE_Object):
                             if self.list['SpecList']:
                                 if rje.exists(sfile): partial = rje.sortUnique(rje.listFromCommand(sfile)+taxidsubset)
                                 else: partial = taxidsubset
-                                open(sfile,'w').write(string.join(partial+[''],'\n'))
+                                open(sfile,'w').write(rje.join(partial+[''],'\n'))
                             elif rje.exists(sfile): os.unlink(sfile)
                     else: self.warnLog('Cannot make UniProt file without rje_taxonomy setup')
                 if rje.exists(ufile):
@@ -1363,7 +1362,7 @@ class EnsEMBL(rje.RJE_Object):
         try:### ~ [0] ~ Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             spcode = self.speciesCode()
             parsedb = ['ensembl']   #,'gene','id','HGNC','MGI','FlyBase','WormBase','VectorBase','SGD','ZFIN']
-            ucmd = ['specdat=%s' % spcode,'dbparse=%s' % string.join(parsedb,','),'memsaver=F','uparse=OS,OC,OX,DR,SY']
+            ucmd = ['specdat=%s' % spcode,'dbparse=%s' % rje.join(parsedb,','),'memsaver=F','uparse=OS,OC,OX,DR,SY']
             ucmd += ['reviewed=T']
             uniprot = rje_uniprot.UniProt(self.log,self.cmd_list+ucmd)
             ### ~ [1] ~ Read from Uniprot ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -1381,7 +1380,7 @@ class EnsEMBL(rje.RJE_Object):
                     if xentry['db'] in ['ENSG','ENSP','Gene']: uentry[xentry['db']] = xentry['xref']
                     elif xentry['db'] == 'ID': uentry['UniprotID'] = xentry['xref']
                     else: uentry['Symbol'].append(xentry['xref'])
-                uentry['Symbol'] = string.join(uentry['Symbol'],'|')
+                uentry['Symbol'] = rje.join(uentry['Symbol'],'|')
                 udb.addEntry(uentry)
             self.printLog('\r#XREF','Converted XRef for %s of %s Uniprot entries.' % (rje.iStr(udb.entryNum()),rje.iStr(xtot)))
             ## ~ [1b] ~ Generate and store dictionary of Uniprot acc to UniprotEntry object ~~~~~~~ ##
@@ -1403,16 +1402,16 @@ class EnsEMBL(rje.RJE_Object):
             self.printLog('#XREF','%s AccNum-DB links parsed for %s.' % (rje.iStr(xdb.entryNum()),spcode))
             for accnum in xdb.indexDataList('db','ENSG','accnum'):
                 entry = {'UniProt':accnum}
-                ensg = string.split(xdb.data('%s\tENSG' % accnum)['xref'],'|')
+                ensg = rje.split(xdb.data('%s\tENSG' % accnum)['xref'],'|')
                 for db in ['Symbol','Gene','FlyBase']:
                     ## ~ [2a] ~ Extract IDs ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
                     symb = xdb.data('%s\t%s' % (accnum,db))
                     if not symb: continue
-                    symb = string.split(symb['xref'],'|')
+                    symb = rje.split(symb['xref'],'|')
                     if len(symb) > 1:
                         if len(ensg) > 1:
-                            self.warnLog('%s Uniprot %s maps to multiple genes/symbols. Cannot match to ENSG via Uniprot. (%s vs %s)' % (spcode,accnum,string.join(ensg,'|'),string.join(symb,'|')))
-                        else: self.warnLog('%s Uniprot %s maps to %d Gene symbols. Will use %s. (Not %s)' % (spcode,accnum,len(symb),symb[0],string.join(symb[1:],'|')))
+                            self.warnLog('%s Uniprot %s maps to multiple genes/symbols. Cannot match to ENSG via Uniprot. (%s vs %s)' % (spcode,accnum,rje.join(ensg,'|'),rje.join(symb,'|')))
+                        else: self.warnLog('%s Uniprot %s maps to %d Gene symbols. Will use %s. (Not %s)' % (spcode,accnum,len(symb),symb[0],rje.join(symb[1:],'|')))
                     entry['Symbol'] = symb[0]
                     ## ~ [2b] ~ Check for ENSG:many mapping and pick "best" Uniprot ~~~~~~~~~~~~~~~ ##
                     for egene in ensg:
@@ -1556,11 +1555,11 @@ class EnsEMBL(rje.RJE_Object):
             #    seq = seqlist.currSeq()
             for seq in seqlist.seqs():
                 (name,sequence) = seqlist.getSeq(seq,'tuple')
-                ensp = string.split(name)[0]
-                desc = string.join(string.split(name)[1:])
+                ensp = rje.split(name)[0]
+                desc = rje.join(rje.split(name)[1:])
                 try: ensg = rje.matchExp('gene:(\S+)\s',name)[0]
                 except: crapx += 1; ensg = ''
-                nonx = len(sequence) - string.count(sequence.upper(),'X')
+                nonx = len(sequence) - rje.count(sequence.upper(),'X')
                 pdb.addEntry({'ENSP':ensp,'ENSG':ensg,'Desc':desc,'Seq':sequence.upper(),'NonX':nonx})
             self.printLog('#ENSP','%s Ensembl peptide sequences added to peptide table.' % (pdb.iNum()))
             if crapx: self.warnLog('%s %s peptide sequences without recognisable gene annotation.' % (rje.iStr(crapx),species))
@@ -1646,8 +1645,8 @@ class EnsEMBL(rje.RJE_Object):
                 gtypes[gtype] += 1
             except: continue
             for replace_type in ['C','V','J','D']:
-                line = string.replace(line,'IG_%s_gene' % replace_type,'protein_coding')
-                line = string.replace(line,'TR_%s_gene' % replace_type,'protein_coding')
+                line = rje.replace(line,'IG_%s_gene' % replace_type,'protein_coding')
+                line = rje.replace(line,'TR_%s_gene' % replace_type,'protein_coding')
             match = rje.matchExp('^(\d+)\s+protein_coding\s.+(KNOWN|NOVEL|PUTATIVE)\s*(\S.*)\[Source:(\S.+);Acc:(\S+)\]',line)
 
             #!# Two columns before the KNOWN/NOVEL gives an xref ID that matches the xref.txt table
@@ -1662,8 +1661,8 @@ class EnsEMBL(rje.RJE_Object):
             else:
                 match = rje.matchExp('^(\d+)\s+protein_coding\s.+(KNOWN|NOVEL|PUTATIVE)\s*(\S.*)\[.+Acc:(\S+)\]',line)
                 if match: self.dict['GeneAcc'][match[0]] = match[-1]
-            #self.deBug(string.split(line,'\t'))
-            if len(string.split(line,'\t')) > 14: ens_id = string.split(line,'\t')[14]; line = string.join(string.split(line,'\t')[:14],'\t')
+            #self.deBug(rje.split(line,'\t'))
+            if len(rje.split(line,'\t')) > 14: ens_id = rje.split(line,'\t')[14]; line = rje.join(rje.split(line,'\t')[:14],'\t')
             else: ens_id = None
             #self.deBug(ens_id)
             if not match: match = rje.matchExp('^(\d+)\s+protein_coding\s.+(KNOWN|NOVEL|PUTATIVE)\s*(\S.+)\s+\d+\s+\d+\s+transcript with longest CDS',line)
@@ -1845,7 +1844,7 @@ class EnsEMBL(rje.RJE_Object):
             ## ~ [1c] ~ No decent sequences without run of Xs ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             if uobj and badx or not protid:
                 for u in uobj:
-                    if u.seqobj().nonX() > (len(entry['seq']) - string.count(entry['seq'],'X')):
+                    if u.seqobj().nonX() > (len(entry['seq']) - rje.count(entry['seq'],'X')):
                         entry['accnum'] = u.accNum()
                         entry['newname'] = '%s__%s' % (u.id(),u.accNum())
                         entry['newdesc'] = u.seqi('Description')
@@ -1869,7 +1868,7 @@ class EnsEMBL(rje.RJE_Object):
             for db in [mdb,hdb,udb]:
                 if not db: continue
                 for field in ['Symbol','Gene']:
-                    if gene and len(string.split(gene)) == 1: break
+                    if gene and len(rje.split(gene)) == 1: break
                     try:
                         genes = db.indexDataList('ENSG',ensg,field)
                         for g1 in genes[0:]:
@@ -1877,9 +1876,9 @@ class EnsEMBL(rje.RJE_Object):
                                 if g1 == g2: continue
                                 if g1 in g2 and g2 in genes: genes.remove(g2)
                                 elif g2 in g1 and g1 in genes: genes.remove(g1)
-                        gene = string.join(genes)
+                        gene = rje.join(genes)
                     except: pass
-            if len(string.split(gene)) > 1: self.warnLog('Bad gene: "%s"' % gene); gene = ''
+            if len(rje.split(gene)) > 1: self.warnLog('Bad gene: "%s"' % gene); gene = ''
             if gene.startswith(ensg) or not gene:
                 try: gene = {'KNOWN':'ens','NOVEL':'nvl','PUTATIVE':'put','PREDICTED':'pred','KNOWN_BY_PROJECTION':'proj','UNKNOWN':'nvl', 'ANNOTATED':'ens'}[gentry['status']]
                 except: gene = 'pep'
@@ -1991,8 +1990,8 @@ class EnsEMBL(rje.RJE_Object):
                         #self.deBug('=> %s' % self.dict['NewAccName'][protid])
                         #!# Fudge for dodgy EnsEMBL sequences. :o( #!#
                         if self.dict['ProtSeq'][protid].find('X' * 20) >= 0:    # Possible shite sequence, even though best #
-                            p = len(self.dict['ProtSeq'][protid]) - string.count(self.dict['ProtSeq'][protid],'X')
-                            s = len(swiss_seq) - string.count(swiss_seq,'X')
+                            p = len(self.dict['ProtSeq'][protid]) - rje.count(self.dict['ProtSeq'][protid],'X')
+                            s = len(swiss_seq) - rje.count(swiss_seq,'X')
                             if s >= p:  # Replace crap EnsEMBL sequence with SwissProt
                                 self.dict['ProtSeq'][protid] = swiss_seq
                                 self.log.printLog('#REPLACE','Replaced rubbish %s sequence with SwissProt %s sequence!' % (protid,acc))
@@ -2058,7 +2057,7 @@ class EnsEMBL(rje.RJE_Object):
             try:
                 genenum = self.dict['GeneMap'][geneid]      # Clears to save memory. Change if want to keep data
                 accnum = self.dict['GeneAcc'][genenum]
-                geneid = string.split(geneid,':')[-1]; protid = string.split(protid,':')[-1]; accnum = string.split(accnum,':')[-1]
+                geneid = rje.split(geneid,':')[-1]; protid = rje.split(protid,':')[-1]; accnum = rje.split(accnum,':')[-1]
                 symbol = self.symbolFromHGNC(accnum)
                 descacc = self.uniFromMap(geneid)
                 if symbol: accnum = self.uniFromHGNC(accnum); descacc = accnum
@@ -2070,35 +2069,35 @@ class EnsEMBL(rje.RJE_Object):
                 self.errorLog('Problem getting AccNum/GeneNum from GeneID %s' % geneid)
                 accnum = protid; genenum = None
             ## Mapped AccNum but not kept sequence ##
-            if self.dict['NewAccName'].has_key(protid) and not rje.matchExp('^\S+_\S+__(%s)' % accnum,self.dict['NewAccName'][protid]):   # Primary != secondary
+            if protid in self.dict['NewAccName'] and not rje.matchExp('^\S+_\S+__(%s)' % accnum,self.dict['NewAccName'][protid]):   # Primary != secondary
                 newacc = rje.matchExp('^(\S+)_(\S+)__(\S+)',self.dict['NewAccName'][protid])[2]
             ## Mapped Primary AccNum ##
-            elif self.dict['NewAccName'].has_key(protid): newacc = accnum
+            elif protid in self.dict['NewAccName']: newacc = accnum
             ## Could not map AccNum ##
             else:
                 newacc = protid
                 if accnum != protid: type = 'refseq'
             if newacc == 'pep': newacc = protid = geneid; type = 'pep'  #!# Needs better handling! #!#
             #self.deBug('%s: %s = %s => %s =>> %s' % (type,geneid,protid,accnum,newacc))
-            newacc = string.replace(newacc,'__','-')
+            newacc = rje.replace(newacc,'__','-')
             ## Check for double-mapping ##
             if self.dict['GeneAcc'].values().count(newacc) > 1:
                 self.log.printLog('#MAP','AccNum %s mapped to %d Genes, including %s (%s)' % (newacc,self.dict['GeneAcc'].values().count(newacc),geneid,protid),screen=False)
-                newacc = string.replace(protid,'__','-')
+                newacc = rje.replace(protid,'__','-')
             ## Special ##
             if self.speciesCode() == 'YEAST': newacc = protid
 
             ### Description ###
             try: desc = self.dict['GeneDesc'][genenum]
             except: self.errorLog('Problem getting Desc for %s' % accnum); desc = ''
-            if len(desc) < 3 and self.dict['NewAccName'].has_key(protid):
+            if len(desc) < 3 and protid in self.dict['NewAccName']:
                 (gene,species,descacc,desc) = rje.matchExp('^(\S+)_(\S+)__(\S+)\s*(\S*.*)$',self.dict['NewAccName'][protid])
             if len(desc) < 3: desc = 'EnsEMBL %s' % type
             if self.speciesCode() == 'CAEEL' and not symbol:   # and geneid == protid:
-                symbol = string.split(desc)[0]
+                symbol = rje.split(desc)[0]
                 if symbol.find('-') < 0: symbol = ''
-            if symbol: desc = string.join(string.split('%s [acc:%s pep:%s symbol:%s gene:%s]' % (desc,descacc,protid,symbol,geneid)))
-            else: desc = string.join(string.split('%s [acc:%s pep:%s gene:%s]' % (desc,descacc,protid,geneid)))
+            if symbol: desc = rje.join(rje.split('%s [acc:%s pep:%s symbol:%s gene:%s]' % (desc,descacc,protid,symbol,geneid)))
+            else: desc = rje.join(rje.split('%s [acc:%s pep:%s gene:%s]' % (desc,descacc,protid,geneid)))
                 
             ### Default ID ###
             if symbol: id = '%s_%s__%s' % (symbol.lower(),self.speciesCode(),newacc)
@@ -2109,11 +2108,11 @@ class EnsEMBL(rje.RJE_Object):
             else: id = 'nvl_%s__%s' % (self.speciesCode(),newacc)
 
             ### Name ###
-            if self.dict['NewAccName'].has_key(protid):
+            if protid in self.dict['NewAccName']:
                 (gene,species,descacc,newdesc) = rje.matchExp('^(\S+)_(\S+)__(\S+)\s*(\S*.*)$',self.dict['NewAccName'][protid])
                 if species != self.speciesCode():
-                    desc = string.replace(desc,'acc:%s' % accnum,'acc:%s !%s!' % (accnum,species))
-                    id = string.replace(id,newacc,protid)
+                    desc = rje.replace(desc,'acc:%s' % accnum,'acc:%s !%s!' % (accnum,species))
+                    id = rje.replace(id,newacc,protid)
                     return '%s %s' % (id,desc)
                 if newacc == gene:  # TrEMBL
                     return '%s %s' % (id,desc)
@@ -2277,7 +2276,7 @@ class EnsEMBL(rje.RJE_Object):
                                 px += 1
                         GOFAS.close()
                         ## Output summary ##
-                        gdict = {'GO ID':string.replace(id,'_',':'),'GO Desc':self.dict['GO']['Desc'][id],'GO Type':type,'GeneNum':gx,'ProtNum':px}
+                        gdict = {'GO ID':rje.replace(id,'_',':'),'GO Desc':self.dict['GO']['Desc'][id],'GO Type':type,'GeneNum':gx,'ProtNum':px}
                         rje.delimitedFileOutput(self,sfile,headers,datadict=gdict)
                         ix += 1
                         self.log.printLog('\r#GO','Making %s %s GO datasets.' % (rje.integerString(ix),spec),log=False,newline=False)
@@ -2296,11 +2295,11 @@ class EnsEMBL(rje.RJE_Object):
             for line in go_lines:
                 lx += 100.0
                 if line[:1] == '!': continue
-                go = string.split(rje.chomp(line),'\t')
+                go = rje.split(rje.chomp(line),'\t')
                 if len(go) >= 3:
                     ## Get GO Information #
                     desc = go[1]
-                    id = string.replace(go[0],':','_')
+                    id = rje.replace(go[0],':','_')
                     type = go[2]
                     if go[-1] == 'obs':
                         if id not in self.dict['GO']['Obselete']: self.dict['GO']['Obselete'].append(id)
@@ -2337,13 +2336,13 @@ class EnsEMBL(rje.RJE_Object):
             self.log.printLog('\r#GO','Processing %s: %.1f%%' % (efile,gx/len(godata)),log=False,newline=False)
             gx += 100.0
             ## ~ Get Gene, GO ID and GO evidence code ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-            try: (gene,id,evidence) = string.split(go,delimit)
+            try: (gene,id,evidence) = rje.split(go,delimit)
             except: continue    # no GO!
             ## ~ Check evidence code ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             if self.list['GOEvidence'] and evidence not in self.list['GOEvidence']: continue
             ## ~ Reformat and check ID ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-            id = string.replace(id,':','_')
-            if not id or (self.dict['GO']['Desc'].has_key(id) and self.dict['GO']['Desc'][id] in ['Gene_Ontology','molecular_function','cellular_component','biological_process']): continue    # Too broad
+            id = rje.replace(id,':','_')
+            if not id or (id in self.dict['GO']['Desc'] and self.dict['GO']['Desc'][id] in ['Gene_Ontology','molecular_function','cellular_component','biological_process']): continue    # Too broad
             ## ~ Update dictionary ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             if id not in self.dict['GO']['EnsGene']: self.dict['GO']['EnsGene'][id] = []
             self.dict['GO']['EnsGene'][id].append(gene)
@@ -2368,10 +2367,10 @@ class EnsEMBL(rje.RJE_Object):
                 lx += 100.0
                 if line[:1] == '!':
                     continue
-                go = string.split(line,'\t')
+                go = rje.split(line,'\t')
                 if len(go) >= 3:
                     desc = go[1]
-                    id = string.replace(go[0],':','_')
+                    id = rje.replace(go[0],':','_')
                     type = go[2]
                     if go[-1] == 'obs':
                         if id not in go_obs:
@@ -2408,13 +2407,13 @@ class EnsEMBL(rje.RJE_Object):
                 lx = 0.0
                 for line in golines:
                     lx += 100.0
-                    go = string.split(line,',')
+                    go = rje.split(line,',')
                     if len(go) >= 5:
                         gene = go[0]
-                        id = string.replace(go[2],':','_')
-                        if not id or (go_desc.has_key(id) and go_desc[id] in ['Gene_Ontology','molecular_function','cellular_component','biological_process']):
+                        id = rje.replace(go[2],':','_')
+                        if not id or (id in go_desc and go_desc[id] in ['Gene_Ontology','molecular_function','cellular_component','biological_process']):
                             continue
-                        if not gene_go.has_key(gene):
+                        if gene not in gene_go:
                             gene_go[gene] = []
                         if id not in gene_go[gene]:
                             gene_go[gene].append(id)
@@ -2440,10 +2439,10 @@ class EnsEMBL(rje.RJE_Object):
                     seqlist.seq = [seq]
                     gene = rje.matchExp('gene:(\S+)\]',seq.info['Name'])[0]
                     #self.deBug(gene)
-                    if gene_go.has_key(gene):
+                    if gene in gene_go:
                         for go in gene_go.pop(gene):
                             #self.deBug(go)
-                            if not go_type.has_key(go):
+                            if go not in go_type:
                                 if go in go_obs:
                                     ox += 1
                                 elif go not in missing:
@@ -2453,7 +2452,7 @@ class EnsEMBL(rje.RJE_Object):
                             if not os.path.exists(godir):
                                 os.mkdir(godir)
                             gofile = rje.makePath('EnsGO/%s_%s/%s.fas' % (spec,go_type[go],go),True)
-                            if fx.has_key(gofile):
+                            if gofile in fx:
                                 fx[gofile] += 1
                             else:
                                 fx[gofile] = 1
@@ -2471,7 +2470,7 @@ class EnsEMBL(rje.RJE_Object):
                     self.log.printLog('#OBS','%s obselete GO-Gene pairs;' % (rje.integerString(ox)))
                 self.log.printLog('#MISS','%s GO-Gene pairs missing.' % (rje.integerString(len(missing))))
                 if missing:
-                    open(rje.makePath('EnsGO/%s.missing_GO.fas' % spec,True),'w').write(string.join(missing+[''],'\n'))
+                    open(rje.makePath('EnsGO/%s.missing_GO.fas' % spec,True),'w').write(rje.join(missing+[''],'\n'))
 
                 ### MinGO ###
                 if self.stat['MinGO'] > 0:
@@ -2580,8 +2579,8 @@ class EnsEMBL(rje.RJE_Object):
                         for tmdom in domlist:
                             ft.append(tmdom)
                             ft[-1]['Desc'] = 'TMHMM topology prediction'
-                            ft[-1]['Start'] = string.atoi(ft[-1]['Start'])
-                            ft[-1]['End'] = string.atoi(ft[-1]['End'])
+                            ft[-1]['Start'] = rje.atoi(ft[-1]['Start'])
+                            ft[-1]['End'] = rje.atoi(ft[-1]['End'])
                         if len(domlist) > 1: udata['CC'].append('TMHMM: %d TM domains; N-Term %s' % ((len(domlist)-1)/2,domlist[0]['Type']))
                         else: udata['CC'].append('TMHMM: 0 TM domains')
                     except: self.log.errorLog('EnsDat TMHMM problem for %s.' % name)
@@ -2594,10 +2593,10 @@ class EnsEMBL(rje.RJE_Object):
                         sigp = tm.signalp.pop(seq.shortName())
                         cpos = 0
                         if sigp['nn_ymax?'] == 'Y':
-                            cpos = string.atoi(sigp['nn_ymaxpos'])
+                            cpos = rje.atoi(sigp['nn_ymaxpos'])
                             desc = 'SignalP NN prediction'
                         if sigp['hmm_cmax?'] == 'Y':
-                            hmm_c = string.atoi(sigp['hmm_cmaxpos'])
+                            hmm_c = rje.atoi(sigp['hmm_cmaxpos'])
                             if cpos == 0:
                                 cpos = hmm_c
                                 desc = 'SignalP HMM prediction'
@@ -2707,14 +2706,12 @@ class EnsForker(rje_forker.Forker):
 ### SECTION V: MAIN PROGRAM                                                                                             #
 #########################################################################################################################
 def runMain():
-    ### Basic Setup of Program ###
-    try: [info,out,mainlog,cmd_list] = setupProgram()
-    except SystemExit: return  
-    except:
-        print 'Unexpected error during program setup:', sys.exc_info()[0]
-        return
-        
-    ### Rest of Functionality... ###
+    ### ~ [1] ~ Basic Setup of Program  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+    try: (info,out,mainlog,cmd_list) = setupProgram()
+    except SystemExit: return
+    except: rje.printf('Unexpected error during program setup:', sys.exc_info()[0]); return
+
+    ### ~ [2] ~ Rest of Functionality... ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try: EnsEMBL(mainlog,cmd_list).run()
         
     ### End ###
@@ -2725,7 +2722,7 @@ def runMain():
 #########################################################################################################################
 if __name__ == "__main__":      ### Call runMain 
     try: runMain()
-    except: print 'Cataclysmic run error:', sys.exc_info()[0]
+    except: rje.printf('Cataclysmic run error: {0}'.format(sys.exc_info()[0]))
     sys.exit()
 #########################################################################################################################
 ### END OF SECTION V                                                                                                    #

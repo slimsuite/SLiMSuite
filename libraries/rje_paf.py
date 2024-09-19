@@ -19,8 +19,8 @@
 """
 Module:       rje_paf
 Description:  Minimap2 PAF parser and converter
-Version:      0.13.0
-Last Edit:    01/09/21
+Version:      0.13.2
+Last Edit:    07/08/24
 Copyright (C) 2019  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -126,6 +126,8 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 0.11.0 - Added HiFi read type.
     # 0.12.0 - Added readnames=T/F : Output the read names to the RID file [False]
     # 0.13.0 - Updated default -x to asm20 (5% divergence). Use minimap2 map-hifi setting for hifi read mapping.
+    # 0.13.1 - Py3 updates.
+    # 0.13.2 - Added fix to pafin reading issue.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -158,7 +160,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copy_right) = ('RJE_PAF', '0.13.0', 'September 2021', '2019')
+    (program, version, last_edit, copy_right) = ('RJE_PAF', '0.13.1', 'May 2022', '2019')
     description = 'Minimap2 PAF parser and converter'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_obj.zen()]
@@ -172,7 +174,7 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         ### ~ [2] ~ Look for help commands and print options if found ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         cmd_help = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
         if cmd_help > 0:
-            print '\n\nHelp for %s %s: %s\n' % (info.program, info.version, time.asctime(time.localtime(info.start_time)))
+            rje.printf('\n\nHelp for {0} {1}: {2}\n'.format(info.program, info.version, time.asctime(time.localtime(info.start_time))))
             out.verbose(-1,4,text=__doc__)
             if rje.yesNo('Show general commandline options?'): out.verbose(-1,4,text=rje.__doc__)
             if rje.yesNo('Quit?'): sys.exit()           # Option to quit after help
@@ -182,7 +184,7 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         return cmd_list
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Major Problem with cmdHelp()'
+    except: rje.printf('Major Problem with cmdHelp()')
 #########################################################################################################################
 def setupProgram(): ### Basic Setup of Program when called from commandline.
     '''
@@ -193,19 +195,22 @@ def setupProgram(): ### Basic Setup of Program when called from commandline.
     '''
     try:### ~ [1] ~ Initial Command Setup & Info ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         info = makeInfo()                                   # Sets up Info object with program details
+        if len(sys.argv) == 2 and sys.argv[1] in ['version','-version','--version']: rje.printf(info.version); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: rje.printf('%s v%s' % (info.program,info.version)); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['description','-description','--description']: rje.printf('%s: %s' % (info.program,info.description)); sys.exit(0)
         cmd_list = rje.getCmdList(sys.argv[1:],info=info)   # Reads arguments and load defaults from program.ini
         out = rje.Out(cmd_list=cmd_list)                    # Sets up Out object for controlling output to screen
-        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2 
+        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2
         out.printIntro(info)                                # Prints intro text using details from Info object
         cmd_list = cmdHelp(info,out,cmd_list)               # Shows commands (help) and/or adds commands from user
         log = rje.setLog(info,out,cmd_list)                 # Sets up Log object for controlling log file output
         return (info,out,log,cmd_list)                      # Returns objects for use in program
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Problem during initial setup.'; raise
+    except: rje.printf('Problem during initial setup.'); raise
 #########################################################################################################################
-#pafhead = string.split('Qry QryLen QryStart QryEnd Strand Hit HitLen HitStart HitEnd Identity Length Quality')
-pafhead = string.split('Qry QryLen QryStart QryEnd Strand Hit SbjLen SbjStart SbjEnd Identity Length Quality')
+#pafhead = rje.split('Qry QryLen QryStart QryEnd Strand Hit HitLen HitStart HitEnd Identity Length Quality')
+pafhead = 'Qry QryLen QryStart QryEnd Strand Hit SbjLen SbjStart SbjEnd Identity Length Quality'.split()
 # Minimap2 outputs mapping positions in the Pairwise mApping Format (PAF) by default. PAF is a TAB-delimited text format
 # with each line consisting of at least 12 fields as are described in the following table:
 
@@ -223,7 +228,7 @@ pafhead = string.split('Qry QryLen QryStart QryEnd Strand Hit SbjLen SbjStart Sb
 # 11	int	Number bases, including gaps, in the mapping
 # 12	int	Mapping quality (0-255 with 255 for missing)
 
-pafaln = string.split('tp cm s1 s2 NM MD AS ms nn ts cg cs dv')
+pafaln = 'tp cm s1 s2 NM MD AS ms nn ts cg cs dv'.split()
 # When alignment is available, column 11 gives the total number of sequence matches, mismatches and gaps in the
 # alignment; column 10 divided by column 11 gives the BLAST-like alignment identity. When alignment is unavailable,
 # these two columns are approximate. PAF may optionally have additional fields in the SAM-like typed key-value format.
@@ -511,7 +516,7 @@ class PAF(rje_obj.RJE_Object):
                 for line in PAF:
                     if not tmpshush: self.progLog('\r#PAF','Parsing %s lines' % (rje.iStr(px)))
                     px += 1
-                    data = string.split(rje.chomp(line),'\t')
+                    data = rje.chomp(line).split('\t')
                     #i# Added for checkpos
                     if len(data) < len(pafhead): continue
                     # Generate entry
@@ -519,14 +524,14 @@ class PAF(rje_obj.RJE_Object):
                     for i in range(headx):
                         field =  pafhead[i]
                         if field in ['Qry','Hit','Strand']: pentry[field] = data[i]
-                        else: pentry[field] = string.atoi(data[i])
+                        else: pentry[field] = rje.atoi(data[i])
                     for pdat in data[headx:]:
                         pentry[pdat[:2]] = pdat[3:]
                     if pentry['Qry'].endswith(debugstr): self.bugPrint('%s' % pentry)
                     if filter:
                         nn = 0
                         try:
-                            if 'nn' in pentry: nn = string.atoi(pentry['nn'][2:])
+                            if 'nn' in pentry: nn = rje.atoi(pentry['nn'][2:])
                         except:
                             if self.debugging(): self.errorLog('Unexpected error!')
                         if (pentry['Length'] + nn) < minloclen:
@@ -537,14 +542,14 @@ class PAF(rje_obj.RJE_Object):
                             if pentry['Qry'].endswith(debugstr): self.debug('MinID: %s' % pentry)
                             ifiltx += 1; continue
                     # Reformat data to 1->L positions
-                    for field in string.split('QryStart SbjStart'): pentry[field] += 1
+                    for field in 'QryStart SbjStart'.split(): pentry[field] += 1
                     # Tidy the 'cs' field
                     if 'cs' in pentry and pentry['cs'].startswith('Z:'): pentry['cs'] = pentry['cs'][2:]
                     pafdb.addEntry(pentry)
                     # Debugging temp code
                     if self.debugging() == 'DISABLE':
                         cstats = self.statsFromCS(pentry['cs'])
-                        nn = string.atoi(pentry['nn'][2:])
+                        nn = rje.atoi(pentry['nn'][2:])
                         self.bugPrint(cstats)
                         self.bugPrint(pafdb.entrySummary(pentry,collapse=True))
                         self.deBug('Length=%s; Identity=%s; nn=%s; :%s; Alnlen=%s' % (pentry['Length'],pentry['Identity'],nn,cstats[':'],cstats['AlnLen']))
@@ -575,7 +580,7 @@ class PAF(rje_obj.RJE_Object):
             self.headLog('PAF CS to Local Alignment Conversion')
             if not pafdb: pafdb = self.db('paf')
             locdb = self.db().copyTable(pafdb,'local')
-            locfields = string.split('Qry Hit AlnNum BitScore Expect Length Identity Positives QryStart QryEnd SbjStart SbjEnd')
+            locfields = 'Qry Hit AlnNum BitScore Expect Length Identity Positives QryStart QryEnd SbjStart SbjEnd'.split()
             locfields += ['QryLen','SbjLen']
 
             ### ~ [2] Add AlnNum and re-index data ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -599,7 +604,7 @@ class PAF(rje_obj.RJE_Object):
                 cstats = self.statsFromCS(lentry['cs'])
                 #if cstats['n'] > 0 and cstats['AlnLen'] == (lentry['Length'] + cstats['n']):
                 #    self.debug('AlnLen should not include the %d n' % cstats['n'])
-                nn = string.atoi(lentry['nn'][2:])
+                nn = rje.atoi(lentry['nn'][2:])
                 if (cstats['AlnLen'] + nn) != lentry['Length']:
                     badlenx += 1
                     self.deBug('%s\n-> %s -> %s' % (locdb.entrySummary(lentry,collapse=True),lentry['cs'],cstats))
@@ -678,7 +683,7 @@ class PAF(rje_obj.RJE_Object):
             if self.getBool('AlnSeq'): return self.localToUniqueAlnSeq(locdb,save)
             self.headLog('PAF Local Alignment to Unique Hits')
             if not locdb: locdb = self.db('local')
-            locfields = string.split('Qry Hit AlnNum BitScore Expect Length Identity Positives QryStart QryEnd SbjStart SbjEnd')
+            locfields = 'Qry Hit AlnNum BitScore Expect Length Identity Positives QryStart QryEnd SbjStart SbjEnd'.split()
 
             ### ~ [2] Add AlnNum and re-index data ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             uniqdb = self.reduceLocalCS(locdb,minlocid=self.getNum('MinLocID'),minloclen=self.getInt('MinLocLen'))
@@ -706,7 +711,7 @@ class PAF(rje_obj.RJE_Object):
             locdb.index('Qry')
             uniqdb = self.db('qryunique')
             sumdb = self.db().copyTable(uniqdb,'hitsum')
-            sumfields = string.split('Qry HitNum MaxScore EVal Description Length Coverage Identity Positives')
+            sumfields = 'Qry HitNum MaxScore EVal Description Length Coverage Identity Positives'.split()
             rules={'Coverage':'sum','Identity':'sum','Positives':'sum','QryEnd':'max','QryStart':'min','CovHit':'sum'}
             sumfields += ['CovHit','QryStart','QryEnd','Qry_AlnLen','Qry_AlnID']
 
@@ -759,8 +764,8 @@ class PAF(rje_obj.RJE_Object):
             if self.getInt('Forks') > 1: return self.forkLocalToGABLAM(save)
             #self.printLog('#~~#','## ~~~~~ PAF Local Alignment to GABLAM Stats ~~~~~ ##')
             self.headLog('PAF Local Alignment to GABLAM Stats')
-            #gabfields = string.split('Qry Hit Rank Score EVal QryLen HitLen Qry_AlnLen Qry_AlnID       Qry_AlnSim      Qry_Dirn        Qry_Start       Qry_End Qry_OrderedAlnLen       Qry_OrderedAlnID        Qry_OrderedAlnSim       Qry_OrderedDirn Qry_OrderedStart        Qry_OrderedEnd  Hit_AlnLen      Hit_AlnID        Hit_AlnSim      Hit_Dirn        Hit_Start       Hit_End Hit_OrderedAlnLen       Hit_OrderedAlnID        Hit_OrderedAlnSim       Hit_OrderedDirn Hit_OrderedStart        Hit_OrderedEnd')
-            gabfields = string.split('Qry Hit Rank Score EVal QryLen HitLen Qry_AlnLen Qry_AlnID Qry_AlnSim Qry_Dirn Qry_Start Qry_End Hit_AlnLen Hit_AlnID        Hit_AlnSim      Hit_Dirn        Hit_Start       Hit_End')
+            #gabfields = rje.split('Qry Hit Rank Score EVal QryLen HitLen Qry_AlnLen Qry_AlnID       Qry_AlnSim      Qry_Dirn        Qry_Start       Qry_End Qry_OrderedAlnLen       Qry_OrderedAlnID        Qry_OrderedAlnSim       Qry_OrderedDirn Qry_OrderedStart        Qry_OrderedEnd  Hit_AlnLen      Hit_AlnID        Hit_AlnSim      Hit_Dirn        Hit_Start       Hit_End Hit_OrderedAlnLen       Hit_OrderedAlnID        Hit_OrderedAlnSim       Hit_OrderedDirn Hit_OrderedStart        Hit_OrderedEnd')
+            gabfields = 'Qry Hit Rank Score EVal QryLen HitLen Qry_AlnLen Qry_AlnID Qry_AlnSim Qry_Dirn Qry_Start Qry_End Hit_AlnLen Hit_AlnID        Hit_AlnSim      Hit_Dirn        Hit_Start       Hit_End'.split()
             locdb = self.db('local')
             gabdb = self.db().copyTable(locdb,'gablam')
 
@@ -773,7 +778,7 @@ class PAF(rje_obj.RJE_Object):
             gabdb.rankFieldByIndex(index='Qry',rankfield='Identity',newfield='Rank',rev=True,absolute=True,unique=True)
             gabdb.dataFormat({'Rank':'int'})
             gabdb.newKey(['Qry','Rank'])
-            gabdb.keepFields( string.split('Qry Hit Rank Score EVal QryLen HitLen') )
+            gabdb.keepFields( 'Qry Hit Rank Score EVal QryLen HitLen'.split() )
             gabdb.list['Fields'] = gabfields
 
             ### ~ [3] Add GABLAM stats from Qry-Hit specifc unique mapping ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -859,7 +864,7 @@ class PAF(rje_obj.RJE_Object):
             #     locdb.makeField('100.0*Identity/Length','LocID')
             #     locdb.dropEntries('LocID<%s' % minlocid)
             # self.deBug('?')
-            locfields = string.split('Qry Hit AlnNum BitScore Expect Length Identity Positives QryStart QryEnd SbjStart SbjEnd')
+            locfields = 'Qry Hit AlnNum BitScore Expect Length Identity Positives QryStart QryEnd SbjStart SbjEnd'.split()
             locfields += ['QryLen','SbjLen']
 
             ### ~ [2] Add AlnNum and re-index data ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -931,7 +936,7 @@ class PAF(rje_obj.RJE_Object):
                 for x in ':-+*~?!': aln = aln.replace(x,' %s' % x)
                 #self.bugPrint('|===|')
                 #self.bugPrint(lentry)
-                aln = string.split(aln)
+                aln = aln.split()
                 #self.debug(aln)
                 for field in ['QrySeq','AlnSeq','SbjSeq']: lentry[field] = ''
                 qseq = sseq = aseq = ''
@@ -948,7 +953,7 @@ class PAF(rje_obj.RJE_Object):
                     #    self.bugPrint(cs)
                     try:
                         if cs[0] == ':':    # Identity
-                            ilen = string.atoi(cs[1:])
+                            ilen = rje.atoi(cs[1:])
                             qseq += qfull[:ilen]; qfull = qfull[ilen:]
                             sseq += sfull[:ilen]; sfull = sfull[ilen:]
                             aseq += '|' * ilen
@@ -977,17 +982,17 @@ class PAF(rje_obj.RJE_Object):
                             sseq += '-' * ilen
                             aseq += ' ' * ilen
                         elif cs[0] == '~':    # Intron in subject
-                            ilen = string.atoi(cs[3:-2])
+                            ilen = rje.atoi(cs[3:-2])
                             qseq += '-' * ilen
                             sseq += sfull[:ilen]; sfull = sfull[ilen:]
                             aseq += '~' * ilen
                         elif cs[0] == '!':    # Missing in subject
-                            ilen = string.atoi(cs[1:])
+                            ilen = rje.atoi(cs[1:])
                             qseq += qfull[:ilen]; qfull = qfull[ilen:]
                             sseq += '^' * ilen
                             aseq += '^' * ilen
                         elif cs[0] == '?':    # Uncertain match
-                            ilen = string.atoi(cs[1:])
+                            ilen = rje.atoi(cs[1:])
                             lentry['Length'] += ilen
                             qadd = qfull[:ilen]; qfull = qfull[ilen:]; qseq += qadd
                             sadd = sfull[:ilen]; sfull = sfull[ilen:]; sseq += sadd
@@ -1085,7 +1090,7 @@ class PAF(rje_obj.RJE_Object):
             #self.printLog('#~~#','## ~~~~~ PAF Local Alignment to Unique Hits ~~~~~ ##')
             self.headLog('PAF Local Alignment to Unique Hits')
             if not locdb: locdb = self.db('local')
-            locfields = string.split('Qry     Hit     AlnNum  BitScore        Expect  Length  Identity        Positives       QryStart        QryEnd  SbjStart        SbjEnd')
+            locfields = 'Qry     Hit     AlnNum  BitScore        Expect  Length  Identity        Positives       QryStart        QryEnd  SbjStart        SbjEnd'.split()
 
             ### ~ [2] Add AlnNum and re-index data ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             uniqdb = self.reduceLocal(locdb,minlocid=self.getNum('MinLocID'),minloclen=self.getInt('MinLocLen'))
@@ -1148,7 +1153,7 @@ class PAF(rje_obj.RJE_Object):
                         try:
                             pid = fdict['PID']
                             if pidcheck: PIDCHECK.write('%s: %s\n' % (self.list['Forked'].index(fdict),pid))
-                            if string.split('%s' % pid)[0] == 'WAIT': status = 1
+                            if str(pid).split()[0] == 'WAIT': status = 1
                             else: (status,exit_stat) = os.waitpid(pid,os.WNOHANG)
                         except:
                             self.errorLog('!')
@@ -1217,7 +1222,7 @@ class PAF(rje_obj.RJE_Object):
 
             ### ~ [3] ~ Load forked out files and process ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             ## ~ [3a] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-            gabfields = string.split('Qry Hit Rank Score EVal QryLen HitLen Qry_AlnLen Qry_AlnID Qry_AlnSim Qry_Dirn Qry_Start Qry_End Hit_AlnLen Hit_AlnID        Hit_AlnSim      Hit_Dirn        Hit_Start       Hit_End')
+            gabfields = 'Qry Hit Rank Score EVal QryLen HitLen Qry_AlnLen Qry_AlnID Qry_AlnSim Qry_Dirn Qry_Start Qry_End Hit_AlnLen Hit_AlnID        Hit_AlnSim      Hit_Dirn        Hit_Start       Hit_End'.split()
             gabdb = self.db().copyTable(locdb,'gablam')
             ## ~ [3b] Compress local table copy for general stats ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             gabdb.renameField('SbjLen','HitLen')
@@ -1228,7 +1233,7 @@ class PAF(rje_obj.RJE_Object):
             gabdb.rankFieldByIndex(index='Qry',rankfield='Identity',newfield='Rank',rev=True,absolute=True,unique=True)
             gabdb.dataFormat({'Rank':'int'})
             gabdb.newKey(['Qry','Rank'])
-            gabdb.keepFields( string.split('Qry Hit Rank Score EVal QryLen HitLen') )
+            gabdb.keepFields( 'Qry Hit Rank Score EVal QryLen HitLen'.split() )
             gabdb.list['Fields'] = gabfields
 
             ### ~ [4] Add GABLAM stats from Qry-Hit specifc unique mapping ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -1375,7 +1380,7 @@ class PAF(rje_obj.RJE_Object):
             #self.printLog('#~~#','## ~~~~~ PAF Local Alignment Reduction ~~~~~ ##')
             self.headLog('PAF Local Alignment Reduction')
             if sortfield not in locdb.fields():
-                raise ValueError('"%s" is not a valid Local hit table field (%s)' % (sortfield,string.join(locdb.fields(),'|')))
+                raise ValueError('"%s" is not a valid Local hit table field (%s)' % (sortfield,rje.join(locdb.fields(),'|')))
             # Create a copy to protect initial data
             bdb = self.db().copyTable(locdb,'%s.reduced' % locdb.name())
             # ['Qry','Hit','AlnNum','BitScore','Expect','Length','Identity','Positives','QryStart','QryEnd','SbjStart','SbjEnd','QrySeq','SbjSeq','AlnSeq'],
@@ -1490,7 +1495,7 @@ class PAF(rje_obj.RJE_Object):
             ## ~ [0a] Setup local hit reduction ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             self.headLog('PAF Local Alignment Reduction')
             if sortfield not in locdb.fields():
-                raise ValueError('"%s" is not a valid Local hit table field (%s)' % (sortfield,string.join(locdb.fields(),'|')))
+                raise ValueError('"%s" is not a valid Local hit table field (%s)' % (sortfield,rje.join(locdb.fields(),'|')))
             # Create a copy to protect initial data
             bdb = self.db().copyTable(locdb,'%s.reduced' % locdb.name())
             bdb.dataFormat({'AlnNum':'int','BitScore':'num','Expect':'num','Identity':'int','QryStart':'int','QryEnd':'int','SbjStart':'int','SbjEnd':'int','Length':'int','QryLen':'int','HitLen':'int'})
@@ -1738,23 +1743,23 @@ class PAF(rje_obj.RJE_Object):
         :return: gstr [str]: Combined GString with the best combination
         '''
         try:### ~ [1] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            gdata1 = string.split(gstr1,':')
+            gdata1 = gstr1.split(':')
             if not len(gdata1) == 3: raise ValueError('Problem with GString1 format: %s' % gstr1)
-            gdata2 = string.split(gstr2,':')
+            gdata2 = gstr2.split(':')
             if not len(gdata2) == 3: raise ValueError('Problem with GString2 format: %s' % gstr1)
             gstr1 = gdata1[1]
             gstr2 = gdata2[1]
             for x in '|+*-':
                 gstr1 = gstr1.replace(x,' %s' % x)
                 gstr2 = gstr2.replace(x,' %s' % x)
-            gstr1 = string.split(gstr1)
-            gstr2 = string.split(gstr2)
+            gstr1 = gstr1.split()
+            gstr2 = gstr2.split()
             # x=start; y=end; t=type; n=length
-            x1 = string.atoi(gdata1[0])
-            x2 = string.atoi(gdata2[0])
+            x1 = rje.atoi(gdata1[0])
+            x2 = rje.atoi(gdata2[0])
             gstr = '%d:' % min(x1,x2)
-            t1 = gstr1[0][0]; n1 = string.atoi(gstr1[0][1:]); y1 = x1 + n1 - 1
-            t2 = gstr2[0][0]; n2 = string.atoi(gstr2[0][1:]); y2 = x2 + n2 - 1
+            t1 = gstr1[0][0]; n1 = rje.atoi(gstr1[0][1:]); y1 = x1 + n1 - 1
+            t2 = gstr2[0][0]; n2 = rje.atoi(gstr2[0][1:]); y2 = x2 + n2 - 1
             ### ~ [2] Process ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             while gstr1 and gstr2:
                 # No overlap
@@ -1762,13 +1767,13 @@ class PAF(rje_obj.RJE_Object):
                     gstr += gstr1.pop(0)
                     x1 = y1 + 1
                     if gstr1:
-                        t1 = gstr1[0][0]; n1 = string.atoi(gstr1[0][1:]); y1 = x1 + n1 - 1
+                        t1 = gstr1[0][0]; n1 = rje.atoi(gstr1[0][1:]); y1 = x1 + n1 - 1
                     continue
                 if y2 < x1:
                     gstr += gstr2.pop(0)
                     x2 = y2 + 1
                     if gstr2:
-                        t2 = gstr2[0][0]; n2 = string.atoi(gstr2[0][1:]); y2 = x2 + n2 - 1
+                        t2 = gstr2[0][0]; n2 = rje.atoi(gstr2[0][1:]); y2 = x2 + n2 - 1
                     continue
                 # Perfect match
                 if x1 == x2 and y1 == y2:
@@ -1776,10 +1781,10 @@ class PAF(rje_obj.RJE_Object):
                     else: gstr += gstr2.pop(0); gstr1.pop(0)
                     x1 = y1 + 1
                     if gstr1:
-                        t1 = gstr1[0][0]; n1 = string.atoi(gstr1[0][1:]); y1 = x1 + n1 - 1
+                        t1 = gstr1[0][0]; n1 = rje.atoi(gstr1[0][1:]); y1 = x1 + n1 - 1
                     x2 = y2 + 1
                     if gstr2:
-                        t2 = gstr2[0][0]; n2 = string.atoi(gstr2[0][1:]); y2 = x2 + n2 - 1
+                        t2 = gstr2[0][0]; n2 = rje.atoi(gstr2[0][1:]); y2 = x2 + n2 - 1
                     continue
                 # Split off 5' if x1 != x2
                 if x1 < x2:
@@ -1801,8 +1806,8 @@ class PAF(rje_obj.RJE_Object):
                     trimy = y1 - y2
                     gstr1[0] = '%s%d' % (t1,n1 - trimy)
                     gstr1.insert(1,'%s%d' % (t1,trimy))
-            if gstr1: gstr += string.join(gstr1) + ':%s' % gdata1[2]
-            else: gstr += string.join(gstr2) + ':%s' % gdata2[2]
+            if gstr1: gstr += rje.join(gstr1) + ':%s' % gdata1[2]
+            else: gstr += rje.join(gstr2) + ':%s' % gdata2[2]
             ### ~ [3] Finish ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             return gstr
         except: self.errorLog('%s.combineGstring error' % self.prog()); raise
@@ -1815,7 +1820,7 @@ class PAF(rje_obj.RJE_Object):
         '''
         try:### ~ [1] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             #i# Based on 'PAF to Local Alignment Conversion'
-            #i# locfields = string.split('Qry Hit AlnNum BitScore Expect Length Identity Positives QryStart QryEnd SbjStart SbjEnd')
+            #i# locfields = rje.split('Qry Hit AlnNum BitScore Expect Length Identity Positives QryStart QryEnd SbjStart SbjEnd')
             #i# locfields += ['QryLen','SbjLen']
             #i# locdb.list['Fields'] = locfields+['Strand','cs']
             cspos = []  # List of tuples
@@ -1824,7 +1829,7 @@ class PAF(rje_obj.RJE_Object):
             if aln.startswith('Z:'): aln = aln[2:]
             #!# EndExtension has already been performed
             for x in ':-+*~?!_': aln = aln.replace(x,' %s' % x)
-            aln = string.split(aln)
+            aln = aln.split()
             qpos = lentry['QryStart']
             spos = lentry['SbjStart']; sadd = +1
             if lentry['Strand'] == '-': spos = lentry['SbjEnd']; sadd = -1
@@ -1836,7 +1841,7 @@ class PAF(rje_obj.RJE_Object):
                 else: cspos.append((qpos,spos,cs))
                 try:
                     if cs[0] == ':':    # Identity
-                        ilen = string.atoi(cs[1:])
+                        ilen = rje.atoi(cs[1:])
                         qpos += ilen
                         spos += (ilen * sadd)
                     elif cs[0] == '*':    # Mismatch
@@ -1850,13 +1855,13 @@ class PAF(rje_obj.RJE_Object):
                         ilen = len(cs[1:])
                         qpos += ilen
                     elif cs[0] == '~':    # Intron in subject
-                        ilen = string.atoi(cs[3:-2])
+                        ilen = rje.atoi(cs[3:-2])
                         spos += (ilen * sadd)
                     elif cs[0] == '!':    # Missing in subject
-                        ilen = string.atoi(cs[1:])
+                        ilen = rje.atoi(cs[1:])
                         qpos += ilen
                     elif cs[0] == '?':    # Uncertain match
-                        ilen = string.atoi(cs[1:])
+                        ilen = rje.atoi(cs[1:])
                         lentry['Length'] += ilen
                         qpos += ilen
                         spos += (ilen * sadd)
@@ -1975,7 +1980,7 @@ class PAF(rje_obj.RJE_Object):
                     qpos = newmap[0][0] + trimx
                     cs = newmap[0][2]
                     if cs[0] in ':?':    # Identity
-                        ilen = string.atoi(cs[1:])
+                        ilen = rje.atoi(cs[1:])
                         ilen -= trimx
                         spos = newmap[0][1] + trimx
                         if lentry['Strand'] == '-': spos = newmap[0][1] - trimx
@@ -1991,7 +1996,7 @@ class PAF(rje_obj.RJE_Object):
                 if qlen: endpos += (qlen - 1)
                 if newend < endpos:  # Trim end
                     trimx = endpos - newend
-                    if cs[0] in ':?': cs = '%s%d' % (cs[0],string.atoi(cs[1:]) - trimx)
+                    if cs[0] in ':?': cs = '%s%d' % (cs[0],rje.atoi(cs[1:]) - trimx)
                     elif cs[0] in '+!': cs = cs[:-trimx]
                     else: raise ValueError('Query pos/newend mismatch for "%s"!' % cs)
                     newmap[-1] = (newmap[-1][0],newmap[-1][1],cs)
@@ -2002,7 +2007,7 @@ class PAF(rje_obj.RJE_Object):
                     spos = newmap[0][1] - trimx
                     cs = newmap[0][2]
                     if cs[0] in ':?':    # Identity
-                        ilen = string.atoi(cs[1:])
+                        ilen = rje.atoi(cs[1:])
                         ilen -= trimx
                         qpos = newmap[0][0] + trimx
                         newmap[0] = (qpos,spos,'%s%d' % (cs[0],ilen))
@@ -2017,7 +2022,7 @@ class PAF(rje_obj.RJE_Object):
                 if slen: endpos -= (slen - 1)
                 if newstart > endpos:  # Trim end
                     trimx = endpos - newstart
-                    if cs[0] in ':?': cs = '%s%d' % (cs[0],string.atoi(cs[1:]) - trimx)
+                    if cs[0] in ':?': cs = '%s%d' % (cs[0],rje.atoi(cs[1:]) - trimx)
                     elif cs[0] in '+!': cs = cs[:-trimx]
                     else:
                         self.debug('%s = %s -> endpos=%s' % (newmap[-1],slen,endpos))
@@ -2030,7 +2035,7 @@ class PAF(rje_obj.RJE_Object):
                     spos = newmap[0][1] + trimx
                     cs = newmap[0][2]
                     if cs[0] in ':?':    # Identity
-                        ilen = string.atoi(cs[1:])
+                        ilen = rje.atoi(cs[1:])
                         ilen -= trimx
                         qpos = newmap[0][0] + trimx
                         newmap[0] = (qpos,spos,'%s%d' % (cs[0],ilen))
@@ -2045,7 +2050,7 @@ class PAF(rje_obj.RJE_Object):
                 if slen: endpos += (slen - 1)
                 if newend < endpos:  # Trim end
                     trimx = endpos - newend
-                    if cs[0] in ':?': cs = '%s%d' % (cs[0],string.atoi(cs[1:]) - trimx)
+                    if cs[0] in ':?': cs = '%s%d' % (cs[0],rje.atoi(cs[1:]) - trimx)
                     elif cs[0] in '+!': cs = cs[:-trimx]
                     else: raise ValueError('Query pos/newend mismatch for "%s"!' % cs)
                     newmap[-1] = (newmap[-1][0],newmap[-1][1],cs)
@@ -2057,7 +2062,7 @@ class PAF(rje_obj.RJE_Object):
             #if nentry['Qry'] == 'EOG092E076U':
             #    self.debug('\n%s' % nentry)
             #    self.debug('%s: %s' % (newcs[-1],endstat))
-            newcs = string.join(newcs,'')
+            newcs = rje.join(newcs,'')
             nentry['cs'] = newcs
             #i# Updated Start and End positions in nentry
             qstart = sstart = 0
@@ -2098,9 +2103,9 @@ class PAF(rje_obj.RJE_Object):
             if len(cs) < 2:
                 self.debug('"%s"' % aln)
                 raise ValueError('cs element length < 2: "%s"' % cs)
-            if cs[0] in ':?': ilen = string.atoi(cs[1:])
+            if cs[0] in ':?': ilen = rje.atoi(cs[1:])
             elif cs[0] in '~_':    # Intron in subject
-                ilen = string.atoi(cs[3:-2])
+                ilen = rje.atoi(cs[3:-2])
                 #self.debug('%s: %d' % (cs,ilen))
             elif cs[0] == '*': ilen = 1   # Mismatch
             else: ilen = len(cs[1:])
@@ -2127,7 +2132,7 @@ class PAF(rje_obj.RJE_Object):
             for x in ':-+*~?!_':
                 csdict[x] = 0
                 aln = aln.replace(x,' %s' % x)
-            aln = string.split(aln)
+            aln = aln.split()
             qrygs = []
             sbjgs = []
             ### ~ [2] Process ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -2136,21 +2141,21 @@ class PAF(rje_obj.RJE_Object):
                 if len(cs) < 2:
                     self.debug('"%s"' % aln)
                     raise ValueError('cs element length < 2: "%s"' % cs)
-                if cs[0] in ':?': ilen = string.atoi(cs[1:])
+                if cs[0] in ':?': ilen = rje.atoi(cs[1:])
                 elif cs[0] in '~_':    # Intron in subject
-                    ilen = string.atoi(cs[3:-2])
+                    ilen = rje.atoi(cs[3:-2])
                 elif cs[0] == '*': ilen = 1   # Mismatch
                 else: ilen = len(cs[1:])
                 csdict[cs[0]] += ilen
                 if cs[0] == ':':
-                    if qrygs and qrygs[-1][0] == '|': qrygs[-1] = '|%d' % (string.atoi(qrygs[-1][1:])+ilen)
+                    if qrygs and qrygs[-1][0] == '|': qrygs[-1] = '|%d' % (rje.atoi(qrygs[-1][1:])+ilen)
                     else: qrygs.append('|%d' % ilen);
-                    if sbjgs and sbjgs[-1][0] == '|': sbjgs[-1] = '|%d' % (string.atoi(sbjgs[-1][1:])+ilen)
+                    if sbjgs and sbjgs[-1][0] == '|': sbjgs[-1] = '|%d' % (rje.atoi(sbjgs[-1][1:])+ilen)
                     else: sbjgs.append('|%d' % ilen)
                 elif cs[0] in '*':
-                    if qrygs and qrygs[-1][0] == '*': qrygs[-1] = '*%d' % (string.atoi(qrygs[-1][1:])+1)
+                    if qrygs and qrygs[-1][0] == '*': qrygs[-1] = '*%d' % (rje.atoi(qrygs[-1][1:])+1)
                     else: qrygs.append('*%d' % ilen)
-                    if sbjgs and sbjgs[-1][0] == '*': sbjgs[-1] = '*%d' % (string.atoi(sbjgs[-1][1:])+1)
+                    if sbjgs and sbjgs[-1][0] == '*': sbjgs[-1] = '*%d' % (rje.atoi(sbjgs[-1][1:])+1)
                     else: sbjgs.append('*%d' % ilen)
                 elif cs[0] in '?': qrygs.append('*%d' % ilen); sbjgs.append('*%d' % ilen)
                 elif cs[0] in '-~!': sbjgs.append('-%d' % ilen)
@@ -2159,8 +2164,8 @@ class PAF(rje_obj.RJE_Object):
             ### ~ [3] Finish ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             csdict['AlnLen'] = sum(csdict.values()) - csdict['~'] - csdict['_'] - ncount  #i# Ignore introns and n's
             csdict['n'] = ncount
-            csdict['QryGS'] = string.join(qrygs,'')
-            csdict['SbjGS'] = string.join(sbjgs,'')
+            csdict['QryGS'] = rje.join(qrygs,'')
+            csdict['SbjGS'] = rje.join(sbjgs,'')
             #i# Ignore introns
             csdict['QryCov'] = csdict[':'] + csdict['*'] + csdict['+'] + csdict['!'] + csdict['?'] #x# + csdict['_']
             csdict['SbjCov'] = csdict[':'] + csdict['*'] + csdict['-'] + csdict['?'] #x# + csdict['~']
@@ -2194,7 +2199,7 @@ class PAF(rje_obj.RJE_Object):
         '''
         try:### ~ [1] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             #i# Based on 'PAF to Local Alignment Conversion'
-            #i# locfields = string.split('Qry Hit AlnNum BitScore Expect Length Identity Positives QryStart QryEnd SbjStart SbjEnd')
+            #i# locfields = rje.split('Qry Hit AlnNum BitScore Expect Length Identity Positives QryStart QryEnd SbjStart SbjEnd')
             #i# locfields += ['QryLen','SbjLen']
             #i# locdb.list['Fields'] = locfields+['Strand','cs']
             cspos = []  # List of tuples
@@ -2203,7 +2208,7 @@ class PAF(rje_obj.RJE_Object):
             if aln.startswith('Z:'): aln = aln[2:]
             #!# EndExtension has already been performed
             for x in ':-+*~?!_': aln = aln.replace(x,' %s' % x)
-            aln = string.split(aln)
+            aln = aln.split()
             nentry = rje.combineDict({},lentry)
             naln = []
             replace = {'-':'+','+':'-','!':'-','~':'_','_':'~'}
@@ -2222,7 +2227,7 @@ class PAF(rje_obj.RJE_Object):
             ## ~ [2a] Reverse strand ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             if lentry['Strand'] == '-':
                 naln.reverse()
-            nentry['cs'] = string.join(naln,'')
+            nentry['cs'] = rje.join(naln,'')
             for x in ['Len','Start','End']:
                 nentry['Qry%s' % x] = lentry['Sbj%s' % x]
                 nentry['Sbj%s' % x] = lentry['Qry%s' % x]
@@ -2424,8 +2429,8 @@ class PAF(rje_obj.RJE_Object):
                         else: alt = cs[1:].upper()
                         seq.append('%s:%s' % (alt,len(posvar[cs])))
                         rid.append('%s:%s' % (alt,str(posvar[cs])[1:-1].replace(' ','')))
-                    seq.sort(); seq = string.join(seq,'|')
-                    rid.sort(); rid = string.join(rid,'|')
+                    seq.sort(); seq = rje.join(seq,'|')
+                    rid.sort(); rid = rje.join(rid,'|')
                     ventry = {'Locus':locus,'Pos':pos,'Ref':ref,'N':varn,'QN':qn,'Seq':seq,'Dep':varn,'RID':rid,'VarFreq':float(qn-refdep)/qn}
                     ventry = snpdb.addEntry(ventry); vx += 1
                     #self.debug(snpdb.entrySummary(ventry))
@@ -2458,7 +2463,10 @@ class PAF(rje_obj.RJE_Object):
         try:### ~ [1] ~ Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             paf = self
             if not paffile:
-                paffile = self.baseFile() + '.paf'
+                if self.getStrLC('PAFIn') and not self.getStrLC('PAFIn') in ['minimap','minimap2']:
+                    paffile = self.getStr('PAFIn')
+                else:
+                    paffile = self.baseFile() + '.paf'
 
             ### ~ [2] ~ Generate individual BAM files ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if self.force() or not rje.exists(paffile):
@@ -2675,7 +2683,7 @@ class PAF(rje_obj.RJE_Object):
                         raise RuntimeError('Coverage forking did not complete')
 
             ### ~ [4] Read in and process coverage calculations ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            # pafhead = string.split('Qry QryLen QryStart QryEnd Strand Hit SbjLen SbjStart SbjEnd Identity Length Quality')
+            # pafhead = rje.split('Qry QryLen QryStart QryEnd Strand Hit SbjLen SbjStart SbjEnd Identity Length Quality')
             #!# Need to add read lists for each contaminant #!#
             ## ~ [4a] Load data ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             cx = 0.0; ctot = cdb.entryNum(); spanid = {}
@@ -2761,7 +2769,7 @@ def runMain():
     ### ~ [1] ~ Basic Setup of Program  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try: (info,out,mainlog,cmd_list) = setupProgram()
     except SystemExit: return  
-    except: print 'Unexpected error during program setup:', sys.exc_info()[0]; return
+    except: rje.printf('Unexpected error during program setup:', sys.exc_info()[0]); return
     
     ### ~ [2] ~ Rest of Functionality... ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try: PAF(mainlog,cmd_list).run()
@@ -2774,7 +2782,7 @@ def runMain():
 #########################################################################################################################
 if __name__ == "__main__":      ### Call runMain 
     try: runMain()
-    except: print 'Cataclysmic run error:', sys.exc_info()[0]
+    except: rje.printf('Cataclysmic run error: {0}'.format(sys.exc_info()[0]))
     sys.exit()
 #########################################################################################################################
 ### END OF SECTION IV                                                                                                   #

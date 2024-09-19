@@ -88,6 +88,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
     # [ ] : Get basic version working
     # [ ] : Update processDAT() and rje_uniprot.processUniProt() methods
     # [ ] : Add output format options - Fasta/EMBL/UniProt
+    # [ ] : Replace has_key for py3 compatibility.
     '''
 #########################################################################################################################
 def makeInfo():     ### Makes Info object
@@ -100,47 +101,46 @@ def makeInfo():     ### Makes Info object
 #########################################################################################################################
 def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for more sys.argv commands
     '''Prints *.__doc__ and asks for more sys.argv commands.'''
-    try:
+    try:### ~ [1] ~ Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         if not info: info = makeInfo()
         if not out: out = rje.Out()
-        help = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
-        if help > 0:
-            print '\n\nHelp for %s %s: %s\n' % (info.program, info.version, time.asctime(time.localtime(info.start_time)))
+        ### ~ [2] ~ Look for help commands and print options if found ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+        cmd_help = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
+        if cmd_help > 0:
+            rje.printf('\n\nHelp for {0} {1}: {2}\n'.format(info.program, info.version, time.asctime(time.localtime(info.start_time))))
             out.verbose(-1,4,text=__doc__)
-            if rje.yesNo('Show general commandline options?'): out.verbose(-1,4,text=rje.__doc__)
-            if rje.yesNo('Quit?'): sys.exit()
-            cmd_list += rje.inputCmds(out,cmd_list)
-        elif out.stat['Interactive'] > 1: cmd_list += rje.inputCmds(out,cmd_list)
+            if rje.yesNo('Show general commandline options?',default='N'): out.verbose(-1,4,text=rje.__doc__)
+            if rje.yesNo('Quit?'): sys.exit()           # Option to quit after help
+            cmd_list += rje.inputCmds(out,cmd_list)     # Add extra commands interactively.
+        elif out.stat['Interactive'] > 1: cmd_list += rje.inputCmds(out,cmd_list)    # Ask for more commands
+        ### ~ [3] ~ Return commands ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         return cmd_list
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Major Problem with cmdHelp()'
+    except: rje.printf('Major Problem with cmdHelp()')
 #########################################################################################################################
-def setupProgram(): ### Basic Setup of Program
+def setupProgram(): ### Basic Setup of Program when called from commandline.
     '''
-    Basic setup of Program:
+    Basic Setup of Program when called from commandline:
     - Reads sys.argv and augments if appropriate
     - Makes Info, Out and Log objects
     - Returns [info,out,log,cmd_list]
     '''
-    try:
-        ### Initial Command Setup & Info ###
-        info = makeInfo()
-        cmd_list = rje.getCmdList(sys.argv[1:],info=info)      ### Load defaults from program.ini
-        ### Out object ###
-        out = rje.Out(cmd_list=cmd_list)
-        out.verbose(2,2,cmd_list,1)
-        out.printIntro(info)
-        ### Additional commands ###
-        cmd_list = cmdHelp(info,out,cmd_list)
-        ### Log ###
-        log = rje.setLog(info=info,out=out,cmd_list=cmd_list)
-        return [info,out,log,cmd_list]
+    try:### ~ [1] ~ Initial Command Setup & Info ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+        info = makeInfo()                                   # Sets up Info object with program details
+        if len(sys.argv) == 2 and sys.argv[1] in ['version','-version','--version']: rje.printf(info.version); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: rje.printf('%s v%s' % (info.program,info.version)); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['description','-description','--description']: rje.printf('%s: %s' % (info.program,info.description)); sys.exit(0)
+        cmd_list = rje.getCmdList(sys.argv[1:],info=info)   # Reads arguments and load defaults from program.ini
+        out = rje.Out(cmd_list=cmd_list)                    # Sets up Out object for controlling output to screen
+        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2
+        out.printIntro(info)                                # Prints intro text using details from Info object
+        cmd_list = cmdHelp(info,out,cmd_list)               # Shows commands (help) and/or adds commands from user
+        log = rje.setLog(info,out,cmd_list)                 # Sets up Log object for controlling log file output
+        return (info,out,log,cmd_list)                      # Returns objects for use in program
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except:
-        print 'Problem during initial setup.'
-        raise
+    except: rje.printf('Problem during initial setup.'); raise
 #########################################################################################################################
 ### END OF SECTION I                                                                                                    #
 #########################################################################################################################
@@ -152,7 +152,7 @@ def setupProgram(): ### Basic Setup of Program
 #########################################################################################################################
 ### UniProt Parsing dictionary: Add crucial information to parse out here. Used by UniProtEntry.process()   ###
 emblparse = {
-    'ID' : string.join(['^(\S+);*','(\S.+);','(\S+);\s+(\d+)\s+BP'], '\s+'),       # ID, Extra Info, Length
+    'ID' : rje.join(['^(\S+);*','(\S.+);','(\S+);\s+(\d+)\s+BP'], '\s+'),       # ID, Extra Info, Length
     'AC' : '(\S+);',            # Primary Acc
     'DE' : '\s*(\S.+)',         # Description
     'OS' : '^(\S.+)\s*$',       # Species
@@ -374,7 +374,7 @@ class EMBL(rje_uniprot.UniProt):
                     elif h == 'Len':
                         data.append('%d' % seq.aaLen())
                     elif h == 'Gene':
-                        data.append(string.join([seq.info['Gene']] + entry.list['Synonyms'],'; '))
+                        data.append(rje.join([seq.info['Gene']] + entry.list['Synonyms'],'; '))
                     elif h == 'Species':
                         data.append('%s [%s]' % (seq.info['Species'],seq.info['SpecCode']))
                     #2# Function & Activity #
@@ -385,7 +385,7 @@ class EMBL(rje_uniprot.UniProt):
                                 comments.remove(cc)
                                 if text:
                                     text += ' '
-                                text += '%s: %s' % (cc,string.join(entry.dict['Comments'][cc],' >> '))
+                                text += '%s: %s' % (cc,rje.join(entry.dict['Comments'][cc],' >> '))
                                 if text[-1] != '.':
                                     text += '.'
                         data.append(text)
@@ -396,7 +396,7 @@ class EMBL(rje_uniprot.UniProt):
                             for g in go[0:]:
                                 if g.find('; F:') < 0:
                                     go.remove(g)
-                        data.append(string.join(go,' >> '))
+                        data.append(rje.join(go,' >> '))
                     elif h == 'GO_BP':
                         go = []
                         if entry.dict['DBLinks'].has_key('GO'):
@@ -404,7 +404,7 @@ class EMBL(rje_uniprot.UniProt):
                             for g in go[0:]:
                                 if g.find('; P:') < 0:
                                     go.remove(g)
-                        data.append(string.join(go,' >> '))
+                        data.append(rje.join(go,' >> '))
                     elif h == 'Activity':   #!# Join to Function #!#
                         text = ''
                         for cc in ['CATALYTIC ACTIVITY','COFACTOR']:
@@ -412,7 +412,7 @@ class EMBL(rje_uniprot.UniProt):
                                 comments.remove(cc)
                                 if text:
                                     text += ' '
-                                text += '%s: %s' % (cc,string.join(entry.dict['Comments'][cc],' >> '))
+                                text += '%s: %s' % (cc,rje.join(entry.dict['Comments'][cc],' >> '))
                                 if text[-1] != '.':
                                     text += '.'
                         data.append(text)
@@ -423,7 +423,7 @@ class EMBL(rje_uniprot.UniProt):
                                 comments.remove(cc)
                                 if text:
                                     text += ' '
-                                text += '%s: %s' % (cc,string.join(entry.dict['Comments'][cc],' >> '))
+                                text += '%s: %s' % (cc,rje.join(entry.dict['Comments'][cc],' >> '))
                                 if text[-1] != '.':
                                     text += '.'
                         data.append(text)
@@ -434,7 +434,7 @@ class EMBL(rje_uniprot.UniProt):
                                 comments.remove(cc)
                                 if text:
                                     text += ' '
-                                text += '%s: %s' % (cc,string.join(entry.dict['Comments'][cc],' >> '))
+                                text += '%s: %s' % (cc,rje.join(entry.dict['Comments'][cc],' >> '))
                                 if text[-1] != '.':
                                     text += '.'
                         data.append(text)
@@ -445,7 +445,7 @@ class EMBL(rje_uniprot.UniProt):
                                 comments.remove(cc)
                                 if text:
                                     text += ' '
-                                text += '%s: %s' % (cc,string.join(entry.dict['Comments'][cc],' >> '))
+                                text += '%s: %s' % (cc,rje.join(entry.dict['Comments'][cc],' >> '))
                                 if text[-1] != '.':
                                     text += '.'
                         data.append(text)
@@ -453,13 +453,13 @@ class EMBL(rje_uniprot.UniProt):
                     elif h == 'Tissue':
                         text = ''
                         if entry.list['Tissues']:
-                            text = 'TISSUES: %s' % string.join(entry.list['Tissues']+[''],'; ')
+                            text = 'TISSUES: %s' % rje.join(entry.list['Tissues']+[''],'; ')
                         for cc in ['TISSUE SPECIFICITY','DEVELOPMENTAL STAGE','INDUCTION']:
                             if entry.dict['Comments'].has_key(cc):
                                 comments.remove(cc)
                                 if text:
                                     text += ' '
-                                text += '%s: %s' % (cc,string.join(entry.dict['Comments'][cc],' >> '))
+                                text += '%s: %s' % (cc,rje.join(entry.dict['Comments'][cc],' >> '))
                                 if text[-1] != '.':
                                     text += '.'
                         data.append(text)
@@ -474,10 +474,10 @@ class EMBL(rje_uniprot.UniProt):
                         if entry.dict['Comments'].has_key(cc):
                             comments.remove(cc)
                             go = entry.dict['Comments'][cc] + go
-                        data.append(string.join(go,' >> '))
+                        data.append(rje.join(go,' >> '))
                     elif h in ['PDB','InterPro','Pfam','PROSITE','Ensembl']:
                         if entry.dict['DBLinks'].has_key(h):
-                            data.append(string.join(entry.dict['DBLinks'][h],' >> '))
+                            data.append(rje.join(entry.dict['DBLinks'][h],' >> '))
                         else:
                             data.append('')
                     elif h == 'Isoforms':
@@ -487,24 +487,24 @@ class EMBL(rje_uniprot.UniProt):
                                 comments.remove(cc)
                                 if text:
                                     text += ' '
-                                text += '%s: %s' % (cc,string.join(entry.dict['Comments'][cc],' >> '))
+                                text += '%s: %s' % (cc,rje.join(entry.dict['Comments'][cc],' >> '))
                                 if text[-1] != '.':
                                     text += '.'
                         data.append(text)
                     #4# References & Links
                     elif h == 'GeneCards':
                         if entry.dict['DBLinks'].has_key('HGNC'):
-                            data.append(string.join(entry.dict['DBLinks']['HGNC'],' >> '))
+                            data.append(rje.join(entry.dict['DBLinks']['HGNC'],' >> '))
                         else:
                             data.append('')
                     elif h in ['PubMed']:
                         if entry.list[h]:
-                            data.append('http://www.ncbi.nlm.nih.gov/entrez/query.fcgi?cmd=Retrieve&db=pubmed&dopt=Abstract&list_uids=%s' % string.join(entry.list[h],','))
+                            data.append('http://www.ncbi.nlm.nih.gov/entrez/query.fcgi?cmd=Retrieve&db=pubmed&dopt=Abstract&list_uids=%s' % rje.join(entry.list[h],','))
                         else:
                             data.append('')
                     elif h in ['Keywords']:
                         if entry.list[h]:
-                            data.append(string.join(entry.list[h],','))
+                            data.append(rje.join(entry.list[h],','))
                         else:
                             data.append('')
                     elif h == 'Comments':
@@ -512,7 +512,7 @@ class EMBL(rje_uniprot.UniProt):
                         for cc in comments:
                             if text:
                                 text += ' '
-                            text += '%s: %s' % (cc,string.join(entry.dict['Comments'][cc],' >> '))
+                            text += '%s: %s' % (cc,rje.join(entry.dict['Comments'][cc],' >> '))
                             if text[-1] != '.':
                                 text += '.'
                         data.append(text)
@@ -624,7 +624,7 @@ class EMBL(rje_uniprot.UniProt):
                 OUT.write('SQ   SEQUENCE%s%d AA;  %d MW;  000000000000000 RJE06;\n' % (' ' * (7 - len('%d' % seq.aaLen())),seq.aaLen(),rje_sequence.MWt(seq.info['Sequence'])))
                 uniseq = seq.info['Sequence'][0:]
                 while len(uniseq) > 0:
-                    OUT.write('     %s\n' % string.join([uniseq[0:10],uniseq[10:20],uniseq[20:30],uniseq[30:40],uniseq[40:50],uniseq[50:60]],' '))
+                    OUT.write('     %s\n' % rje.join([uniseq[0:10],uniseq[10:20],uniseq[20:30],uniseq[30:40],uniseq[40:50],uniseq[50:60]],' '))
                     uniseq = uniseq[60:]
                 OUT.write('//\n')
             OUT.close()
@@ -742,7 +742,7 @@ class EMBLEntry(rje_uniprot.UniProtEntry):
             seqi = self.obj['Sequence'].info
             seqi['Type'] = 'DNA'    #!# RNA? #!#
             for key in ['DE']:
-                if self.dict['Data'].has_key(key): self.dict['Data'][key] = [string.join(self.dict['Data'][key],' ')]
+                if self.dict['Data'].has_key(key): self.dict['Data'][key] = [rje.join(self.dict['Data'][key],' ')]
             for key in ['FH','RT','RL','RA','RN','RP']:
                 try: self.dict['Data'].pop(key)
                 except: pass
@@ -762,10 +762,10 @@ class EMBLEntry(rje_uniprot.UniProtEntry):
             if self.info['Name'][-1:] == ';': self.info['Name'] = self.info['Name'][:-1]
             self.stat['Length'] = string.atoi(self.stat['Length'])
             self.info['ID'] = seqi['ID'] = '%s_%s' % (self.info['Name'],seqi['SpecCode'])
-            self.dict['Data']['ID'][0] = string.join([self.info['ID']]+string.split(self.dict['Data']['ID'][0])[1:])
+            self.dict['Data']['ID'][0] = rje.join([self.info['ID']]+rje.split(self.dict['Data']['ID'][0])[1:])
             ## ~ [1c] ~ AccNum (AC) ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-            full_acc = string.split(string.join(self.dict['Data']['AC']))
-            self.obj['Sequence'].list['Secondary ID'] = string.split(string.join(full_acc,''),';')[1:-1]
+            full_acc = rje.split(rje.join(self.dict['Data']['AC']))
+            self.obj['Sequence'].list['Secondary ID'] = rje.split(rje.join(full_acc,''),';')[1:-1]
             parse = self._uniParse('AC')
             if parse: seqi['AccNum'] = parse[0]
             seqi['DBase'] = 'embl'
@@ -783,7 +783,7 @@ class EMBLEntry(rje_uniprot.UniProtEntry):
             if self.dict['Data'].has_key('FT'):
                 ftlist = []
                 for ft in self.dict['Data']['FT']:
-                    ftsplit = string.split(ft,'/')
+                    ftsplit = rje.split(ft,'/')
                     ftlist.append(ftsplit[0])
                     for eft in ftsplit[1:]: ftlist.append('/%s' % eft)
                 self.deBug(ftlist)
@@ -812,7 +812,7 @@ class EMBLEntry(rje_uniprot.UniProtEntry):
                             'Type' : parse_join[0],
                             'Start' : string.atoi(parse_join[1]),
                             'End' : string.atoi(parse_join[2]),
-                            'Desc' : string.split(ft)[1],
+                            'Desc' : rje.split(ft)[1],
                             'EMBL' : {}
                             }
                         if parse_comp: ftdic['Desc'] = 'complement'
@@ -822,7 +822,7 @@ class EMBLEntry(rje_uniprot.UniProtEntry):
                             'Type' : parse_jcom[0],
                             'Start' : string.atoi(parse_jcom[2]),
                             'End' : string.atoi(parse_jcom[1]),
-                            'Desc' : string.split(ft)[1],
+                            'Desc' : rje.split(ft)[1],
                             'EMBL' : {}
                             }
                         if parse_comp: ftdic['Desc'] = 'complement'
@@ -851,15 +851,15 @@ class EMBLEntry(rje_uniprot.UniProtEntry):
                 self.list['Tissues'] = []
                 for rc in self.dict['Data']['RC']:
                     parse = rje.matchExp(emblparse['RC'],rc)
-                    if parse: tissues += string.split(parse[0],', ')
+                    if parse: tissues += rje.split(parse[0],', ')
                 for tissue in tissues:
                     if tissue[:4] == 'and ': self.list['Tissues'].append(tissue[4:])
                     else: self.list['Tissues'].append(tissue)
             ## ~ [3b] ~ Keywords (KW) ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             if self.dict['Data'].has_key('KW'):
-                keywords = string.join(self.dict['Data']['KW'])
+                keywords = rje.join(self.dict['Data']['KW'])
                 if keywords[-1:] == '.': keywords = keywords[:-1]    # Remove full stop
-                self.list['Keywords'] = string.split(keywords,'; ')
+                self.list['Keywords'] = rje.split(keywords,'; ')
             ## ~ [3c] ~ References (RX) ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             if self.dict['Data'].has_key('RX'):
                 self.list['PubMed'] = []
@@ -871,9 +871,9 @@ class EMBLEntry(rje_uniprot.UniProtEntry):
                 self.dict['Comments'] = {}  # Dictionary of comments: {Type:List of Comments}
                 for cc in self.dict['Data']['CC']:
                     if cc.find('-----') == 0: break
-                    csplit = string.split(cc[4:],': ')
+                    csplit = rje.split(cc[4:],': ')
                     ctype = csplit[0]
-                    cdetail = string.join(csplit[1:],': ')
+                    cdetail = rje.join(csplit[1:],': ')
                     if self.dict['Comments'].has_key(ctype): self.dict['Comments'][ctype].append(cdetail)
                     else: self.dict['Comments'][ctype] = [cdetail]
             ## ~ [3e] ~ Database Links (DR) ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
@@ -923,7 +923,7 @@ class EMBLEntry(rje_uniprot.UniProtEntry):
             if not seq:
                 seq = self.obj['Sequence']
             if not seq:
-                raise ValueError, 'No sequence information given'
+                raise ValueError('No sequence information given')
             self.obj['Sequence'] = seq
 
             ### Update self ###
@@ -949,7 +949,7 @@ class EMBLEntry(rje_uniprot.UniProtEntry):
                     self.dict['Data']['OS'] = ['%s.' % seq.info['Species']] + self.dict['Data']['OS']
                 else:
                     self.dict['Data']['OS'] = ['%s.' % seq.info['Species']]
-            dt = string.split(time.ctime())
+            dt = rje.split(time.ctime())
             if self.dict['Data'].has_key('DT'):
                 self.dict['Data']['DT'] = ['%s-%s-%s, generated by rje_uniprot' % (dt[2],dt[1].upper(),dt[-1])] + self.dict['Data']['DT']
             else:
@@ -992,24 +992,23 @@ def processDAT(callobj,makeindex=True,makespec=True,makefas=True):  ### Processe
 ### SECTION V: MAIN PROGRAM                                                                                             #
 #########################################################################################################################
 def runMain():
-    ### ~ [0] ~ Basic Setup of Program ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-    try: [info,out,mainlog,cmd_list] = setupProgram()
-    except SystemExit: return  
-    except:
-        print 'Unexpected error during program setup:', sys.exc_info()[0]
-        return
-    ### ~ [1] ~ Rest of Functionality... ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+    ### ~ [1] ~ Basic Setup of Program  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+    try: (info,out,mainlog,cmd_list) = setupProgram()
+    except SystemExit: return
+    except: rje.printf('Unexpected error during program setup:', sys.exc_info()[0]); return
+
+    ### ~ [2] ~ Rest of Functionality... ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try:EMBL(mainlog,cmd_list).run()
         
-    ### End ###
+    ### ~ [3] ~ End ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     except SystemExit: return  # Fork exit etc.
     except KeyboardInterrupt: mainlog.errorLog('User terminated.')
     except: mainlog.errorLog('Fatal error in main %s run.' % info.program)
-    mainlog.printLog('#LOG', '%s V:%s End: %s\n' % (info.program, info.version, time.asctime(time.localtime(time.time()))))
+    mainlog.endLog(info)
 #########################################################################################################################
-if __name__ == "__main__":      ### Call runMain 
+if __name__ == "__main__":      ### Call runMain
     try: runMain()
-    except: print 'Cataclysmic run error:', sys.exc_info()[0]
+    except: rje.printf('Cataclysmic run error: {0}'.format(sys.exc_info()[0]))
     sys.exit()
 #########################################################################################################################
 ### END OF SECTION V                                                                                                    #

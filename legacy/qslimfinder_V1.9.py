@@ -483,7 +483,7 @@ class QSLiMFinder(slimfinder.SLiMFinder):
             self.printLog('#ADD','%d sequence(s) added from %s' % (qseq.seqNum(),self.getStr('AddQuery')))
             if not self.list['Query']:
                 self.list['Query'] = qseq.accList()
-                self.printLog('#QRY','Query set: %s' % string.join(self.list['Query'],'; '))
+                self.printLog('#QRY','Query set: %s' % rje.join(self.list['Query'],'; '))
         except: self.errorLog('QSLiMFinder.addQuery() error.'); raise
 #########################################################################################################################
     ### <5> ### SLiMBuild Generation Methods                                                                            #
@@ -514,7 +514,7 @@ class QSLiMFinder(slimfinder.SLiMFinder):
                 ## Setup Sequence ##
                 sx += 1
                 sequence = seq.info['Sequence'].upper()
-                if self.getBool('DNA'): sequence = string.replace(sequence,'N','X')
+                if self.getBool('DNA'): sequence = rje.replace(sequence,'N','X')
                 if self.getBool('Termini'): sequence = '^%s$' % sequence
                 ## Find Dimers ##
                 for i in range(len(sequence)):
@@ -824,7 +824,7 @@ class QSLiMFinder(slimfinder.SLiMFinder):
             wild = False    # Whether next part is a wildcard length
             mult = 1        # Variable-length multiplier
             minslimlen = 0  # Minimum SLiM length
-            for part in string.split(slim,'-'):      # Split SLiM code in components
+            for part in rje.split(slim,'-'):      # Split SLiM code in components
                 ## Update lists ##
                 if wild: wildlist.append(part)
                 else: poslist.append(part); minslimlen += 1
@@ -897,7 +897,7 @@ class QSLiMFinder(slimfinder.SLiMFinder):
         if self.getBool('SeqOcc'): k = max(1,self.slimOccNum(slim,upc))
 
         ### ~ [2] Special AADimerFreq option ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-        for slimvar in rje.listCombos(string.split(slim,'-')):
+        for slimvar in rje.listCombos(rje.split(slim,'-')):
             v = rje.getFromDict(self.dict['AAFreq'][upc],slimvar[0],returnkey=False,default=0.0)
             slist = slimvar[0:]
             while slist:
@@ -1238,7 +1238,7 @@ class QSLiMFinder(slimfinder.SLiMFinder):
                 return
 
             ### ~ [2] Make into QSLiMFinder SLiMs ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            #X#aa = string.split('A,C,D,E,F,G,H,I,K,L,M,N,P,Q,R,S,T,V,W,Y,^,$',',')
+            #X#aa = rje.split('A,C,D,E,F,G,H,I,K,L,M,N,P,Q,R,S,T,V,W,Y,^,$',',')
             checklist = []
             for Motif in self.obj['SlimCheck'].slims()[0:]:
                 if Motif.slim(): checklist.append(Motif.slim())
@@ -1329,7 +1329,7 @@ class QSLiMFinder(slimfinder.SLiMFinder):
 #########################################################################################################################
 def patternFromCode(slim): return rje_slim.patternFromCode(slim)  ### Returns pattern with wildcard for iXj formatted SLiM (e.g. A-3-T-0-G becomes A...TG)
 #########################################################################################################################
-def slimPos(slim): return (string.count(slim,'-') / 2) + 1  ### Returns the number of positions in a slim
+def slimPos(slim): return (rje.count(slim,'-') / 2) + 1  ### Returns the number of positions in a slim
 #########################################################################################################################
 def slimLen(slim): return len(patternFromCode(slim))    ### Returns length of slim
 #########################################################################################################################

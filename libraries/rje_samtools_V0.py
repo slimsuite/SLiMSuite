@@ -277,7 +277,7 @@ class SAMtools(rje_obj.RJE_Object):
             ### ~ [2] Process each entry ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             for line in PILEUP:
                 # Split line up into data. Should be: locus, position, reference, no. reads, read data, qualscores
-                data = string.split(rje.chomp(line))
+                data = rje.split(rje.chomp(line))
                 if not data: break
                 self.progLog('\r#PARSE','Parsing %s: %s pos...' % (filename,rje.iStr(px)),rand=0.01); px += 1
                 ## ~ [2a] Extract Read Data ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
@@ -296,7 +296,7 @@ class SAMtools(rje_obj.RJE_Object):
                         #    reads.append('-1%s' % entry['Seq'].upper())
                         #    rseq = rseq[1:]
                         elif rseq[:1] in ['-','+']:
-                            ilen = string.atoi(rje.matchExp('^(\d+)',rseq[1:])[0])
+                            ilen = rje.atoi(rje.matchExp('^(\d+)',rseq[1:])[0])
                             indel = rseq[len('%s' % ilen)+1:][:ilen]
                             #self.deBug('%s: %s' % (rseq,indel))
                             if rseq[:1] == '-':
@@ -409,7 +409,7 @@ class SAMtools(rje_obj.RJE_Object):
                     while pos > wx:
                         wtdata[locus]['N'].append(0); wtdata[locus]['QN'].append(0); wtdata[locus]['MajFreq'].append(0.0); wx += 1
                     for field in ['N','QN']: wtdata[locus][field].append(int(data[fields.index(field)]))
-                    for field in ['MajFreq']: wtdata[locus][field].append(string.atof(data[fields.index(field)]))
+                    for field in ['MajFreq']: wtdata[locus][field].append(rje.atof(data[fields.index(field)]))
                     wx += 1
                 else: fields = data[0:]
             WTDATA.close()
@@ -438,7 +438,7 @@ class SAMtools(rje_obj.RJE_Object):
                     while pos > mx:
                         mutdata[locus]['N'].append(0); mutdata[locus]['QN'].append(0); mutdata[locus]['Major'].append('-'); mutdata[locus]['MajFreq'].append(0.0); mutdata[locus]['WTFreq'].append(0.0); mx += 1
                     for field in ['N','QN']: mutdata[locus][field].append(int(data[fields.index(field)]))
-                    for field in ['MajFreq','WTFreq']: mutdata[locus][field].append(string.atof(data[fields.index(field)]))
+                    for field in ['MajFreq','WTFreq']: mutdata[locus][field].append(rje.atof(data[fields.index(field)]))
                     for field in ['Major']: mutdata[locus][field].append(data[fields.index(field)])
                     mx += 1
                 else: fields = data[0:]
@@ -453,7 +453,7 @@ class SAMtools(rje_obj.RJE_Object):
             ### ~ [1] Assess and output ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             SAMSIG = open('%s.pdiff.tdt' % self.baseFile(),'w')
             headers = ['Locus','Pos','Ref','WT.N','WT.QN','WT.Major','WT.MajFreq','Mut.N','Mut.QN','Mut.Major','Mut.MajFreq','Mut.WTFreq','p.Over','p.Under','p.Diff']
-            SAMSIG.write('%s\n' % string.join(headers,'\t'))
+            SAMSIG.write('%s\n' % rje.join(headers,'\t'))
             nodifx = 0; nomutx = 0; sx = 0
             for locus in rje.sortKeys(self.dict['RefSeq']):
                 self.str['RefSeq'] = self.dict['RefSeq'][locus]
@@ -499,11 +499,11 @@ class SAMtools(rje_obj.RJE_Object):
                 npos += len(self.dict['RefSeq'][locus]) - self.dict['RefSeq'][locus].count('?')
             ### ~ [1] Parse out stats ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             SAMSIG = open('%s.pdiff.tdt' % self.baseFile(),'r')
-            headers = string.split(SAMSIG.readline()) + ['p.FDR']
+            headers = rje.split(SAMSIG.readline()) + ['p.FDR']
             fpos = SAMSIG.tell(); fline = SAMSIG.readline(); px = 0
             while fline:
                 self.progLog('\r#SIG','Reading Pvalues: %s p <= 0.05...' % rje.iStr(px))
-                try: pval = float(string.split(fline)[-1])
+                try: pval = float(rje.split(fline)[-1])
                 except: break
                 if pval <= 0.05:
                     if pval not in sigpval: sigpval[pval] = []

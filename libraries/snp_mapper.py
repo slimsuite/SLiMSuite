@@ -153,11 +153,11 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         if not info: info = makeInfo()
         if not out: out = rje.Out()
         ### ~ [2] ~ Look for help commands and print options if found ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-        helpx = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
-        if helpx > 0:
-            print '\n\nHelp for %s %s: %s\n' % (info.program, info.version, time.asctime(time.localtime(info.start_time)))
+        cmd_help = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
+        if cmd_help > 0:
+            rje.printf('\n\nHelp for {0} {1}: {2}\n'.format(info.program, info.version, time.asctime(time.localtime(info.start_time))))
             out.verbose(-1,4,text=__doc__)
-            if rje.yesNo('Show general commandline options?'): out.verbose(-1,4,text=rje.__doc__)
+            if rje.yesNo('Show general commandline options?',default='N'): out.verbose(-1,4,text=rje.__doc__)
             if rje.yesNo('Quit?'): sys.exit()           # Option to quit after help
             cmd_list += rje.inputCmds(out,cmd_list)     # Add extra commands interactively.
         elif out.stat['Interactive'] > 1: cmd_list += rje.inputCmds(out,cmd_list)    # Ask for more commands
@@ -165,7 +165,7 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         return cmd_list
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Major Problem with cmdHelp()'
+    except: rje.printf('Major Problem with cmdHelp()')
 #########################################################################################################################
 def setupProgram(): ### Basic Setup of Program when called from commandline.
     '''
@@ -176,16 +176,19 @@ def setupProgram(): ### Basic Setup of Program when called from commandline.
     '''
     try:### ~ [1] ~ Initial Command Setup & Info ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         info = makeInfo()                                   # Sets up Info object with program details
+        if len(sys.argv) == 2 and sys.argv[1] in ['version','-version','--version']: rje.printf(info.version); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: rje.printf('%s v%s' % (info.program,info.version)); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['description','-description','--description']: rje.printf('%s: %s' % (info.program,info.description)); sys.exit(0)
         cmd_list = rje.getCmdList(sys.argv[1:],info=info)   # Reads arguments and load defaults from program.ini
         out = rje.Out(cmd_list=cmd_list)                    # Sets up Out object for controlling output to screen
-        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2 
+        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2
         out.printIntro(info)                                # Prints intro text using details from Info object
         cmd_list = cmdHelp(info,out,cmd_list)               # Shows commands (help) and/or adds commands from user
         log = rje.setLog(info,out,cmd_list)                 # Sets up Log object for controlling log file output
         return (info,out,log,cmd_list)                      # Returns objects for use in program
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Problem during initial setup.'; raise
+    except: rje.printf('Problem during initial setup.'); raise
 #########################################################################################################################
 ### END OF SECTION I                                                                                                    #
 #########################################################################################################################
@@ -248,7 +251,7 @@ class SNPMap(rje_obj.RJE_Object):
         self.setInt({})
         self.setNum({})
         self.list['FTSkip'] = ['source']
-        self.list['FTBest'] = string.split('CDS,mRNA,tRNA,rRNA,ncRNA,misc_RNA,gene,mobile_element,LTR,rep_origin,telomere,centromere,misc_feature,intergenic',',')
+        self.list['FTBest'] = rje.split('CDS,mRNA,tRNA,rRNA,ncRNA,misc_RNA,gene,mobile_element,LTR,rep_origin,telomere,centromere,misc_feature,intergenic',',')
         ### ~ Other Attributes ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         self._setForkAttributes()   # Delete if no forking
         self.obj['DB'] = rje_db.Database(self.log,self.cmd_list+['TupleKeys=T'])
@@ -361,10 +364,10 @@ class SNPMap(rje_obj.RJE_Object):
                               'product':'','gene_synonym':'','note':'','db_xref':'','locus_tag':'','details':''}
                     if gdata[6] == '+': gentry['position'] = '%s..%s' % (gdata[3],gdata[4])
                     else: gentry['position'] = 'complement(%s..%s)' % (gdata[3],gdata[4])
-                    ginfo = string.split(gdata[8],';')
+                    ginfo = rje.split(gdata[8],';')
                     for detail in ginfo[0:]:
                         try:
-                            [dkey,dvalue] = string.split(detail,'=',maxsplit=1)
+                            [dkey,dvalue] = rje.split(detail,'=',maxsplit=1)
                             if dkey in protected: continue
                             if dkey in gentry:
                                 gentry[dkey] = dvalue
@@ -378,7 +381,7 @@ class SNPMap(rje_obj.RJE_Object):
                             if att in gentry and gentry[att]:
                                 gentry['locus_tag'] = gentry[att]
                                 break
-                    gentry['details'] = string.join(ginfo,'; ')
+                    gentry['details'] = rje.join(ginfo,'; ')
                     ftdb.addEntry(gentry)
                 self.printLog('#FTFILE','%s features parsed from GFF %s' % (rje.iStr(ftdb.entryNum()),self.getStr('FTFile')))
                 if baddetails: self.warnLog('{0} details had issues with parsing. (Lacking "=" or ";" inside quotes.)'.format(rje.iStr(baddetails)))
@@ -455,7 +458,7 @@ class SNPMap(rje_obj.RJE_Object):
                 snpdb.addField('%sName' % locfield)
                 locupdate = False
                 for locus in snploci:
-                    newlocus = string.join(string.split(locus,'.')[:-1])
+                    newlocus = rje.join(rje.split(locus,'.')[:-1])
                     if newlocus and newlocus in seqloci:
                         locupdate = True
                         for entry in snpdb.indexEntries(locfield,locus):
@@ -490,7 +493,7 @@ class SNPMap(rje_obj.RJE_Object):
             #self.debug(seqdict.keys())
             snpfields = snpdb.fields()
             if 'SNPType' in snpfields: snpfields.remove('SNPType')
-            mapdb = self.db().addEmptyTable('snpmap',snpfields+['Strand','GB']+ftdb.fields()+['SNPType','SNPEffect'],snpdb.keys()+['feature','start','end']) #['feature','start','end','protein_id','details',]
+            mapdb = self.db().addEmptyTable('snpmap',snpfields+['Strand','GB']+ftdb.fields()+['SNPType','SNPEffect'],list(snpdb.keys())+['feature','start','end']) #['feature','start','end','protein_id','details',]
             snpdb.addField('Mapped',evalue=False)
             gb = self.obj['GenBank']
             #!# Need to improve the fsyn calculation based on mutation frequencies
@@ -513,7 +516,7 @@ class SNPMap(rje_obj.RJE_Object):
             else: snploci = snpdb.indexKeys('Locus')
             #self.debug(snploci)
             for locus in snploci:
-                if locus not in ftdb.index('locus'): ftlocus = string.split(locus,'_')[-1]
+                if locus not in ftdb.index('locus'): ftlocus = rje.split(locus,'_')[-1]
                 else: ftlocus = locus
                 try: fullseq = seqlist.getSeq(seqdict[locus],format='tuple')[1]
                 except: self.warnLog('Failed to get sequence for locus "%s": no SNP mapping.' % locus); continue
@@ -693,7 +696,7 @@ class SNPMap(rje_obj.RJE_Object):
             #self.debug(snpdb.fields())
             skeys = snpdb.index(lockey)[locus][0:]
             ftdb = self.db('Feature')
-            if locus not in ftdb.index('locus'): ftlocus = string.split(locus,'_')[-1]
+            if locus not in ftdb.index('locus'): ftlocus = rje.split(locus,'_')[-1]
             else: ftlocus = locus
             mapdb = self.db('snpmap')
             # MapDB Fields: snpdb.fields()+['Strand','GB']+ftdb.fields()+['SNPType','SNPEffect']
@@ -742,7 +745,9 @@ class SNPMap(rje_obj.RJE_Object):
                         if sentry['REF'] == '.': mentry['GB'] = '-'
                         if cpos >= 0:
                             try: mentry['GB'] = cseq[cpos]
-                            except: print sentry, fentry, len(cseq), cpos; raise
+                            except:
+                                #x#print sentry, fentry, len(cseq), cpos;
+                                raise
                             if 'complement' in fentry['position']: mentry['Strand'] = '-'
                             elif sentry['REF'] == '.': cpos += 1    # Want to compare alt nt to next reference nt
                         ### >>> OLD >>>
@@ -754,7 +759,9 @@ class SNPMap(rje_obj.RJE_Object):
                             mentry['length'] = len(cseq)
                             #?#rje_sequence.sequenceKs(sequence,self)
                             try: mentry['GB'] = cseq[cpos]
-                            except: print sentry, fentry, len(cseq), cpos; raise
+                            except:
+                                #x#print sentry, fentry, len(cseq), cpos
+                                raise
                             if sentry['REF'] == '.': cpos += 1; mentry['GB'] = '-'
                             if 'complement' in fentry['position']:
                                 cseq = rje_sequence.reverseComplement(cseq)
@@ -782,7 +789,7 @@ class SNPMap(rje_obj.RJE_Object):
                             snpcodon = snpseq[i-3:i]
                             #print '\t', gtype, mentry[gtype], codon, '->', snpcodon
                             if mentry['SNPType'] in ['INS','DEL']:
-                                mentry['SNPEffect'] = '%d:%s->%s' % ((cpos+3)/3,rje_sequence.dna2prot(cseq[i-3:],transl=transl),string.split(rje_sequence.dna2prot(snpseq[i-3:],transl=transl),'*')[0])
+                                mentry['SNPEffect'] = '%d:%s->%s' % ((cpos+3)/3,rje_sequence.dna2prot(cseq[i-3:],transl=transl),rje.split(rje_sequence.dna2prot(snpseq[i-3:],transl=transl),'*')[0])
                             else:
                                 mentry['SNPEffect'] = '%s%d%s' % (rje_sequence.dna2prot(codon,transl=transl),(cpos+3)/3,rje_sequence.dna2prot(snpcodon,transl=transl))
                                 # Update SNPType
@@ -837,7 +844,7 @@ class SNPMap(rje_obj.RJE_Object):
     def processGene(self,gfile):  ### Main controlling run method for a single gene
         '''Main controlling run method for a single gene.'''
         try:### ~ [1] Setup sequences ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            if string.count(gfile,'.') > 1: return
+            if rje.count(gfile,'.') > 1: return
             seqlist = self.obj['SeqList'] = rje_seq.SeqList(self.log,self.cmd_list+['seqin=%s' % gfile])
             #!# Replace with unaligned sequences and list of exon positions #!#
             gene = seqlist.info['Basefile']
@@ -845,10 +852,10 @@ class SNPMap(rje_obj.RJE_Object):
             ## ~ [1b] Regenerate alignment ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             exons = self.loadFromFile('%s_exons.txt' % gene,chomplines=True)
             if not exons: return self.log.errorLog('Missing exon data for %s' % gene,printerror=False)
-            cds = string.replace(seqlist.seq[1].info['Sequence'],'-','')
+            cds = rje.replace(seqlist.seq[1].info['Sequence'],'-','')
             aln = '-' * len(seqlist.seq[0].info['Sequence'])
             for exon in exons:
-                exon = string.split(exon)
+                exon = rje.split(exon)
                 (start,end) = (int(exon[0]),int(exon[1]))
                 elen = end - start + 1
                 eseq = cds[:elen]
@@ -865,7 +872,7 @@ class SNPMap(rje_obj.RJE_Object):
             ## ~ [2a] Find ATG start site in consensus ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             consensus = seqlist.seq[0].info['Sequence']
             cds = seqlist.seq[1].info['Sequence']
-            dna = string.replace(cds,'-','')
+            dna = rje.replace(cds,'-','')
             open('%s.protein.txt' % gene,'w').write(rje_sequence.dna2prot(dna))     #!# Tranlsation tables! #!#
             atg = 0     # Position in consensus that matches ATG of CDS  (0<L)
             while cds[atg] == '-': atg += 1
@@ -879,8 +886,9 @@ class SNPMap(rje_obj.RJE_Object):
                 snp = snpdict[snpkey]
                 if snp['CDSSeq'] == '-': continue
                 if snp['CDSSeq'] not in [snp['MinAllele'],snp['MajAllele']]: self.log.errorLog('SNP %s CDS "%s" matches neither allele' % (snp['SNP'],snp['CDSSeq']),printerror=False)
-                myseq = string.replace(cds[atg:snp['SNP']],'-','')
-                if myseq[-1] != snp['CDSSeq']: print myseq, '!=', snp['CDSSeq']
+                myseq = rje.replace(cds[atg:snp['SNP']],'-','')
+                if myseq[-1] != snp['CDSSeq']:
+                    self.warnLog('{0} != {1}'.format(myseq, snp['CDSSeq']))
                 snp['ProteinPos'] = ((len(myseq)-1) / 3) + 1
                 frame = snp['CodonPos'] = [3,1,2][len(myseq) % 3]
                 codon = snp['Codon'] = dna[(snp['ProteinPos']-1)*3:snp['ProteinPos']*3]
@@ -925,8 +933,8 @@ def runMain():
     ### ~ [1] ~ Basic Setup of Program  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try: (info,out,mainlog,cmd_list) = setupProgram()
     except SystemExit: return  
-    except: print 'Unexpected error during program setup:', sys.exc_info()[0]; return
-    
+    except: rje.printf('Unexpected error during program setup:', sys.exc_info()[0]); return
+
     ### ~ [2] ~ Rest of Functionality... ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try: SNPMap(mainlog,cmd_list).run()
 
@@ -938,7 +946,7 @@ def runMain():
 #########################################################################################################################
 if __name__ == "__main__":      ### Call runMain 
     try: runMain()
-    except: print 'Cataclysmic run error:', sys.exc_info()[0]
+    except: rje.printf('Cataclysmic run error: {0}'.format(sys.exc_info()[0]))
     sys.exit()
 #########################################################################################################################
 ### END OF SECTION IV                                                                                                   #

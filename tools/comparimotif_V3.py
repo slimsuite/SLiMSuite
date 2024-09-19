@@ -215,7 +215,7 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         if not out: out = rje.Out()
         helpx = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
         if helpx > 0:
-            print '\n\nHelp for %s %s: %s\n' % (info.program, info.version, time.asctime(time.localtime(info.start_time)))
+            rje.printf('\n\nHelp for {0} {1}: {2}\n'.format(info.program, info.version, time.asctime(time.localtime(info.start_time))))
             out.verbose(-1,4,text=__doc__)
             if rje.yesNo('Show rje_slimlist options?'): out.verbose(-1,4,text=rje_slimlist.__doc__)
             if rje.yesNo('Show general commandline options?'): out.verbose(-1,4,text=rje.__doc__)
@@ -225,36 +225,30 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         return cmd_list
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Major Problem with cmdHelp()'
+    except: rje.printf('Major Problem with cmdHelp()')
 #########################################################################################################################
-def setupProgram(): ### Basic Setup of Program
+def setupProgram(): ### Basic Setup of Program when called from commandline.
     '''
-    Basic setup of Program:
+    Basic Setup of Program when called from commandline:
     - Reads sys.argv and augments if appropriate
     - Makes Info, Out and Log objects
     - Returns [info,out,log,cmd_list]
     '''
-    try:
-        ### Initial Command Setup & Info ###
-        info = makeInfo()
+    try:### ~ [1] ~ Initial Command Setup & Info ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+        info = makeInfo()                                   # Sets up Info object with program details
         if len(sys.argv) == 2 and sys.argv[1] in ['version','-version','--version']: rje.printf(info.version); sys.exit(0)
-        if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: rje.printf('{0} v{1}'.format(info.program,info.version)); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: rje.printf('%s v%s' % (info.program,info.version)); sys.exit(0)
         if len(sys.argv) == 2 and sys.argv[1] in ['description','-description','--description']: rje.printf('%s: %s' % (info.program,info.description)); sys.exit(0)
-        cmd_list = rje.getCmdList(sys.argv[1:],info=info)      ### Load defaults from program.ini
-        ### Out object ###
-        out = rje.Out(cmd_list=cmd_list)
-        out.verbose(2,2,cmd_list,1)
-        out.printIntro(info)
-        ### Additional commands ###
-        cmd_list = cmdHelp(info,out,cmd_list)
-        ### Log ###
-        log = rje.setLog(info=info,out=out,cmd_list=cmd_list)
-        return [info,out,log,cmd_list]
+        cmd_list = rje.getCmdList(sys.argv[1:],info=info)   # Reads arguments and load defaults from program.ini
+        out = rje.Out(cmd_list=cmd_list)                    # Sets up Out object for controlling output to screen
+        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2
+        out.printIntro(info)                                # Prints intro text using details from Info object
+        cmd_list = cmdHelp(info,out,cmd_list)               # Shows commands (help) and/or adds commands from user
+        log = rje.setLog(info,out,cmd_list)                 # Sets up Log object for controlling log file output
+        return (info,out,log,cmd_list)                      # Returns objects for use in program
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except:
-        print 'Problem during initial setup.'
-        raise
+    except: rje.printf('Problem during initial setup.'); raise
 #########################################################################################################################
 ### END OF SECTION I                                                                                                    #
 #########################################################################################################################
@@ -453,7 +447,7 @@ class CompariMotif(rje.RJE_Object):
                 sname = rje.baseFile(motifs.info['SearchDB'],strip_path=True,extlist=['txt','motif','motifs','fas'])
                 if 'none' in [mname.lower(),sname.lower()]: motifs.info['Basefile'] = 'comparimotif'
                 else: motifs.info['Basefile'] = '%s-%s' % (mname,sname)
-                if string.count(motifs.info['Basefile'],',') > 0: # Lists of motifs!
+                if rje.count(motifs.info['Basefile'],',') > 0: # Lists of motifs!
                     if motifs.info['SearchDB'] == motifs.info['Motifs']: motifs.info['Basefile'] = 'compari-self'
                     else: motifs.info['Basefile'] = 'comparimotif'
             if not ('Resfile' in motifs.info and motifs.getStrLC('Resfile')):
@@ -557,11 +551,11 @@ class CompariMotif(rje.RJE_Object):
             try:
                 if motifs.info['MotInfo'].lower() not in ['','none']: motifs.motifInfo()    # Do after IC adjustment
                 self.printLog('#TEST','Testing input for memaver compatibility.')
-                testline = string.split(MOTIFS.readline())
+                testline = rje.split(MOTIFS.readline())
                 if 'Dataset' in testline: raise ValueError  # (Q)SLiMFinder output
                 elif 'Dataset,' in testline[0]: raise ValueError  # (Q)SLiMFinder output
                 testmot = testline[0]
-                while testmot.startswith('#'): testmot = string.split(MOTIFS.readline())[0]
+                while testmot.startswith('#'): testmot = rje.split(MOTIFS.readline())[0]
                 #i# This should either return an acceptable motif, or raise a ValueError
                 test = rje_slim.slimFromPattern(testmot)
                 MOTIFS.close()
@@ -589,12 +583,12 @@ class CompariMotif(rje.RJE_Object):
                 for motif1 in motifs.motifsFromPRESTOLine(rje.chomp(MOTIFS.readline())):
                     vardict[motif1] = motif1.varList(self.dict['AAFreq'],var_ic)
                     matchfound = False
-                    seq1 = motif1.pattern()     # string.replace(string.join(motif1.list['PRESTO'],''),'X','.')
+                    seq1 = motif1.pattern()     # rje.replace(rje.join(motif1.list['PRESTO'],''),'X','.')
                     #x#self.deBug(seq1)
                     for motif2 in compdb.motifs():
                         cx += 100.0
                         self.log.printLog('\r#COMP','Comparing %s & %s: %.2f%%' % (hlist[1][0],hlist[2][0],cx/compx),log=False,newline=False)
-                        seq2 = motif2.pattern()     # string.replace(string.join(motif2.list['PRESTO'],''),'X','.')
+                        seq2 = motif2.pattern()     # rje.replace(rje.join(motif2.list['PRESTO'],''),'X','.')
                         match = []      # Give value to skip later stages
                         outdict = {'MotifFile':rje.baseFile(self.info['Name'],strip_path=True),#?#'SLiM1':motif1,'SLiM2':motif2,
                                    'SearchDB':rje.baseFile(self.info['SearchDB'],strip_path=True),
@@ -657,7 +651,7 @@ class CompariMotif(rje.RJE_Object):
                                                 if m1[-1] == 'overlap':
                                                     #self.deBug('%s vs %s' % (c1[i],c2[i]))
                                                     extendedamb = rje.strSort(c1[i]+c2[i],unique=True)
-                                                    if not var_ic.has_key(extendedamb): var_ic[extendedamb] = rje_slim.weightedElementIC(extendedamb,self.dict['AAFreq'])
+                                                    if extendedamb not in var_ic: var_ic[extendedamb] = rje_slim.weightedElementIC(extendedamb,self.dict['AAFreq'])
                                                     ic += var_ic[extendedamb]
                                                     #self.deBug('-> [%s] = %s' % (extendedamb,var_ic[extendedamb]))
                                                 else:
@@ -723,7 +717,7 @@ class CompariMotif(rje.RJE_Object):
             if self.getOpt('Unmatched'):
                 ufile = '%s.unmatched.txt' % self.basefile()
                 rje.backup(self,ufile)
-                open(ufile,'w').write(string.join(unmatched,'\n'))
+                open(ufile,'w').write(rje.join(unmatched,'\n'))
                 self.printLog('#NON','%s unmatched motifs output to %s.' % (rje.iLen(unmatched),ufile))
             return
         except:
@@ -801,7 +795,7 @@ class CompariMotif(rje.RJE_Object):
                         else:
                             el = searchvar[:1]
                             searchvar = searchvar[1:]
-                        if not var_ic.has_key(el):
+                        if el not in var_ic:
                             var_ic[el] = rje_slim.weightedElementIC(el,self.dict['AAFreq'])    ### Can add aafreq and wild_pen etc. here if desired.
                         addvar.append(el)
                     vardict[motif].append(addvar[0:])
@@ -814,12 +808,12 @@ class CompariMotif(rje.RJE_Object):
             (cx,mx) = (0.0,0)
             for motif1 in motifs.motifs():
                 matchfound = False
-                seq1 = motif1.pattern()     # string.replace(string.join(motif1.list['PRESTO'],''),'X','.')
+                seq1 = motif1.pattern()     # rje.replace(rje.join(motif1.list['PRESTO'],''),'X','.')
                 #x#self.deBug(seq1)
                 for motif2 in compdb.motifs():
                     cx += 100.0
                     self.log.printLog('\r#COMP','Comparing %s & %s: %.2f%%' % (hlist[1][0],hlist[2][0],cx/compx),log=False,newline=False)
-                    seq2 = motif2.pattern()     # string.replace(string.join(motif2.list['PRESTO'],''),'X','.')
+                    seq2 = motif2.pattern()     # rje.replace(rje.join(motif2.list['PRESTO'],''),'X','.')
                     match = []      # Give value to skip later stages
                     outdict = {'MotifFile':rje.baseFile(self.info['Name'],strip_path=True),#?#'SLiM1':motif1,'SLiM2':motif2,
                                'SearchDB':rje.baseFile(self.info['SearchDB'],strip_path=True),
@@ -885,7 +879,7 @@ class CompariMotif(rje.RJE_Object):
                                             if m1[-1] == 'overlap':
                                                 #self.deBug('%s vs %s' % (c1[i],c2[i]))
                                                 extendedamb = rje.strSort(c1[i]+c2[i],unique=True)
-                                                if not var_ic.has_key(extendedamb): var_ic[extendedamb] = rje_slim.weightedElementIC(extendedamb,self.dict['AAFreq'])
+                                                if extendedamb not in var_ic: var_ic[extendedamb] = rje_slim.weightedElementIC(extendedamb,self.dict['AAFreq'])
                                                 ic += var_ic[extendedamb]
                                                 #self.deBug('-> [%s] = %s' % (extendedamb,var_ic[extendedamb]))
                                             else:
@@ -953,7 +947,7 @@ class CompariMotif(rje.RJE_Object):
             if self.getOpt('Unmatched'):
                 ufile = '%s.unmatched.txt' % self.basefile()
                 rje.backup(self,ufile)
-                open(ufile,'w').write(string.join(unmatched,'\n'))
+                open(ufile,'w').write(rje.join(unmatched,'\n'))
                 self.printLog('#NON','%s unmatched motifs output to %s.' % (rje.iLen(unmatched),ufile))
             return
         except:
@@ -1083,10 +1077,10 @@ class CompariMotif(rje.RJE_Object):
                     #if not common[-1]: common[-1] = '*'
                 clow = common[-1] == common[-1].lower()
                 if len(common[-1]) > 15:
-                    common[-1] = '^%s' % string.join(list(set(rje_slim.default_aas).difference(common[-1].upper())),'')
+                    common[-1] = '^%s' % rje.join(list(set(rje_slim.default_aas).difference(common[-1].upper())),'')
                     if clow: common[-1] = common[-1].lower()
                 if len(common[-1]) > 1: common[-1] = '[%s]' % common[-1]
-            match.append(string.join(common,''))
+            match.append(rje.join(common,''))
             ### Return ###
             return match
         except:
@@ -1151,11 +1145,11 @@ class CompariMotif(rje.RJE_Object):
                 m2 = match['Name2']
                 if match['Sim1'] == 'Duplicate': s1 = 'dup'
                 else:
-                    s1 = string.split(match['Sim1'].lower())
+                    s1 = rje.split(match['Sim1'].lower())
                     s1 = s1[0][0] + s1[1][0]
                 if match['Sim2'] == 'Duplicate': s2 = 'dup'
                 else:
-                    s2 = string.split(match['Sim2'].lower())
+                    s2 = rje.split(match['Sim2'].lower())
                     s2 = s2[0][0] + s2[1][0]
                 if s1 not in edges: edges[s1] = {}
                 if (m2,m1) in xmatch: continue   # Reverse match already there
@@ -1269,10 +1263,10 @@ class CompariMotif(rje.RJE_Object):
             for motif1 in motiflist:
                 vardict[motif1] = motif1.varList(self.dict['AAFreq'],var_ic)
                 matchfound = False
-                seq1 = motif1.pattern()     # string.replace(string.join(motif1.list['PRESTO'],''),'X','.')
+                seq1 = motif1.pattern()     # rje.replace(rje.join(motif1.list['PRESTO'],''),'X','.')
                 ### ~ [1] Search CompDB motifs ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
                 for motif2 in compdb.motifs():
-                    seq2 = motif2.pattern()     # string.replace(string.join(motif2.list['PRESTO'],''),'X','.')
+                    seq2 = motif2.pattern()     # rje.replace(rje.join(motif2.list['PRESTO'],''),'X','.')
                     match = []      # Give value to skip later stages
                     outdict = {'MotifFile':rje.baseFile(self.info['Name'],strip_path=True),#?#'SLiM1':motif1,'SLiM2':motif2,
                                'SearchDB':rje.baseFile(self.info['SearchDB'],strip_path=True),
@@ -1336,7 +1330,7 @@ class CompariMotif(rje.RJE_Object):
                                         if m1[-1] not in comtype['Bad']:        # Add lower IC if match not bad
                                             if m1[-1] == 'overlap':
                                                 extendedamb = rje.strSort(c1[i]+c2[i],unique=True)
-                                                if not var_ic.has_key(extendedamb): var_ic[extendedamb] = rje_slim.weightedElementIC(extendedamb,self.dict['AAFreq'])
+                                                if extendedamb not in var_ic: var_ic[extendedamb] = rje_slim.weightedElementIC(extendedamb,self.dict['AAFreq'])
                                                 ic += var_ic[extendedamb]
                                             else:
                                                 if var_ic[c1[i]] > var_ic[c2[i]]: ic += var_ic[c2[i]]
@@ -1407,11 +1401,11 @@ class CompariMotif(rje.RJE_Object):
             try:
                 if motifs.info['MotInfo'].lower() not in ['','none']: motifs.motifInfo()    # Do after IC adjustment
                 self.printLog('#TEST','Testing input for memaver compatibility.')
-                testline = string.split(MOTIFS.readline())
+                testline = rje.split(MOTIFS.readline())
                 if 'Dataset' in testline: raise ValueError  # (Q)SLiMFinder output
                 elif 'Dataset,' in testline[0]: raise ValueError  # (Q)SLiMFinder output
                 testmot = testline[0]
-                while testmot.startswith('#'): testmot = string.split(MOTIFS.readline())[0]
+                while testmot.startswith('#'): testmot = rje.split(MOTIFS.readline())[0]
                 #i# This should either return an acceptable motif, or raise a ValueError
                 test = rje_slim.slimFromPattern(testmot)
                 MOTIFS.close()
@@ -1512,14 +1506,12 @@ class CMForker(rje_forker.Forker):
 ### SECTION IV: MAIN PROGRAM                                                                                            #
 #########################################################################################################################
 def runMain():
-    ### Basic Setup of Program ###
-    try: [info,out,mainlog,cmd_list] = setupProgram()
-    except SystemExit: return  
-    except:
-        print 'Unexpected error during program setup:', sys.exc_info()[0]
-        return
-        
-    ### Rest of Functionality... ###
+    ### ~ [1] ~ Basic Setup of Program  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+    try: (info,out,mainlog,cmd_list) = setupProgram()
+    except SystemExit: return
+    except: rje.printf('Unexpected error during program setup:', sys.exc_info()[0]); return
+
+    ### ~ [2] ~ Rest of Functionality... ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try: CompariMotif(mainlog,cmd_list).run()
         
     ### End ###
@@ -1530,7 +1522,7 @@ def runMain():
 #########################################################################################################################
 if __name__ == "__main__":      ### Call runMain 
     try: runMain()
-    except: print 'Cataclysmic run error:', sys.exc_info()[0]
+    except: rje.printf('Cataclysmic run error: {0}'.format(sys.exc_info()[0]))
     sys.exit()
 #########################################################################################################################
 ### END OF SECTION IV                                                                                                   #

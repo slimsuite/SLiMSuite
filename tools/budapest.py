@@ -159,7 +159,7 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         ### ~ [2] ~ Look for help commands and print options if found ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         help = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
         if help > 0:
-            print '\n\nHelp for %s %s: %s\n' % (info.program, info.version, time.asctime(time.localtime(info.start_time)))
+            rje.printf('\n\nHelp for {0} {1}: {2}\n'.format(info.program, info.version, time.asctime(time.localtime(info.start_time))))
             out.verbose(-1,4,text=__doc__)
             if rje.yesNo('Show FIESTA commandline options?',default='N'): out.verbose(-1,4,text=fiesta.__doc__)
             if rje.yesNo('Show HAQESAC commandline options?',default='N'): out.verbose(-1,4,text=haqesac.__doc__)
@@ -171,7 +171,7 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         return cmd_list
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Major Problem with cmdHelp()'
+    except: rje.printf('Major Problem with cmdHelp()')
 #########################################################################################################################
 def setupProgram(): ### Basic Setup of Program when called from commandline.
     '''
@@ -183,18 +183,18 @@ def setupProgram(): ### Basic Setup of Program when called from commandline.
     try:### ~ [1] ~ Initial Command Setup & Info ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         info = makeInfo()                                   # Sets up Info object with program details
         if len(sys.argv) == 2 and sys.argv[1] in ['version','-version','--version']: rje.printf(info.version); sys.exit(0)
-        if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: rje.printf('{0} v{1}'.format(info.program,info.version)); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: rje.printf('%s v%s' % (info.program,info.version)); sys.exit(0)
         if len(sys.argv) == 2 and sys.argv[1] in ['description','-description','--description']: rje.printf('%s: %s' % (info.program,info.description)); sys.exit(0)
         cmd_list = rje.getCmdList(sys.argv[1:],info=info)   # Reads arguments and load defaults from program.ini
         out = rje.Out(cmd_list=cmd_list)                    # Sets up Out object for controlling output to screen
-        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2 
+        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2
         out.printIntro(info)                                # Prints intro text using details from Info object
         cmd_list = cmdHelp(info,out,cmd_list)               # Shows commands (help) and/or adds commands from user
         log = rje.setLog(info,out,cmd_list)                 # Sets up Log object for controlling log file output
         return (info,out,log,cmd_list)                      # Returns objects for use in program
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Problem during initial setup.'; raise
+    except: rje.printf('Problem during initial setup.'); raise
 #########################################################################################################################
 ### END OF SECTION I                                                                                                    #
 #########################################################################################################################
@@ -359,7 +359,7 @@ class Budapest(rje.RJE_Object):
 
             ### ~ [2] Extract ESTs, translate, BLAST and identify good RFs ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             accfile = '%s.acc' % self.basefile()
-            open(accfile,'w').write(string.join(rje.sortKeys(self.dict['Hits']),'\n'))
+            open(accfile,'w').write(rje.join(rje.sortKeys(self.dict['Hits']),'\n'))
             rje_seqlist.SeqList(self.log,self.cmd_list+['goodacc=%s.acc' % self.basefile(),'seqout=%s.hit_est.fas' % self.basefile(),'autoload','autofilter','seqmode=file'])
             self.info['SeqIn'] = '%s.hit_est.fas' % self.basefile()
             seqlist = rje_seq.SeqList(self.log,self.cmd_list+['accnr=F','seqnr=F','gnspacc=F','seqin=%s' % self.info['SeqIn']])
@@ -371,7 +371,7 @@ class Budapest(rje.RJE_Object):
             self.deBug(rje.sortKeys(self.dict['Hits']))
             for seq in seqlist.seq:
                 if seq.info['Format'] == 'NCBI':
-                    acc = string.join(string.split(seq.shortName(),'|')[:2],'|')
+                    acc = rje.join(rje.split(seq.shortName(),'|')[:2],'|')
                     if acc not in self.dict['Hits']: acc = seq.info['AccNum']   # Alternative sequencing identifier
                 else: acc = seq.info['AccNum']    # Can get gi number from seq.info['NCBI'] if seq.info['Format'] == 'NCBI'
                 self.deBug(seq.info)
@@ -423,7 +423,7 @@ class Budapest(rje.RJE_Object):
             for prot in badlist:
                 RED.write('|--- %s: %s\n' % (prot,self.pepList(self.dict['Hits'][prot]['Bad Peptides'])))
             RED.write('\n________________________________________\n\n')
-            if self.dict['Support'].has_key(0):
+            if 0 in self.dict['Support']:
                 RED.write('Bad Hits, removed as no peptides match "good" RFs (%s Proteins):\n\n' % rje.integerString(len(self.dict['Support'][0])))
                 self.dict['Support'][0].sort()
                 for prot in self.dict['Support'].pop(0):
@@ -516,7 +516,7 @@ class Budapest(rje.RJE_Object):
             self.printLog('#RED','%s Shared Peptide Clusters' % rje.integerString(len(clusters)))
             RED.write('PepClusters:\n\n')
             for i in range(len(clusters)):
-                RED.write('%s: %s\n' % (rje.preZero(i+1,len(clusters)),string.join(clusters[i],', ')))
+                RED.write('%s: %s\n' % (rje.preZero(i+1,len(clusters)),rje.join(clusters[i],', ')))
                 for prot in clusters[i]:
                     RED.write('|--- %s: %s\n' % (prot,self.pepList(self.dict['Hits'][prot]['Peptides'])))
                 RED.write('\n')
@@ -526,7 +526,7 @@ class Budapest(rje.RJE_Object):
                 self.printLog('#RED','%s Sequence-based Clusters' % rje.integerString(len(clusters)))
                 RED.write('SeqClusters:\n\n')
                 for i in range(len(clusters)):
-                    RED.write('%s: %s\n' % (rje.preZero(i+1,len(clusters)),string.join(clusters[i],', ')))
+                    RED.write('%s: %s\n' % (rje.preZero(i+1,len(clusters)),rje.join(clusters[i],', ')))
                     for prot in clusters[i]:
                         RED.write('|--- %s: %s\n' % (prot,self.dict['Hits'][prot]['TopBlast']))
                     RED.write('\n')
@@ -598,7 +598,7 @@ class Budapest(rje.RJE_Object):
             if self.opt['FiestaCons']: self.multiHAQ(conseq,batchonly=False)
         except: self.errorLog('Error during main BUPAPEST pipeline.'); raise
 #########################################################################################################################
-    def pepList(self,peplist): return string.join(peplist,', ')
+    def pepList(self,peplist): return rje.join(peplist,', ')
 #########################################################################################################################
     def convertESTtoRF(self,acc,seq,pepscreen=True,blastonly=False):   ### Converts a given EST sequence to RFs and BLASTs to find best sequence.
         '''
@@ -612,7 +612,7 @@ class Budapest(rje.RJE_Object):
         >> blastonly:bool [False] = whether to only keep those RF with 1+ BLAST hit
         '''
         try:### ~ [1] ~ First translate, then BLAST against given search database. ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            try: est = string.split(acc,'|')[1]
+            try: est = rje.split(acc,'|')[1]
             except: est = acc
             try: est = self.dict['Hits'][acc]['EST'].info['AccNum']
             except: pass
@@ -664,9 +664,9 @@ class Budapest(rje.RJE_Object):
                 except:
                     self.errorLog('BLAST search for %s missing!' % rfseq.shortName(),printerror=False)
                     self.dict['Details'][acc].append('!!!RF%d BLAST error!!!' % rf)
-                    print rfseq.info['Name']
+                    #print rfseq.info['Name']
                     tester = rfblast.searchSeq(myrfs,proglog=False)
-                    for search in tester: print search.info['Name'], '>>>', tester[search].info['Name']
+                    #for search in tester: print search.info['Name'], '>>>', tester[search].info['Name']
                     if self.opt['Test'] or self.opt['DeBug'] and rje.yesNo('Stop?'): break
                     continue
                 if search.hitNum():
@@ -688,22 +688,22 @@ class Budapest(rje.RJE_Object):
                             if gindex.index(hit.dict['GABLAM']['Aln']['Qry'][i]) > gindex.index(galn[i]): galn[i] = hit.dict['GABLAM']['Aln']['Qry'][i]
                         except:
                             self.log.errorLog('Problem with %s vs %s GABLAM Aln position %d' % (search.info['Name'],hit.info['Name'],i+1))
-                            print rfseq.info['Sequence'], len(rfseq.info['Sequence'])
-                            print string.join(galn,''), len(galn)
-                            print hit.dict['GABLAM']['Aln']['Qry'], len(hit.dict['GABLAM']['Aln']['Qry'])
+                            #print rfseq.info['Sequence'], len(rfseq.info['Sequence'])
+                            #print rje.join(galn,''), len(galn)
+                            #print hit.dict['GABLAM']['Aln']['Qry'], len(hit.dict['GABLAM']['Aln']['Qry'])
                             self.deBug('')
                 ## ~ [2b] ~ Also search with PFam HMMs? ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-                rfseq.info['GAln'] = string.join(galn,'')
+                rfseq.info['GAln'] = rje.join(galn,'')
             
             ### ~ [3] ~ Identify ORFs with some coverage and reduce sequences to covered ORFs ~~~~~~~~~~~~~~~~~~~~~~~ ###
-                orfs = string.split(rfseq.info['Sequence'],'*')
+                orfs = rje.split(rfseq.info['Sequence'],'*')
                 (start,end) = (0,0)
                 (firstcov,lastcov) = (-1,-1)
                 for i in range(len(orfs)):
                     orf = orfs[i]
                     end += len(orf)
                     orfgaln = rfseq.info['GAln'][start:end]
-                    if string.count(orfgaln,'-') != len(orfgaln):   # At least partial coverage by 1+ hits
+                    if rje.count(orfgaln,'-') != len(orfgaln):   # At least partial coverage by 1+ hits
                         if firstcov < 0: firstcov = i
                         lastcov = i
                     start = end = (end + 1)
@@ -717,7 +717,7 @@ class Budapest(rje.RJE_Object):
                     self.dict['RF'][acc].pop(rf)
                     continue
                 elif hitx:
-                    rfseq.info['Sequence'] = string.join(orfs[firstcov:lastcov],'*')
+                    rfseq.info['Sequence'] = rje.join(orfs[firstcov:lastcov],'*')
                     self.dict['Details'][acc].append('RF%d BLAST hits cover ORFs %d-%d of %d' % (rf,firstcov+1,lastcov,len(orfs)))
                     if firstcov > 0 or lastcov < len(orfs):
                         self.dict['Details'][acc].append('RF%d sequence reduced to covered ORFs' % (rf))
@@ -1027,7 +1027,7 @@ class Budapest(rje.RJE_Object):
                     data['bad_pep'] = len(self.dict['Hits'][acc]['Bad Peptides'])
                     data['nonrf_pep'] = len(self.dict['Hits'][acc]['Non-RF Peptides'])
                     data['rf_pep'] = len(self.dict['Hits'][acc]['Peptides'])
-                    data['pepseq'] = string.join(self.dict['Hits'][acc]['Peptides'],',')
+                    data['pepseq'] = rje.join(self.dict['Hits'][acc]['Peptides'],',')
                     data['pep_num'] = sum([data['nonrf_pep'],data['rf_pep']])
                     if data['pep_num']: data['pepscore'] = '%.2f' % (data['rf_pep'] * data['rf_pep'] / float(data['pep_num']))
                     else: data['pepscore'] = 0.0
@@ -1036,7 +1036,7 @@ class Budapest(rje.RJE_Object):
                             try: data[h] = self.dict['Hits'][acc][h]
                             except: pass
                     ## ~ [1d] ~ BLAST Data ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-                    try: data['topblast'] = string.join(string.split(self.dict['Hits'][acc]['TopBlast'])[4:])
+                    try: data['topblast'] = rje.join(rje.split(self.dict['Hits'][acc]['TopBlast'])[4:])
                     except: data['topblast'] = 'None'
                     if not data['topblast']: data['topblast'] = self.dict['Hits'][acc]['TopBlast']
                     data['evalue'] = self.dict['Hits'][acc]['E-Value']
@@ -1045,11 +1045,11 @@ class Budapest(rje.RJE_Object):
                         data['species'] = rje.matchExp('Tax=(\S.+)\s+RepID',data['topblast'])[0]
                         data['topblast'] = rje.matchExp('^(.+)\s+Tax=',data['topblast'])[0]
                     except: data['species'] = '-'
-                    try: data['id'] = string.split(self.dict['Hits'][acc]['TopBlast'])[3]
+                    try: data['id'] = rje.split(self.dict['Hits'][acc]['TopBlast'])[3]
                     except: data['id'] = '-'
-                    data['accnum'] = string.split(data['id'],'__')[-1]
-                    data['id'] = string.split(data['id'],'__')[0]
-                    if data['species'] == '-' and len(string.split(data['id'],'_')) > 1: data['species'] = string.split(data['id'],'_')[1]
+                    data['accnum'] = rje.split(data['id'],'__')[-1]
+                    data['id'] = rje.split(data['id'],'__')[0]
+                    if data['species'] == '-' and len(rje.split(data['id'],'_')) > 1: data['species'] = rje.split(data['id'],'_')[1]
                     rje.delimitedFileOutput(self,outfile,headers,datadict=data)
                 except: self.errorLog('Problem with BUDAPEST table output for %s' % acc)
             self.printLog('#OUT','Main summary table output to %s' % outfile)
@@ -1074,7 +1074,7 @@ class Budapest(rje.RJE_Object):
             cseq = rje_seq.SeqList(self.log,self.cmd_list+['seqin=None','autoload=F','usecase=T','gnspacc=F'])
             coretreecmd = ['autoload=T','outnames=long','root=mid','maketree=clustalw','bootstraps=100']
             ### ~ [1] ~ Rejects ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            if clusters.has_key('-1'):
+            if '-1' in clusters:
                 cseq.seq = []
                 cseq.info['Name'] = '%s.rejects.fas' % cbase
                 rejects = clusters.pop('-1')
@@ -1098,7 +1098,7 @@ class Budapest(rje.RJE_Object):
                 cseq.saveFasta()
                 if cseq.seqNum() > 2:
                     try:#!# Needs improving #!#
-                        treecmd = ['seqin=%s' % cseq.info['Name'],'treeformats=%s' % string.join(self.list['ClusterTree'],','),'savetree=%s.%s.nsf' % (cbase,cx)]
+                        treecmd = ['seqin=%s' % cseq.info['Name'],'treeformats=%s' % rje.join(self.list['ClusterTree'],','),'savetree=%s.%s.nsf' % (cbase,cx)]
                         tree = rje_tree.Tree(self.log,coretreecmd+self.cmd_list+treecmd)
                         #self.deBug(tree.info)
                     except: self.errorLog('%s tree error' % type)
@@ -1115,7 +1115,7 @@ class Budapest(rje.RJE_Object):
             fcmd = ['gnspacc=T','newacc=BUD','pickup=F']+self.cmd_list+['basefile=%s' % self.info['Basefile'],'est2rf=F','blastann=F','dna=F','replacechar=F']
             self.deBug(fcmd)
             for cmd in fcmd:
-                try: x = len(string.split(cmd,'='))
+                try: x = len(rje.split(cmd,'='))
                 except: self.deBug(cmd)                             
             myfiesta = fiesta.FIESTA(self.log,fcmd[0:])
             myfiesta.obj['BLAST'] = rje_blast.blastObj(self.log,fcmd[0:],type='Old')
@@ -1237,7 +1237,7 @@ class Budapest(rje.RJE_Object):
             for cluster in clusters:
                 cx += 1
                 base = '%s%s' % (myfiesta.info['NewAcc'],rje.preZero(cx,len(clusters)))
-                RED.write('>%s [%s]\n' % (base,string.join(seqlist.accList(cluster),', ')))
+                RED.write('>%s [%s]\n' % (base,rje.join(seqlist.accList(cluster),', ')))
                 for seq in cluster:
                     newseq.append(seq)
                     oldacc = seq.info['AccNum']
@@ -1283,7 +1283,7 @@ class Budapest(rje.RJE_Object):
                 for pep in self.dict['PepTypes'][ptype]:
                     data = {'Peptide':pep,'Classification':ptype,'Consensi':seqlist.accList(self.dict['PepSeq'][pep])}
                     data['Consensi'].sort()
-                    data['Consensi'] = string.join(data['Consensi'],'|')
+                    data['Consensi'] = rje.join(data['Consensi'],'|')
                     rje.delimitedFileOutput(self,peptdt,pephead,datadict=data)
             self.printLog('#PEP','Peptide details output to %s' % peptdt)
         except: self.errorLog(rje_zen.Zen().wisdom())
@@ -1323,12 +1323,12 @@ class Budapest(rje.RJE_Object):
             if not self.opt['MultiHAQ']: haqcmd.insert(0,'i=-1') 
             for cmd in haqcmd[0:]:
                 if cmd[:4].lower() == 'ini=': haqcmd.remove(cmd)
-            open('%s_HAQESAC/haqesac.ini' % self.info['Basefile'],'w').write(string.join(haqcmd,'\n'))
+            open('%s_HAQESAC/haqesac.ini' % self.info['Basefile'],'w').write(rje.join(haqcmd,'\n'))
             for seq in self.list['HitSeq']:
                 acc = seq.info['AccNum']
                 haqcmd = ['root=mid','group=dup','qryvar=T','seqin=%s.fas' % acc, 'query=%s' % acc, 'basefile=%s' % acc]
                 if self.opt['MultiHAQ']: haqcmd += ['multihaq=T']
-                open(batchfile,'a').write('python %shaqesac.py %s\n' % (self.info['Path'],string.join(haqcmd)))
+                open(batchfile,'a').write('python %shaqesac.py %s\n' % (self.info['Path'],rje.join(haqcmd)))
             self.printLog('#HAQBAT','HAQESAC Batch file output to %s' % batchfile)
             if batchonly: return self.printLog('#HAQ','No HAQESAC analysis - run using %s' % batchfile)
             ## ~ [2b] ~ Run Program ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##            
@@ -1358,9 +1358,9 @@ class Budapest(rje.RJE_Object):
                     if self.opt['CleanHAQ']:
                         keeplist = ['tree.txt','fas','png','pickle.gz','log','nsf']
                         for file in glob.glob('%s_HAQESAC/%s.*' % (self.info['Basefile'],acc)):
-                            #x#if string.replace(file,'%s_HAQESAC/%s.' % (self.info['Basefile'],acc),'') in keeplist: continue
-                            if string.split(file,'.')[-1] in keeplist: continue
-                            if string.join(string.split(file,'.')[-2:],'.') in keeplist: continue
+                            #x#if rje.replace(file,'%s_HAQESAC/%s.' % (self.info['Basefile'],acc),'') in keeplist: continue
+                            if rje.split(file,'.')[-1] in keeplist: continue
+                            if rje.join(rje.split(file,'.')[-2:],'.') in keeplist: continue
                             os.unlink(file)
                     seqlist.loadSeqs(rje.makePath('%s_HAQESAC/%s.fas' % (self.info['Basefile'],acc),True))
                     acclist = seqlist.accList()
@@ -1445,11 +1445,10 @@ class Budapest(rje.RJE_Object):
 #########################################################################################################################
 def runMain():
     ### ~ [1] ~ Basic Setup of Program  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-    try: [info,out,mainlog,cmd_list] = setupProgram()
-    except SystemExit: return  
-    except:
-        print 'Unexpected error during program setup:', sys.exc_info()[0]
-        return 
+    try: (info,out,mainlog,cmd_list) = setupProgram()
+    except SystemExit: return
+    except: rje.printf('Unexpected error during program setup:', sys.exc_info()[0]); return
+
     ### ~ [2] ~ Rest of Functionality... ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try: Budapest(mainlog,cmd_list).run()
     ### ~ [3] ~ End ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -1460,7 +1459,7 @@ def runMain():
 #########################################################################################################################
 if __name__ == "__main__":      ### Call runMain 
     try: runMain()
-    except: print 'Cataclysmic run error:', sys.exc_info()[0]
+    except: rje.printf('Cataclysmic run error: {0}'.format(sys.exc_info()[0]))
     sys.exit()
 #########################################################################################################################
 ### END OF SECTION IV                                                                                                   #

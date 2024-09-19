@@ -397,7 +397,7 @@ class Gasp(rje.RJE_Object):     ### Class for performing GASP.
                 RST.write('Supplemental results for GASP - main output %s.anc.fas\n\n' % self.info['Name'])
                 for node in self.obj['Tree'].node[self.obj['Tree'].stat['SeqNum']:]:
                     gn = self.gaspnode[node]
-                    RST.write('%s\n\n' % string.join(gn.rst,'\n'))
+                    RST.write('%s\n\n' % rje.join(gn.rst,'\n'))
                 RST.close()
                 self.log.printLog('RST output %s.rst complete.' % self.info['Name'])
         except:

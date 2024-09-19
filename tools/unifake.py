@@ -19,8 +19,8 @@
 """
 Program:      UniFake
 Description:  Fake UniProt DAT File Generator
-Version:      1.3
-Last Edit:    17/04/12
+Version:      1.3.1
+Last Edit:    13/05/22
 Copyright (C) 2008  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -70,6 +70,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 1.1 - Made changes to temp file names for parallel running
     # 1.2 - Added option for reading in Features and limited other info from real UniProt entry
     # 1.3 - Removed searching in UniProt if not UniReal features given.
+    # 1.3.1 - Py3 updates.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -79,7 +80,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo():     ### Makes Info object
     '''Makes rje.Info object for program.'''
-    (program, version, last_edit, copyright) = ('UNIFAKE', '1.3', 'April 2012', '2008')
+    (program, version, last_edit, copyright) = ('UNIFAKE', '1.3.1', 'May 2022', '2008')
     description = 'Fake UniProt DAT File Generator'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_zen.Zen().wisdom()]
@@ -92,7 +93,7 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         if not out: out = rje.Out()
         help = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
         if help > 0:
-            print '\n\nHelp for %s %s: %s\n' % (info.program, info.version, time.asctime(time.localtime(info.start_time)))
+            rje.printf('\n\nHelp for {0} {1}: {2}\n'.format(info.program, info.version, time.asctime(time.localtime(info.start_time))))
             out.verbose(-1,4,text=__doc__)
             if rje.yesNo('Show rje_disorder commandline options?'): out.verbose(-1,4,text=rje_disorder.__doc__)
             if rje.yesNo('Show rje_seq commandline options?'): out.verbose(-1,4,text=rje_seq.__doc__)
@@ -103,36 +104,30 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         return cmd_list
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Major Problem with cmdHelp()'
+    except: rje.printf('Major Problem with cmdHelp()')
 #########################################################################################################################
-def setupProgram(): ### Basic Setup of Program
+def setupProgram(): ### Basic Setup of Program when called from commandline.
     '''
-    Basic setup of Program:
+    Basic Setup of Program when called from commandline:
     - Reads sys.argv and augments if appropriate
     - Makes Info, Out and Log objects
     - Returns [info,out,log,cmd_list]
     '''
-    try:
-        ### Initial Command Setup & Info ###
-        info = makeInfo()
+    try:### ~ [1] ~ Initial Command Setup & Info ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+        info = makeInfo()                                   # Sets up Info object with program details
         if len(sys.argv) == 2 and sys.argv[1] in ['version','-version','--version']: rje.printf(info.version); sys.exit(0)
-        if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: rje.printf('{0} v{1}'.format(info.program,info.version)); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: rje.printf('%s v%s' % (info.program,info.version)); sys.exit(0)
         if len(sys.argv) == 2 and sys.argv[1] in ['description','-description','--description']: rje.printf('%s: %s' % (info.program,info.description)); sys.exit(0)
-        cmd_list = rje.getCmdList(sys.argv[1:],info=info)      ### Load defaults from program.ini
-        ### Out object ###
-        out = rje.Out(cmd_list=cmd_list)
-        out.verbose(2,2,cmd_list,1)
-        out.printIntro(info)
-        ### Additional commands ###
-        cmd_list = cmdHelp(info,out,cmd_list)
-        ### Log ###
-        log = rje.setLog(info=info,out=out,cmd_list=cmd_list)
-        return [info,out,log,cmd_list]
+        cmd_list = rje.getCmdList(sys.argv[1:],info=info)   # Reads arguments and load defaults from program.ini
+        out = rje.Out(cmd_list=cmd_list)                    # Sets up Out object for controlling output to screen
+        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2
+        out.printIntro(info)                                # Prints intro text using details from Info object
+        cmd_list = cmdHelp(info,out,cmd_list)               # Shows commands (help) and/or adds commands from user
+        log = rje.setLog(info,out,cmd_list)                 # Sets up Log object for controlling log file output
+        return (info,out,log,cmd_list)                      # Returns objects for use in program
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except:
-        print 'Problem during initial setup.'
-        raise
+    except: rje.printf('Problem during initial setup.'); raise
 #########################################################################################################################
 ### END OF SECTION I                                                                                                    #
 #########################################################################################################################
@@ -241,7 +236,7 @@ class UniFake(rje.RJE_Object):
     def uniFake(self,seqs=[],store=False):  ### Main UniFake method. Runs on sequences in self.obj['SeqList'] if no seqs.
         '''Main UniFake method. Runs on sequences in self.obj['SeqList'] if no seqs given.'''
         try:### ~ [1] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            unifake = string.split(string.join(self.list['UniFake']).lower())
+            unifake = rje.split(rje.join(self.list['UniFake']).lower())
             seqlist = self.obj['SeqList']
             if seqs: seqlist.seq = seqs
             else: seqs = seqlist.seq
@@ -283,7 +278,7 @@ class UniFake(rje.RJE_Object):
                         self.addAlias(seq.info['AccNum'],details[2])
                         udata['GN'] = [details[2]]
                     for id in [seq.shortName(),seq.info['AccNum']]:
-                        if id in self.dict['Aliases']: udata['AC'].append('%s;' % string.join(self.dict['Aliases'][id],'; '))
+                        if id in self.dict['Aliases']: udata['AC'].append('%s;' % rje.join(self.dict['Aliases'][id],'; '))
                     ## ~ [2c] ~ Features ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
                     ft = []     # List of features for sequence
                     for id in [seq.shortName(),seq.info['AccNum'],seq.info['ID']]:
@@ -406,7 +401,7 @@ class UniFake(rje.RJE_Object):
                 hx += 100.0
                 ## ~ [2a] Update self.dict ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
                 for alist in data[id]['Aliases']:
-                    for alias in string.split(alist,','): self.addAlias(id,alias)
+                    for alias in rje.split(alist,','): self.addAlias(id,alias)
                 if id in self.dict['Aliases']: self.dict['Aliases'][id].sort()
             self.log.printLog('\r#ALIAS','Processed %s: %s IDs with aliases' % (sourcefile,rje.integerString(len(self.dict['Aliases']))))           
         except: self.log.errorLog(rje_zen.Zen().wisdom())
@@ -436,7 +431,7 @@ class UniFake(rje.RJE_Object):
             for mainkey in rje.sortKeys(ftdata):
                 self.progLog('\r#FT','Loading features from %s: %.2f%%' % (ftfile,mx/mtot))
                 mx += 100.0                                                                           
-                (id,ft,start,end) = string.split(mainkey,delimit)
+                (id,ft,start,end) = rje.split(mainkey,delimit)
                 if id == mainkeys[0]: continue
                 if id not in self.dict['Features']: self.dict['Features'][id] = []
                 for desc in ftdata[mainkey][hmap['description']]:
@@ -462,8 +457,8 @@ class UniFake(rje.RJE_Object):
             for entry in realuni.list['Entry']:
                 if 'uniprot' not in self.list['UniFake']: break
                 for key in self.list['UniReal']:    #['AC','GN','RC','RX','CC','DR','PE','KW']:
-                    if entry.dict['Data'].has_key(key):
-                        if udata.has_key(key): udata[key] = entry.dict['Data'][key] + udata[key]
+                    if key in entry.dict['Data']:
+                        if key in udata: udata[key] = entry.dict['Data'][key] + udata[key]
                         else: udata[key] = entry.dict['Data'][key][0:]
                 for ft in entry.list['Feature'][0:]:
                     ft_start = ft['Start']
@@ -508,11 +503,10 @@ class UniFake(rje.RJE_Object):
 #########################################################################################################################
 def runMain():
     ### ~ [1] ~ Basic Setup of Program  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-    try: [info,out,mainlog,cmd_list] = setupProgram()
-    except SystemExit: return  
-    except:
-        print 'Unexpected error during program setup:', sys.exc_info()[0]
-        return 
+    try: (info,out,mainlog,cmd_list) = setupProgram()
+    except SystemExit: return
+    except: rje.printf('Unexpected error during program setup:', sys.exc_info()[0]); return
+
     ### ~ [2] ~ Rest of Functionality... ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try: UniFake(mainlog,cmd_list).run()
     ### ~ [3] ~ End ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -523,7 +517,7 @@ def runMain():
 #########################################################################################################################
 if __name__ == "__main__":      ### Call runMain 
     try: runMain()
-    except: print 'Cataclysmic run error:', sys.exc_info()[0]
+    except: rje.printf('Cataclysmic run error: {0}'.format(sys.exc_info()[0]))
     sys.exit()
 #########################################################################################################################
 ### END OF SECTION IV                                                                                                   #

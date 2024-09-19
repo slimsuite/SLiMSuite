@@ -90,9 +90,9 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         ### ~ [2] ~ Look for help commands and print options if found ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         cmd_help = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
         if cmd_help > 0:
-            print '\n\nHelp for %s %s: %s\n' % (info.program, info.version, time.asctime(time.localtime(info.start_time)))
+            rje.printf('\n\nHelp for {0} {1}: {2}\n'.format(info.program, info.version, time.asctime(time.localtime(info.start_time))))
             out.verbose(-1,4,text=__doc__)
-            if rje.yesNo('Show general commandline options?'): out.verbose(-1,4,text=rje.__doc__)
+            if rje.yesNo('Show general commandline options?',default='N'): out.verbose(-1,4,text=rje.__doc__)
             if rje.yesNo('Quit?'): sys.exit()           # Option to quit after help
             cmd_list += rje.inputCmds(out,cmd_list)     # Add extra commands interactively.
         elif out.stat['Interactive'] > 1: cmd_list += rje.inputCmds(out,cmd_list)    # Ask for more commands
@@ -100,7 +100,7 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         return cmd_list
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Major Problem with cmdHelp()'
+    except: rje.printf('Major Problem with cmdHelp()')
 #########################################################################################################################
 def setupProgram(): ### Basic Setup of Program when called from commandline.
     '''
@@ -111,16 +111,19 @@ def setupProgram(): ### Basic Setup of Program when called from commandline.
     '''
     try:### ~ [1] ~ Initial Command Setup & Info ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         info = makeInfo()                                   # Sets up Info object with program details
+        if len(sys.argv) == 2 and sys.argv[1] in ['version','-version','--version']: rje.printf(info.version); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: rje.printf('%s v%s' % (info.program,info.version)); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['description','-description','--description']: rje.printf('%s: %s' % (info.program,info.description)); sys.exit(0)
         cmd_list = rje.getCmdList(sys.argv[1:],info=info)   # Reads arguments and load defaults from program.ini
         out = rje.Out(cmd_list=cmd_list)                    # Sets up Out object for controlling output to screen
-        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2 
+        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2
         out.printIntro(info)                                # Prints intro text using details from Info object
         cmd_list = cmdHelp(info,out,cmd_list)               # Shows commands (help) and/or adds commands from user
         log = rje.setLog(info,out,cmd_list)                 # Sets up Log object for controlling log file output
         return (info,out,log,cmd_list)                      # Returns objects for use in program
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Problem during initial setup.'; raise
+    except: rje.printf('Problem during initial setup.'); raise
 #########################################################################################################################
 ### END OF SECTION I                                                                                                    #
 #########################################################################################################################
@@ -272,7 +275,7 @@ class ProtHunter(rje_obj.RJE_Object):
             html += '<h1>%s</h1>\n\n' % basefile
             htabs = []      # (tab_id, tab_html_text[, tab_title])
             # Target protein list (with links to HAQ HTML)
-            ctext = '%s\n' % string.join(['Name','Descripton','Length'],'\t')
+            ctext = '%s\n' % rje.join(['Name','Descripton','Length'],'\t')
             seqdict = seqlist.makeSeqNameDic('short')
             if gdb: hitlist = gdb.indexKeys('Hit')
             else: hitlist = rje.sortKeys(seqdict)
@@ -282,28 +285,28 @@ class ProtHunter(rje_obj.RJE_Object):
                 acc = seqlist.seqAcc(seq)
                 if os.path.exists('%s%s.log' % (haqdir,acc)):
                     cseq[0] = '<a href="%s%s.html">%s</a>' % (haqdir,acc,cseq[0])
-                ctext += '%s\n' % string.join(cseq,'\t')
+                ctext += '%s\n' % rje.join(cseq,'\t')
             htabs.append(('Hits',rje_html.tableToHTML(ctext,'\t',tabid='parse'),'Target sequences hit by candidates.'))
             # GABLAM/HMM table (with above links)
             if gdb:
-                ctext = '%s\n' % string.join(gdb.fields(),'\t')
+                ctext = '%s\n' % rje.join(gdb.fields(),'\t')
                 for gline in open('%s.gablam.tdt' % basefile,'r').readlines()[1:]:
-                    gdata = string.split(gline,'\t')
-                    acc = string.split(gdata[0],'__')[-1]
+                    gdata = rje.split(gline,'\t')
+                    acc = rje.split(gdata[0],'__')[-1]
                     gdata[0] = '<a href="http://www.uniprot.org/uniprot/%s" target="_blank">%s</a>' % (acc,gdata[0])
-                    acc = string.split(gdata[1],'__')[-1]
+                    acc = rje.split(gdata[1],'__')[-1]
                     gdata[1] = '<a href="%s%s.html">%s</a>' % (haqdir,acc,gdata[1])
-                    ctext += '%s\n' % string.join(gdata,'\t')
+                    ctext += '%s\n' % rje.join(gdata,'\t')
                 htabs.append(('GABLAM',rje_html.tableToHTML(ctext,'\t',tabid='parse'),'GABLAM hit table.'))
             # Candidate list (with DB links)
             if candseq.seqNum():
-                ctext = '%s\n' % string.join(['AccNum','ID','Descripton','Length'],'\t')
+                ctext = '%s\n' % rje.join(['AccNum','ID','Descripton','Length'],'\t')
                 accdict = candseq.makeSeqNameDic('accnum')
                 for acc in rje.sortKeys(accdict):
                     seq = accdict[acc]
                     cseq = [acc,candseq.seqID(seq),candseq.seqDesc(seq),'%s aa' % candseq.seqLen(seq)]
                     cseq[0] = '<a href="http://www.uniprot.org/uniprot/%s" target="_blank">%s</a>' % (acc,acc)
-                    ctext += '%s\n' % string.join(cseq,'\t')
+                    ctext += '%s\n' % rje.join(cseq,'\t')
                 htabs.append(('Candidates',rje_html.tableToHTML(ctext,'\t',tabid='parse'),'Candidate sequences to search.'))
             html += hobj.tabberHTML('GABLAM',htabs)
             html += hobj.htmlTail()
@@ -312,7 +315,7 @@ class ProtHunter(rje_obj.RJE_Object):
             ### ~ [3] Generate sequence-specific pages ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             #?# Move this to HAQESAC or MultiHAQ
             for i in range(len(hitlist)):
-                hit = string.split(hitlist[i],'__')[-1]
+                hit = rje.split(hitlist[i],'__')[-1]
                 logfile = '%s%s.log' % (haqdir,hit)
                 seqbase = logfile[:-4]
                 hfile = '%s.html' % seqbase
@@ -320,8 +323,8 @@ class ProtHunter(rje_obj.RJE_Object):
                 # Front page should have:
                 html += '<h1>%s</h1>\n\n' % seqbase
                 html += '<p>Click <a href="../%s.html">here</a> to return to results summary. \n' % basefile
-                if i: html += 'Previous: <a href="./%s.html"><code>%s</code></a>. \n' % (string.split(hitlist[i-1],'__')[-1],hitlist[i-1])
-                if i < len(hitlist)-1: html += 'Next: <a href="./%s.html"><code>%s</code></a>. \n' % (string.split(hitlist[i+1],'__')[-1],hitlist[i+1])
+                if i: html += 'Previous: <a href="./%s.html"><code>%s</code></a>. \n' % (rje.split(hitlist[i-1],'__')[-1],hitlist[i-1])
+                if i < len(hitlist)-1: html += 'Next: <a href="./%s.html"><code>%s</code></a>. \n' % (rje.split(hitlist[i+1],'__')[-1],hitlist[i+1])
                 html += '</p>\n'
                 htabs = []      # (tab_id, tab_html_text[, tab_title])
                 for ftype in ['png','tree.txt','fas','nwk','log']:
@@ -335,12 +338,12 @@ class ProtHunter(rje_obj.RJE_Object):
                         tabtext += '<pre>%s</pre>\n' % open(seqfile,'r').read()
                         if ftype == 'tree.txt':
                             for xref in hitlist:
-                                reptext = '<a href="./%s.html">%s</a>' % (string.split(xref,'__')[-1],xref)
-                                tabtext = string.replace(tabtext,': %s ' % xref,': %s ' % reptext)
+                                reptext = '<a href="./%s.html">%s</a>' % (rje.split(xref,'__')[-1],xref)
+                                tabtext = rje.replace(tabtext,': %s ' % xref,': %s ' % reptext)
                             while rje.matchExp('(: \S+_(\S+)__(\S+) )',tabtext):
                                 (oldtext,sid,spec,spacc) = rje.matchExp('(: (\S+)_(\S+)__(\S+) )',tabtext)
                                 newtext = ': %s_<a href="http://www.uniprot.org/taxonomy/?query=%s&sort=score" target="_blank">%s</a>__<a href="http://www.uniprot.org/uniprot/%s" target="_blank">%s</a> ' % (sid,spec,spec,spacc,spacc)
-                                tabtext = string.replace(tabtext,oldtext,newtext)
+                                tabtext = rje.replace(tabtext,oldtext,newtext)
                         tabdesc = '%s output' % seqfile
                     htabs.append((ftype,tabtext,tabdesc))
                 if htabs: html += hobj.tabberHTML(os.path.basename(seqbase),htabs)
@@ -371,8 +374,8 @@ def runMain():
     ### ~ [1] ~ Basic Setup of Program  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try: (info,out,mainlog,cmd_list) = setupProgram()
     except SystemExit: return  
-    except: print 'Unexpected error during program setup:', sys.exc_info()[0]; return
-    
+    except: rje.printf('Unexpected error during program setup:', sys.exc_info()[0]); return
+
     ### ~ [2] ~ Rest of Functionality... ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try: ProtHunter(mainlog,cmd_list).run()
 
@@ -384,7 +387,7 @@ def runMain():
 #########################################################################################################################
 if __name__ == "__main__":      ### Call runMain 
     try: runMain()
-    except: print 'Cataclysmic run error:', sys.exc_info()[0]
+    except: rje.printf('Cataclysmic run error: {0}'.format(sys.exc_info()[0]))
     sys.exit()
 #########################################################################################################################
 ### END OF SECTION IV                                                                                                   #

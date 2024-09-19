@@ -210,9 +210,9 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         ### ~ [2] ~ Look for help commands and print options if found ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         cmd_help = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
         if cmd_help > 0:
-            print '\n\nHelp for %s %s: %s\n' % (info.program, info.version, time.asctime(time.localtime(info.start_time)))
+            rje.printf('\n\nHelp for {0} {1}: {2}\n'.format(info.program, info.version, time.asctime(time.localtime(info.start_time))))
             out.verbose(-1,4,text=__doc__)
-            if rje.yesNo('Show general commandline options?'): out.verbose(-1,4,text=rje.__doc__)
+            if rje.yesNo('Show general commandline options?',default='N'): out.verbose(-1,4,text=rje.__doc__)
             if rje.yesNo('Quit?'): sys.exit()           # Option to quit after help
             cmd_list += rje.inputCmds(out,cmd_list)     # Add extra commands interactively.
         elif out.stat['Interactive'] > 1: cmd_list += rje.inputCmds(out,cmd_list)    # Ask for more commands
@@ -220,7 +220,7 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         return cmd_list
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Major Problem with cmdHelp()'
+    except: rje.printf('Major Problem with cmdHelp()')
 #########################################################################################################################
 def setupProgram(): ### Basic Setup of Program when called from commandline.
     '''
@@ -231,16 +231,19 @@ def setupProgram(): ### Basic Setup of Program when called from commandline.
     '''
     try:### ~ [1] ~ Initial Command Setup & Info ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         info = makeInfo()                                   # Sets up Info object with program details
+        if len(sys.argv) == 2 and sys.argv[1] in ['version','-version','--version']: rje.printf(info.version); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: rje.printf('%s v%s' % (info.program,info.version)); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['description','-description','--description']: rje.printf('%s: %s' % (info.program,info.description)); sys.exit(0)
         cmd_list = rje.getCmdList(sys.argv[1:],info=info)   # Reads arguments and load defaults from program.ini
         out = rje.Out(cmd_list=cmd_list)                    # Sets up Out object for controlling output to screen
-        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2 
+        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2
         out.printIntro(info)                                # Prints intro text using details from Info object
         cmd_list = cmdHelp(info,out,cmd_list)               # Shows commands (help) and/or adds commands from user
         log = rje.setLog(info,out,cmd_list)                 # Sets up Log object for controlling log file output
         return (info,out,log,cmd_list)                      # Returns objects for use in program
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Problem during initial setup.'; raise
+    except: rje.printf('Problem during initial setup.'); raise
 #########################################################################################################################
 ### END OF SECTION I                                                                                                    #
 #########################################################################################################################
@@ -355,7 +358,7 @@ class REVERT(rje_obj.RJE_Object):
                 #self._cmdReadList(cmd,'cdictlist',['Att']) # As cdict but also enters keys into list
             except: self.errorLog('Problem with cmd:%s' % cmd)
         for lkey in ['GraphFormats','TreeFormats']:
-            self.list[lkey] = string.split(string.join(self.list[lkey]).lower())
+            self.list[lkey] = rje.split(rje.join(self.list[lkey]).lower())
             if len(self.list[lkey]) == 1 and self.list[lkey] == 'none': self.list[lkey] = []
         #self.setNum({'MinCov':self.getNum('MinVCov'),'MinLocID':self.getNum('MinVLocID')})
         if not self.getStr('RevertDir')[:1] == '/':
@@ -608,9 +611,9 @@ class REVERT(rje_obj.RJE_Object):
                 locdb.renameField('SbjEnd','ProtEnd')
                 locdb.addFields(['GenStart','GenEnd'])
                 for entry in locdb.entries():
-                    ldata = string.split(entry['GenSeq'],'.')
-                    entry['GenSeq'] = string.join(ldata,'.')[:-1]
-                    ldata = string.split(ldata[-1],'-')
+                    ldata = rje.split(entry['GenSeq'],'.')
+                    entry['GenSeq'] = rje.join(ldata,'.')[:-1]
+                    ldata = rje.split(ldata[-1],'-')
                     entry['FragStart'] = int(entry['FragStart'])
                     entry['FragEnd'] = int(entry['FragEnd'])
                     if entry['FragStart'] > entry['FragEnd']:
@@ -660,10 +663,10 @@ class REVERT(rje_obj.RJE_Object):
             vsumdb.compress(['VirusID'],rules={'Length':'max','Genome':'list','VirusGB':'list','VirusAcc':'list','Protein':'list','Identity':'max','Coverage':'max','Local':'max'},default='sum',joinchar='|')
             for ekey in vsumdb.dataKeys():
                 entry = vsumdb.data(ekey)
-                entry['Protein'] = rje.sortUnique(string.split(entry['Protein'],'|'))
+                entry['Protein'] = rje.sortUnique(rje.split(entry['Protein'],'|'))
                 if '' in entry['Protein']: entry['Protein'].remove('')
                 entry['ProtHits'] = len(entry['Protein'])
-                entry['Protein'] = string.join(entry['Protein'],'|')
+                entry['Protein'] = rje.join(entry['Protein'],'|')
             vsumdb.dropField('Protein')
             ## ~ [3c] ~ Genome Summary Table ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             gsumdb = db.copyTable(vdb,'summary.genome')     # ['VirusAcc','Virus','Genome','HitNum','Length','ProtNum','ProtHits','Protein','FragNum','Coverage','Identity','Local']
@@ -681,10 +684,10 @@ class REVERT(rje_obj.RJE_Object):
             gsumdb.setFields(['Genome','GFile','Virus','VirusID','HitNum','MaxScore','EVal','Protein','ProtHits','FragNum','BestProt','Best']+vgbfields)
             for ekey in gsumdb.dataKeys():
                 entry = gsumdb.data(ekey)
-                entry['Protein'] = rje.sortUnique(string.split(entry['Protein'],'|'))
+                entry['Protein'] = rje.sortUnique(rje.split(entry['Protein'],'|'))
                 if '' in entry['Protein']: entry['Protein'].remove('')
                 entry['ProtHits'] = len(entry['Protein'])
-                entry['Protein'] = string.join(entry['Protein'],'|')
+                entry['Protein'] = rje.join(entry['Protein'],'|')
             gsumdb.dropField('Protein')
             ## ~ [3d] ~ Protein Summary Table ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             psumdb = db.copyTable(rdb,'summary.protein')     # ['VirusAcc','Virus','Genome','Protein','ProtAcc','Product','HitNum','MaxScore','EVal','Length','FragNum','Coverage','Identity','Local']
@@ -876,7 +879,7 @@ class REVERT(rje_obj.RJE_Object):
                     revert.setStr({'VirusGB':virus,'Genome':gfile})
                     gabcmd = revert.gablamSearch(runcmd=True)
                     if not gabcmd: continue
-                    gabcmd = 'python %stools/gablam.py %s forks=%d fullblast=T' % (rje.slimsuitepath,string.join(gabcmd),self.getInt('FarmGABLAM'))
+                    gabcmd = 'python %stools/gablam.py %s forks=%d fullblast=T' % (rje.slimsuitepath,rje.join(gabcmd),self.getInt('FarmGABLAM'))
                     forker.list['ToFork'].append(gabcmd)
             ### ~ [2] Fork out! ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             forker.run()
@@ -964,7 +967,7 @@ class REVERT(rje_obj.RJE_Object):
                 blast.assemblyToAlignments(bfile,fullquery=True)
                 fx = 0
                 for pafile in glob.glob('%s.*' % bfile):
-                    afasfile = '%sASSEMBLYFAS/%s' % (self.getStr('RevertDir'),os.path.basename(string.replace(pafile,'.%s.assembly.' % seqtype,'.')))
+                    afasfile = '%sASSEMBLYFAS/%s' % (self.getStr('RevertDir'),os.path.basename(rje.replace(pafile,'.%s.assembly.' % seqtype,'.')))
                     os.rename(pafile,afasfile); fx += 1
                 if fx: self.printLog('#MOVE','%s fasta files moved from ASSEMBLY/ to ASSEMBLYFAS/' % rje.iStr(fx))
             #!# Impose a minimum % identity filter: Should GABLAM be re-run for the viral protein versus hit fragments
@@ -1026,14 +1029,14 @@ class REVERT(rje_obj.RJE_Object):
                 if prot not in vseqdict: self.warnLog('Locus "%s" is missing from Viral sequence dictionary' % virus,'vseq_missing'); continue
                 #fentry = vftdb.data('%s\t%s' % (virus,prot))
                 fentry = vftdb.data(vftdb.makeKey({'locus':virus,'protein_id':prot}))
-                fdata = string.split(' %s' % fentry['details'],' /')
+                fdata = rje.split(' %s' % fentry['details'],' /')
                 while fdata and not fdata[0].startswith('product'): fdata.pop(0)
                 if fdata:
                     try: product = rje.matchExp('product="(.+)"',fdata[0])[0]
                     except: self.debug(fdata)
                 else: product = 'unknown'
                 (pname,pseq) = vseqlist.getSeq(vseqdict[prot])
-                pname = string.split(pname)[0]
+                pname = rje.split(pname)[0]
                 ## ~ [1a] Global Statistics ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
                 plen = len(pseq)
                 fragnum = len(gldb.indexEntries('Qry',prot))
@@ -1066,7 +1069,7 @@ class REVERT(rje_obj.RJE_Object):
                                 break
                             consensus[-1] = 'x'     #?# Should an actual consensus be produced too? Harder!
                         #if consensus[-1] not in '.-': coverage += 100.0
-                    consensus = string.join(consensus,'')
+                    consensus = rje.join(consensus,'')
                     self.verbose(0,1,'%s %s\n%s' % (pname,product,consensus))
                     #adb.addEntry({'Genome':rje.baseFile(self.getStr('Genome'),strip_path=True),'Protein':pname,'Product':product,'Consensus':consensus})
                 rentry = {'VirusAcc':virus,'Virus':ventry['organism'],'Genome':rje.baseFile(self.getStr('Genome'),strip_path=True),
@@ -1090,8 +1093,8 @@ class REVERT(rje_obj.RJE_Object):
                 else: entry['Protein'] = ''
             vsumdb.compress(['VirusAcc','GFile'],rules={'ProtAcc':'list','Protein':'list','GFile':'str'},joinchar='|',default='sum')    #
             for entry in vsumdb.entries():
-                if len(string.split(entry['ProtAcc'],'|')) != entry['ProtNum']: self.debug('ProtAcc/number mismatch! %s vs %s' % (entry['ProtNum'],entry['ProtAcc']))
-                if (entry['Protein'] or entry['ProtHits']) and len(string.split(entry['Protein'],'|')) != entry['ProtHits']: self.debug('Protein/hits mismatch! %s vs %s' % (entry['ProtHits'],entry['Protein']))
+                if len(rje.split(entry['ProtAcc'],'|')) != entry['ProtNum']: self.debug('ProtAcc/number mismatch! %s vs %s' % (entry['ProtNum'],entry['ProtAcc']))
+                if (entry['Protein'] or entry['ProtHits']) and len(rje.split(entry['Protein'],'|')) != entry['ProtHits']: self.debug('Protein/hits mismatch! %s vs %s' % (entry['ProtHits'],entry['Protein']))
             vsumdb.keepFields(['VirusAcc','Virus','Genome','GFile','HitNum','Length','ProtNum','ProtHits','ProtAcc','FragNum','Coverage','Identity','Local'])
             vsumdb.list['Fields'] = ['VirusAcc','Virus','Genome','GFile','HitNum','Length','ProtNum','ProtHits','ProtAcc','FragNum','Coverage','Identity','Local']
 
@@ -1207,8 +1210,8 @@ class REVERT(rje_obj.RJE_Object):
             if self.getBool('VGABLAM'):
                 vgabdb.renameField('Qry','Hub'); vgabdb.renameField('Hit','Spoke')
                 for entry in vgabdb.entries():
-                    entry['Hub'] = self.alias(string.split(entry['Hub'],'__')[-1])
-                    entry['Spoke'] = self.alias(string.split(entry['Spoke'],'__')[-1])
+                    entry['Hub'] = self.alias(rje.split(entry['Hub'],'__')[-1])
+                    entry['Spoke'] = self.alias(rje.split(entry['Spoke'],'__')[-1])
                     entry['Type'] = 'GABLAM'; entry['Evidence'] = 'GABLAM'
                     entry['Identity'] = (float(entry['Qry_AlnID'])+float(entry['Hit_AlnID']))/2.0
                     edb.addEntry(entry)
@@ -1360,7 +1363,7 @@ class REVERT(rje_obj.RJE_Object):
                     viruses = gbdb.indexDataList('Host',host,'Representative')
                 hfile = '%s.%s.acc' % (self.basefile(),host)
                 rje.backup(self,hfile)
-                open(hfile,'w').write(string.join(viruses+[''],'\n'))
+                open(hfile,'w').write(rje.join(viruses+[''],'\n'))
                 self.printLog('#ACC','%s representative Genbank IDs output to %s.' % (rje.iLen(viruses),hfile))
             diffx = rje.listDifference(self.list['VHost'],vhosts)
             if diffx: self.printLog('#VHOST','%s vhost=LIST hosts not found in vbatch files.' % rje.iStr(diffx))
@@ -1477,15 +1480,15 @@ class REVERT(rje_obj.RJE_Object):
                 if genome not in adb.data():
                     if not review and genome in adb.data(): continue
                     # Setup possible Genome aliases
-                    taxon = string.split(genome,'.')[0]
+                    taxon = rje.split(genome,'.')[0]
                     if taxon.count('_') == 1:
                         spcode = tax.getSpCode(taxon,invent=False)
-                        spabbrev = string.split(taxon,'_')
+                        spabbrev = rje.split(taxon,'_')
                         try: spabbrev = '%s.%s' % (spabbrev[0].upper()[:1],spabbrev[1].lower())
                         except: spabbrev = spabbrev[0]
                     else:
-                        spcode = tax.getSpCode(string.replace(string.split(taxon,'_')[0],'-',' '),invent=False)
-                        spabbrev = string.split(string.split(taxon,'_')[0],'-')[:2]
+                        spcode = tax.getSpCode(rje.replace(rje.split(taxon,'_')[0],'-',' '),invent=False)
+                        spabbrev = rje.split(rje.split(taxon,'_')[0],'-')[:2]
                         try: spabbrev = '%s.%s' % (spabbrev[0].upper()[:1],spabbrev[1].lower())
                         except: spabbrev = spabbrev[0]
                     usespcode = self.getBool('GSpCode') and (self.i() < 0 or (self.i() < 1 and not review))
@@ -1624,7 +1627,7 @@ class REVERT(rje_obj.RJE_Object):
             gfrags = []                      # List of (contig,start,stop)
             for ghit in ldb.indexKeys('GenHit'):
                 #self.debug(ghit)
-                (genome,contig) = string.split(ghit,'|',1)
+                (genome,contig) = rje.split(ghit,'|',1)
                 frags = []
                 for lentry in ldb.indexEntries('GenHit',ghit):
                     frags.append((min(lentry['SbjStart'],lentry['SbjEnd']),max(lentry['SbjStart'],lentry['SbjEnd'])))
@@ -1669,7 +1672,7 @@ class REVERT(rje_obj.RJE_Object):
                 (prev,name,sequence) = (None,None,None)
                 for (contig,startx,stopx) in gfrags:
                      if contig != prev: (name,sequence) = gseq.getSeq(gdict[contig])
-                     prev = string.split(name)[0]; desc = string.join(string.split(name)[1:])
+                     prev = rje.split(name)[0]; desc = rje.join(rje.split(name)[1:])
                      GFRAG.write('>%s.%s-%s %s|(Pos: %s..%s)\n' % (prev,rje.preZero(startx,len(sequence)),rje.preZero(stopx,len(sequence)),desc,rje.iStr(startx),rje.iStr(stopx)))
                      GFRAG.write('%s\n' % sequence[startx-1:stopx]); sx += 1
                 GFRAG.close()
@@ -1748,7 +1751,7 @@ class REVERT(rje_obj.RJE_Object):
             gdb.renameField('Hit','ProtAcc')
             gdb.addField('Genome')
             for entry in gdb.entries():
-                entry['ProtAcc'] = string.split(entry['ProtAcc'],'__')[-1]
+                entry['ProtAcc'] = rje.split(entry['ProtAcc'],'__')[-1]
                 entry['Genome'] = self.alias(gbase)
             gdb.remakeKeys()
             gdb.keepFields(['Genome','ProtAcc','Qry','Best'],log=False)
@@ -1796,7 +1799,7 @@ class REVERT(rje_obj.RJE_Object):
             rdb.dropFields(['Protein','Product'],log=False)
             badvirx = 0   # Count of viruses to filter
             for entry in rdb.entries():
-                if len(string.split(entry['ProtAcc'],'|')) != entry['ProtHits']: self.debug('Protein ID/number mismatch! %s vs %s' % (entry['ProtHits'],entry['ProtAcc']))
+                if len(rje.split(entry['ProtAcc'],'|')) != entry['ProtHits']: self.debug('Protein ID/number mismatch! %s vs %s' % (entry['ProtHits'],entry['ProtAcc']))
                 entry['Local'] = 100.0 * entry['Identity'] / entry['Coverage']
                 if entry['Local'] < self.getNum('MinVLocID'): entry['Best'] = -1; badvirx += 1; continue
                 entry['Coverage'] = 100.0 * entry['Coverage'] / entry['Length']
@@ -1813,7 +1816,7 @@ class REVERT(rje_obj.RJE_Object):
 
 
             ### [2] Generate Viral Assemblies and Consensus Sequences ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            scmd = ['autoload=T','autofilter=T','seqin=%s' % gfragfas,'goodseq=%s' % (string.join(goodfrag,','))]
+            scmd = ['autoload=T','autofilter=T','seqin=%s' % gfragfas,'goodseq=%s' % (rje.join(goodfrag,','))]
             fragseq = rje_seqlist.SeqList(self.log,self.cmd_list+scmd)
             fragseq.saveSeq(seqfile='%s.fas' % nrbase)
             ## ~ [2a] Assembly BLASTs ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
@@ -1845,8 +1848,8 @@ class REVERT(rje_obj.RJE_Object):
                                 consensus[-1] = qseq[i]
                                 break
                             consensus[-1] = 'x'     #?# Should an actual consensus be produced too? Harder!
-                    consensus = string.join(consensus,'')
-                    (pname,pdesc) = string.split(qname,maxsplit=1)
+                    consensus = rje.join(consensus,'')
+                    (pname,pdesc) = rje.split(qname,maxsplit=1)
                     self.verbose(0,1,'%s %s\n%s' % (pname,pdesc,consensus))
                     cdb.addEntry({'Genome':gbase,'Protein':pname,'Desc':pdesc,'Consensus':consensus})
             if cdb.entryNum(): cdb.saveToFile(append=append)
@@ -1876,8 +1879,8 @@ def runMain():
     ### ~ [1] ~ Basic Setup of Program  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try: (info,out,mainlog,cmd_list) = setupProgram()
     except SystemExit: return  
-    except: print 'Unexpected error during program setup:', sys.exc_info()[0]; return
-    
+    except: rje.printf('Unexpected error during program setup:', sys.exc_info()[0]); return
+
     ### ~ [2] ~ Rest of Functionality... ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try: REVERT(mainlog,cmd_list).run()
 
@@ -1886,11 +1889,10 @@ def runMain():
     except KeyboardInterrupt: mainlog.errorLog('User terminated.')
     except: mainlog.errorLog('Fatal error in main %s run.' % info.program)
     mainlog.endLog(info)
-    #mainlog.printLog('#LOG', '%s V:%s End: %s\n' % (info.program,info.version,time.asctime(time.localtime(time.time()))))
 #########################################################################################################################
-if __name__ == "__main__":      ### Call runMain 
+if __name__ == "__main__":      ### Call runMain
     try: runMain()
-    except: print 'Cataclysmic run error:', sys.exc_info()[0]
+    except: rje.printf('Cataclysmic run error: {0}'.format(sys.exc_info()[0]))
     sys.exit()
 #########################################################################################################################
 ### END OF SECTION IV                                                                                                   #

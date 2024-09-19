@@ -19,8 +19,8 @@
 """
 Program:      APHID
 Description:  Automated Processing of High-resolution Intensity Data
-Version:      2.2
-Last Edit:    10/07/14
+Version:      2.2.2
+Last Edit:    13/05/22
 Citation:     Raab et al. (2010), Proteomics 10: 2790-2800. [PMID: 20486118]
 Copyright (C) 2007  Richard J. Edwards - See source code for GNU License Notice
 
@@ -98,6 +98,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 2.1 - Reduced import commands.
     # 2.2 - Updated for revised SLiMCore.
     # 2.2.1 - Minor bug fix.
+    # 2.2.2 - Py3 updates
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -112,7 +113,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo():     ### Makes Info object
     '''Makes rje.Info object for program.'''
-    (program, version, last_edit, copyright) = ('APHID', '2.2.1', 'December 2020', '2007')
+    (program, version, last_edit, copyright) = ('APHID', '2.2.2', 'May 2022', '2007')
     description = 'Automated Processing of High-resolution Intensity Data'
     author = 'Dr Richard J. Edwards.'
     comments = [#'Note: R is required for PNG visualisations.',
@@ -126,7 +127,7 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         if not out: out = rje.Out()
         help = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
         if help > 0:
-            print '\n\nHelp for %s %s: %s\n' % (info.program, info.version, time.asctime(time.localtime(info.start_time)))
+            rje.printf('\n\nHelp for {0} {1}: {2}\n'.format(info.program, info.version, time.asctime(time.localtime(info.start_time))))
             out.verbose(-1,4,text=__doc__)
             if rje.yesNo('Show PINGU commandline options?'): out.verbose(-1,4,text=pingu.__doc__)
             if rje.yesNo('Show BLAST commandline options (for GABLAM)?'): out.verbose(-1,4,text=pingu.__doc__)
@@ -137,36 +138,30 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         return cmd_list
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Major Problem with cmdHelp()'
+    except: rje.printf('Major Problem with cmdHelp()')
 #########################################################################################################################
-def setupProgram(): ### Basic Setup of Program
+def setupProgram(): ### Basic Setup of Program when called from commandline.
     '''
-    Basic setup of Program:
+    Basic Setup of Program when called from commandline:
     - Reads sys.argv and augments if appropriate
     - Makes Info, Out and Log objects
     - Returns [info,out,log,cmd_list]
     '''
-    try:
-        ### Initial Command Setup & Info ###
-        info = makeInfo()
+    try:### ~ [1] ~ Initial Command Setup & Info ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+        info = makeInfo()                                   # Sets up Info object with program details
         if len(sys.argv) == 2 and sys.argv[1] in ['version','-version','--version']: rje.printf(info.version); sys.exit(0)
-        if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: rje.printf('{0} v{1}'.format(info.program,info.version)); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: rje.printf('%s v%s' % (info.program,info.version)); sys.exit(0)
         if len(sys.argv) == 2 and sys.argv[1] in ['description','-description','--description']: rje.printf('%s: %s' % (info.program,info.description)); sys.exit(0)
-        cmd_list = rje.getCmdList(sys.argv[1:],info=info)      ### Load defaults from program.ini
-        ### Out object ###
-        out = rje.Out(cmd_list=cmd_list)
-        out.verbose(2,2,cmd_list,1)
-        out.printIntro(info)
-        ### Additional commands ###
-        cmd_list = cmdHelp(info,out,cmd_list)
-        ### Log ###
-        log = rje.setLog(info=info,out=out,cmd_list=cmd_list)
-        return [info,out,log,cmd_list]
+        cmd_list = rje.getCmdList(sys.argv[1:],info=info)   # Reads arguments and load defaults from program.ini
+        out = rje.Out(cmd_list=cmd_list)                    # Sets up Out object for controlling output to screen
+        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2
+        out.printIntro(info)                                # Prints intro text using details from Info object
+        cmd_list = cmdHelp(info,out,cmd_list)               # Shows commands (help) and/or adds commands from user
+        log = rje.setLog(info,out,cmd_list)                 # Sets up Log object for controlling log file output
+        return (info,out,log,cmd_list)                      # Returns objects for use in program
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except:
-        print 'Problem during initial setup.'
-        raise
+    except: rje.printf('Problem during initial setup.'); raise
 #########################################################################################################################
 ### END OF SECTION I                                                                                                    #
 #########################################################################################################################
@@ -295,11 +290,11 @@ class APHID(rje.RJE_Object):
             maindb.dict['Data'] = data
             ## ~ [1b] ~ Convert Treatments ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             if self.list['Convert']:
-                self.printLog('#CONV','%d Conversions: %s' % (len(self.list['Convert']),string.join(self.list['Convert'],', ')))
+                self.printLog('#CONV','%d Conversions: %s' % (len(self.list['Convert']),rje.join(self.list['Convert'],', ')))
                 treatment = self.info['Treatment']
                 convert = {}; cx = 0
                 for cpair in self.list['Convert']:
-                    if len(string.split(cpair,':')) == 2: convert[string.split(cpair,':')[0]] = string.split(cpair,':')[1]
+                    if len(rje.split(cpair,':')) == 2: convert[rje.split(cpair,':')[0]] = rje.split(cpair,':')[1]
                 for entry in maindb.entries():
                     if entry[treatment] in convert: entry[treatment] = convert[entry[treatment]]; cx += 1
                 self.printLog('#CONV','%d %s conversions' % (cx,treatment))
@@ -355,7 +350,7 @@ class APHID(rje.RJE_Object):
                 if nrgene in self.dict['UpdateMap']:
                     map.addAlias(self.dict['UpdateMap'][nrgene],nrgene)
                     nrgene = self.dict['UpdateMap'][nrgene]
-                if nrgene not in map.dict['Data'].keys() + unmapped:
+                if nrgene not in list(map.dict['Data'].keys()) + unmapped:
                     unmapped.append(nrgene)
                     self.deBug('%s >> %s (%s)' % (pep,nrgene,map.aliases(pep,full=False)))
                 try: entry['EnsG'] = map.dict['Data'][nrgene]['EnsEMBL']
@@ -376,7 +371,7 @@ class APHID(rje.RJE_Object):
             if unmapped:
                 unmapped.sort()
                 UNMAP = open('%s.unmapped.txt' % self.info['Basefile'],'w')
-                for unmap in unmapped: UNMAP.write(string.join([unmap]+map.aliases(unmap,full=False)+['\n']))
+                for unmap in unmapped: UNMAP.write(rje.join([unmap]+map.aliases(unmap,full=False)+['\n']))
                 UNMAP.close()
             ## ~ [1b] Save intermediate files ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             maindb.saveToFile('%s.data_nr_map.tdt' % self.info['Basefile'])
@@ -421,7 +416,7 @@ class APHID(rje.RJE_Object):
             rules = {'NRID':'list','Intensity':'sum', self.info['PepCount']:'sum'}
             newkeys = [self.info['Treatment'],self.info['Replicate']]
             for field in sampdb.fields():
-                if field not in newkeys + rules.keys(): sampdb.deleteField(field)
+                if field not in newkeys + list(rules.keys()): sampdb.deleteField(field)
             sampdb.compress(newkeys,rules)
             sampdb.makeField(fieldname='NRCount')
             sampdb.list['Fields'].remove('NRID')
@@ -514,7 +509,7 @@ class APHID(rje.RJE_Object):
                 self.progLog('\r#ENR','Calculating enrichment: %.2f%%' % (nx/ntot)); nx += 100.0
                 enrdict = {}
                 for enr in enrpairs:
-                    (t1,t2) = string.split(enr,'.v.') 
+                    (t1,t2) = rje.split(enr,'.v.')
                     c1 = '%s%s%s' % (t1,maindb.info['Delimit'],nrid)
                     c2 = '%s%s%s' % (t2,maindb.info['Delimit'],nrid)
                     #c1 = '#%s#%s#%s#' % (t1,maindb.info['Delimit'],nrid)
@@ -561,12 +556,12 @@ class APHID(rje.RJE_Object):
             samples = {}
             sampcomb = '#%s#%s#%s#' % (self.info['Treatment'],maindb.info['Delimit'],self.info['Replicate'])
             for sample in maindb.index(sampcomb,make=True):
-                (treat,rep) = string.split(sample,maindb.info['Delimit'])
+                (treat,rep) = rje.split(sample,maindb.info['Delimit'])
                 if treat not in samples: samples[treat] = {}
                 samples[treat][rep] = sample
             ### ~ [1] Perform jack-knifing ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             for enr in enrpairs:
-                (t1,t2) = string.split(enr,'.v.')
+                (t1,t2) = rje.split(enr,'.v.')
                 ctot = len(samples[t1]) * len(samples[t2]); cx = 0
                 ## ~ [1a] Generate new data tables with reduced data ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
                 jackenr = {}     # Dictionaries of tables
@@ -627,12 +622,12 @@ class APHID(rje.RJE_Object):
             samples = {}
             sampcomb = '#%s#%s#%s#' % (self.info['Treatment'],maindb.info['Delimit'],self.info['Replicate'])
             for sample in maindb.index(sampcomb,make=True):
-                (treat,rep) = string.split(sample,maindb.info['Delimit'])
+                (treat,rep) = rje.split(sample,maindb.info['Delimit'])
                 if treat not in samples: samples[treat] = {}
                 samples[treat][rep] = sample
             ### ~ [1] Perform bootstrapping ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             for enr in enrpairs:
-                (t1,t2) = string.split(enr,'.v.')
+                (t1,t2) = rje.split(enr,'.v.')
                 ctot = len(samples[t1]) * len(samples[t2]); cx = 0
                 ## ~ [1a] Generate new data tables with reduced data ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
                 jackenr = {}     # Dictionaries of tables
@@ -761,9 +756,9 @@ class APHID(rje.RJE_Object):
             pingu = self.obj['PINGU']
             edata = rje.dataDict(self,efile,['Identifier'],getheaders=True)
             samples = edata.pop('Headers')[4:]
-            print efile
-            print '>>>', samples
-            newfile = string.replace(efile,'enrichment','enr_pingu')
+            rje.printf(efile)
+            rje.printf('>>>{0}',format(', '.join(samples)))
+            newfile = rje.replace(efile,'enrichment','enr_pingu')
             newhead = ['Sample','Identifier','Score']
             rje.delimitedFileOutput(self,newfile,newhead)
             for e in rje.sortKeys(edata):
@@ -786,7 +781,7 @@ class APHID(rje.RJE_Object):
 
             ## ~ [2b] ~ GO enrichment for each sample ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             basefile = '%s%s' % (self.obj['PINGU'].info['ResDir'],rje.baseFile(newfile,strip_path=True))
-            basefile = string.join(string.split(basefile,'.')[:-1],'.')
+            basefile = rje.join(rje.split(basefile,'.')[:-1],'.')
             for g in ['go','goslim_power','goslim_generic']:
                 rcmd = '%s --no-restore --no-save --args "%s" "%s"' % (self.info['RPath'],g,basefile)
                 rslimjim = '%srje_call.r' % self.info['Path']
@@ -827,7 +822,7 @@ def eString(value):  ### Returns formatted string for _expect value
         elif value >= 0.01: return '%.3f' % value
         else: return '%.2e' % value
     except:
-        print expect
+        rje.printf(expect)
         raise
 #########################################################################################################################
 ### END OF SECTION III                                                                                                  #
@@ -839,14 +834,12 @@ def eString(value):  ### Returns formatted string for _expect value
 ### SECTION IV: MAIN PROGRAM                                                                                            #
 #########################################################################################################################
 def runMain():
-    ### Basic Setup of Program ###
-    try: [info,out,mainlog,cmd_list] = setupProgram()
-    except SystemExit: return  
-    except:
-        print 'Unexpected error during program setup:', sys.exc_info()[0]
-        return 
-        
-    ### Rest of Functionality... ###
+    ### ~ [1] ~ Basic Setup of Program  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+    try: (info,out,mainlog,cmd_list) = setupProgram()
+    except SystemExit: return
+    except: rje.printf('Unexpected error during program setup:', sys.exc_info()[0]); return
+
+    ### ~ [2] ~ Rest of Functionality... ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try: APHID(mainlog,cmd_list).run()
         
     ### End ###
@@ -857,7 +850,7 @@ def runMain():
 #########################################################################################################################
 if __name__ == "__main__":      ### Call runMain 
     try: runMain()
-    except: print 'Cataclysmic run error:', sys.exc_info()[0]
+    except: rje.printf('Cataclysmic run error: {0}'.format(sys.exc_info()[0]))
     sys.exit()
 #########################################################################################################################
 ### END OF SECTION IV                                                                                                   #

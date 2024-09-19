@@ -19,8 +19,8 @@
 """
 Module:       PAFScaff
 Description:  Pairwise mApping Format reference-based scaffold anchoring and super-scaffolding.
-Version:      0.5.0
-Last Edit:    06/01/22
+Version:      0.7.1
+Last Edit:    15/09/24
 Citation:     Field et al. (2020), GigaScience 9(4):giaa027. [PMID: 32236524]
 GitHub:       https://github.com/slimsuite/pafscaff
 Copyright (C) 2019  Richard J. Edwards - See source code for GNU License Notice
@@ -61,15 +61,18 @@ Function:
 
 Commandline:
     ### ~ Input/Output options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-    pafin=PAFFILE   : PAF generated from $REFERENCE $ASSEMBLY mapping; or run minimap2 [minimap2]
+    pafin=PAFFILE   : PAF generated from $REFERENCE $ASSEMBLY mapping; or run minimap2, or use busco [minimap2]
     basefile=STR    : Base for file outputs [PAFIN basefile]
     seqin=FASFILE   : Input genome assembly to map/scaffold onto $REFERENCE (minimap2 $ASSEMBLY) []
     reference=FILE  : Fasta (with accession numbers matching Locus IDs) ($REFERENCE) []
     assembly=FASFILE: As seqin=FASFILE
+    busco=TSVFILE   : BUSCO v5 full table (pafin=busco) [full_table_$BASEFILE.busco.tsv]
+    refbusco=TSVFILE: Reference BUSCO v5 full table [full_table_$REFBASE.busco.tsv]
     refprefix=X     : Reference chromosome prefix. If None, will use all $REFERENCE scaffolds [None]
     newprefix=X     : Assembly chromosome prefix. If None, will not rename $ASSEMBLY scaffolds [None]
     unplaced=X      : Unplaced scaffold prefix. If None, will not rename unplaced $ASSEMBLY scaffolds [None]
     ctgprefix=X     : Unplaced contig prefix. Replaces unplaced=X when 0 gaps. [None]
+    purechrom=T/F   : Whetheer to always output the first hit to any chromosome without the numerical suffix [False]
     sorted=X        : Criterion for $ASSEMBLY scaffold sorting (QryLen/Coverage/RefStart/None) [QryLen]
     minmap=PERC     : Minimum percentage mapping to a chromosome for assignment [0.0]
     minpurity=PERC  : Minimum percentage "purity" for assignment to Ref chromosome [50.0]
@@ -84,6 +87,7 @@ Commandline:
     mmsecnum=INT    : Max. number of secondary alignments to keep (minimap2 -N) [0]
     mmpcut=NUM      : Minimap2 Minimal secondary-to-primary score ratio to output secondary mappings (minimap2 -p) [0]
     mapopt=CDICT    : Dictionary of additional minimap2 options to apply (caution: over-rides conflicting settings) []
+    purebusco=T/F   : Whether to keep BUSCO genes separate rather than generating synteny blocks [False]
     ### ~ Processing options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     forks=X         : Number of parallel sequences to process at once [0]
     killforks=X     : Number of seconds of no activity before killing all remaining forks. [36000]
@@ -112,6 +116,12 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 0.4.2 - Unplaced scaffold output bug fix for GitHub issue#2.
     # 0.4.3 - Fixed the descriptions for Unplaced scaffolds in the summary table.
     # 0.5.0 - Added ctgprefix=X : Unplaced contig prefix. Replaces unplaced=X when 0 gaps. [None]
+    # 0.6.0 - Added busco=TSV and refbusco=TSV as alternative to minimap2 linkages
+    # 0.6.1 - Upgraded PAFScaff BUSCO mode to use Synteny blocks and not simply BUSCO genes.
+    # 0.6.2 - Py3 bug fixes.
+    # 0.6.3 - Added citation to README and docs output.
+    # 0.7.0 - Added purechrom=T/F : Whetheer to always output the first hit to any chromosome without the numerical suffix [False]
+    # 0.7.1 - Fixed Unplaced duplicated naming bug when renaming off PAFScaff outputs.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -134,7 +144,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copy_right) = ('PAFScaff', '0.5.0', 'January 2022', '2019')
+    (program, version, last_edit, copy_right) = ('PAFScaff', '0.7.1', 'September 2024', '2019')
     description = 'Pairwise mApping Format reference-based scaffold anchoring and super-scaffolding'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_obj.zen()]
@@ -150,7 +160,8 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         if cmd_help > 0:
             rje.printf('\n\nHelp for {0} {1}: {2}\n'.format(info.program, info.version, time.asctime(time.localtime(info.start_time))))
             out.verbose(-1,4,text=__doc__)
-            if rje.yesNo('Show general commandline options?'): out.verbose(-1,4,text=rje.__doc__)
+            if rje.yesNo('Show rje_paf commandline options?',default='N'): out.verbose(-1,4,text=rje_paf.__doc__)
+            if rje.yesNo('Show general commandline options?',default='N'): out.verbose(-1,4,text=rje.__doc__)
             if rje.yesNo('Quit?'): sys.exit()           # Option to quit after help
             cmd_list += rje.inputCmds(out,cmd_list)     # Add extra commands interactively.
         elif out.stat['Interactive'] > 1: cmd_list += rje.inputCmds(out,cmd_list)    # Ask for more commands
@@ -196,10 +207,12 @@ class PAFScaff(rje_obj.RJE_Object):
     PAFScaff Class. Author: Rich Edwards (2015).
 
     Str:str
+    - BUSCO=TSVFILE   : BUSCO v5 full table (use in place of minimap2 if refbusco also provided) []
     - CtgPrefix=X     : Unplaced contig prefix. Replaces unplaced=X when 0 gaps. [None]
     - NewChr=X        : Prefix for short PAGSAT sequence identifiers [ctg]
     - NewPrefix=X     : Assembly chromosome prefix. If None, will not rename $ASSEMBLY scaffolds [None]
     - PAFIn=PAFFILE   : PAF generated from $REFERENCE $ASSEMBLY mapping []
+    - RefBUSCO=TSVFILE: Reference BUSCO v5 full table []
     - Reference=FILE  : Fasta (with accession numbers matching Locus IDs) ($REFERENCE) []
     - RefPrefix=X     : Reference chromosome prefix. If None, will used all $REFERENCE scaffolds [None]
     - SeqIn=FASFILE   : Input genome to identify variants in ($ASSEMBLY) []
@@ -211,7 +224,9 @@ class PAFScaff(rje_obj.RJE_Object):
     Bool:boolean
     - DocHTML=T/F     : Generate HTML PAFScaff documentation (*.info.html) instead of main run [False]
     - PAGSAT=T/F      : Whether to output sequence names in special PAGSAT-compatible format [False]
-    - Scaffold=T/F    : Whether to "anchore" non-overlapping scaffolds by Coverage and then scaffold [True]
+    - PureBUSCO=T/F   : Whether to keep BUSCO genes separate rather than generating synteny blocks [False]
+    - PureChrom=T/F   : Whetheer to always output the first hit to any chromosome without the numerical suffix [False]
+    - Scaffold=T/F    : Whether to "anchor" non-overlapping scaffolds by Coverage and then scaffold [True]
     - Sorted=T/F      : Whether to sort $ASSEMBLY scaffold outputs [True]
     - RevComp=T/F     : Whether to reverse complement relevant scaffolds to maximise concordance [True]
 
@@ -241,8 +256,8 @@ class PAFScaff(rje_obj.RJE_Object):
     def _setAttributes(self):   ### Sets Attributes of Object
         '''Sets Attributes of Object.'''
         ### ~ Basics ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-        self.strlist = ['CtgPrefix','NewChr','NewPrefix','PAFIn','Reference','RefPrefix','SeqIn','Sorted','SpCode','Unplaced']
-        self.boollist = ['DocHTML','PAGSAT','RevComp','Scaffold','Sorted']
+        self.strlist = ['BUSCO','CtgPrefix','NewChr','NewPrefix','PAFIn','RefBUSCO','Reference','RefPrefix','SeqIn','Sorted','SpCode','Unplaced']
+        self.boollist = ['DocHTML','PAGSAT','PureBUSCO','PureChrom','RevComp','Scaffold','Sorted']
         self.intlist = ['MMSecNum']
         self.numlist = ['MinMap','MinPurity','MMPCut']
         self.filelist = []
@@ -252,7 +267,7 @@ class PAFScaff(rje_obj.RJE_Object):
         ### ~ Defaults ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         self._setDefaults(str='None',bool=False,int=0,num=0.0,obj=None,setlist=True,setdict=True,setfile=True)
         self.setStr({'NewChr,':'ctg','PAFIn':'minimap2','Sorted':'QryLen','SpCode':'PAFSCAFF'})
-        self.setBool({'DocHTML':False,'PAGSAT':False,'Scaffold':True,'Sorted':True,'RevComp':True})
+        self.setBool({'DocHTML':False,'PAGSAT':False,'PureBUSCO':False,'PureChrom':False,'Scaffold':True,'Sorted':True,'RevComp':True})
         self.setInt({'MMSecNum':0})
         self.setNum({'MMPCut':0.0,'MinMap':0.0,'MinPurity':50.0})
         ### ~ Other Attributes ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -272,9 +287,9 @@ class PAFScaff(rje_obj.RJE_Object):
                 self._cmdRead(cmd,type='file',att='SeqIn',arg='Assembly')  # No need for arg if arg = att.lower()
                 self._cmdReadList(cmd,'str',['CtgPrefix','NewChr','NewPrefix','RefPrefix','SpCode','Unplaced'])   # Normal strings
                 #self._cmdReadList(cmd,'path',['Att'])  # String representing directory path 
-                self._cmdReadList(cmd,'file',['PAFIn','Reference','SeqIn'])  # String representing file path
+                self._cmdReadList(cmd,'file',['BUSCO','PAFIn','RefBUSCO','Reference','SeqIn'])  # String representing file path
                 #self._cmdReadList(cmd,'date',['Att'])  # String representing date YYYY-MM-DD
-                self._cmdReadList(cmd,'bool',['DocHTML','PAGSAT','RevComp','Scaffold'])  # True/False Booleans
+                self._cmdReadList(cmd,'bool',['DocHTML','PAGSAT','PureBUSCO','PureChrom','RevComp','Scaffold'])  # True/False Booleans
                 self._cmdReadList(cmd,'int',['MMSecNum'])   # Integers
                 self._cmdReadList(cmd,'float',['MMPCut']) # Floats
                 self._cmdReadList(cmd,'perc',['MinMap','MinPurity']) # Floats
@@ -333,6 +348,15 @@ class PAFScaff(rje_obj.RJE_Object):
         **NOTE:** The precise ordering, orientation and naming of the output scaffolds depends on the settings for:
         `refprefix=X newprefix=X sorted=T/F revcomp=T/F`. See main documentation (below) for details.
 
+        ## Citing PAFScaff
+
+        The main minimap-based PAFScaff approach has been published as part of the German Shepherd Dog genome paper:
+
+        > Field MA, Rosen BD, Dudchenko O, Chan EKF, Minoche AM, Edwards RJ, Barton K, Lyons RJ, Enosi Tuipulotu D, Hayes VM, Omer AD, 
+        Colaric Z, Keilwagen J, Skvortsova K, Bogdanovic O, Smith MA, Lieberman Aiden E, Smith TPL, Zammit RA & Ballard JWO (2020): 
+        Canfam_GSD: De novo chromosome-length genome assembly of the German Shepherd Dog (Canis lupus familiaris) using a combination of 
+        long reads, optical mapping, and Hi-C. GigaScience 9(4):giaa027. doi: [10.1093/gigascience/giaa027](https://doi.org/10.1093/gigascience/giaa027)
+        
         ---
 
         # Running PAFScaff
@@ -357,15 +381,18 @@ class PAFScaff(rje_obj.RJE_Object):
 
         ```
         ### ~ Input/Output options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-        pafin=PAFFILE   : PAF generated from $REFERENCE $ASSEMBLY mapping; or run minimap2 [minimap2]
+        pafin=PAFFILE   : PAF generated from $REFERENCE $ASSEMBLY mapping; or run minimap2, or use busco [minimap2]
         basefile=STR    : Base for file outputs [PAFIN basefile]
         seqin=FASFILE   : Input genome assembly to map/scaffold onto $REFERENCE (minimap2 $ASSEMBLY) []
         reference=FILE  : Fasta (with accession numbers matching Locus IDs) ($REFERENCE) []
         assembly=FASFILE: As seqin=FASFILE
-        refprefix=X     : Reference chromosome prefix. If None, will used all $REFERENCE scaffolds [None]
+        busco=TSVFILE   : BUSCO v5 full table (pafin=busco) [full_table_$BASEFILE.busco.tsv]
+        refbusco=TSVFILE: Reference BUSCO v5 full table [full_table_$REFBASE.busco.tsv]
+        refprefix=X     : Reference chromosome prefix. If None, will use all $REFERENCE scaffolds [None]
         newprefix=X     : Assembly chromosome prefix. If None, will not rename $ASSEMBLY scaffolds [None]
         unplaced=X      : Unplaced scaffold prefix. If None, will not rename unplaced $ASSEMBLY scaffolds [None]
         ctgprefix=X     : Unplaced contig prefix. Replaces unplaced=X when 0 gaps. [None]
+        purechrom=T/F   : Whetheer to always output the first hit to any chromosome without the numerical suffix [False]
         sorted=X        : Criterion for $ASSEMBLY scaffold sorting (QryLen/Coverage/RefStart/None) [QryLen]
         minmap=PERC     : Minimum percentage mapping to a chromosome for assignment [0.0]
         minpurity=PERC  : Minimum percentage "purity" for assignment to Ref chromosome [50.0]
@@ -380,6 +407,7 @@ class PAFScaff(rje_obj.RJE_Object):
         mmsecnum=INT    : Max. number of secondary alignments to keep (minimap2 -N) [0]
         mmpcut=NUM      : Minimap2 Minimal secondary-to-primary score ratio to output secondary mappings (minimap2 -p) [0]
         mapopt=CDICT    : Dictionary of additional minimap2 options to apply (caution: over-rides conflicting settings) []
+        purebusco=T/F   : Whether to keep BUSCO genes separate rather than generating synteny blocks [False]
         ### ~ Processing options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         forks=X         : Number of parallel sequences to process at once [0]
         killforks=X     : Number of seconds of no activity before killing all remaining forks. [36000]
@@ -525,8 +553,8 @@ class PAFScaff(rje_obj.RJE_Object):
 #########################################################################################################################
     ### <3> ### Additional Class Methods                                                                                #
 #########################################################################################################################
-    def parsePAF(self):    ### Main class setup method.
-        '''Main class setup method.'''
+    def parsePAF(self):    ### Main PAF file generation and parsing method.
+        '''Main PAF file generation and parsing method.'''
         try:### ~ [1] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             paf = self.obj['PAF']
             if paf.getStrLC('PAFIn') in ['minimap','minimap2']:
@@ -535,9 +563,156 @@ class PAFScaff(rje_obj.RJE_Object):
                 pafopt = {'p':self.getNum('MMPCut'),'N':self.getInt('MMSecNum')}
                 paf.dict['MapOpt'] = rje.combineDict(paf.dict['MapOpt'],pafopt,overwrite=True)
                 paf.minimap2()
+            elif paf.getStrLC('PAFIn') in ['busco']:
+                self.printLog('#PAFIN', 'Bypassing PAF in favour of BUSCO genes (pafin=busco)')
+                return self.parseBUSCO()
             paf.parsePAF()
             return True     # Setup successful
         except: self.errorLog('Problem during %s parsePAF.' % self.prog()); return False  # Setup failed
+#########################################################################################################################
+    def parseBUSCO(self):    ### Method to parse BUSCO tables as replacement for PAF file.
+        '''
+        Method to parse BUSCO tables as replacement for PAF file. Cross-references the Complete BUSCO genes from two
+        BUSCO tables and creates self.db('paf'):
+        fields = # Qry QryLen QryStart QryEnd Strand Hit SbjLen SbjStart SbjEnd Identity Length
+
+        The Assembly table (BUSCO=TSV) is the Qry, and Ref table (RefBUSCO=TSV) is the Hit.
+        '''
+        try:### ~ [1] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            self.headLog('Compile BUSCO results')
+            db = self.db()
+            #!# Cannot currently parse v3 due to strand problem. Could add ? strand in future?
+            v3head = ['BuscoID','Status','Contig','Start','End','Score','Length']
+            #i# v5 has different headers. These are the default:
+            v5head = ['BuscoID','Status','Contig','Start','End','Strand','Score','Length','OrthoDBurl','Description']
+            #!# Future updates could expand to non-BUSCO input and have custom headers.
+            #!# Need ID, SeqName, Start, End, Strand
+
+            ### ~ [2] Load and filter data ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            for btype in ['BUSCO','RefBUSCO']:
+                tabhead = v5head
+                bfile = self.getStr(btype)
+                if not rje.exists(bfile):
+                    raise IOError('{0} file "{1}" not found (pafin=busco)'.format(btype,bfile))
+                fdb = db.addTable(bfile,mainkeys='auto',headers=tabhead,expect=True,name=btype)
+                fdb.dropEntriesDirect('Status',['Complete'],inverse=True)
+                fdb.newKey(['BuscoID'])
+                fdb.keepFields(['BuscoID','Contig','Start','End','Strand','Length'])
+                fdb.dataFormat({'Start':'int','End':'int','Length':'int'})
+                if self.v() > 0 or self.debugging():
+                    fdb.indexReport('Contig')
+                else:
+                    fdb.index('Contig')
+            qdb = self.db('BUSCO')
+            hdb = self.db('RefBUSCO')
+            qdb.dropEntriesDirect('BuscoID',hdb.orderedDataList('BuscoID'),inverse=True)
+            hdb.dropEntriesDirect('BuscoID',qdb.orderedDataList('BuscoID'),inverse=True)
+            ## ~ [2a] Sequence lengths ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            self.progLog('#SEQLEN','Building sequence length dictionaries...')
+            qobj = self.obj['Assembly']
+            hobj = self.obj['Reference']
+            qlen = {}
+            qobj.reset()
+            while qobj.nextSeq():
+                (seqname,sequence) = qobj.current()
+                sname = rje.split(seqname)[0]
+                if sname in qdb.index('Contig'):
+                    qlen[sname] = len(sequence)
+            hlen = {}
+            hobj.reset()
+            while hobj.nextSeq():
+                (seqname,sequence) = hobj.current()
+                sname = rje.split(seqname)[0]
+                if sname in hdb.index('Contig'):
+                    hlen[sname] = len(sequence)
+            self.printLog('\r#SEQLEN', 'Building sequence length dictionaries complete.')
+
+            ### ~ [3] Generate paf table ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            pfields = rje.split('# Qry QryLen QryStart QryEnd Strand Hit SbjLen SbjStart SbjEnd Identity Length BuscoID')
+            pafdb = db.addEmptyTable(fields=pfields, keys=['#'], name='paf')
+            qdb.newKey(['Contig','Start','End'])
+            ## ~ [3a] Synteny block method ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            if not self.getBool('PureBUSCO'):
+                self.printLog('#BUSCO','BUSCO Synteny block mode (purebusco=F, default)')
+                self.infoLog('BuscoID field of *.paf.tdt output will be count of genes in synteny block')
+                #i# Add counters for making synteny blocks
+                hdb.newKey(['Contig', 'Start', 'End'])
+                i = 1
+                for entry in qdb.entrySort():
+                    entry['#'] = i
+                    i += 1
+                i = 1
+                for entry in hdb.entrySort():
+                    entry['#'] = i
+                    i += 1
+                hdb.newKey(['BuscoID'])
+                #i# Generate synteny blocks
+                pentry = {}; prevq = -1; prevh = -1
+                for entry in qdb.entrySort():
+                    hentry = hdb.data(entry['BuscoID'])
+                    if not hentry: continue
+                    #!# Replace this with check prior to method
+                    if entry['Contig'] not in qlen:
+                        self.warnLog('Sequence "{0}" not found in Assembly!'.format(entry['Contig']))
+                        qlen[entry['Contig']] = 0
+                    if hentry['Contig'] not in hlen:
+                        self.warnLog('Sequence "{0}" not found in Reference!'.format(hentry['Contig']))
+                        hlen[hentry['Contig']] = 0
+                    #i# Set strand
+                    strand = '+'
+                    if entry['Strand'] != hentry['Strand']: strand = '-'
+                    #i# New block, or continue?
+                    newblock = abs(entry['#'] - prevq) != 1 or abs(hentry['#'] - prevh) != 1
+                    prevq = entry['#']; prevh = hentry['#']
+                    if not newblock and pentry and (entry['Contig'] != pentry['Qry'] or hentry['Contig'] != pentry['Hit'] or strand != pentry['Strand']):
+                        newblock = True
+                    if newblock:
+                        if pentry: pafdb.addEntry(pentry)
+                        pentry = {'#':pafdb.entryNum()+1,'BuscoID':1,
+                                  'Qry':entry['Contig'],'QryLen':qlen[entry['Contig']],
+                                  'QryStart':entry['Start'],'QryEnd':entry['End'],'Strand':strand,
+                                  'Hit':hentry['Contig'],'SbjLen':hlen[hentry['Contig']],
+                                  'SbjStart':hentry['Start'],'SbjEnd':hentry['End'],
+                                  'Identity':min(entry['Length'],hentry['Length']),
+                                  'Length':max(entry['Length'],hentry['Length'])}
+                    else:
+                        pentry['QryEnd'] = entry['End']
+                        if strand == '+': pentry['SbjEnd'] = hentry['End']
+                        else: pentry['SbjStart'] = hentry['Start']
+                        pentry['Identity'] += min(entry['Length'],hentry['Length'])
+                        pentry['Length'] += max(entry['Length'],hentry['Length'])
+                        pentry['BuscoID'] += 1
+                    self.debug(pafdb.entrySummary(pentry,collapse=True))
+                if pentry: pafdb.addEntry(pentry)
+                self.printLog('#BUSCO','{0} BUSCO Complete synteny blocks added.'.format(rje.iStr(pafdb.entryNum())))
+            ## ~ [3b] Simple BUSCO method ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            else:
+                self.printLog('#BUSCO', 'Pure BUSCO gene mode (purebusco=T)')
+                for entry in qdb.entrySort():
+                    hentry = hdb.data(entry['BuscoID'])
+                    if not hentry: continue
+                    if entry['Contig'] not in qlen:
+                        self.warnLog('Sequence "{0}" not found in Assembly!'.format(entry['Contig']))
+                        qlen[entry['Contig']] = 0
+                    if hentry['Contig'] not in hlen:
+                        self.warnLog('Sequence "{0}" not found in Reference!'.format(hentry['Contig']))
+                        hlen[hentry['Contig']] = 0
+                    strand = '+'
+                    if entry['Strand'] != hentry['Strand']: strand = '-'
+                    pafdb.addEntry({'#':pafdb.entryNum()+1,'BuscoID':entry['BuscoID'],
+                                    'Qry':entry['Contig'],'QryLen':qlen[entry['Contig']],
+                                    'QryStart':entry['Start'],'QryEnd':entry['End'],'Strand':strand,
+                                    'Hit':hentry['Contig'],'SbjLen':hlen[hentry['Contig']],
+                                    'SbjStart':hentry['Start'],'SbjEnd':hentry['End'],
+                                    'Identity':min(entry['Length'],hentry['Length']),
+                                    'Length':max(entry['Length'],hentry['Length'])})
+                self.printLog('#BUSCO','{0} BUSCO Complete mappings added.'.format(rje.iStr(pafdb.entryNum())))
+            pafdb.saveToFile()
+
+            return self.db('paf')
+        except:
+            self.talk()
+            self.errorLog('%s.compileBUSCO error' % self.prog()); raise
 #########################################################################################################################
     def scaffold(self): ### Scaffold $ASSEMBLY using $REFERENCE mapping from PAF file.
         '''
@@ -546,10 +721,10 @@ class PAFScaff(rje_obj.RJE_Object):
         try:### ~ [1] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             basename = self.baseFile()
             self.headLog('Assign scaffolds to reference chromosomes')
-            #i# pafhead = string.split('Qry QryLen QryStart QryEnd Strand Hit SbjLen SbjStart SbjEnd Identity Length Quality')
-            #i# pafaln = string.split('tp cm s1 s2 NM MD AS ms nn ts cg cs dv')
+            #i# pafhead = rje.split('Qry QryLen QryStart QryEnd Strand Hit SbjLen SbjStart SbjEnd Identity Length Quality')
+            #i# pafaln = rje.split('tp cm s1 s2 NM MD AS ms nn ts cg cs dv')
             pafdb = self.db('paf')
-            pafdb.keepFields(string.split('# Qry QryLen QryStart QryEnd Strand Hit SbjLen SbjStart SbjEnd Identity Length'))
+            pafdb.keepFields(rje.split('# Qry QryLen QryStart QryEnd Strand Hit SbjLen SbjStart SbjEnd Identity Length'))
             for field in ['Hit','SbjLen','SbjStart','SbjEnd']: pafdb.renameField(field,'Ref%s' % field[3:])
             revcomp = self.getBool('RevComp')
             minmap = self.getNum('MinMap')
@@ -561,10 +736,17 @@ class PAFScaff(rje_obj.RJE_Object):
                 for refchr in pafdb.index('Ref'):
                     if rje.matchExp('^%s(\d+)$' % refpref,refchr):
                         chr = rje.matchExp('^%s(\d+)$' % refpref,refchr)[0]
-                        conversion[refchr] = string.atoi(chr)
+                        conversion[refchr] = int(chr)
                     elif rje.matchExp('^%s(\S+)' % refpref,refchr):
                         chr = rje.matchExp('^%s(\S+)' % refpref,refchr)[0]
                         conversion[refchr] = chr
+                self.bugPrint('%s' % conversion)
+                if self.getBool('PureChrom'):
+                    self.printLog('#CHROM','Pure chromosome ID conversion.')
+                    for refchr in conversion.keys():
+                        if rje.matchExp('^(CHR\S+)\.\d+',conversion[refchr]):
+                            self.bugPrint('{0} -> {1}'.format(conversion[refchr], rje.matchExp('^(CHR\S+)\.\d+',conversion[refchr])[0]))
+                            conversion[refchr] = rje.matchExp('^(CHR\S+)\.\d+',conversion[refchr])[0]
                 pafdb.dropEntriesDirect('Ref',conversion.keys(),inverse=True)
                 for refchr in pafdb.index('Ref'):
                     for entry in pafdb.indexEntries('Ref',refchr): entry['Ref'] = conversion[refchr]
@@ -638,9 +820,12 @@ class PAFScaff(rje_obj.RJE_Object):
                 if revcomp and entry['Strand'] == '-': entry['Description'] = 'RevComp %s' % entry['Description']
                 if newpref and entry['RefMap'] != 'Ambiguous':
                     entry['Qry'] = '%s%s' % (newpref,entry['Ref'])
-                    refcount = len(pafdb.index('Ref',entry['Ref']))
-                    if refcount > 1 or self.getBool('PAGSAT'): entry['Qry'] = '%s.%s' % (entry['Qry'],rje.preZero(entry['RefN'],refcount))
-                    if self.getBool('PAGSAT'): entry['Qry'] = '%s%s.%s_%s__%s' % (self.getStr('NewChr'),entry['Ref'],rje.preZero(entry['RefN'],refcount),self.getStr('SpCode'),entry['Qry'])
+                    refcount = len(pafdb.indexEntries('Ref',entry['Ref']))
+                    if self.getBool('PAGSAT'): 
+                        entry['Qry'] = '%s.%s' % (entry['Qry'],rje.preZero(entry['RefN'],refcount))
+                        entry['Qry'] = '%s%s.%s_%s__%s' % (self.getStr('NewChr'),entry['Ref'],rje.preZero(entry['RefN'],refcount),self.getStr('SpCode'),entry['Qry'])
+                    if refcount > 1 and (entry['RefN'] > 1 or not self.getBool('PureChrom')): 
+                        entry['Qry'] = '%s.%s' % (entry['Qry'],rje.preZero(entry['RefN'],refcount))
                 self.printLog('#CHRMAP','%s: %s' % (entry['Qry'],entry['Description']))
             ## ~ [3a] Classify into anchored, placed, and unplaced ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             #i# Anchored scaffolds are a special subset of placed scaffolds, which can be combined into a super-scaffold
@@ -683,7 +868,8 @@ class PAFScaff(rje_obj.RJE_Object):
 
             ### ~ [4] Output anchored, placed and unplaced assembly ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             self.headLog('Output %s scaffolds' % basename)
-            pafdb.newKey(['Qry'])
+            pafdb.newKey(['Qry','Description'])
+            outputnames = []
             #!# Add option to update descriptions with more meaningful descriptions and species
             self.progLog('#OUT','Preparing fasta output...')
             assembly = self.obj['Assembly']
@@ -713,6 +899,7 @@ class PAFScaff(rje_obj.RJE_Object):
                     else:
                         PFILE.write('>%s %s\n%s\n' % (entry['Qry'],entry['Description'],sequence))
                         px += 1
+                    outputnames.append(entry['Qry'])
             #i# Sort scaffolds by length for output
             scaffnum = {}   # Dictionary of {sname:scaffnumber}
             scaffseq = []   # Sequences for scaffold output
@@ -744,8 +931,9 @@ class PAFScaff(rje_obj.RJE_Object):
                     self.progLog('#OUT','Unplaced scaffold output...')
                 else: self.progLog('#OUT','Unsorted scaffold output...')
                 (aname,sequence) = aseq
-                sname = string.split(aname)[0]
-                sdesc = string.split(aname,maxsplit=1)[1]
+                sname = rje.split(aname)[0]
+                try: sdesc = rje.split(aname,maxsplit=1)[1]
+                except: sdesc = ""
                 ambentry = pafdb.data(sname)
                 if sname not in pafdb.index('Scaffold') or pafdb.indexEntries('Scaffold',sname)[0]['RefMap'] == 'Ambiguous':
                     if self.getStrLC('Unplaced') or self.getBool('PAGSAT'):
@@ -758,8 +946,15 @@ class PAFScaff(rje_obj.RJE_Object):
                         if 'NNNNNNNNNN' in sequence.upper(): stype = 'scaffold'
                         if self.getStrLC('CtgPrefix') and stype == 'contig':
                             newname = '%s%s' % (self.getStr('CtgPrefix'),rje.preZero(ux,assembly.seqNum()))
+                            while newname in outputnames:
+                                umax += 1
+                                newname = '%s%s' % (self.getStr('CtgPrefix'),rje.preZero(umax,assembly.seqNum()))
                         else:
                             newname = '%s%s' % (self.getStr('Unplaced'),rje.preZero(ux,assembly.seqNum()))
+                            while newname in outputnames:
+                                umax += 1
+                                newname = '%s%s' % (self.getStr('Unplaced'),rje.preZero(umax,assembly.seqNum()))
+                        outputnames.append(newname)
                         if self.getBool('PAGSAT'):
                             newname = '%sUn.%s_%s__%s' %  (self.getStr('NewChr'),rje.preZero(ux,assembly.seqNum()),self.getStr('SpCode'),newname)
                         UFILE.write('>%s %s len=%s; Unplaced %s\n%s\n' % (newname,aname,rje_seqlist.dnaLen(len(sequence),dp=0,sf=4),stype,sequence))
@@ -779,6 +974,7 @@ class PAFScaff(rje_obj.RJE_Object):
                     else:
                         PFILE.write('>%s %s\n%s\n' % (entry['Qry'],entry['Description'],sequence))
                         px += 1
+                    outputnames.append(entry['Qry'])
                 if scaffnum:
                     if scaffseq: aseq = assembly.getSeq(seqdict[scaffseq.pop(0)],'tuple')
                     else: aseq = None
@@ -815,7 +1011,7 @@ class PAFScaff(rje_obj.RJE_Object):
                     prevend = 0
                     prevqry = 0
                     for entry in anchored[refchr][1:-1]:
-                        refname.append(string.split(entry['Description'],';')[0] + ';')
+                        refname.append(rje.split(entry['Description'],';')[0] + ';')
                         aseq = seqdict[entry['Scaffold']]
                         sequence = assembly.seqSequence(aseq)
                         if entry['Strand'] == '-': sequence = rje_sequence.reverseComplement(sequence)
@@ -832,7 +1028,7 @@ class PAFScaff(rje_obj.RJE_Object):
                             prevqry = entry['QryStart'] - 1
                         else:
                             prevqry = entry['QryLen'] - entry['QryEnd']
-                    refname = string.join(refname)
+                    refname = rje.join(refname)
                     if len(anchored[refchr]) > 3:
                         refname += ' [PAFScaff reference-based scaffold]'
                         gx += 1
@@ -855,7 +1051,7 @@ class PAFScaff(rje_obj.RJE_Object):
             rmd = rje_rmd.Rmd(self.log,self.cmd_list)
             rtxt = rmd.rmdHead(title='PAFScaff Documentation',author='Richard J. Edwards',setup=True)
             #!# Replace this with documentation text?
-            rtxt += string.replace(self.run.__doc__,'\n        ','\n')
+            rtxt += rje.replace(self.run.__doc__,'\n        ','\n')
             rtxt += '\n\n<br>\n<small>&copy; 2019 Richard Edwards | richard.edwards@unsw.edu.au</small>\n'
             rmdfile = '%s.docs.Rmd' % self.baseFile()
             open(rmdfile,'w').write(rtxt)

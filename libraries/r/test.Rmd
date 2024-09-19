@@ -1,0 +1,20 @@
+---
+title: "chromsyntest"
+output: html_document
+date: "2024-02-15"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r test}
+override <- c("regdata=regdata.tsv","rdir=~/slimsuite/libraries/r","order=BASDU_GreenHill,BASDU_YAHS","regmirror=TRUE","runpath=/Users/00110092/Downloads/chromsyntest","debug=TRUE")
+override <- c("regdata=regdata.tsv","rdir=~/slimsuite/libraries/r","regmirror=TRUE","runpath=/Users/00110092/Downloads/chromsyntest","debug=TRUE")
+source("chromsyn.R")
+
+override <- c("regdata=regdata.tsv","rdir=~/slimsuite/libraries/r","regmirror=TRUE","runpath=/Users/00110092/Downloads/chromsyntest","debug=TRUE","orphans=F","orient=none","basefile=allfwd")
+source("chromsyn.R")
+
+```

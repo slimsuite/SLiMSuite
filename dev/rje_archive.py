@@ -200,9 +200,9 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         ### ~ [2] ~ Look for help commands and print options if found ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         cmd_help = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
         if cmd_help > 0:
-            print '\n\nHelp for %s %s: %s\n' % (info.program, info.version, time.asctime(time.localtime(info.start_time)))
+            rje.printf('\n\nHelp for {0} {1}: {2}\n'.format(info.program, info.version, time.asctime(time.localtime(info.start_time))))
             out.verbose(-1,4,text=__doc__)
-            if rje.yesNo('Show general commandline options?'): out.verbose(-1,4,text=rje.__doc__)
+            if rje.yesNo('Show general commandline options?',default='N'): out.verbose(-1,4,text=rje.__doc__)
             if rje.yesNo('Quit?'): sys.exit()           # Option to quit after help
             cmd_list += rje.inputCmds(out,cmd_list)     # Add extra commands interactively.
         elif out.stat['Interactive'] > 1: cmd_list += rje.inputCmds(out,cmd_list)    # Ask for more commands
@@ -210,7 +210,7 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         return cmd_list
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Major Problem with cmdHelp()'
+    except: rje.printf('Major Problem with cmdHelp()')
 #########################################################################################################################
 def setupProgram(): ### Basic Setup of Program when called from commandline.
     '''
@@ -221,16 +221,19 @@ def setupProgram(): ### Basic Setup of Program when called from commandline.
     '''
     try:### ~ [1] ~ Initial Command Setup & Info ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         info = makeInfo()                                   # Sets up Info object with program details
+        if len(sys.argv) == 2 and sys.argv[1] in ['version','-version','--version']: rje.printf(info.version); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: rje.printf('%s v%s' % (info.program,info.version)); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['description','-description','--description']: rje.printf('%s: %s' % (info.program,info.description)); sys.exit(0)
         cmd_list = rje.getCmdList(sys.argv[1:],info=info)   # Reads arguments and load defaults from program.ini
         out = rje.Out(cmd_list=cmd_list)                    # Sets up Out object for controlling output to screen
-        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2 
+        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2
         out.printIntro(info)                                # Prints intro text using details from Info object
         cmd_list = cmdHelp(info,out,cmd_list)               # Shows commands (help) and/or adds commands from user
         log = rje.setLog(info,out,cmd_list)                 # Sets up Log object for controlling log file output
         return (info,out,log,cmd_list)                      # Returns objects for use in program
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Problem during initial setup.'; raise
+    except: rje.printf('Problem during initial setup.'); raise
 #########################################################################################################################
 ### END OF SECTION I                                                                                                    #
 #########################################################################################################################
@@ -358,7 +361,7 @@ class Archive(rje_obj.RJE_Object):
             ## ~ [1a] Setup up rmdirs list for removing redundancy from backupdirs ~~~~~~~~~~~~~~~~ ##
             rmdirs = []
             for rdir in self.list['ArchiveDirs']:
-                rpath = string.split(rdir)[0]
+                rpath = rje.split(rdir)[0]
                 if rpath not in rmdirs: rmdirs.append(rpath)
             ### ~ [2] ~ Add main run code here ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             ## ~ [2a] Backup directories ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
@@ -368,7 +371,7 @@ class Archive(rje_obj.RJE_Object):
                 self.printLog('#BACKUP','%s directories to backup' % rje.iLen(self.list['BackupDirs']))
                 self.printLog('#BACKUP','Details will be output to %s' % self.getStr('BackupDB'))
                 for adir in self.list['BackupDirs']:
-                    apath = string.split(adir)[0]
+                    apath = rje.split(adir)[0]
                     self.headLog(apath,line='=')
                     if not rje.exists(apath):
                         self.warnLog('%s missing: cannot backup' % apath)
@@ -479,7 +482,7 @@ class Archive(rje_obj.RJE_Object):
                 bdb = db.addTable(self.getStr('BackupDB'),mainkeys=['dir','date'],name='Backups',expect=True,replace=True)
                 bdb.dataFormat({'size':'int','fnum':'int','dnum':'int','ftot':'int','dtot':'int','files':'int','imports':'int'})
             else:
-                afields = string.split('dir project rds date files imports size fnum dnum ftot dtot status')
+                afields = rje.split('dir project rds date files imports size fnum dnum ftot dtot status')
                 db.addEmptyTable('Backups',afields,['dir','date'],log=True)
             return True     # Setup successful
         except: self.errorLog('Problem during %s setup.' % self.prog()); return False  # Setup failed
@@ -509,7 +512,7 @@ class Archive(rje_obj.RJE_Object):
         '''
         try:### ~ [1] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if not path.startswith('/'): raise ValueError('"%s" not a full path' % path)
-            psplit = string.split(path,os.sep)
+            psplit = rje.split(path,os.sep)
             project = None
             i = 0
             while not project and i < len(psplit):
@@ -528,11 +531,11 @@ class Archive(rje_obj.RJE_Object):
         try:### ~ [1] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if not path.startswith('/'): raise ValueError('"%s" not a full path' % path)
             if path.endswith('/'): path = path[:-1]
-            psplit = string.split(path,os.sep)
+            psplit = rje.split(path,os.sep)
             if project not in psplit: raise ValueError('Cannot find ProjectID %s in path: "%s"' % (project,path))
             while psplit and psplit[0] != project: psplit.pop(0)
             if psplit: psplit = psplit[:-1]     # Drop the directory being added.
-            return string.join(psplit,os.sep)
+            return rje.join(psplit,os.sep)
         except: self.errorLog('%s.projectSuffix error' % self.prog()); raise
 #########################################################################################################################
     ### <4> ### Directory information parsing methods                                                                   #
@@ -544,11 +547,11 @@ class Archive(rje_obj.RJE_Object):
             ### ~ [2] Parse details ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             # Total size of directory contents
             if self.getBool('OSX'): #i# Will be in 512 byte blocks
-                size = int(string.split(os.popen('du -d 1 %s' % dpath).readlines()[-1])[0])
+                size = int(rje.split(os.popen('du -d 1 %s' % dpath).readlines()[-1])[0])
             else:
-                size = int(string.split(os.popen('du %s --max-depth 1 --bytes' % dpath).readlines()[-1])[0])
-            fnum = int(string.split(os.popen('ls -1p %s | grep "/$" -cv' % dpath).readlines()[-1])[0])
-            dnum = int(string.split(os.popen('ls -1p %s | grep "/$" -c' % dpath).readlines()[-1])[0])
+                size = int(rje.split(os.popen('du %s --max-depth 1 --bytes' % dpath).readlines()[-1])[0])
+            fnum = int(rje.split(os.popen('ls -1p %s | grep "/$" -cv' % dpath).readlines()[-1])[0])
+            dnum = int(rje.split(os.popen('ls -1p %s | grep "/$" -c' % dpath).readlines()[-1])[0])
             project = self.getProject(dpath)
             rds = self.getRDS(project,add=not self.getBool('Strict'))
             #if self.getBool('CheckNum'): ftot = len(rje.getFileList(callobj=self,folder=dpath))
@@ -559,9 +562,9 @@ class Archive(rje_obj.RJE_Object):
             ### ~ [3] Return ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             dirdata = {'dir':dpath,'project':project,'rds':rds,'size':size,'fnum':fnum,'dnum':dnum,'ftot':ftot,'dtot':dtot}
             if log:
-                for dkey in string.split('dir project rds'):
+                for dkey in rje.split('dir project rds'):
                     self.printLog('#%s' % dkey[:4].upper(),dirdata[dkey])
-                for dkey in string.split('size fnum dnum ftot dtot'):
+                for dkey in rje.split('size fnum dnum ftot dtot'):
                     self.printLog('#%s' % dkey[:4].upper(),rje.iStr(dirdata[dkey]))
             return {'dir':dpath,'project':project,'rds':rds,'size':size,'fnum':fnum,'dnum':dnum,'ftot':ftot,'dtot':dtot}
         except: self.errorLog('%s.dirDetails error' % self.prog()); raise
@@ -649,7 +652,7 @@ class Archive(rje_obj.RJE_Object):
                     line = UPLOAD.readline()
                     while line:
                         if line.startswith('Consume:'): filex += 1
-                        if line.startswith('live: imported'): importx = int(string.split(line)[2])
+                        if line.startswith('live: imported'): importx = int(rje.split(line)[2])
                         elif rje.matchExp('^live:\s+imported\s+(\d+)',line): importx = int(rje.matchExp('^live:\s+imported\s+(\d+)',line)[0])
                         if rje.matchExp('^\s+skipped\s+(\d+)',line): skipx = int(rje.matchExp('^\s+skipped\s+(\d+)',line)[0])
                         if rje.matchExp('^\s+ignored\s+(\d+)',line): ignorex = int(rje.matchExp('^\s+ignored\s+(\d+)',line)[0])
@@ -679,10 +682,10 @@ class Archive(rje_obj.RJE_Object):
                 self.printLog('#STATUS','%s backup to %s failed!' % (predata['dir'],predata['rds']))
                 if self.getBool('TryParent'):  # Option to try parent directory
                     project = predata['project']
-                    psplit = string.split(directory, os.sep)
+                    psplit = rje.split(directory, os.sep)
                     psplit = psplit[:-1]
                     if project in psplit:   # Can go up a level
-                        directory = string.join(psplit, os.sep)
+                        directory = rje.join(psplit, os.sep)
                         self.printLog('#PARENT','Trying to backup parent directory: %s' % directory)
                         if self.archiveDirectory(directory,parent=True)['status'] != 'failed':
                             status = 'parent'
@@ -814,8 +817,8 @@ def runMain():
     ### ~ [1] ~ Basic Setup of Program  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try: (info,out,mainlog,cmd_list) = setupProgram()
     except SystemExit: return  
-    except: print 'Unexpected error during program setup:', sys.exc_info()[0]; return
-    
+    except: rje.printf('Unexpected error during program setup:', sys.exc_info()[0]); return
+
     ### ~ [2] ~ Rest of Functionality... ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try: Archive(mainlog,cmd_list).run()
 
@@ -827,7 +830,7 @@ def runMain():
 #########################################################################################################################
 if __name__ == "__main__":      ### Call runMain 
     try: runMain()
-    except: print 'Cataclysmic run error:', sys.exc_info()[0]
+    except: rje.printf('Cataclysmic run error: {0}'.format(sys.exc_info()[0]))
     sys.exit()
 #########################################################################################################################
 ### END OF SECTION IV                                                                                                   #

@@ -132,7 +132,7 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         if not out: out = rje.Out()
         help = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
         if help > 0:
-            print '\n\nHelp for %s %s: %s\n' % (info.program, info.version, time.asctime(time.localtime(info.start_time)))
+            rje.printf('\n\nHelp for {0} {1}: {2}\n'.format(info.program, info.version, time.asctime(time.localtime(info.start_time))))
             out.verbose(-1,4,text=__doc__)
             if rje.yesNo('Show general commandline options?'): out.verbose(-1,4,text=rje.__doc__)
             if rje.yesNo('Quit?'): sys.exit()
@@ -141,33 +141,30 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         return cmd_list
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Major Problem with cmdHelp()'
+    except: rje.printf('Major Problem with cmdHelp()')
 #########################################################################################################################
-def setupProgram(): ### Basic Setup of Program
+def setupProgram(): ### Basic Setup of Program when called from commandline.
     '''
-    Basic setup of Program:
+    Basic Setup of Program when called from commandline:
     - Reads sys.argv and augments if appropriate
     - Makes Info, Out and Log objects
     - Returns [info,out,log,cmd_list]
     '''
-    try:
-        ### Initial Command Setup & Info ###
-        info = makeInfo()
-        cmd_list = rje.getCmdList(sys.argv[1:],info=info)      ### Load defaults from program.ini
-        ### Out object ###
-        out = rje.Out(cmd_list=cmd_list)
-        out.verbose(2,2,cmd_list,1)
-        out.printIntro(info)
-        ### Additional commands ###
-        cmd_list = cmdHelp(info,out,cmd_list)
-        ### Log ###
-        log = rje.setLog(info=info,out=out,cmd_list=cmd_list)
-        return [info,out,log,cmd_list]
+    try:### ~ [1] ~ Initial Command Setup & Info ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+        info = makeInfo()                                   # Sets up Info object with program details
+        if len(sys.argv) == 2 and sys.argv[1] in ['version','-version','--version']: rje.printf(info.version); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: rje.printf('%s v%s' % (info.program,info.version)); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['description','-description','--description']: rje.printf('%s: %s' % (info.program,info.description)); sys.exit(0)
+        cmd_list = rje.getCmdList(sys.argv[1:],info=info)   # Reads arguments and load defaults from program.ini
+        out = rje.Out(cmd_list=cmd_list)                    # Sets up Out object for controlling output to screen
+        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2
+        out.printIntro(info)                                # Prints intro text using details from Info object
+        cmd_list = cmdHelp(info,out,cmd_list)               # Shows commands (help) and/or adds commands from user
+        log = rje.setLog(info,out,cmd_list)                 # Sets up Log object for controlling log file output
+        return (info,out,log,cmd_list)                      # Returns objects for use in program
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except:
-        print 'Problem during initial setup.'
-        raise
+    except: rje.printf('Problem during initial setup.'); raise
 #########################################################################################################################
 ### END OF SECTION I
 #########################################################################################################################
@@ -260,7 +257,7 @@ class DatabaseController(rje.RJE_Object):
                 self._cmdReadList(cmd,'list',['DBProcess','DBFormat','TaxaList'])
                 self._cmdReadList(cmd,'glist',['DBDownload'])
             except: self.log.errorLog('Problem with cmd:%s' % cmd)
-            self.list['DBFormat'] = string.split(string.join(self.list['DBFormat']).lower())
+            self.list['DBFormat'] = rje.split(rje.join(self.list['DBFormat']).lower())
             if 'none' in self.list['DBFormat']: self.list['DBFormat'].remove('none')
 #########################################################################################################################
     ### <2> ### Main Run Method                                                                                         #
@@ -408,7 +405,7 @@ class DatabaseController(rje.RJE_Object):
         '''Processes desired databases from self.list['DBProcess'].'''
         try:### ~ [1] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if not self.list['DBProcess']: return
-            dblist = string.split(string.join(self.list['DBProcess']).lower())
+            dblist = rje.split(rje.join(self.list['DBProcess']).lower())
             ### ~ [2] Process databases ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             self.deBug(dblist)
             ## ~ [2a] UniProt should be processed first! ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
@@ -436,7 +433,7 @@ class DatabaseController(rje.RJE_Object):
                 ipifiles = glob.glob('%sipi.*.fasta' % ipipath)
             for ipi in ipifiles:
                 newipi = rje.baseFile(ipi) + '.new'
-                species = string.split(ipi.upper(),'.')[1]
+                species = rje.split(ipi.upper(),'.')[1]
                 ipispec.append(species)
                 outipi = ipipath + 'ipi_%s.fas' % species
                 if not self.opt['Force'] and rje.isYounger(outipi,ipi) == outipi:
@@ -462,8 +459,8 @@ class DatabaseController(rje.RJE_Object):
                             sx += 1
                             self.log.printLog('\r#SEQ','%s sequences reformatted from %s.' % (rje.integerString(sx),ipi),log=False,newline=False)
                         # Reformat
-                        newname = string.replace(line,'|',' ')
-                        newname = string.replace(newname,';',' ; ') # Enables matching of first AccNum only.
+                        newname = rje.replace(line,'|',' ')
+                        newname = rje.replace(newname,';',' ; ') # Enables matching of first AccNum only.
                         accs = {'ipi':rje.matchExp('IPI:(\S+)',newname)[0]}
                         if rje.matchExp('SWISS-PROT:(\S+)',newname):
                             accs['sprot'] = rje.matchExp('SWISS-PROT:(\S+)',newname)[0]
@@ -476,7 +473,7 @@ class DatabaseController(rje.RJE_Object):
                         #!# Look up case-insensitive matching #!# s/^.+tax_id=\d+//i;  # Description only
                         t = newname.find('Tax_Id=') + len('Tax_Id=')
                         newname = rje.matchExp('%s\d+\s+(\S.*)$' % newname[:t],newname)[0]
-                        newname = string.replace(newname,' ; ',';')     
+                        newname = rje.replace(newname,' ; ',';')     
                         newacc = 'ipi_%s__' % species
                         if accs.has_key('sprot'):
                             newacc = '%s%s ' % (newacc,accs['sprot'])
@@ -500,7 +497,7 @@ class DatabaseController(rje.RJE_Object):
                 os.unlink(newipi)
             if ipispec:
                 SPECLIST = open(ipipath + 'ipi.spec_code','w')
-                SPECLIST.write(string.join(ipispec,'\n'))
+                SPECLIST.write(rje.join(ipispec,'\n'))
                 SPECLIST.close()
         except: self.log.errorLog('Error in rje_dbase.reformatIPI',printerror=True,quitchoice=False)
 #########################################################################################################################
@@ -602,7 +599,7 @@ class DatabaseController(rje.RJE_Object):
             specfile = self.makeSpecFile()
             if self.opt['SpecOnly']: return True
             SPEC = open(specfile,'r')
-            speclist = string.split(SPEC.read(),'\n')
+            speclist = rje.split(SPEC.read(),'\n')
             SPEC.close()
             self.log.printLog('#SPEC','%s Species codes for makeDB(%s).' % (rje.integerString(len(speclist)),rje.baseFile(self.info['MakeDB'])))
             
@@ -620,7 +617,7 @@ class DatabaseController(rje.RJE_Object):
                     self.printLog('#ENS','%d EnsEMBL species to screen' % len(screenspec))
                     uni_ext = 'no_ens.fas'
                 if self.opt['ScreenIPI'] and self.opt['UseIPI'] and os.path.exists(self.info['IPIPath'] + 'ipi.spec_code'):
-                    screenspec = string.split(open(self.info['IPIPath'] + 'ipi.spec_code','r').read(),'\n')
+                    screenspec = rje.split(open(self.info['IPIPath'] + 'ipi.spec_code','r').read(),'\n')
                     uni_ext = 'no_ipi.fas'
                 ## Produce screened/filtered combined UniProt ##
                 uniscreen = unipath + 'uniprot.%s' % uni_ext
@@ -642,11 +639,11 @@ class DatabaseController(rje.RJE_Object):
                         self.printLog('#UNIPROT','Making species-screened UniProt file "%s"' % uniscreen)
                         for file in unifiles:
                             seqcmd = ['seqin=%s' % file,'seqout=%s' % uniscreen,'reformat=fasta','gnspacc=T','seqmode=file',
-                                      'logrem=F','append=T','badspec=%s' % string.join(screenspec,','),'autoload=T']
+                                      'logrem=F','append=T','badspec=%s' % rje.join(screenspec,','),'autoload=T']
                             rje_seqlist.SeqList(self.log,self.cmd_list+seqcmd)
                     else:
                         self.printLog('#UNIPROT','Making combined UniProt file "%s"' % uniscreen)
-                        os.system('cat %s > %s' % (string.join(unifiles),uniscreen))
+                        os.system('cat %s > %s' % (rje.join(unifiles),uniscreen))
                 else: self.printLog('#DB','%s already exists and younger that UniProt files (force=F)' % uniscreen)
 
             ### Get files to make DB from ###
@@ -673,10 +670,10 @@ class DatabaseController(rje.RJE_Object):
             ## EnsFilter ##
             catcmd = ''
             if not self.opt['EnsFilter'] and not self.opt['Win32'] and dbfiles:
-                #catcmd = 'cat %s > %s' % (string.join(dbfiles),self.info['MakeDB'])
-                taxacode = string.split(rje.baseFile(self.info['MakeDB'],True),'_')[-1]
+                #catcmd = 'cat %s > %s' % (rje.join(dbfiles),self.info['MakeDB'])
+                taxacode = rje.split(rje.baseFile(self.info['MakeDB'],True),'_')[-1]
                 ens_taxadb = rje.makePath(enspath) + 'ens_%s.fas' % taxacode
-                catcmd = 'cat %s > %s' % (string.join(dbfiles),ens_taxadb)
+                catcmd = 'cat %s > %s' % (rje.join(dbfiles),ens_taxadb)
             ## UniProt ##
             if uniscreen: dbfiles.append(uniscreen)
             ## Check whether run is needed ##
@@ -738,14 +735,14 @@ class DatabaseController(rje.RJE_Object):
             TEMP = open(tempfile,'w')
             for taxa in self.list['TaxaList']:
                 #X# TAXA = os.popen("grep '%s' %s | gawk '{print $1 }' | sort -u" % (taxa,specfile))
-                #X# TEMP.write(string.join(TAXA.readlines(),''))
+                #X# TEMP.write(rje.join(TAXA.readlines(),''))
                 #X# TAXA.close()
                 #!# Gawk not installed on bioware. Therefore need a fix #!#
                 if taxa == taxa.upper(): taxalines = os.popen("grep '%s' %s " % (taxa,spectable)).readlines()
                 else: taxalines = os.popen("grep -i '%s' %s " % (taxa,spectable)).readlines()
                 for t in taxalines:
-                    #X#print t, string.split(t)[0]
-                    TEMP.write('%s\n' % string.split(t)[0])
+                    #X#print t, rje.split(t)[0]
+                    TEMP.write('%s\n' % rje.split(t)[0])
             TEMP.close()
             self.deBug('%s made.' % tempfile)
 
@@ -768,12 +765,12 @@ class DatabaseController(rje.RJE_Object):
 #########################################################################################################################
 ### SECTION IV: MAIN PROGRAM                                                                                            #
 #########################################################################################################################
-def runMain(): ### ~ Basic Setup of Program ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-    try: [info,out,mainlog,cmd_list] = setupProgram()
-    except SystemExit: return  
-    except:
-        print 'Unexpected error during program setup:', sys.exc_info()[0]
-        return
+def runMain():
+    ### ~ [1] ~ Basic Setup of Program  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+    try: (info,out,mainlog,cmd_list) = setupProgram()
+    except SystemExit: return
+    except: rje.printf('Unexpected error during program setup:', sys.exc_info()[0]); return
+
     ### ~ Primary Functionality ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try:  DatabaseController(mainlog,['forks=8']+cmd_list).mainRun()
     ### ~ End ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -784,7 +781,7 @@ def runMain(): ### ~ Basic Setup of Program ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #########################################################################################################################
 if __name__ == "__main__":      ### Call runMain 
     try: runMain()
-    except: print 'Cataclysmic run error:', sys.exc_info()[0]
+    except: rje.printf('Cataclysmic run error: {0}'.format(sys.exc_info()[0]))
     sys.exit()
 #########################################################################################################################
 ### END OF SECTION IV

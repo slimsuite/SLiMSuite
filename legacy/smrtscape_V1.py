@@ -406,7 +406,7 @@ class SMRTSCAPE(rje_obj.RJE_Object):
                 for seq in seqlist.seqs():
                     self.progLog('\r#SUB','Processing subreads: %.2f%%' % (sx/stot)); sx += 100.0
                     (name,sequence) = seqlist.getSeq(seq)
-                    [smrt,zmw,pos,rq] = string.split(string.replace(name,'/',' '))
+                    [smrt,zmw,pos,rq] = rje.split(rje.replace(name,'/',' '))
                     if smrt not in cells: cells.append(smrt)
                     smrt = cells.index(smrt)
                     if zmw != prevzmw: prevzmw = zmw; rn = 0
@@ -535,7 +535,7 @@ class SMRTSCAPE(rje_obj.RJE_Object):
             self.printLog('#SUM','Max. length of sequences: %s' % rje.iStr(seqlen[-1]))
             # Mean & Median sequence lengths
             meanlen = float(sumlen)/len(seqlen)
-            meansplit = string.split('%.2f' % meanlen,'.')
+            meansplit = rje.split('%.2f' % meanlen,'.')
             self.printLog('#SUM','Mean length of sequences: %s.%s' % (rje.iStr(meansplit[0]),meansplit[1]))
             if rje.isOdd(len(seqlen)): median = seqlen[len(seqlen)/2]
             else: median = sum(seqlen[len(seqlen)/2:][:2]) / 2.0
@@ -597,7 +597,7 @@ class SMRTSCAPE(rje_obj.RJE_Object):
             for seq in seqlist.seqs():
                 self.progLog('\r#SUB','Processing subreads: %.2f%%' % (sx/stot)); sx += 100.0
                 (name,sequence) = seqlist.getSeq(seq)
-                [smrt,zmw,pos,rq] = string.split(string.replace(name,'/',' '))
+                [smrt,zmw,pos,rq] = rje.split(rje.replace(name,'/',' '))
                 if smrt not in cells: cells.append(smrt)
                 smrt = cells.index(smrt)
                 if zmw != prevzmw: prevzmw = zmw; rn = 0
@@ -1092,7 +1092,7 @@ class SMRTSCAPE(rje_obj.RJE_Object):
                     else: xnlist.append(ixn)
                 except: self.errorLog('Could not process %s as part of XnList. (Integers only.)' % xn)
             xnlist.sort()
-            if xnlist: self.printLog('#XN','XnList: %sX.' % string.join(string.split('%s' % xnlist,','),'X, ')[1:-1])
+            if xnlist: self.printLog('#XN','XnList: %sX.' % rje.join(rje.split('%s' % xnlist,','),'X, ')[1:-1])
             self.list['XnList'] = xnlist
             return True     # Setup successful
         except: self.errorLog('Problem during %s coverageSetup.' % self.prog()); return False  # Setup failed
@@ -1284,7 +1284,7 @@ class SMRTSCAPE(rje_obj.RJE_Object):
                 pdb.addField(pname)
                 for pline in open(pfile,'r').readlines():
                     pline = self.stripWierd(pline)
-                    pdata = string.split(rje.chomp(pline),' = ',1)
+                    pdata = rje.split(rje.chomp(pline),' = ',1)
                     if len(pdata) != 2: continue
                     if self.list['ParamList'] and pdata[0] not in self.list['ParamList']: continue
                     entry = pdb.data(pdata[0])
@@ -1292,7 +1292,7 @@ class SMRTSCAPE(rje_obj.RJE_Object):
                         entry[pname] = pdata[1]
                     else:
                         entry = {'Setting':pdata[0],pname:pdata[1],'Variable':'FALSE'}
-                        try: [entry['Prefix'],entry['Suffix']] = string.split(pdata[0],'.')  # Will raise error if wrong
+                        try: [entry['Prefix'],entry['Suffix']] = rje.split(pdata[0],'.')  # Will raise error if wrong
                         except:
                             if pdata[0] != pdata[0].upper(): self.warnLog('Cannot parse %s' % pdata[0])
                             continue

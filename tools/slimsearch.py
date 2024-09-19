@@ -19,8 +19,8 @@
 """
 Program:      SLiMSearch
 Description:  Short Linear Motif Search tool
-Version:      1.7.1
-Last Edit:    03/12/15
+Version:      1.7.2
+Last Edit:    13/05/22
 Citation:     Davey, Haslam, Shields & Edwards (2010), Lecture Notes in Bioinformatics 6282: 50-61. 
 Copyright (C) 2007  Richard J. Edwards - See source code for GNU License Notice
 
@@ -126,6 +126,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 1.6 - Minor tweaks to Log output. Add option for UPC number in occ output.
     # 1.7 - Modified to work with GOPHER V3.0.
     # 1.7.1 - Minor modification to docstring. Preparation for update to SLiMSearch 2.0 optimised for proteome searches.
+    # 1.7.2 - Py3 mods.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -139,7 +140,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo():     ### Makes Info object
     '''Makes rje.Info object for program.'''
-    (program, version, last_edit, cyear) = ('SLiMSearch', '1.7', 'December 2012', '2007')
+    (program, version, last_edit, cyear) = ('SLiMSearch', '1.7.2', 'May 2022', '2007')
     description = 'Short Linear Motif Regular Expression Search Tool'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is under development and may contain bugs!',rje_zen.Zen().wisdom()]
@@ -152,7 +153,7 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         if not out: out = rje.Out()
         help = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
         if help > 0:
-            print '\n\nHelp for %s %s: %s\n' % (info.program, info.version, time.asctime(time.localtime(info.start_time)))
+            rje.printf('\n\nHelp for {0} {1}: {2}\n'.format(info.program, info.version, time.asctime(time.localtime(info.start_time))))
             out.verbose(-1,4,text=__doc__)
             if rje.yesNo('Show SLiMList commandline options?'): out.verbose(-1,4,text=rje_slimlist.__doc__)
             if rje.yesNo('Show SLiMCalc commandline options?'): out.verbose(-1,4,text=rje_slimcalc.__doc__)
@@ -163,36 +164,30 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         return cmd_list
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Major Problem with cmdHelp()'
+    except: rje.printf('Major Problem with cmdHelp()')
 #########################################################################################################################
-def setupProgram(): ### Basic Setup of Program
+def setupProgram(): ### Basic Setup of Program when called from commandline.
     '''
-    Basic setup of Program:
+    Basic Setup of Program when called from commandline:
     - Reads sys.argv and augments if appropriate
     - Makes Info, Out and Log objects
     - Returns [info,out,log,cmd_list]
     '''
-    try:
-        ### Initial Command Setup & Info ###
-        info = makeInfo()
+    try:### ~ [1] ~ Initial Command Setup & Info ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+        info = makeInfo()                                   # Sets up Info object with program details
         if len(sys.argv) == 2 and sys.argv[1] in ['version','-version','--version']: rje.printf(info.version); sys.exit(0)
-        if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: rje.printf('{0} v{1}'.format(info.program,info.version)); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: rje.printf('%s v%s' % (info.program,info.version)); sys.exit(0)
         if len(sys.argv) == 2 and sys.argv[1] in ['description','-description','--description']: rje.printf('%s: %s' % (info.program,info.description)); sys.exit(0)
-        cmd_list = rje.getCmdList(sys.argv[1:],info=info)      ### Load defaults from program.ini
-        ### Out object ###
-        out = rje.Out(cmd_list=cmd_list)
-        out.verbose(2,2,cmd_list,1)
-        out.printIntro(info)
-        ### Additional commands ###
-        cmd_list = cmdHelp(info,out,cmd_list)
-        ### Log ###
-        log = rje.setLog(info=info,out=out,cmd_list=cmd_list)
-        return [info,out,log,cmd_list]
+        cmd_list = rje.getCmdList(sys.argv[1:],info=info)   # Reads arguments and load defaults from program.ini
+        out = rje.Out(cmd_list=cmd_list)                    # Sets up Out object for controlling output to screen
+        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2
+        out.printIntro(info)                                # Prints intro text using details from Info object
+        cmd_list = cmdHelp(info,out,cmd_list)               # Shows commands (help) and/or adds commands from user
+        log = rje.setLog(info,out,cmd_list)                 # Sets up Log object for controlling log file output
+        return (info,out,log,cmd_list)                      # Returns objects for use in program
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except:
-        print 'Problem during initial setup.'
-        raise
+    except: rje.printf('Problem during initial setup.'); raise
 #########################################################################################################################
 ### END OF SECTION I                                                                                                    #
 #########################################################################################################################
@@ -603,7 +598,7 @@ class SLiMSearch(rje_slimcore.SLiMCore):
                 datadict = rje.combineDict({'Motif':slim.info['Name'],'Pattern':slim.pattern()},general)
                 datadict = rje.combineDict(datadict,slim.stat)
                 for dkey in datadict.keys():
-                    if string.split(dkey,'_')[0] in ['E','p','pUnd']: datadict[dkey] = rje_slim.expectString(datadict[dkey])
+                    if rje.split(dkey,'_')[0] in ['E','p','pUnd']: datadict[dkey] = rje_slim.expectString(datadict[dkey])
 
                 rje.delimitedFileOutput(self,self.info['SummaryFile'],self.resHead(),datadict=datadict)
             self.printLog('#OUT','Summary data for %s saved to %s' % (self.dataset(),self.info['SummaryFile']))
@@ -621,7 +616,7 @@ class SLiMSearch(rje_slimcore.SLiMCore):
             ### Simple PreMasking Procedure ###
             if self.opt['MaskFreq']:
                 for upc in self.list['UP']:
-                    if self.dict['AAFreq'][upc].has_key('X'): self.dict['AAFreq'][upc].pop('X') # Ignore Xs
+                    if 'X' in self.dict['AAFreq'][upc]: self.dict['AAFreq'][upc].pop('X') # Ignore Xs
                     self.dict['AAFreq'][upc].pop('Total')  #!# Total remade by dictFreq #!#
                     self.dict['AAFreq'][upc]['^'] = 0
                     self.dict['AAFreq'][upc]['$'] = 0
@@ -641,7 +636,7 @@ class SLiMSearch(rje_slimcore.SLiMCore):
             (prex,postx) = (0,0)
             for upc in self.list['UP']:
                 x = 0
-                if self.dict['AAFreq'][upc].has_key('X'): x = self.dict['AAFreq'][upc].pop('X') # Ignore Xs
+                if 'X' in self.dict['AAFreq'][upc]: x = self.dict['AAFreq'][upc].pop('X') # Ignore Xs
                 totalaa = self.dict['AAFreq'][upc].pop('Total')
                 preaa = totalaa - x   # Want to calculate new total
                 prex += preaa
@@ -685,7 +680,7 @@ class SLiMSearch(rje_slimcore.SLiMCore):
             wildlist = []   # List of wildcard lengths in SLiM
             wild = False    # Whether next part is a wildcard length
             mult = 1        # Variable-length multiplier
-            for part in string.split(slim.slim(),'-'):      # Split SLiM code in components
+            for part in rje.split(slim.slim(),'-'):      # Split SLiM code in components
                 ## Update lists ##
                 if wild: wildlist.append(part)
                 else: poslist.append(part)
@@ -736,7 +731,7 @@ class SLiMSearch(rje_slimcore.SLiMCore):
                 if p > 1: p = 1.0           # Cannot in reality have p > 1!
                 ## Calculate binomial ##
                 try: p1['UPC'][upc] = rje.binomial(k,N,p,usepoisson=False,callobj=self)      # logBinomial gets maths range errors sometimes!
-                except: p1['UPC'][upc] = 0.0; print k, N , p
+                except: p1['UPC'][upc] = 0.0; rje.printf(' '.join([k, N , p]))
                 #if slim.pattern() == 'KLY': open('kly.tmp','a').write('%s::SS| k = %d; p = %s; N = %d; p1+ = %s\n' % (upc[0].shortName(),k,p,N,p1['UPC'][upc]))                        
                 ## Sequence-specific stats ##
                 for seq in upc:
@@ -746,7 +741,7 @@ class SLiMSearch(rje_slimcore.SLiMCore):
                     if self.stat['SeqOcc'] > 1: k = self.stat['SeqOcc']
                     ## Calculate binomial ##
                     try: p1['Seq'][seq] = rje.binomial(k,N,p,usepoisson=False,callobj=self)
-                    except: print '!', k , N, p
+                    except: self.warnLog(' '.join(['Seq binomial probelm!', k , N, p]))
             ## Extra verbosity. Remove at some point? ##
             self.verbose(2,3,'%s: %s' % (slim.pattern(),p1),1)
 
@@ -762,14 +757,14 @@ class SLiMSearch(rje_slimcore.SLiMCore):
             if k <= 0: slim.stat['p_UPC'] = 1.0
             else:
                 try: slim.stat['p_UPC'] = rje.binomial(k,n,p,usepoisson=False,callobj=self)
-                except: print '!!', k , N, p
+                except: self.warnLog(' '.join(['p_UPC binomial probelm!', k , N, p]))
             ## ~ [3c] Seq occurrences ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             slim.stat['E_Seq'] = sum(p1['Seq'].values())    # Expected number of observed UPCs
             (k,n,p) = (slim.seqNum(), self.seqNum(), slim.stat['E_Seq']/self.seqNum()) # Use mean p1+
             if k <= 0: slim.stat['p_Seq'] = 1.0
             else:
                 try: slim.stat['p_Seq'] = rje.binomial(k,n,p,usepoisson=False,callobj=self)
-                except: print '!!!', k , N, p
+                except: self.warnLog(' '.join(['p_Seq binomial probelm!', k , N, p]))
             ## ~ [3d] Under-representation ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             for lvl in ['Occ','UPC','Seq']:
                 k = slim.stat['N_%s' % lvl]
@@ -811,7 +806,6 @@ class SLiMSearch(rje_slimcore.SLiMCore):
             self.verbose(2,3,'%s: %s' % (slim.pattern(),p1),1)
 
             ### ~ [3] Calculate overall probability of observed support ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            #x#print '>>>\n', slim.stat
             ## ~ [3a] All observed occurrences ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             if slim.stat['N_Occ'] <= 0: slim.stat['p_Occ'] = 1.0
             elif slim.stat['E_Occ'] > 0.0: slim.stat['p_Occ'] = rje.logPoisson(slim.stat['N_Occ'],slim.stat['E_Occ'],callobj=self)     #!# logPoisson() #!#
@@ -1020,7 +1014,7 @@ class SLiMSearch(rje_slimcore.SLiMCore):
             for seq in self.seqs():
                 if self.opt['Masked']: seq.info['Sequence'] = seq.info['PreMask']   #x# seq.info['MaskSeq']
                 occlist = []
-                if motif_occ.has_key(seq):
+                if seq in motif_occ:
                     for Motif in motif_occ[seq].keys():
                         occlist += motif_occ[seq][Motif]
                 if not occlist: continue
@@ -1055,8 +1049,8 @@ class SLiMSearch(rje_slimcore.SLiMCore):
                                 wpos = Occ['Pos']
                             else: wpos = waln.seqAlnPos(wseq,start,next=True)
                             makeme[-1] = '%s-' % rje.preZero(wpos,wseq.seqLen()) + makeme[-1]
-                        waln._addSeq(wseq.info['Name'],string.join(makeme,'-XXXXXXXXXX-'))    #!#Add positions at some point
-                        #x#self.deBug(waln.seq[-1].info)   #x#string.join(makeme,'-XXXXXXXXXX-'))
+                        waln._addSeq(wseq.info['Name'],rje.join(makeme,'-XXXXXXXXXX-'))    #!#Add positions at some point
+                        #x#self.deBug(waln.seq[-1].info)   #x#rje.join(makeme,'-XXXXXXXXXX-'))
                     waln.saveFasta()
 
 
@@ -1066,7 +1060,7 @@ class SLiMSearch(rje_slimcore.SLiMCore):
                 for seq in self.seqs():
                     if self.opt['Masked']: seq.info['Sequence'] = seq.info['MaskSeq']
                     occlist = []
-                    if motif_occ.has_key(seq):
+                    if seq in motif_occ:
                         for Motif in motif_occ[seq].keys():
                             occlist += motif_occ[seq][Motif]
                     saln = self.obj['SlimList'].obj['SLiMCalc'].singleProteinAlignment(seq,occlist,usegopher=False,savefasta=False)
@@ -1104,7 +1098,7 @@ class SLiMSearch(rje_slimcore.SLiMCore):
             outfile = self.info['Basefile'] + '.out'
             OUT = open(outfile,'w')
             ## ~ [2b] Header ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-            OUT.write(string.join(['##########################################################',
+            OUT.write(rje.join(['##########################################################',
                                    '#                                                        #',
                                    '#                       FINAL RESULTS                    #',
                                    '#                                                        #',
@@ -1135,14 +1129,12 @@ class SLiMSearch(rje_slimcore.SLiMCore):
 ### SECTION III: MAIN PROGRAM                                                                                           #
 #########################################################################################################################
 def runMain():
-    ### Basic Setup of Program ###
-    try: [info,out,mainlog,cmd_list] = setupProgram()
-    except SystemExit: return  
-    except:
-        print 'Unexpected error during program setup:', sys.exc_info()[0]
-        return 
-        
-    ### Rest of Functionality... ###
+    ### ~ [1] ~ Basic Setup of Program  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+    try: (info,out,mainlog,cmd_list) = setupProgram()
+    except SystemExit: return
+    except: rje.printf('Unexpected error during program setup:', sys.exc_info()[0]); return
+
+    ### ~ [2] ~ Rest of Functionality... ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try: SLiMSearch(mainlog,cmd_list).run()
         
     ### End ###
@@ -1153,7 +1145,7 @@ def runMain():
 #########################################################################################################################
 if __name__ == "__main__":      ### Call runMain 
     try: runMain()
-    except: print 'Cataclysmic run error:', sys.exc_info()[0]
+    except: rje.printf('Cataclysmic run error: {0}'.format(sys.exc_info()[0]))
     sys.exit()
 #########################################################################################################################
 ### END OF SECTION III                                                                                                  #

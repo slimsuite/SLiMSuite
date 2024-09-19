@@ -303,7 +303,7 @@ class SLiMBench(rje_obj.RJE_Object):
         self.setBool({'Generate':False,'Integrity':True,'Masking':True,'NoAmb':False,'Queries':True,'SLiMMaker':True})
         self.setInt({'MinUPC':3,'RandReps':10})
         self.setNum({'MinIC':2.0,'MinResIC':2.1})
-        self.list['FlankMask'] = string.split('site,flank5,win50,win100,win300,none',',')
+        self.list['FlankMask'] = rje.split('site,flank5,win50,win100,win300,none',',')
         self.list['RunID'] = ['Program','Analysis']
         self.list['SimRatios'] = [1,4,9,19]
         self.list['SimCount'] = [5,10]
@@ -427,7 +427,7 @@ class SLiMBench(rje_obj.RJE_Object):
             elmi.dataFormat({'Start':'int','End':'int'})
             elmi.addField('Primary','ProteinName')
             for entry in elmi.entries():
-                try: entry['Primary'] = string.split(entry['Accessions'])[0]
+                try: entry['Primary'] = rje.split(entry['Accessions'])[0]
                 except: self.printLog('#ERR','Warning! No Accession numbers for %s instance %s' % (entry['ELMIdentifier'],entry['ProteinName']))
             ## ~ [1c] Check and summaries loaded data integrity ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             good_elm = []; errors_found = False
@@ -479,7 +479,7 @@ class SLiMBench(rje_obj.RJE_Object):
             if missing:
                 missfile = '%s.missing.acc' % rje.baseFile(self.getStr('ELMInstance'))
                 rje.backup(self,missfile)
-                open(missfile,'w').write(string.join(missing,'\n'))
+                open(missfile,'w').write(rje.join(missing,'\n'))
                 self.printLog('#MISS','%d missing UniProt ID/AccNum output to %s' % (len(missing),missfile))
                 if (self.getBool('Integrity') and (self.i() < 0 or rje.yesNo('ELM UniProt entries missing. Quit?'))) or (not self.getBool('Integrity') and self.i() > 0 and rje.yesNo('ELM UniProt entries missing. Quit?',default='N')):
                     self.printLog('#ERR','Setup aborted due to ELM file UniProt errors')
@@ -494,7 +494,7 @@ class SLiMBench(rje_obj.RJE_Object):
                 for elm in elmc.dataKeys():
                     entry = elmc.data(elm)
                     motif_out.append('%s  %s  # %s [%d ELM instances]' % (entry['ELMIdentifier'],entry['Regex'],entry['Description'],entry['#Instances']))
-                open(motif_file,'w').write(string.join(motif_out,'\n'))
+                open(motif_file,'w').write(rje.join(motif_out,'\n'))
                 self.printLog('#MOTIF','%s motif patterns output to %s' % (elmc.entryNum(),motif_file))
 
             return True     # Setup successful            
@@ -570,7 +570,7 @@ class SLiMBench(rje_obj.RJE_Object):
                     if entry['End'] == seq.seqLen(): entry['Instance'] = '%s$' % entry['Instance']
                     else: entry['Instance'] = '%sX' % entry['Instance']
                     instances.append(entry['Instance'])
-                open('%s%s.instances.txt' % (instdir,elm),'w').write(string.join(instances,'\n'))
+                open('%s%s.instances.txt' % (instdir,elm),'w').write(rje.join(instances,'\n'))
                 #self.deBug('%s: %s' % (elmc.data(elm)['Regex'],instances))
                 # Consider splitting by length and then recombine with wildcard spacers?! #
                 maker.list['Peptides'] = instances
@@ -616,7 +616,7 @@ class SLiMBench(rje_obj.RJE_Object):
                     if not entry['SLiMMaker']: continue
                     motif_out.append('%s  %s  # %s. ELM Definition: %s [%d -> %d ELM instances]' % (entry['ELMIdentifier'],entry['SLiMMaker'],entry['Description'],entry['Regex'],entry['#Instances'],entry['ReducedInstance']))
                     rx += 1
-                open(motif_file,'w').write(string.join(motif_out,'\n'))
+                open(motif_file,'w').write(rje.join(motif_out,'\n'))
                 self.printLog('#MOTIF','%d of %d motif patterns output to %s' % (rx,elmc.entryNum(),motif_file))
             return True
         except: self.errorLog('Problem during %s.reducedELMs().' % self); return False  
@@ -630,7 +630,7 @@ class SLiMBench(rje_obj.RJE_Object):
             if rje.checkForFile(ssfile):
                 if not self.force():
                     self.printLog('#SEARCH','SLiMProb file %s found (force=F).' % ssfile)
-                    db.addTable(string.replace(ssfile,'occ.csv','csv'),mainkeys=['Dataset','RunID','Motif'],datakeys='All',name='SLiMProb')
+                    db.addTable(rje.replace(ssfile,'occ.csv','csv'),mainkeys=['Dataset','RunID','Motif'],datakeys='All',name='SLiMProb')
                     db.addTable(ssfile,mainkeys=['Dataset','RunID','Motif','Seq','Start_Pos'],datakeys='All',name='SLiMProbOcc')
                     return True
                 else: rje.backup(self,ssfile,appendable=False)
@@ -643,7 +643,7 @@ class SLiMBench(rje_obj.RJE_Object):
             #self.deBug('%s' % self.list['SearchINI'])
             ### ~ [1] ~ Perform SLiMProb ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             for elmfas in glob.glob('%s*.fas' % datadir):
-                elm = string.split(os.path.basename(elmfas),'.')[0]
+                elm = rje.split(os.path.basename(elmfas),'.')[0]
                 if elm not in elmc.dataKeys(): self.errorLog('Failed to find ELM "%s" in ELMClass table.' % elm,quitchoice=False); continue
                 entry = elmc.data(elm)
                 slim = entry[slimkey]
@@ -664,7 +664,7 @@ class SLiMBench(rje_obj.RJE_Object):
                     rx += 1
             self.printLog('#SS','%d SLiMProb runs for %d ELMs (%s vs %s)' % (rx,ex,slimkey,datadir))
             ### ~ [2] ~ Load SLiMProb Results into Database Table ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            db.addTable(string.replace(ssfile,'occ.csv','csv'),mainkeys=['Dataset','RunID','Motif'],datakeys='All',name='SLiMProb')
+            db.addTable(rje.replace(ssfile,'occ.csv','csv'),mainkeys=['Dataset','RunID','Motif'],datakeys='All',name='SLiMProb')
             db.addTable(ssfile,mainkeys=['Dataset','RunID','Motif','Seq','Start_Pos'],datakeys='All',name='SLiMProbOcc')
             return True
         except: self.errorLog('Problem during %s.slimProb().' % self); return False  
@@ -680,7 +680,7 @@ class SLiMBench(rje_obj.RJE_Object):
             indir = rje.makePath('%s%s' % (self.getStr('GenPath'),datadir))
             outdir = rje.makePath('%sELM_Datasets_WithQueries' % (self.getStr('GenPath')))
             rje.mkDir(self,outdir,True)
-            self.list['FlankMask'] = string.split(string.join(self.list['FlankMask']).lower())
+            self.list['FlankMask'] = rje.split(rje.join(self.list['FlankMask']).lower())
             seqlist = rje_seqlist.SeqList(self.log,self.cmd_list+['autoload=F','dna=F'])
             ### ~ [1] ~ Generate new ELM Datasets ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             qx = 0
@@ -697,7 +697,7 @@ class SLiMBench(rje_obj.RJE_Object):
                     while qseqs:
                         query = seqlist.getSeq(qseqs.pop(0))
                         #self.deBug(query)
-                        qname = string.split(query[0])[0]
+                        qname = rje.split(query[0])[0]
                         qlen = len(query[1])
                         #self.deBug(qname)
                         self.printLog('#QRY','%s - Query %s' % (elm,qname)); qx += 1
@@ -707,7 +707,7 @@ class SLiMBench(rje_obj.RJE_Object):
                             #self.deBug(flank)
                             mask = []
                             for entry in db.indexEntries('ELMIdentifier',elm):
-                                if entry['ProteinName'] in string.split(qname,'__') or entry['Primary'] in string.split(qname,'__'):
+                                if entry['ProteinName'] in rje.split(qname,'__') or entry['Primary'] in rje.split(qname,'__'):
                                     occ = (int(entry['Start'])-1,int(entry['End']))
                                     if occ not in mask: mask.append(occ)
                             mask.sort()
@@ -832,7 +832,7 @@ class SLiMBench(rje_obj.RJE_Object):
                     maskseq = maskseq[:case[0]] + maskseq.upper()[case[0]:case[1]] + maskseq[case[1]:]
                 #self.deBug(maskseq)
                 ## ~ [1d] ~ Output seqs ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-                outfile = '%s.%s.%s.fas' % (basefile,string.split(qname)[0],flank)
+                outfile = '%s.%s.%s.fas' % (basefile,rje.split(qname)[0],flank)
                 OUT = open(outfile,'w')
                 OUT.write('>%s\n%s\n' % (qname,maskseq))
                 for seq in queries[1:]:
@@ -918,7 +918,7 @@ class SLiMBench(rje_obj.RJE_Object):
                     ss.obj['SlimList'].list['Motif'] = [slim]
                     ss.run()
             ## ~ [2b] ~ Load SLiMProb Results into Database Table ~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-            sdb = db.addTable(string.replace(ssfile,'occ.csv','csv'),mainkeys=['Motif'],datakeys='All',name='SourceSearch')
+            sdb = db.addTable(rje.replace(ssfile,'occ.csv','csv'),mainkeys=['Motif'],datakeys='All',name='SourceSearch')
             odb = db.addTable(ssfile,mainkeys=['Motif','Seq','Start_Pos'],datakeys='All',name='SourceOcc')
             ### ~ [3] Work through each OK ELM ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             self.list['SimCount'].sort()
@@ -973,7 +973,7 @@ class SLiMBench(rje_obj.RJE_Object):
             dmi.makeField('#PDB#:#dch#','DomPDB'); dmi.makeField('#PDB#:#pch#','MotPDB')
             pdb = db.addTable('3did.DMI.pdb.ens_HUMAN.mapping.tdt',name='PDB',mainkeys=['Query'])
             #pdb.dropEntriesDirect('Hit',['None'])
-            for entry in pdb.entries(): entry['Query'] = string.split(entry['Query'],'|')[0]
+            for entry in pdb.entries(): entry['Query'] = rje.split(entry['Query'],'|')[0]
             xref = db.addTable('../../HGNC/genemap.111005.data.tdt',name='HGNC',mainkeys=['Gene'])
             ### ~ [1] ~ Join Tables ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             temp = db.joinTables(name='Temp',join=[(dmi,'DomPDB'),(pdb,'Query',['Hit'])],newkey=['ID'],empties=False)
@@ -986,7 +986,7 @@ class SLiMBench(rje_obj.RJE_Object):
             map.dropEntriesDirect('DomSeq',['None'])
             map.dropEntriesDirect('MotSeq',['None'])
             map.makeField('#MotSeq#','qry')
-            for entry in map.entries(): entry['qry'] = string.split(entry['qry'],'_')[-1]
+            for entry in map.entries(): entry['qry'] = rje.split(entry['qry'],'_')[-1]
             map.makeField('#peptide#.#Hub#.#qry#','dataset')
             map.dataFormat({'pstart':'int','pend':'int'})
             ensloci = rje_seqlist.SeqList(self.log,self.cmd_list+['seqin=../../EnsEMBL/ens_HUMAN.loci.fas','autoload=T','seqmode=file'])
@@ -1000,7 +1000,7 @@ class SLiMBench(rje_obj.RJE_Object):
                 for entry in map.indexEntries('dataset',dataset):
                     #while len(seq) < entry['pend']: seq += 'x'
                     qry = entry['MotSeq']; hub = entry['Hub']; ex += 1
-                pseq = string.join(map.indexDataList('dataset',dataset,'pseq'))
+                pseq = rje.join(map.indexDataList('dataset',dataset,'pseq'))
                 self.printLog('#DSET','%s: %d entries' % (dataset,ex))
                 SEQOUT.write('>%s %s\n%s\n' % (dataset,qry,pseq))
                 ppifas = ppidir + hub + '.ppi.fas'
@@ -1067,7 +1067,7 @@ class SLiMBench(rje_obj.RJE_Object):
                 db.addTable(afile,mainkeys=keep_unique,datakeys='All',name='results',replace=True)
             elif self.getBool('MemSaver'):
                 fullresdb = db.copyTable('results','full_results')
-                self.db('results').makeField('#%s#' % string.join(self.list['RunID'],'#|#'),'MemSaver')
+                self.db('results').makeField('#%s#' % rje.join(self.list['RunID'],'#|#'),'MemSaver')
                 splitres = db.splitTable('results',field,asdict=True,keepfield=False)
                 self.db().deleteTable('results')
                 for ic_cut in self.list['ICCut']:
@@ -1156,21 +1156,21 @@ class SLiMBench(rje_obj.RJE_Object):
                 self.progLog('\r#SPLIT','Splitting Dataset and RunID fields: %.2f%%' % (ex/etot)); ex += 100.0
                 if self.getStr('DataType')[:3] == 'sim':
                     try:
-                        [entry['Motif'],entry['RType'],entry['Rep'],entry['PosNum'],n,entry['Query'],entry['Region']] = string.split(entry['Dataset'],'.')
+                        [entry['Motif'],entry['RType'],entry['Rep'],entry['PosNum'],n,entry['Query'],entry['Region']] = rje.split(entry['Dataset'],'.')
                         entry['PosNum'] = string.atoi(entry['PosNum'][1:])
                     except: self.errorLog('Simulated Dataset Name Error: %s' % entry['Dataset']); raise
                 elif self.getBool('Queries'):
-                    try: [entry['Motif'],entry['Query'],entry['Region']] = string.split(entry['Dataset'],'.')
+                    try: [entry['Motif'],entry['Query'],entry['Region']] = rje.split(entry['Dataset'],'.')
                     except: self.errorLog('ELMBench (Queries) Dataset Name Error: %s' % entry['Dataset']); raise
                 else:
-                    try: entry['Motif'] = string.split(entry['Dataset'],'.')[0]
+                    try: entry['Motif'] = rje.split(entry['Dataset'],'.')[0]
                     except: self.errorLog('ELMBench (No Queries) Dataset Name Error: %s' % entry['Dataset']); raise
-                runid = string.split(entry['RunID'],'.')
+                runid = rje.split(entry['RunID'],'.')
                 try:
                     for i in range(len(self.list['RunID'])): entry[self.list['RunID'][i]] = runid[i]
                 except IndexError: self.errorLog('Check that RunID split list and results files match!'); return False
                 except: raise
-            self.printLog('\r#SPLIT','Split Dataset and RunID fields into %s.' % string.join(newkeys + self.list['RunID'],', '))
+            self.printLog('\r#SPLIT','Split Dataset and RunID fields into %s.' % rje.join(newkeys + self.list['RunID'],', '))
             for field in ['Dataset','RunID'] + newkeys: resdb.index(field)
             resdb.newKey(newkeys,True)
             resdb.saveToFile()
@@ -1195,7 +1195,7 @@ class SLiMBench(rje_obj.RJE_Object):
                     self.printLog('#DROP','%s "%s" results dropped. %s remain.' % (rje.iLen(self.db('results').index('Pattern')[badrun]),badrun,rje.iStr(self.db('results').entryNum())))
             pfile = '%s.patterns.txt' % self.getStr('BenchBase')
             rje.backup(self,pfile,appendable=False)
-            open(pfile,'w').write(string.join(patterns,'\n'))
+            open(pfile,'w').write(rje.join(patterns,'\n'))
             self.printLog('#MOT','%s patterns written to %s for CompariMotif search' % (rje.iLen(patterns),pfile))
             ### ~ [2] Perform CompariMotif Search ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if not rje.exists(self.str['CompDB']): self.errorLog('CompariMotif CompDB %s not found!' % self.str['CompDB'],printerror=False); raise IOError
@@ -1366,7 +1366,7 @@ class SLiMBench(rje_obj.RJE_Object):
             rdb.dataFormat({'Rank':'int'})
             rkeys = rdb.list['Keys'][0:]
             rkeys.remove('Pattern')
-            rindex = '#%s#' % string.join(rkeys,'#|#')
+            rindex = '#%s#' % rje.join(rkeys,'#|#')
             ### ~ [1] Screen low MinIC motifs ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             prex = rdb.entryNum(); ambx = 0
             rdb.makeField(rindex)
@@ -1408,7 +1408,7 @@ class SLiMBench(rje_obj.RJE_Object):
             rdb.dataFormat({'Rank':'int','IC':'num'})
             rkeys = rdb.list['Keys'][0:]
             rkeys.remove('Pattern')
-            rindex = '#%s#' % string.join(rkeys,'#|#')
+            rindex = '#%s#' % rje.join(rkeys,'#|#')
             ### ~ [1] Screen low MinIC motifs ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             prex = rdb.entryNum(); dumpx = 0; crapx = 0; ambx = 0
             rdb.makeField(rindex)

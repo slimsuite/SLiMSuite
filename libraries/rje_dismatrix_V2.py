@@ -19,8 +19,8 @@
 """
 Module:       rje_dismatrix
 Description:  Distance Matrix Module 
-Version:      2.11.0
-Last Edit:    21/08/20
+Version:      2.11.1
+Last Edit:    12/05/23
 Copyright (C) 2007  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -64,6 +64,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 2.9 - Modified PNG output to use rje_tree code instead. Added Graph output using rje_ppi.
     # 2.10- Minor modifications for SLiMCore UPC.
     # 2.11.0 - Initial Python3 code conversion.
+    # 2.11.1 - Fixed some Py3 keys errors.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -82,7 +83,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo():     ### Makes Info object
     '''Makes rje.Info object for program.'''
-    (program, version, last_edit, copyright) = ('RJE_DISMATRIX', '2.11.0', 'August 2020', '2007')
+    (program, version, last_edit, copyright) = ('RJE_DISMATRIX', '2.11.1', 'May 2023', '2007')
     description = 'Distance Matrix Module'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_zen.Zen().wisdom()]
@@ -219,7 +220,7 @@ class DisMatrix(rje.RJE_Object):
         >> obj1 and obj2:key Objects
         >> dis:Float = 'Distance' measure
         '''
-        if self.dict['Matrix'].has_key(obj1): self.dict['Matrix'][obj1][obj2] = dis
+        if obj1 in self.dict['Matrix']: self.dict['Matrix'][obj1][obj2] = dis
         else: self.dict['Matrix'][obj1] = {obj2:dis}
 #########################################################################################################################
     def getDis(self,obj1,obj2,default=None):     ### Returns distance from matrix or None if comparison not made.
@@ -252,7 +253,7 @@ class DisMatrix(rje.RJE_Object):
         try:### ~ [1] Go through self.dict['Matrix'] and replace everything ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             missing = missing.lower()
             newmatrix = {}
-            for obj1 in self.dict['Matrix'].keys()[0:]:
+            for obj1 in list(self.dict['Matrix'].keys())[0:]:
                 if obj1 not in newnames and missing[:3] in ['del','rem']: continue
                 if obj1 in newnames: new1 = newnames[obj1]
                 else: new1 = obj1
@@ -306,7 +307,6 @@ class DisMatrix(rje.RJE_Object):
         newmatrix = DisMatrix(self.log,self.cmd_list)
         for obj1 in self.dict['Matrix']:
             for obj2 in self.dict['Matrix'][obj1]:
-                #if not newmatrix.dict['Matrix'].has_key(obj2): newmatrix.dict['Matrix'][obj2] = {}
                 if newmatrix.getDis(obj1,obj2,-1) >= 0: continue    # Already there
                 dis1 = self.getDis(obj1,obj2,default=missing)
                 dis2 = self.getDis(obj2,obj1,default=missing)
@@ -439,11 +439,11 @@ class DisMatrix(rje.RJE_Object):
             ### ~ [2] Load distance matrix from filename ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             data = rje.dataDict(self,filename,mainkeys=[key1,key2],datakeys=[distance],delimit=delimit)
             (dx,dtot) = (0.0,float(len(data)))
-            for pair in data.keys()[0:]:
+            for pair in list(data.keys())[0:]:
                 self.log.printLog('\r#DIS','Reading "%s" matrix from %s: %.1f%%' % (distance,filename,dx/dtot),newline=False,log=False)
                 dx += 100
-                (obj1,obj2) = string.split(pair,delimit)
-                dis = string.atof(data.pop(pair)[distance])
+                (obj1,obj2) = rje.split(pair,delimit)
+                dis = rje.atof(data.pop(pair)[distance])
                 if normalise: dis /= normalise
                 if inverse: dis = 1.0 - dis
                 self.addDis(obj1,obj2,dis)
@@ -480,7 +480,7 @@ class DisMatrix(rje.RJE_Object):
             line = MAT.readline()
             while line:
                 if line[:1] != '#': break
-                if 'BLOSUM' in string.split(line): blosum = True; break
+                if 'BLOSUM' in rje.split(line): blosum = True; break
                 line = MAT.readline()
             MAT.close()
             if blosum: return self.loadBLOSUM(filename)
@@ -502,7 +502,7 @@ class DisMatrix(rje.RJE_Object):
                 for h in data[obj1]:
                     if h in casemap: obj2 = casemap[h]
                     else: obj2 = h
-                    try: self.addDis(obj1,obj2,string.atof(data[obj1][h]))
+                    try: self.addDis(obj1,obj2,rje.atof(data[obj1][h]))
                     except: self.addDis(obj1,obj2,default)
 
             ### ~ [3] Check symmetry of matrix ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -518,12 +518,12 @@ class DisMatrix(rje.RJE_Object):
             MAT = open(filename,'r')
             line = MAT.readline()
             while line:
-                if line[:1] != '#': aalist = string.split(line); break
+                if line[:1] != '#': aalist = rje.split(line); break
                 line = MAT.readline()
             for a1 in aalist:
-                data = string.split(MAT.readline())
+                data = rje.split(MAT.readline())
                 for a2 in aalist:
-                    score = string.atoi(data[aalist.index(a2)])
+                    score = rje.atoi(data[aalist.index(a2)])
                     self.addDis(a1,a2,score)
             MAT.close()
             ### ~ [2] Check symmetry of matrix ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -554,11 +554,11 @@ class DisMatrix(rje.RJE_Object):
             ## ~ [2a] Header ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             header = ['SEQ']
             for obj in objkeys: header.append(self.objName(obj))
-            if format == 'mysql': MATRIX.write('%s\n' % string.join(header,delimit).lower())
+            if format == 'mysql': MATRIX.write('%s\n' % rje.join(header,delimit).lower())
             elif format == 'phylip':
                 MATRIX.write('%d\n' % len(objkeys))
                 delimit = ' '
-            else: MATRIX.write('%s\n' % string.join(header,delimit))
+            else: MATRIX.write('%s\n' % rje.join(header,delimit))
             ## ~ [2b] Matrix ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             for obj1 in objkeys:
                 if format == 'phylip':
@@ -570,7 +570,7 @@ class DisMatrix(rje.RJE_Object):
                     matline = [sname]
                 else: matline = [self.objName(obj1)]
                 for obj2 in objkeys: matline.append(str(self.getDis(obj1,obj2,default)))
-                MATRIX.write('%s\n' % string.join(matline,delimit))
+                MATRIX.write('%s\n' % rje.join(matline,delimit))
             ## ~ [2c] Finish ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             MATRIX.close()
             if log: self.log.printLog('#MAT','%s Distance matrix out to %s (%s format).' % (self.info['Name'],filename,format))
@@ -708,7 +708,7 @@ class DisMatrix(rje.RJE_Object):
             outclusters = []
             for cluster in clusters:
                 newcluster = []
-                for obj in cluster: newcluster.append(string.split('%s' % obj)[0])
+                for obj in cluster: newcluster.append(rje.split('%s' % obj)[0])
                 outclusters.append(newcluster)
                 missing += newcluster
             ### ~ [1] ~ Output Clusters ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -723,14 +723,14 @@ class DisMatrix(rje.RJE_Object):
                 OUT.write('Cluster\tN\tObjects\n')
             cx = 1
             for cluster in outclusters:
-                if upc: rje.writeDelimit(OUT,[cx,len(cluster),string.join(cluster)],'\t')
-                else: OUT.write('%s\t%d\t%s.\n' % (rje.preZero(cx,len(clusters)),len(cluster),string.join(cluster,'; ')))
+                if upc: rje.writeDelimit(OUT,[cx,len(cluster),rje.join(cluster)],'\t')
+                else: OUT.write('%s\t%d\t%s.\n' % (rje.preZero(cx,len(clusters)),len(cluster),rje.join(cluster,'; ')))
                 cx += 1
                 for obj in cluster:
                     if obj in missing: missing.remove(obj)
             if missing:
-                if upc: self.printLog('#ERR','Missing! %d: %s.' % (len(missing),string.join(missing,'; ')))
-                else: OUT.write('Missing!\t%d\t%s.' % (len(missing),string.join(missing,'; ')))
+                if upc: self.printLog('#ERR','Missing! %d: %s.' % (len(missing),rje.join(missing,'; ')))
+                else: OUT.write('Missing!\t%d\t%s.' % (len(missing),rje.join(missing,'; ')))
             OUT.close()
         except: self.errorLog('Major problem with %s.saveClusters' % self)
 #########################################################################################################################
@@ -770,7 +770,7 @@ class DisMatrix(rje.RJE_Object):
             if cladex <= 0:
                 self.printLog('#UPGMA','Too few (%d) objects for UPGMA clustering!' % self.objNum())
                 if returnlen: self.rename(backname); return 0.0
-                if upgma.objNum(): self.rename(backname); return '%s;' % self.objName(self.dict['Matrix'].keys()[0])
+                if upgma.objNum(): self.rename(backname); return '%s;' % self.objName(list(self.dict['Matrix'].keys())[0])
                 self.rename(backname); return ';'
             ### ~ [1] ~ UPGMA clustering ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             while upgma.objNum() > 1:                       # More than one cluster: keep clustering
@@ -794,7 +794,7 @@ class DisMatrix(rje.RJE_Object):
                     upgma.remove(cluster[i])                # Remove clustered object from matrix
                 ## ~ [1c] ~ Replace old clades with new clade ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
                 newmatrix = {}                              # Dictionary of {upgma obj:new clade distance}
-                for obj in upgma.dict['Matrix'].keys():     # Take each object in turn
+                for obj in list(upgma.dict['Matrix'].keys()):     # Take each object in turn
                     newdis = []                             # Going to take all-by-all mean
                     oldclade = [obj]
                     if obj in clades: oldclade = clades[obj]
@@ -846,7 +846,7 @@ class DisMatrix(rje.RJE_Object):
             if cladex <= 0:
                 self.printLog('#WPGMA','Too few (%d) objects for WPGMA clustering!' % self.objNum())
                 if returnlen: self.rename(backname); return 0.0
-                if wpgma.objNum(): self.rename(backname); return '%s;' % self.objName(self.dict['Matrix'].keys()[0])
+                if wpgma.objNum(): self.rename(backname); return '%s;' % self.objName(list(self.dict['Matrix'].keys())[0])
                 self.rename(backname); return ';'
             ### ~ [1] ~ WPGMA clustering ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             while wpgma.objNum() > 1:                       # More than one cluster: keep clustering
@@ -869,7 +869,7 @@ class DisMatrix(rje.RJE_Object):
                     else: clades[newclade].append(cluster[i])
                 ## ~ [1c] ~ Replace old clades with new clade ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
                 self.deBug(cluster); self.deBug(wpgma.dict['Matrix'])
-                for obj in wpgma.dict['Matrix'].keys():     # Take each object in turn
+                for obj in list(wpgma.dict['Matrix'].keys()):     # Take each object in turn
                     if obj in cluster: continue             # This will be removed
                     # WPGMA is a simple mean, no need to go back to originals
                     self.deBug(obj);
@@ -910,7 +910,7 @@ class DisMatrix(rje.RJE_Object):
                     self.progLog('\r#CLUST','%d clusters (%d keys remaining)' % (len(clusters),len(clusdict)))
                     cluslen = len(clusters[-1])
                     for obj in clusters[-1]:
-                        if clusdict.has_key(obj):
+                        if obj in clusdict:
                             for p in clusdict.pop(obj):
                                 if p not in clusters[-1]: clusters[-1].append(p)
                 clusters[-1].sort()
@@ -938,10 +938,10 @@ class DisMatrix(rje.RJE_Object):
         try:### ~ [1] Setup  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             G = {}
             for obj in self.sortObj():
-                gobj = string.split('%s' % obj)[0]
+                gobj = rje.split('%s' % obj)[0]
                 G[gobj] = {}
                 for obj2 in self.sortObj():
-                    gobj2 = string.split('%s' % obj2)[0]
+                    gobj2 = rje.split('%s' % obj2)[0]
                     dis = self.getDis(obj,obj2,cutoff)
                     if dis < cutoff: G[gobj][gobj2] = dis
                 if not G[gobj] and not singletons: G.pop(gobj)

@@ -60,7 +60,9 @@ slimsuitepath = os.path.abspath(os.path.join(os.path.dirname(os.path.realpath(__
 sys.path.append(os.path.join(slimsuitepath,'libraries/'))
 sys.path.append(os.path.join(slimsuitepath,'tools/'))
 ### User modules - remember to add *.__doc__ to cmdHelp() below ###
-import rje, rje_obj, rje_seq
+import rje, rje_obj
+try: import rje_seq
+except: pass
 #########################################################################################################################
 def history():  ### Program History - only a method for PythonWin collapsing! ###
     '''
@@ -94,7 +96,7 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         ### ~ [2] ~ Look for help commands and print options if found ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         cmd_help = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
         if cmd_help > 0:
-            print '\n\nHelp for %s %s: %s\n' % (info.program, info.version, time.asctime(time.localtime(info.start_time)))
+            rje.printf('\n\nHelp for {0} {1}: {2}\n'.format(info.program, info.version, time.asctime(time.localtime(info.start_time))))
             out.verbose(-1,4,text=__doc__)
             if rje.yesNo('Show general commandline options?'): out.verbose(-1,4,text=rje.__doc__)
             if rje.yesNo('Quit?'): sys.exit()           # Option to quit after help
@@ -104,7 +106,7 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         return cmd_list
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Major Problem with cmdHelp()'
+    except: rje.printf('Major Problem with cmdHelp()')
 #########################################################################################################################
 def setupProgram(): ### Basic Setup of Program when called from commandline.
     '''
@@ -115,16 +117,19 @@ def setupProgram(): ### Basic Setup of Program when called from commandline.
     '''
     try:### ~ [1] ~ Initial Command Setup & Info ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         info = makeInfo()                                   # Sets up Info object with program details
+        if len(sys.argv) == 2 and sys.argv[1] in ['version','-version','--version']: rje.printf(info.version); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: rje.printf('%s v%s' % (info.program,info.version)); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['description','-description','--description']: rje.printf('%s: %s' % (info.program,info.description)); sys.exit(0)
         cmd_list = rje.getCmdList(sys.argv[1:],info=info)   # Reads arguments and load defaults from program.ini
         out = rje.Out(cmd_list=cmd_list)                    # Sets up Out object for controlling output to screen
-        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2 
+        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2
         out.printIntro(info)                                # Prints intro text using details from Info object
         cmd_list = cmdHelp(info,out,cmd_list)               # Shows commands (help) and/or adds commands from user
         log = rje.setLog(info,out,cmd_list)                 # Sets up Log object for controlling log file output
         return (info,out,log,cmd_list)                      # Returns objects for use in program
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Problem during initial setup.'; raise
+    except: rje.printf('Problem during initial setup.'); raise
 #########################################################################################################################
 ### END OF SECTION I                                                                                                    #
 #########################################################################################################################
@@ -265,7 +270,7 @@ class JobFarmer(rje_obj.RJE_Object):
             else:
                 self.errorLog('No Hosts identified for HPC run',printerror=False)
                 sys.exit()
-        self.printLog('#HOSTS','%d hosts: %s.' % (self.nprocs(),string.join(self.list['Hosts'],'; ')))
+        self.printLog('#HOSTS','%d hosts: %s.' % (self.nprocs(),rje.join(self.list['Hosts'],'; ')))
 #########################################################################################################################
     def checkMemory(self,node): ### Checks free memory on node and returns True/False if OK to run                  #V1.0
         '''Checks free memory on node and returns True/False if OK to run.'''
@@ -281,13 +286,13 @@ class JobFarmer(rje_obj.RJE_Object):
         if self.getNum('MemFree') < 0.0: return 0.0
         if self.getBool('Win32') or self.getBool('OSX'): return 0.0
         if self.rsh():
-            try: memdata = string.split(os.popen('rsh %s free' % node).readlines()[1])
+            try: memdata = rje.split(os.popen('rsh %s free' % node).readlines()[1])
             except: self.errorLog('Unable to read %s free memory' % node,printerror=False); return 0.0
         elif self.getStr('HPCMode') == 'fork':
-            try: memdata = string.split(os.popen('free').readlines()[1])
+            try: memdata = rje.split(os.popen('free').readlines()[1])
             except: self.errorLog('Unable to read free memory',printerror=False); return 0.0
         else: raise ValueError('HPC Mode "%s" not recognised!' % self.getStr('HPCMode'))
-        return string.atof(memdata[3]) / string.atof(memdata[1])
+        return rje.atof(memdata[3]) / rje.atof(memdata[1])
 #########################################################################################################################
     ### <3> ### Job Farming Methods                                                                                     #
 #########################################################################################################################
@@ -304,7 +309,7 @@ class JobFarmer(rje_obj.RJE_Object):
                 try:
                     pid = self.dict['Running'][j]['PID']
                     PIDCHECK.write('%s: %s\n' % (j,pid))
-                    if string.split('%s' % pid)[0] == 'WAIT': status = 1
+                    if rje.split('%s' % pid)[0] == 'WAIT': status = 1
                     else: (status,exit_stat) = os.waitpid(pid,os.WNOHANG)
                 except: status = 1
                 if status > 0: self.endJob(j)       # subjob on processor j has finished: can replace with processing
@@ -354,7 +359,7 @@ class JobFarmer(rje_obj.RJE_Object):
                 self.printLog('#END','Job on processor %d ended: log content transferred' % host_id)
                 self.printLog('#~~#','#~~#',timeout=False)
                 os.unlink(jdict['Log'])
-            elif 'PID' in jdict and string.split('%s' % jdict['PID'])[0] == 'WAIT': pass
+            elif 'PID' in jdict and rje.split('%s' % jdict['PID'])[0] == 'WAIT': pass
             else: self.printLog('#END','Job on processor %d ended.' % host_id)
         except IOError:
             if self.getInt('IOError') == 1: self.errorLog('JobFarmer.endJob IOError limit reached'); raise
@@ -431,7 +436,7 @@ class JobFarmer(rje_obj.RJE_Object):
                 for out in self.list['OutList']:
                     resfile = '%s.%s' % (self.baseFile(),out)
                     if os.path.exists(jdict[out]):
-                        if os.path.exists(resfile) and string.split(resfile,'.')[-1] in ['tdt','csv']:
+                        if os.path.exists(resfile) and rje.split(resfile,'.')[-1] in ['tdt','csv']:
                             open(resfile,'a').writelines(open(jdict[out],'r').readlines()[1:])
                         else:
                             open(resfile,'a').writelines(open(jdict[out],'r').readlines())
@@ -443,7 +448,7 @@ class JobFarmer(rje_obj.RJE_Object):
                     self.printLog('#END','Job on processor %d ended: log content transferred' % host_id)
                     self.printLog('#~~#','#~~#',timeout=False)
                     os.unlink(jdict['Log'])
-                elif 'PID' in jdict and string.split('%s' % jdict['PID'])[0] == 'WAIT': pass
+                elif 'PID' in jdict and rje.split('%s' % jdict['PID'])[0] == 'WAIT': pass
                 else: self.printLog('#END','Job on processor %d ended: already complete' % host_id)
                 os.system('rm %s*' % jdict['Qry'])
         except: self.errorLog('JobFarmer.endJob error')
@@ -457,7 +462,7 @@ class JobFarmer(rje_obj.RJE_Object):
             resfile = '%s.%s' % (self.baseFile(),out)
             try: pickdat = rje.dataDict(self,resfile,[self.getStr('PickHead')])
             except: pickdat = {}
-            picklist = picklist + pickdat.keys()
+            picklist = picklist + list(pickdat.keys())
         return picklist
 #########################################################################################################################
     ### <5> ### Testing Methods                                                                                         #
@@ -495,7 +500,7 @@ def runMain():
     ### ~ [1] ~ Basic Setup of Program  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try: (info,out,mainlog,cmd_list) = setupProgram()
     except SystemExit: return  
-    except: print 'Unexpected error during program setup:', sys.exc_info()[0]; return
+    except: rje.printf('Unexpected error during program setup:', sys.exc_info()[0]); return
     
     ### ~ [2] ~ Rest of Functionality... ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try: JobFarmer(mainlog,cmd_list).run()
@@ -508,7 +513,7 @@ def runMain():
 #########################################################################################################################
 if __name__ == "__main__":      ### Call runMain 
     try: runMain()
-    except: print 'Cataclysmic run error:', sys.exc_info()[0]
+    except: rje.printf('Cataclysmic run error: {0}'.format(sys.exc_info()[0]))
     sys.exit()
 #########################################################################################################################
 ### END OF SECTION IV                                                                                                   #

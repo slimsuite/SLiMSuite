@@ -417,8 +417,8 @@ class SVG(rje.RJE_Object):
                     '"http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">','',
                     '<svg width="%s" height="%s" version="1.1"' % (width,height),'xmlns="http://www.w3.org/2000/svg">']
             tail = ['','</svg>']
-            try: svg = string.join(head+svgtext+tail,'\n')
-            except: svg = string.join(head+[svgtext]+tail,'\n')
+            try: svg = rje.join(head+svgtext+tail,'\n')
+            except: svg = rje.join(head+[svgtext]+tail,'\n')
             ### ~ [1] ~ Optionally save file ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if filename.lower() not in ['','none']: open(filename,'w').write(svg)
             return svg
@@ -494,7 +494,7 @@ class SVG(rje.RJE_Object):
             svg.append('<!-- nmax=%.2f, font=%.1f, width=%d, height=%d -->' % (nmax,font,width,height))
             svg.append('<!-- xmax=%.2f, xscale=%.2f, xborder=%.1f, xoffset=%.1f -->' % (xmax,xscale,xborder,xoffset))
             svg.append('<!-- ymax=%.2f, yscale=%.2f, yborder=%.1f, yoffset=%.1f -->' % (ymax,yscale,yborder,yoffset))
-            #self.deBug(string.join(svg[-3:],'\n'))
+            #self.deBug(rje.join(svg[-3:],'\n'))
             #self.deBug(npos)
 
             ### ~ [1] ~ Draw connections between nodes ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -635,7 +635,7 @@ class SVG(rje.RJE_Object):
             ntxt += ' font-family="%s" font-bold="True" font-size="%d" fill="%s" >%s</text>' % (int_font,font,soton[6],xbar)
             svg.append(ntxt)
             svg += ['<!-- END draw tree -->','']
-            if save: self.svgFile(string.join(svg,'\n'),filename='%s.svg' % basefile,width=width,height=height)
+            if save: self.svgFile(rje.join(svg,'\n'),filename='%s.svg' % basefile,width=width,height=height)
             return svg
         except: self.errorLog('Error in %s.svgTree' % self)
 #########################################################################################################################

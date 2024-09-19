@@ -42,7 +42,9 @@ Other modules needed: None
 #########################################################################################################################
 ### SECTION I: GENERAL SETUP & PROGRAM DETAILS                                                                          #
 #########################################################################################################################
-import copy, glob, os, string, sys, time, urllib2
+import copy, glob, os, string, sys, time
+try: import urllib2 as urllib2
+except: import urllib.request as urllib2
 sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)),'../libraries/'))
 sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)),'../tools/'))
 ### User modules - remember to add *.__doc__ to cmdHelp() below ###
@@ -76,7 +78,7 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         if not out: out = rje.Out()
         help = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
         if help > 0:
-            print '\n\nHelp for %s %s: %s\n' % (info.program, info.version, time.asctime(time.localtime(info.start_time)))
+            rje.printf('\n\nHelp for {0} {1}: {2}\n'.format(info.program, info.version, time.asctime(time.localtime(info.start_time))))
             out.verbose(-1,4,text=__doc__)
             if rje.yesNo('Show general commandline options?'): out.verbose(-1,4,text=rje.__doc__)
             if rje.yesNo('Quit?'): sys.exit()
@@ -85,33 +87,30 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         return cmd_list
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Major Problem with cmdHelp()'
+    except: rje.printf('Major Problem with cmdHelp()')
 #########################################################################################################################
-def setupProgram(): ### Basic Setup of Program
+def setupProgram(): ### Basic Setup of Program when called from commandline.
     '''
-    Basic setup of Program:
+    Basic Setup of Program when called from commandline:
     - Reads sys.argv and augments if appropriate
     - Makes Info, Out and Log objects
     - Returns [info,out,log,cmd_list]
     '''
-    try:
-        ### Initial Command Setup & Info ###
-        info = makeInfo()
-        cmd_list = rje.getCmdList(sys.argv[1:],info=info)      ### Load defaults from program.ini
-        ### Out object ###
-        out = rje.Out(cmd_list=cmd_list)
-        out.verbose(2,2,cmd_list,1)
-        out.printIntro(info)
-        ### Additional commands ###
-        cmd_list = cmdHelp(info,out,cmd_list)
-        ### Log ###
-        log = rje.setLog(info=info,out=out,cmd_list=cmd_list)
-        return [info,out,log,cmd_list]
+    try:### ~ [1] ~ Initial Command Setup & Info ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+        info = makeInfo()                                   # Sets up Info object with program details
+        if len(sys.argv) == 2 and sys.argv[1] in ['version','-version','--version']: rje.printf(info.version); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: rje.printf('{0} v{1}'.format(info.program,info.version)); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['description','-description','--description']: rje.printf('%s: %s' % (info.program,info.description)); sys.exit(0)
+        cmd_list = rje.getCmdList(sys.argv[1:],info=info)   # Reads arguments and load defaults from program.ini
+        out = rje.Out(cmd_list=cmd_list)                    # Sets up Out object for controlling output to screen
+        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2
+        out.printIntro(info)                                # Prints intro text using details from Info object
+        cmd_list = cmdHelp(info,out,cmd_list)               # Shows commands (help) and/or adds commands from user
+        log = rje.setLog(info,out,cmd_list)                 # Sets up Log object for controlling log file output
+        return (info,out,log,cmd_list)                      # Returns objects for use in program
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except:
-        print 'Problem during initial setup.'
-        raise
+    except: rje.printf('Problem during initial setup.'); raise
 #########################################################################################################################
 ### Module Attributes
 gotypes = {'bp':'biological_process','cc':'cellular_component','mf':'molecular_function'}
@@ -263,15 +262,15 @@ class GO(rje.RJE_Object):
                         (subset,desc) = rje.matchExp('^subsetdef: (\S+) \"(\S.+)\"',gline)
                         self.dict['Subset'][subset] = {'name':desc,'terms':[]}
                     elif type == 'namespace':
-                        g = string.split(data,'_')
+                        g = rje.split(data,'_')
                         self.dict['GO'][id]['type'] = '%s%s' % (g[0][0],g[1][0])
                     elif type in ['is_a','relationship']:
                         parent = rje.matchExp('GO:(\d+)',data)[0]
-                        if type != 'is_a': type = string.split(data)[0]
+                        if type != 'is_a': type = rje.split(data)[0]
                         if type not in self.list['ParentTerms']: self.list['ParentTerms'].append(type)
                         if type not in self.dict['GO'][id]: self.dict['GO'][id][type] = []
                         self.dict['GO'][id][type].append(parent)
-                    elif type == 'subset': self.dict['Subset'][string.split(gline)[1]]['terms'].append(id)
+                    elif type == 'subset': self.dict['Subset'][rje.split(gline)[1]]['terms'].append(id)
                     elif type == 'alt_id':
                         alt_id = rje.matchExp('GO:(\d+)',data)[0]
                         if alt_id in self.dict['AltID']: self.dict['AltID'][alt_id].append(id)
@@ -460,7 +459,7 @@ class GO(rje.RJE_Object):
         mainkeys = ['Ensembl Gene ID','GO ID']
         for gfile in ensmap:
             if fixhead:
-                headers = string.split(rje.chomp(open(gfile,'r').readlines()[0]),'\t')
+                headers = rje.split(rje.chomp(open(gfile,'r').readlines()[0]),'\t')
                 if 'Ensembl Gene ID' in headers: mainkeys = ['Ensembl Gene ID']
                 else: mainkeys = headers[:1]
                 if 'GO Term Accession' in headers: mainkeys.append('GO Term Accession')
@@ -469,14 +468,14 @@ class GO(rje.RJE_Object):
                 elif 'GO Term Accession (cc)' in headers: mainkeys.append('GO Term Accession (cc)')
                 elif 'GO ID' in headers: mainkeys.append('GO ID')
                 else: mainkeys.append(headers[2])
-                self.printLog('#HEAD','%s' % (string.join(mainkeys,' / ')))
+                self.printLog('#HEAD','%s' % (rje.join(mainkeys,' / ')))
             self.progLog('\r#GO','Mapping EnsEMBL GO...')
             ensdata = rje.dataDict(self,gfile,mainkeys)
             (mx,mtot) = (0.0,len(ensdata))
             obselete_go = []
             for map in ensdata:
                 self.progLog('\r#GO','Mapping EnsEMBL GO: %.2f%%' % (mx/mtot)); mx += 100.0
-                try: (gene,go) = string.split(map)
+                try: (gene,go) = rje.split(map)
                 except: continue    # no GO!
                 ## Update dictionaries ##
                 if go[:3] == 'GO:': go = go[3:]
@@ -536,16 +535,15 @@ class GO(rje.RJE_Object):
 #########################################################################################################################
 def runMain():
     ### ~ [1] ~ Basic Setup of Program  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-    try: [info,out,mainlog,cmd_list] = setupProgram()
-    except SystemExit: return  
-    except:
-        print 'Unexpected error during program setup:', sys.exc_info()[0]
-        return 
+    try: (info,out,mainlog,cmd_list) = setupProgram()
+    except SystemExit: return
+    except: rje.printf('Unexpected error during program setup:', sys.exc_info()[0]); return
+
     ### ~ [2] ~ Rest of Functionality... ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try:
         GO(mainlog,cmd_list).test()
-        print '\n\n *** No standalone functionality! *** \n\n'
-        print rje_zen.Zen().wisdom()
+        print('\n\n *** No standalone functionality! *** \n\n')
+        print(rje_zen.Zen().wisdom())
     ### ~ [3] ~ End ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     except SystemExit: return  # Fork exit etc.
     except KeyboardInterrupt: mainlog.errorLog('User terminated.')
@@ -554,7 +552,7 @@ def runMain():
 #########################################################################################################################
 if __name__ == "__main__":      ### Call runMain 
     try: runMain()
-    except: print 'Cataclysmic run error:', sys.exc_info()[0]
+    except: rje.printf('Cataclysmic run error: {0}'.format(sys.exc_info()[0]))
     sys.exit()
 #########################################################################################################################
 ### END OF SECTION IV                                                                                                   #

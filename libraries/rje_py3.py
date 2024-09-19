@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# Python 2.x Methods
+# Python 3.x Methods
 # Copyright (C) 2007 Richard J. Edwards <redwards@cabbagesofdoom.co.uk>
 # To incorporate this module into your own programs, please see GNU Lesser General Public License disclaimer in rje.py
 

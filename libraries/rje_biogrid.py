@@ -160,7 +160,7 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         if not out: out = rje.Out()
         help = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
         if help > 0:
-            print '\n\nHelp for %s %s: %s\n' % (info.program, info.version, time.asctime(time.localtime(info.start_time)))
+            rje.printf('\n\nHelp for {0} {1}: {2}\n'.format(info.program, info.version, time.asctime(time.localtime(info.start_time))))
             out.verbose(-1,4,text=__doc__)
             if rje.yesNo('Show general commandline options?'): out.verbose(-1,4,text=rje.__doc__)
             if rje.yesNo('Quit?'): sys.exit()
@@ -169,33 +169,30 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         return cmd_list
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Major Problem with cmdHelp()'
+    except: rje.printf('Major Problem with cmdHelp()')
 #########################################################################################################################
-def setupProgram(): ### Basic Setup of Program
+def setupProgram(): ### Basic Setup of Program when called from commandline.
     '''
-    Basic setup of Program:
+    Basic Setup of Program when called from commandline:
     - Reads sys.argv and augments if appropriate
     - Makes Info, Out and Log objects
     - Returns [info,out,log,cmd_list]
     '''
-    try:
-        ### Initial Command Setup & Info ###
-        info = makeInfo()
-        cmd_list = rje.getCmdList(sys.argv[1:],info=info)      ### Load defaults from program.ini
-        ### Out object ###
-        out = rje.Out(cmd_list=cmd_list)
-        out.verbose(2,2,cmd_list,1)
-        out.printIntro(info)
-        ### Additional commands ###
-        cmd_list = cmdHelp(info,out,cmd_list)
-        ### Log ###
-        log = rje.setLog(info=info,out=out,cmd_list=cmd_list)
-        return [info,out,log,cmd_list]
+    try:### ~ [1] ~ Initial Command Setup & Info ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+        info = makeInfo()                                   # Sets up Info object with program details
+        if len(sys.argv) == 2 and sys.argv[1] in ['version','-version','--version']: rje.printf(info.version); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: rje.printf('{0} v{1}'.format(info.program,info.version)); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['description','-description','--description']: rje.printf('%s: %s' % (info.program,info.description)); sys.exit(0)
+        cmd_list = rje.getCmdList(sys.argv[1:],info=info)   # Reads arguments and load defaults from program.ini
+        out = rje.Out(cmd_list=cmd_list)                    # Sets up Out object for controlling output to screen
+        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2
+        out.printIntro(info)                                # Prints intro text using details from Info object
+        cmd_list = cmdHelp(info,out,cmd_list)               # Shows commands (help) and/or adds commands from user
+        log = rje.setLog(info,out,cmd_list)                 # Sets up Log object for controlling log file output
+        return (info,out,log,cmd_list)                      # Returns objects for use in program
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except:
-        print 'Problem during initial setup.'
-        raise
+    except: rje.printf('Problem during initial setup.'); raise
 #########################################################################################################################
 ### END OF SECTION I                                                                                                    #
 #########################################################################################################################
@@ -285,8 +282,8 @@ class BioGRID(rje.RJE_Object):
                 self.log.errorLog('Problem with cmd:%s' % cmd)
         self.info['DBSource'] = self.info['DBSource'].lower()
         if self.opt['AllTypes']: self.list['PPIType'] = []
-        if self.list['PPIType']: self.list['PPIType'] = string.split(string.join(self.list['PPIType'],'|').lower(),'|')
-        if self.list['BadType']: self.list['BadType'] = string.split(string.join(self.list['BadType'],'|').lower(),'|')
+        if self.list['PPIType']: self.list['PPIType'] = rje.split(rje.join(self.list['PPIType'],'|').lower(),'|')
+        if self.list['BadType']: self.list['BadType'] = rje.split(rje.join(self.list['BadType'],'|').lower(),'|')
         if self.opt['HostVirus']: self.info['Species'] = '%s-virus' % self.info['Species']
 #########################################################################################################################
     ### <2> ### Main Class Run Methods                                                                                  #
@@ -313,10 +310,10 @@ class BioGRID(rje.RJE_Object):
                 self.log.errorLog('PPI database file "%s" missing!' % self.info['PPIFile'],printerror=False)
                 return False
             if self.info['DBSource'] == 'biogrid':
-                try: self.info['Species'] = string.split(self.info['PPIFile'],'-')[2]
+                try: self.info['Species'] = rje.split(self.info['PPIFile'],'-')[2]
                 except: pass
             if self.info['DBSource'] == 'reactome':
-                try: self.info['Species'] = string.split(rje.baseFile(self.info['PPIFile'],strip_path=True),'.')[0]
+                try: self.info['Species'] = rje.split(rje.baseFile(self.info['PPIFile'],strip_path=True),'.')[0]
                 except: pass
             ## Open file and parse through headers ##
             GRID = open(self.info['PPIFile'],'r')
@@ -355,17 +352,17 @@ class BioGRID(rje.RJE_Object):
                     (p1,p2,g1,g2,a1,a2,type) = self.convertMITAB(p1,p2,g1,g2,a1,a2,type)
                 elif self.info['DBSource'] == 'mint' and self.opt['MITAB']:     # For data parsed from the TXT file
                     if p1 == '-' or p2 == '-' or not p1 or not p2: continue
-                    p1 = string.replace(p1,';','|')
+                    p1 = rje.replace(p1,';','|')
                     if p1[:1] == '|': p1 = p1[1:]
-                    p2 = string.replace(p2,';','|')
+                    p2 = rje.replace(p2,';','|')
                     if p2[:1] == '|': p2 = p2[1:]
-                    g1 = string.replace(g1,';','|')
+                    g1 = rje.replace(g1,';','|')
                     if g1[:1] == '|': g1 = g1[1:]
-                    g2 = string.replace(g2,';','|')
+                    g2 = rje.replace(g2,';','|')
                     if g2[:1] == '|': g2 = g2[1:]
-                    a1 = string.replace(a1,';','|')
+                    a1 = rje.replace(a1,';','|')
                     if a1[:1] == '|': a1 = a1[1:]
-                    a2 = string.replace(a2,';','|')
+                    a2 = rje.replace(a2,';','|')
                     if a2[:1] == '|': a2 = a2[1:]
                     (p1,p2,g1,g2,a1,a2,type) = self.convertMITAB(p1,p2,g1,g2,a1,a2,type)
                 elif self.info['DBSource'] == 'mint':      # For data parsed from the TXT file
@@ -384,23 +381,23 @@ class BioGRID(rje.RJE_Object):
                     except: self.deBug(a1); continue
                     a1 = a2 = ''
                     ## Convert Protein AccNum ##
-                    p1 = string.split(string.split(p1,':')[1],'-')[0]   # Splice isoforms are removed
-                    p1 = string.split(p1,';')[0]
+                    p1 = rje.split(rje.split(p1,':')[1],'-')[0]   # Splice isoforms are removed
+                    p1 = rje.split(p1,';')[0]
                     if rje.matchExp('^[pqo](\d\S+)',p1): p1 = p1.upper()
-                    p2 = string.split(string.split(p2,':')[1],'-')[0]   # Splice isoforms are removed
-                    p2 = string.split(p2,';')[0]
+                    p2 = rje.split(rje.split(p2,':')[1],'-')[0]   # Splice isoforms are removed
+                    p2 = rje.split(p2,';')[0]
                     if rje.matchExp('^[pqo](\d\S+)',p2): p2 = p2.upper()
                     if g1.find('/') >= 0: g1 = ''
                     if g2.find('/') >= 0: g2 = ''
-                    if g1.find('_human') > 0: g1 = string.split(string.replace(g1,'_human',''),'-')[0].upper()  # Convert to UniProt, no splice isoforms
-                    if g2.find('_human') > 0: g2 = string.split(string.replace(g2,'_human',''),'-')[0].upper()  # Convert to UniProt, no splice isoforms
+                    if g1.find('_human') > 0: g1 = rje.split(rje.replace(g1,'_human',''),'-')[0].upper()  # Convert to UniProt, no splice isoforms
+                    if g2.find('_human') > 0: g2 = rje.split(rje.replace(g2,'_human',''),'-')[0].upper()  # Convert to UniProt, no splice isoforms
                     if g1 == '-' or g2 == '-': self.deBug([p1,p2,g1,g2,a1,a2])
                 elif self.info['DBSource'] in ['dip','domino']:
                     self.deBug(data)
                     ## Check type ##
                     try:
                         types = []
-                        for mi in string.split(data[6],'|'):
+                        for mi in rje.split(data[6],'|'):
                             try: types.append(rje.matchExp('MI:\d+\((.+)\)',mi)[0].lower())
                             except: pass
                     except: types = ['unknown']
@@ -408,7 +405,7 @@ class BioGRID(rje.RJE_Object):
                     #    if not self.opt['AllTypes'] and self.list['PPIType'] and type not in self.list['PPIType']: types.remove(type)
                     #    elif type in self.list['BadType']: types.remove(type)
                     #if not types: continue
-                    type = string.join(types,'|')
+                    type = rje.join(types,'|')
                     ## Check Taxa ##
                     badtaxa = False
                     for taxa in data[9:11]:
@@ -422,10 +419,10 @@ class BioGRID(rje.RJE_Object):
                     else: #!# UniProt only #!#
                         self.deBug('%s v %s' % (p1,p2))
                         g1 = g2 = a1 = a2 = ''
-                        for p in string.split(p1,'|'):
+                        for p in rje.split(p1,'|'):
                             if rje.matchExp('uniprotkb:(\S+)',p): g1 = rje.matchExp('uniprotkb:(\S+)',p)[0]
                         p1 = g1
-                        for p in string.split(p2,'|'):
+                        for p in rje.split(p2,'|'):
                             if rje.matchExp('uniprotkb:(\S+)',p): g2 = rje.matchExp('uniprotkb:(\S+)',p)[0]
                         p2 = g2
                         self.deBug('-> %s v %s' % (p1,p2))
@@ -438,14 +435,14 @@ class BioGRID(rje.RJE_Object):
                     if not g1: g1 = p1
                     if not g2: g2 = a2
                     if not g2: g2 = p2
-                    p1 = string.split(p1,':')[1]
-                    p2 = string.split(p2,':')[1]
+                    p1 = rje.split(p1,':')[1]
+                    p2 = rje.split(p2,':')[1]
                     a1 = a2 = ''
-                    glist1 = string.split(g1,'|')
-                    glist2 = string.split(g2,'|')
+                    glist1 = rje.split(g1,'|')
+                    glist2 = rje.split(g2,'|')
                     for gs1 in glist1:
-                        g1 = string.split(gs1,':')[1]
-                        for gs2 in glist2: g2 = string.split(gs2,':')[1]
+                        g1 = rje.split(gs1,':')[1]
+                        for gs2 in glist2: g2 = rje.split(gs2,':')[1]
                         #x#print p1,p2,g1,g2,a1,a2
                         self.updatePPI(p1,p2,g1,g2,a1,a2,type)
                     px += 1
@@ -460,7 +457,7 @@ class BioGRID(rje.RJE_Object):
                 self.log.printLog('\r#PPI','Parsing %s interactions: %s prot; %s ppi.' % (self.info['DBSource'],rje.integerString(len(self.dict['PPI'])),rje.integerString(px)),newline=False,log=False)
             self.log.printLog('\r#PPI','Parsing %s interactions: %s prot; %s ppi.' % (self.info['DBSource'],rje.integerString(len(self.dict['PPI'])),rje.integerString(px)))
             GRID.close()
-            if self.opt['AllTypes']: self.list['PPIType'].sort(); self.log.printLog('#TYPE',string.join(self.list['PPIType'],' | '))
+            if self.opt['AllTypes']: self.list['PPIType'].sort(); self.log.printLog('#TYPE',rje.join(self.list['PPIType'],' | '))
             return True
         except:
             self.log.errorLog('Error in BioGRID.parse()',printerror=True,quitchoice=False)
@@ -469,54 +466,54 @@ class BioGRID(rje.RJE_Object):
     def convertIntAct(self,p1,p2,g1,g2,a1,a2):  ### Converts Intact formatting into standard BioGrid
         '''Converts Intact formatting into standard BioGrid.'''
         try:
-            p1 = string.split(string.split(p1,'|')[0],':')[1]
-            p2 = string.split(string.split(p2,'|')[0],':')[1]
-            if g1.find(':') > 0: g1 = string.split(string.split(g1,':')[1],'(')[0]
-            if g2.find(':') > 0: g2 = string.split(string.split(g2,':')[1],'(')[0]
+            p1 = rje.split(rje.split(p1,'|')[0],':')[1]
+            p2 = rje.split(rje.split(p2,'|')[0],':')[1]
+            if g1.find(':') > 0: g1 = rje.split(rje.split(g1,':')[1],'(')[0]
+            if g2.find(':') > 0: g2 = rje.split(rje.split(g2,':')[1],'(')[0]
             if a1.find(':') > 0:
                 alist = []
-                for a in string.split(a1,'|'): alist.append(string.split(a,':')[1])
-                a1 = string.join(alist,'|')
+                for a in rje.split(a1,'|'): alist.append(rje.split(a,':')[1])
+                a1 = rje.join(alist,'|')
             if a2.find(':') > 0:
                 alist = []
-                for a in string.split(a2,'|'): alist.append(string.split(a,':')[1])
-                a2 = string.join(alist,'|')
+                for a in rje.split(a2,'|'): alist.append(rje.split(a,':')[1])
+                a2 = rje.join(alist,'|')
         except: self.log.errorLog('Problem during convertIntAct()')
         return (p1,p2,g1,g2,a1,a2)
 #########################################################################################################################
     def convertMITAB(self,p1,p2,g1,g2,a1,a2,type):  ### Converts Intact formatting into standard BioGrid
         '''Converts Intact formatting into standard BioGrid.'''
         try:
-            p1 = string.split(string.split(p1,'|')[0],':')[1]
-            p2 = string.split(string.split(p2,'|')[0],':')[1]
+            p1 = rje.split(rje.split(p1,'|')[0],':')[1]
+            p2 = rje.split(rje.split(p2,'|')[0],':')[1]
             if self.info['Species'] == 'Caenorhabditis_elegans':
-                if g1.find(':') > 0: g1 = string.split(string.split(g1,'|')[0],':')[1]
-                if g2.find(':') > 0: g2 = string.split(string.split(g2,'|')[0],':')[1]
+                if g1.find(':') > 0: g1 = rje.split(rje.split(g1,'|')[0],':')[1]
+                if g2.find(':') > 0: g2 = rje.split(rje.split(g2,'|')[0],':')[1]
             else:
-                if g1.find(':') > 0: g1 = string.split(string.split(g1,':')[1],'(')[0]
-                if g2.find(':') > 0: g2 = string.split(string.split(g2,':')[1],'(')[0]
+                if g1.find(':') > 0: g1 = rje.split(rje.split(g1,':')[1],'(')[0]
+                if g2.find(':') > 0: g2 = rje.split(rje.split(g2,':')[1],'(')[0]
             if a1.find(':') > 0:
                 alist = []
-                for a in string.split(a1,'|'): alist.append(string.split(string.split(a,':')[1],'(')[0])
-                a1 = string.join(alist,'|')
+                for a in rje.split(a1,'|'): alist.append(rje.split(rje.split(a,':')[1],'(')[0])
+                a1 = rje.join(alist,'|')
             if a2.find(':') > 0:
                 alist = []
-                for a in string.split(a2,'|'): alist.append(string.split(string.split(a,':')[1],'(')[0])
-                a2 = string.join(alist,'|')
+                for a in rje.split(a2,'|'): alist.append(rje.split(rje.split(a,':')[1],'(')[0])
+                a2 = rje.join(alist,'|')
             types = []
-            for mitype in string.split(type,'|'):
+            for mitype in rje.split(type,'|'):
                 try: types.append(rje.matchExp('\((.+)\)',mitype)[0])
                 except: continue
-            type = string.join(types,'|')
+            type = rje.join(types,'|')
         except:
-            self.errorLog('Problem during convertMITAB(%s)' % string.join([p1,p2,g1,g2,a1,a2,type],' || '))
+            self.errorLog('Problem during convertMITAB(%s)' % rje.join([p1,p2,g1,g2,a1,a2,type],' || '))
         return (p1,p2,g1,g2,a1,a2,type)
 #########################################################################################################################
     def updatePPI(self,p1,p2,g1,g2,a1,a2,types=None):   ### Adds an interaction to the dictionaries
         '''Adds an interaction to the dictionaries.'''
         ### ~ [1] ~ Check type ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         if not types: types = 'unknown'
-        types = string.split(types,'|')
+        types = rje.split(types,'|')
         for type in types[0:]:
             if self.opt['AllTypes']:
                 if type not in self.list['PPIType']: self.list['PPIType'].append(type)
@@ -543,10 +540,10 @@ class BioGRID(rje.RJE_Object):
         for type in types:
             if type not in self.dict['Evidence'][p1][p2]: self.dict['Evidence'][p1][p2].append(type)
         ## ~ [3b] ~ Links ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-        if p1 not in self.dict['Protein']: self.dict['Protein'][p1] = {'Gene':g1,'Alias':string.split(a1,'|')}
+        if p1 not in self.dict['Protein']: self.dict['Protein'][p1] = {'Gene':g1,'Alias':rje.split(a1,'|')}
         if g1 not in self.dict['Mapping']: self.dict['Mapping'][g1] = []
         if p1 not in self.dict['Mapping'][g1]: self.dict['Mapping'][g1].append(p1)
-        if p2 not in self.dict['Protein']: self.dict['Protein'][p2] = {'Gene':g2,'Alias':string.split(a2,'|')}
+        if p2 not in self.dict['Protein']: self.dict['Protein'][p2] = {'Gene':g2,'Alias':rje.split(a2,'|')}
         if g2 not in self.dict['Mapping']: self.dict['Mapping'][g2] = []
         if p2 not in self.dict['Mapping'][g2]: self.dict['Mapping'][g2].append(p2)
 #########################################################################################################################
@@ -631,7 +628,7 @@ class BioGRID(rje.RJE_Object):
                     self.log.printLog('\r#SEQ','Mapping missing proteins to UniProt: %.1f%%; %s missing' % ((mx/mnum),rje.integerString(len(missing))),newline=False,log=False)
                 self.log.printLog('\r#SEQ','Mapping missing proteins to UniProt complete: %s missing' % (rje.integerString(len(missing))))
             ### ~ Output Missing ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            if missing: open('%s.%s.missing.txt' % (self.info['DBSource'],self.info['Species']),'w').write(string.join(missing,'\n'))
+            if missing: open('%s.%s.missing.txt' % (self.info['DBSource'],self.info['Species']),'w').write(rje.join(missing,'\n'))
             if rejected: self.log.printLog('#SPEC','%s sequences rejected - not %s.' % (rje.integerString(len(rejected)),species))
         except: self.log.errorLog('Major problem with BioGRID.updateGenes()')
 #########################################################################################################################
@@ -685,7 +682,7 @@ class BioGRID(rje.RJE_Object):
                         else:
                             for i in ['Gene','AccNum']:
                                 if seq.info[i].upper() in namedict: self.dict['Protein'][acc]['Seq'] = namedict[seq.info[i].upper()]
-                    if self.dict['Protein'][acc].has_key('Seq'):
+                    if 'Seq' in self.dict['Protein'][acc]:
                         missing.remove(acc)
                         continue
                     if acc in accnamedict:
@@ -694,7 +691,7 @@ class BioGRID(rje.RJE_Object):
                     self.log.printLog('\r#SEQ','Mapping missing proteins to UniProt: %s missing' % (rje.integerString(len(missing))),newline=False,log=False)
                 self.log.printLog('\r#SEQ','Mapping missing proteins to UniProt complete: %s missing' % (rje.integerString(len(missing))))
             ### ~ Output Missing ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            if missing: open('%s.%s.missing.txt' % (self.info['DBSource'],self.info['Species']),'w').write(string.join(missing,'\n'))
+            if missing: open('%s.%s.missing.txt' % (self.info['DBSource'],self.info['Species']),'w').write(rje.join(missing,'\n'))
         except: self.log.errorLog('Error during BioGRID.mapSeq()')
 #########################################################################################################################
     def ppiTabOut(self):    ### Outputs table of protein links etc.
@@ -707,8 +704,8 @@ class BioGRID(rje.RJE_Object):
             (px,pnum) = (0.0,len(self.dict['Protein']))
             for p in rje.sortKeys(self.dict['Protein']):
                 datadict = {'Protein':p,'Symbol':self.dict['Protein'][p]['Gene'],'PPI':len(self.dict['PPI'][p]),'Prot':'!FAILED!'}
-                if self.dict['Protein'][p]['Alias'] not in [[''],['N/A'],[],['-']]: datadict['Aliases'] = string.join(self.dict['Protein'][p]['Alias'],'; ')+';'
-                if self.dict['Protein'][p].has_key('Seq'):
+                if self.dict['Protein'][p]['Alias'] not in [[''],['N/A'],[],['-']]: datadict['Aliases'] = rje.join(self.dict['Protein'][p]['Alias'],'; ')+';'
+                if 'Seq' in self.dict['Protein'][p]:
                     datadict['Prot'] = self.dict['Protein'][p]['Seq'].shortName()
                     datadict['Desc'] = self.dict['Protein'][p]['Seq'].info['Description']
                 rje.delimitedFileOutput(self,tfile,headers,'\t',datadict)
@@ -731,7 +728,7 @@ class BioGRID(rje.RJE_Object):
                     except: self.log.printLog('#MISS','Protein sequence for %s missing (%s PPI)' % (p2,p1))
                 if self.dict['Protein'][p1]['Gene'] == 'N/A': sfile = '%s%s_biogrid.fas' % (datpath,p1)
                 else: sfile = '%s%s_biogrid.fas' % (datpath,self.dict['Protein'][p1]['Gene'])
-                sfile = string.replace(sfile,'biogrid',self.info['DBSource'])
+                sfile = rje.replace(sfile,'biogrid',self.info['DBSource'])
                 if len(mylist) >= self.stat['MinSeq']:
                     self.obj['SeqList'].saveFasta(seqs=mylist,seqfile=sfile)
                     fx += 1
@@ -744,7 +741,7 @@ class BioGRID(rje.RJE_Object):
     def allTypesOut(self):  ### Outputs a list of possible PPI Types
         '''Outputs a list of possible PPI Types.'''
         tfile = '%s.ppi_types.txt' % self.info['DBSource']
-        open(tfile,'w').write(string.join(rje.sortUnique(self.list['PPIType']),'\n'))
+        open(tfile,'w').write(rje.join(rje.sortUnique(self.list['PPIType']),'\n'))
         self.log.printLog('#TYPE','%s PPI Types output to %s' % (len(self.list['PPIType']),tfile))
 #########################################################################################################################
 ### End of SECTION III: BioGRID Class                                                                                   #
@@ -756,14 +753,12 @@ class BioGRID(rje.RJE_Object):
 ### SECTION V: MAIN PROGRAM                                                                                             #
 #########################################################################################################################
 def runMain():
-    ### Basic Setup of Program ###
-    try: [info,out,mainlog,cmd_list] = setupProgram()
-    except SystemExit: return  
-    except:
-        print 'Unexpected error during program setup:', sys.exc_info()[0]
-        return
-        
-    ### Rest of Functionality... ###
+    ### ~ [1] ~ Basic Setup of Program  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+    try: (info,out,mainlog,cmd_list) = setupProgram()
+    except SystemExit: return
+    except: rje.printf('Unexpected error during program setup:', sys.exc_info()[0]); return
+
+    ### ~ [2] ~ Rest of Functionality... ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try: BioGRID(mainlog,cmd_list).run()
         
     ### End ###
@@ -774,7 +769,7 @@ def runMain():
 #########################################################################################################################
 if __name__ == "__main__":      ### Call runMain 
     try: runMain()
-    except: print 'Cataclysmic run error:', sys.exc_info()[0]
+    except: rje.printf('Cataclysmic run error: {0}'.format(sys.exc_info()[0]))
     sys.exit()
 #########################################################################################################################
 ### END OF SECTION V                                                                                                    #

@@ -19,8 +19,8 @@
 """
 Module:       synbad
 Description:  Synteny-based scaffolding assessment and adjustment
-Version:      0.9.0
-Last Edit:    19/11/21
+Version:      0.12.2
+Last Edit:    02/09/23
 GitHub:       https://github.com/slimsuite/synbad
 Copyright (C) 2020  Richard J. Edwards - See source code for GNU License Notice
 
@@ -85,19 +85,20 @@ Commandline:
     genome2=FILE    : Genome assembly used as the searchdb in the GABLAM/Mashmap searches []
     basefile=X      : Prefix for output files [synbad]
     gablam=X        : Optional prefix for GABLAM/Mashmap search [defaults to $BASEFILE.map]
-    mapper=X        : Whether to use minimap2 or mashmap (dev only) for all-by-all mapping [minimap2]
+    mapper=X        : Whether to use minimap2, busco or mashmap (dev only) for all-by-all mapping [minimap2]
     gapmode=X       : Diploidocus gap run mode (gapspan/gapass) [gapspan]
     minloclen=INT   : Minimum length for aligned chunk to be kept (local hit length in bp) [1000]
     minlocid=PERC   : Minimum percentage identity for aligned chunk to be kept (local %identity) [50]
     maxsynskip=INT  : Maximum number of local alignments to skip for SynTrans classification [4]
     maxsynspan=INT  : Maximum distance (bp) between syntenic local alignments to count as syntenic [25000]
     synreadspan=INT : Minimum number of reads spanning a gap to change the rating to "Spanned" [5]
+    checkflanks=LIST: List of lengths flanking gaps that must also be spanned by reads [0,100,1000]
     spannedflank=INT: Required flanking distance for synreadspan "Spanned" rating [0]
     maxoverlap=INT  : Maximum overlap (bp) of adjacent local hits to allow compression [500]
     chr1=X          : PAFScaff-style chromosome prefix for Genome 1 to distinguish Translocation from Fragmentation []
     chr2=X          : PAFScaff-style chromosome prefix for Genome 2 to distinguish Translocation from Fragmentation []
     ### ~ Correction and Fragmentation options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-    correct=LIST    : List of edit types to try to fix in the assembly (invert/extract/relocate/break/join; T/True=all) [True]
+    correct=LIST    : List of edit types to try to fix in the assembly (invert/extract/relocate/break/join; T/True=all) [invert]
     fragment=T/F    : Whether to fragment the assembly at gaps marked as non-syntenic if no corrections made [False]
     fragtypes=LIST  : List of SynBad ratings to trigger fragmentation [Brk,Inv,InvBrk,Frag,Tran]
     minreadspan=INT : Min number of Span0 reads in gaps table to prevent fragmentation [1]
@@ -107,6 +108,7 @@ Commandline:
     gapsize=INT     : Size of gaps to add when relocating assembling chunks [500]
     rejoin=T/F      : Whether to rejoin original gaps that end up split into termini but not too short [True]
     ### ~ Additional input options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+    masked1=FASFILE : Optional masked fasta file for assembly comparison [$BASEFILE1.masked.fasta]
     bam1=FILE       : Optional BAM file of long reads mapped onto assembly 1 [$BASEFILE1.bam]
     paf1=FILE       : Optional PAF file of long reads mapped onto assembly 1 [$BASEFILE1.paf]
     reads1=FILELIST : List of fasta/fastq files containing reads. Wildcard allowed. Can be gzipped. []
@@ -114,6 +116,7 @@ Commandline:
     busco1=FILE     : Optional BUSCO full results file for genome 1 []
     genomesize1=INT : Haploid genome 1 size (bp) [0]
     scdepth1=NUM    : Single copy ("diploid") read depth for genome 1. If zero, will use SC BUSCO mode [0]
+    masked2=FASFILE : Optional masked fasta file for assembly comparison [$BASEFILE2.masked.fasta]
     bam2=FILE       : Optional BAM file of long reads mapped onto assembly 2 [$BASEFILE2.bam]
     paf2=FILE       : Optional PAF file of long reads mapped onto assembly 2 [$BASEFILE2.paf]
     reads2=FILELIST : List of fasta/fastq files containing reads. Wildcard allowed. Can be gzipped. []
@@ -179,6 +182,14 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 0.8.5 - Replace swap edits with break and join edits -> only join if pair are both scaffold ends. Add rejoin=T/F. Fixed major gap update bug.
     # 0.8.6 - Small bug fixes for partial input.
     # 0.9.0 - Added hidegaps=LIST option for hiding gaps. Add MashMap in place of GABLAM (dev=True). Fixed naming clashes.
+    # 0.10.0- Added mapper=busco option to use BUSCO genes in place of GABLAM.
+    # 0.10.1- Fixed end of sequence gap bug for contig/flank generation.
+    # 0.10.2- Fixed bug with new filenaming for Diploidocus wrapping of DepthKopy. (May need better fix.)
+    # 0.11.0- Added alternative masked input files for the actual pairwise synteny comparisons.
+    # 0.11.1- Py3 bug fixes.
+    # 0.12.0- Added output of a QC map in Telociraptor Format.
+    # 0.12.1- Fixed the implementation of checkflanks=LIST and spannedflank=INT settings.
+    # 0.12.2- Fixed the correct=LIST bug.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -221,11 +232,15 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
     # [ ] : Add parsing of Juicer merge_dups.txt for HiC mapping.
     # [ ] : Add running and parsing of MashMap to replace Minimap2 for initial mapping (2 x map filter)
     # [ ] : Add running of DepthKopy for read depth profiles in place of KAT?
+    # [ ] : Add generation of ChromSyn output for (a) whole assemblies, and (b) chromzoom above X bp (1 Mbp?)
+    # [ ] : Rather than gap masking, add option to output different gap sizes - can be used with the mingap=INT setting later?
+    # [ ] : Add chromsyn output to SynBad.
+    # [ ] : Consider adding TEL and CEN repeats to the synteny tables.
     '''
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copy_right) = ('SynBad', '0.9.0', 'November 2021', '2020')
+    (program, version, last_edit, copy_right) = ('SynBad', '0.12.2', 'September 2024 ', '2020')
     description = 'Synteny-based scaffolding assessment and adjustment'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_obj.zen()]
@@ -362,6 +377,8 @@ class SynBad(rje_obj.RJE_Object):
     - HiCBAM2=FILE    : Optional BAM file of HiC reads mapped onto assembly 1 [$BASEFILE1.HiC.bam]
     - MapFlanks1=FILE : Flanks fasta file from previous SynBad run for mapping genome 1 flank identifiers []
     - MapFlanks2=FILE : Flanks fasta file from previous SynBad run for mapping genome 2 flank identifiers []
+    - Masked1=FASFILE : Alternative masked input file for pairwise comparison []
+    - Masked2=FASFILE : Alternative masked input file for pairwise comparison []
     - HiCScore=X      : HiC scoring mode (pairs/score/wtscore) [wtscore]
     - HiCMode=X       : Pairwise HiC assessment scoring strategy (synbad/pure/rand/full) [synbad]
     - HiCDir1=PATH    : Path to HiC read ID lists for genome 1 [$BASEFILE.qryflanks/]
@@ -407,7 +424,8 @@ class SynBad(rje_obj.RJE_Object):
     File:file handles with matching str filenames
 
     List:list
-    - Correct=LIST    : List of edit types to try to fix in the assembly (invert/extract/relocate; T/True=all) [True]
+    - CheckFlanks=LIST: List of lengths flanking check regions that must also be spanned by reads [0,100,1000]
+    - Correct=LIST    : List of edit types to try to fix in the assembly (invert/extract/relocate; T/True=all) [invert]
     - FragTypes=LIST  : List of SynBad ratings to trigger fragmentation [Brk,Inv,InvBrk,Frag,Tran]
     - HideGaps=LIST   : List of SynBad gap types to "hide" in final outputs. Will need to be revealed again later []
     - Reads1=FILELIST : List of fasta/fastq files containing reads. Wildcard allowed. Can be gzipped. []
@@ -433,7 +451,7 @@ class SynBad(rje_obj.RJE_Object):
         '''Sets Attributes of Object.'''
         ### ~ Basics ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         self.strlist = ['BAM1','BAM2','BUSCO1','BUSCO2','Chr1','Chr2','GABLAM','GapMode','Genome1','Genome2','GenomeSize1','GenomeSize2','HiCBAM1','HiCBAM2',
-                        'MapFlanks1','MapFlanks2','HiCScore','HiCMode','HiCDir1','HiCDir2','NewAcc1','NewAcc2','PAF1','PAF2','Mapper']
+                        'MapFlanks1','MapFlanks2','Masked1','Masked2','HiCScore','HiCMode','HiCDir1','HiCDir2','NewAcc1','NewAcc2','PAF1','PAF2','Mapper']
         self.boollist = ['BestPair','Correct','DocHTML','Fragment','FullMap','Rejoin','Update']
         self.intlist = ['GapFlanks','GapSize','GenomeSize1','GenomeSize2','HiCMin','MaxOverlap','MaxSynSkip','MaxSynSpan','MinBadCtg','MinCtgLen','MinScaffLen','MinLocLen','MinReadSpan','SpannedFlank','SynReadSpan']
         self.numlist = ['MinLocID','SCDepth1','SCDepth2']
@@ -448,7 +466,8 @@ class SynBad(rje_obj.RJE_Object):
         self.setInt({'GapFlanks':10000,'GapSize':500,'HiCMin':3,'MinBadCtg':5000,'MinCtgLen':500,'MinScaffLen':500,'MaxOverlap':500,'MaxSynSkip':4,'MaxSynSpan':25000,'MinLocLen':1000,'MinReadSpan':1,'SpannedFlank':0,'SynReadSpan':5})
         self.setNum({'MinLocID':50.0,'SCDepth1':0.0,'SCDepth2':0.0})
         ### ~ Other Attributes ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-        self.list['Correct'] = ['invert','extract','relocate','break','join']
+        self.list['Correct'] = ['invert'] #,'extract','relocate','break','join']
+        self.list['CheckFlanks'] = [0,100,1000]
         self.list['FragTypes'] = fraggaps
         self.dict['FlankMap'] = {'qry':{}, 'hit':{}}
         self._setForkAttributes()   # Delete if no forking
@@ -466,7 +485,7 @@ class SynBad(rje_obj.RJE_Object):
                 #self._cmdRead(cmd,type='str',att='Att',arg='Cmd')  # No need for arg if arg = att.lower()
                 self._cmdReadList(cmd,'str',['Chr1','Chr2','GABLAM','GapMode','HiCScore','HiCMode','GenomeSize1','GenomeSize2','NewAcc1','NewAcc2','Mapper'])   # Normal strings
                 self._cmdReadList(cmd,'path',['HiCDir1','HiCDir2'])  # String representing directory path
-                self._cmdReadList(cmd,'file',['BAM1','BAM2','BUSCO1','BUSCO2','Genome1','Genome2','HiCBAM1','HiCBAM2','MapFlanks1','MapFlanks2','PAF1','PAF2'])  # String representing file path
+                self._cmdReadList(cmd,'file',['BAM1','BAM2','BUSCO1','BUSCO2','Genome1','Genome2','HiCBAM1','HiCBAM2','MapFlanks1','MapFlanks2','Masked1','Masked2','PAF1','PAF2'])  # String representing file path
                 #self._cmdReadList(cmd,'date',['Att'])  # String representing date YYYY-MM-DD
                 self._cmdReadList(cmd,'bool',['BestPair','DocHTML','Fragment','FullMap','PureFlanks','Rejoin','Update'])  # True/False Booleans
                 self._cmdReadList(cmd,'int',['GapFlanks','GapSize','HiCMin','MinBadCtg','MinCtgLen','MinScaffLen','MaxOverlap','MaxSynSkip','MaxSynSpan','MinLocLen','MinReadSpan','SpannedFlank','SynReadSpan'])   # Integers
@@ -479,6 +498,7 @@ class SynBad(rje_obj.RJE_Object):
                 #self._cmdReadList(cmd,'min',['Att'])   # Integer value part of min,max command
                 #self._cmdReadList(cmd,'max',['Att'])   # Integer value part of min,max command
                 self._cmdReadList(cmd,'list',['FragTypes','HideGaps','ReadType1','ReadType2'])  # List of strings (split on commas or file lines)
+                self._cmdReadList(cmd,'ilist',['CheckFlanks'])  # List of integers (split on commas or file lines)
                 self._cmdReadList(cmd,'lclist',['Correct'])  # List of strings (split on commas or file lines)
                 #self._cmdReadList(cmd,'clist',['Att']) # Comma separated list as a *string* (self.str)
                 self._cmdReadList(cmd,'glist',['Reads1','Reads2']) # List of files using wildcards and glob
@@ -500,9 +520,17 @@ class SynBad(rje_obj.RJE_Object):
         self.setBool({'Correct':self.list['Correct'][0] not in ['','none','f','false']})
         if 'inv' in self.list['Correct']: self.list['Correct'].append('invert')
         self.setStr({'Mapper':self.getStrLC('Mapper')})
-        if self.getStrLC('Mapper') not in ['minimap2','blastn','mashmap']:
+        if self.getStrLC('Mapper') not in ['minimap2','blastn','mashmap','busco']:
             self.warnLog('Mapper="{0}" not recognised: defaulting to mapper=minimap2'.format(self.getStrLC('Mapper')))
             self.setStr({'Mapper': 'minimap2'})
+        # Adjust the flanking list
+        if 0 not in self.list['CheckFlanks']:
+            self.list['CheckFlanks'].append(0)
+        if self.getInt('SpannedFlank') not in self.list['CheckFlanks']:
+            self.list['CheckFlanks'].append(self.getInt('SpannedFlank'))
+            self.printLog('#SPAN','Added spannedflank={0} length to checkflanks=LIST'.format(self.getInt('SpannedFlank')))
+        self.list['CheckFlanks'].sort()
+        while self.list['CheckFlanks'][0] < 0: self.list['CheckFlanks'] = self.list['CheckFlanks'][1:]
 #########################################################################################################################
     ### <2> ### Main Class Backbone                                                                                     #
 #########################################################################################################################
@@ -616,6 +644,7 @@ class SynBad(rje_obj.RJE_Object):
         maxsynskip=INT  : Maximum number of local alignments to skip for SynTrans classification [4]
         maxsynspan=INT  : Maximum distance (bp) between syntenic local alignments to count as syntenic [25000]
         synreadspan=INT : Minimum number of reads spanning a gap to change the rating to "Spanned" [5]
+        checkflanks=LIST: List of lengths flanking gaps that must also be spanned by reads [0,100,1000]
         spannedflank=INT: Required flanking distance for synreadspan "Spanned" rating [0]
         maxoverlap=INT  : Maximum overlap (bp) of adjacent local hits to allow compression [500]
         chr1=X          : PAFScaff-style chromosome prefix for Genome 1 to distinguish Translocation from Fragmentation []
@@ -631,12 +660,14 @@ class SynBad(rje_obj.RJE_Object):
         gapsize=INT     : Size of gaps to add when relocating assembling chunks [500]
         rejoin=T/F      : Whether to rejoin original gaps that end up split into termini but not too short [True]
         ### ~ Additional input options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+        masked1=FASFILE : Optional masked fasta file for assembly comparison [$BASEFILE1.masked.fasta]
         bam1=FILE       : Optional BAM file of long reads mapped onto assembly 1 [$BASEFILE1.bam]
         paf1=FILE       : Optional PAF file of long reads mapped onto assembly 1 [$BASEFILE1.paf]
         reads1=FILELIST : List of fasta/fastq files containing reads. Wildcard allowed. Can be gzipped. []
         readtype1=LIST  : List of ont/pb/hifi file types matching reads for minimap2 mapping [ont]
         busco1=FILE     : Optional BUSCO full results file for genome 1 []
         scdep1=NUM      : Optional single copy read depth for genome 1 []
+        masked2=FASFILE : Optional masked fasta file for assembly comparison [$BASEFILE2.masked.fasta]
         bam2=FILE       : Optional BAM file of long reads mapped onto assembly 2 [$BASEFILE2.bam]
         paf2=FILE       : Optional PAF file of long reads mapped onto assembly 2 [$BASEFILE2.paf]
         reads2=FILELIST : List of fasta/fastq files containing reads. Wildcard allowed. Can be gzipped. []
@@ -710,7 +741,7 @@ class SynBad(rje_obj.RJE_Object):
             prog = '%s V%s' % (info.program,info.version)
             rmd = rje_rmd.Rmd(self.log,self.cmd_list)
             rtxt = rmd.rmdHead(title='%s Documentation' % prog,author='Richard J. Edwards',setup=True)
-            rtxt += string.replace(self.run.__doc__,'\n        ','\n')
+            rtxt += rje.replace(self.run.__doc__,'\n        ','\n')
             rtxt += '\n\n<br>\n<small>&copy; 2020 Richard Edwards | richard.edwards@unsw.edu.au</small>\n'
             rmdfile = '%s.docs.Rmd' % self.baseFile()
             open(rmdfile,'w').write(rtxt)
@@ -837,7 +868,7 @@ class SynBad(rje_obj.RJE_Object):
             self.headLog('GENOME VS GENOME GABLAM/MASHMAP SEARCH',line='=')
             self.infoLog('GABLAM or MashMap is used to search Genome1 against Genome2. Local alignments are filtered by length and identity.')
             self.infoLog('For each genome, local hits are reduced to unique (non-overlapping) alignments with the other genome.')
-            self.infoLog('This unique hit reduction is performed based on number of identical aligned based.')
+            self.infoLog('This unique hit reduction is performed based on number of identical aligned bases.')
             self.infoLog('Partially overlapping local hits are trimmed.')
             if not self.runGABLAM(): return False
 
@@ -895,6 +926,8 @@ class SynBad(rje_obj.RJE_Object):
             self.headLog('SYNBAD OUTPUT',line='=')
             if not self.saveTables(backup=False): return False
             if not self.synBadSummarise(): return False
+            for qh in ['qry','hit']:
+                if not self.saveTelociraptorMaps(qh,mapname='gap'): return False
 
             ### ~ [9] Update assemblies ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             self.headLog('SYNBAD ASSEMBLY CORRECTION',line='=')
@@ -964,6 +997,7 @@ class SynBad(rje_obj.RJE_Object):
                     'basefile={0}'.format(base1)]
             rundip = False
             if self.getStrLC('BAM1'): cmd1.append('bam={0}'.format(self.getStr('BAM1')))
+            if not self.getStrLC('PAF1') and rje.exists('{0}.paf'.format(base1)): self.setStr({'PAF1':'{0}.paf'.format(base1)})
             if self.getStrLC('PAF1'): cmd1.append('paf={0}'.format(self.getStr('PAF1'))); rundip = True
             if self.list['Reads1']: cmd1.append('reads={0}'.format(','.join(self.list['Reads1']))); rundip = True
             if self.list['ReadType1']: cmd1.append('readtype={0}'.format(','.join(self.list['ReadType1'])))
@@ -1065,6 +1099,21 @@ class SynBad(rje_obj.RJE_Object):
             chr2 = self.getStrLC('Chr2')
             if chr2: chr2 = self.getStr('Chr2')
             #!# Add checking of seqnames read in for gaps and local hits and warn if none match #!#
+            ## ~ [0a] Alternative masked fasta file ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            fasta1 = self.getStr('Genome1')
+            fasta2 = self.getStr('Genome2')
+            masked1 = self.getStr('Masked1')
+            masked2 = self.getStr('Masked2')
+            if self.getStrLC('Masked1'):
+                rje.checkForFiles([masked1],log=self.log,ioerror=True)
+                fasta1 = masked1
+            elif rje.checkForFiles([rje.baseFile(fasta1)+'.masked.fasta'],log=self.log,ioerror=False):
+                fasta1 = rje.baseFile(fasta1)+'.masked.fasta'
+            if self.getStrLC('Masked2'):
+                rje.checkForFiles([masked2],log=self.log,ioerror=True)
+                fasta2 = masked2
+            elif rje.checkForFiles([rje.baseFile(fasta2)+'.masked.fasta'],log=self.log,ioerror=False):
+                fasta2 = rje.baseFile(fasta2)+'.masked.fasta'
 
             ### ~ [1] GABLAM Search ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if self.getStrLC('Mapper') == 'mashmap':
@@ -1083,9 +1132,12 @@ class SynBad(rje_obj.RJE_Object):
             huniq = '{0}.hitunique.tdt'.format(gabbase)
             ## ~ [2a] Run GABLAM ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             if self.force() or not rje.exists(quniq) or not rje.exists(huniq):
-                gabcmd = ['seqin={0}'.format(self.getStr('Genome1')),'searchdb={0}'.format(self.getStr('Genome2')),'mapper=minimap','minlocid=0','minloclen={0}'.format(self.getInt('MinLocLen')),'basefile={0}'.format(gabbase)]
-                gabobj = gablam.GABLAM(self.log,self.cmd_list+gabcmd)
-                gabobj.gablam()
+                if self.getStrLC('Mapper') == 'busco':
+                    self.buscoMap()
+                else:
+                    gabcmd = ['seqin={0}'.format(fasta1),'searchdb={0}'.format(fasta2),'mapper=minimap','minlocid=0','minloclen={0}'.format(self.getInt('MinLocLen')),'basefile={0}'.format(gabbase)]
+                    gabobj = gablam.GABLAM(self.log,self.cmd_list+gabcmd)
+                    gabobj.gablam()
             ## ~ [2b] Load tables and reformat ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             for qh in ('Qry','Hit'):
                 ufile = '{0}.{1}unique.tdt'.format(gabbase,qh.lower())
@@ -1093,7 +1145,7 @@ class SynBad(rje_obj.RJE_Object):
                 #udb = db.addTable(ufile,mainkeys=[qh,'{0}Start'.format(qh),'{0}End'.format(qh)],name=qh.lower(),ignore=[],expect=True)
                 udb.dataFormat({'AlnNum':'int','Length':'int','Identity':'int','QryStart':'int','QryEnd':'int','SbjStart':'int','SbjEnd':'int'})
                 lenx = 0; idx = 0
-                for entry in udb.entries():
+                for entry in list(udb.entries()):
                     if entry['Length'] < self.getInt('MinLocLen'): udb.dropEntry(entry); lenx += 1
                     elif (100.0 * entry['Identity'] / entry['Length']) < self.getNum('MinLocID'): udb.dropEntry(entry); idx += 1
                 self.printLog('#MINCUT','Dropped %s entries < %s bp and %s < %.1f%% identity' % (rje.iStr(lenx),rje.iStr(self.getInt('MinLocLen')),rje.iStr(idx),self.getNum('MinLocID')))
@@ -1120,6 +1172,127 @@ class SynBad(rje_obj.RJE_Object):
 
             return True
         except: self.errorLog('%s.runGABLAM error' % self.prog()); return False
+#########################################################################################################################
+    def buscoMap(self): ### Uses BUSCO mapping to generate mock gablam tables
+        '''
+        Loads BUSCO tables and uses to make synteny blocks, based on PAFScaff code. In each case, the Complete BUSCO
+        genes from the "Complete" set can be mapped onto "Complete", "Fragmented" or "Duplicated" genes in the other
+        assembly.
+
+        Output tables are qryunique and hitunique local hits tables mimicking a GABLAM run using Minimap2:
+
+        # Qry Hit AlnNum BitScore Expect Length Identity Positives QryStart QryEnd SbjStart SbjEnd
+
+        In each case, Qry is Genome1 and Hit is Genome2.
+        :return:
+        '''
+        try:### ~ [0] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            self.headLog('Compile BUSCO results')
+            db = self.db()
+            #i# v5 is the default:
+            v5head = ['BuscoID','Status','Contig','Start','End','Strand','Score','Length','OrthoDBurl','Description']
+            #!# Future updates could expand to non-BUSCO input and have custom headers.
+            #!# Need ID, SeqName, Start, End, Strand
+            qbusco = {'qry':'BUSCO1','hit':'BUSCO2'}
+            hbusco = {'qry': 'BUSCO2', 'hit': 'BUSCO1'}
+            basefile = self.baseFile()
+            gabbase = basefile + '.map'
+            if self.getStrLC('GABLAM'): gabbase = self.getStr('GABLAM')
+            quniq = '{0}.qryunique.tdt'.format(gabbase)
+            huniq = '{0}.hitunique.tdt'.format(gabbase)
+
+            ### ~ [2] Load and filter data ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            #i# Load tables: BUSCO1 and BUSCO2
+            for btype in ['BUSCO1', 'BUSCO2']:
+                tabhead = v5head
+                bfile = self.getStr(btype)
+                if not rje.exists(bfile):
+                    raise IOError('{0} file "{1}" not found (pafin=busco)'.format(btype, bfile))
+                fdb = db.addTable(bfile, mainkeys='auto', headers=tabhead, expect=True, name=btype)
+                fdb.dropEntriesDirect('Status', ['Missing'], inverse=False)
+                fdb.newKey(['Contig', 'Start', 'End'])
+                fdb.keepFields(['BuscoID', 'Status', 'Contig', 'Start', 'End', 'Strand', 'Length'])
+                fdb.dataFormat({'Start': 'int', 'End': 'int', 'Length': 'int'})
+                fdb.index('BuscoID')
+                if self.v() > 0 or self.debugging():
+                    fdb.indexReport('Contig')
+                else:
+                    fdb.index('Contig')
+
+            ### ~ [2] Load and filter data ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            for qh in ['qry','hit']:
+                #i# Copy and filter to Complete in the focal assembly
+                # i# Reduce to matching BuscoIDs
+                qdb = db.copyTable(self.db(qbusco[qh]),'qbusco',add=False)
+                hdb = db.copyTable(self.db(hbusco[qh]),'hbusco',add=False)
+                #i# Reduced to Complete genes in Genome2 to avoid multiple mapping of query regions
+                hdb.dropEntriesDirect('Status',['Complete'],inverse=True)
+                qdb.dropEntriesDirect('BuscoID',hdb.orderedDataList('BuscoID'),inverse=True)
+                hdb.dropEntriesDirect('BuscoID',qdb.orderedDataList('BuscoID'),inverse=True)
+                ### ~ [3] Generate paf table ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+                #pfields = rje.split('# Qry QryLen QryStart QryEnd Strand Hit SbjLen SbjStart SbjEnd Identity Length BuscoID')
+                pfields = rje.split('Qry Hit AlnNum BitScore Expect Length Identity Positives QryStart QryEnd SbjStart SbjEnd Strand')
+                tname = '{0}unique'.format(qh)
+                pafdb = db.addEmptyTable(fields=pfields, keys=['AlnNum'], name=tname)
+
+                ## ~ [3a] Synteny block method ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+                #i# Add counters for making synteny blocks
+                i = 1
+                for entry in qdb.entrySort():
+                    entry['AlnNum'] = i
+                    i += 1
+                i = 1
+                for entry in hdb.entrySort():
+                    entry['AlnNum'] = i
+                    i += 1
+                #i# Generate synteny blocks
+                pentry = {}; prevq = -1; prevh = -1
+                for entry in qdb.entrySort():
+                    #if entry['BuscoID'] not in fdb.index('BuscoID'): continue
+                    for hentry in hdb.indexEntries('BuscoID',entry['BuscoID']):
+                        #i# Set strand
+                        strand = '+'
+                        if entry['Strand'] != hentry['Strand']: strand = '-'
+                        #i# New block, or continue?
+                        newblock = abs(entry['AlnNum'] - prevq) != 1 or abs(hentry['AlnNum'] - prevh) != 1
+                        prevq = entry['AlnNum']; prevh = hentry['AlnNum']
+                        if not newblock and pentry and (entry['Contig'] != pentry['Qry'] or hentry['Contig'] != pentry['Hit'] or strand != pentry['Strand']):
+                            newblock = True
+                        if newblock:
+                            if pentry: pafdb.addEntry(pentry)
+                            #?# Add some kind of expectation of overlap by chance?
+                            #?# Add Busco scores to the BitScore field?
+                            pentry = {'AlnNum':pafdb.entryNum()+1,'Positives':1,'BitScore':0,'Expect':0,
+                                      'Qry':entry['Contig'],'QryStart':entry['Start'],'QryEnd':entry['End'],'Strand':strand,
+                                      'Hit':hentry['Contig'],'SbjStart':hentry['Start'],'SbjEnd':hentry['End'],
+                                      'Identity':min(entry['Length'],hentry['Length']),
+                                      'Length':max(entry['Length'],hentry['Length'])}
+                        else:
+                            pentry['QryEnd'] = entry['End']
+                            if strand == '+': pentry['SbjEnd'] = hentry['End']
+                            else: pentry['SbjStart'] = hentry['Start']
+                            pentry['Identity'] += min(entry['Length'],hentry['Length'])
+                            pentry['Length'] += max(entry['Length'],hentry['Length'])
+                            pentry['Positives'] += 1
+                        self.debug(pafdb.entrySummary(pentry,collapse=True))
+                if pentry: pafdb.addEntry(pentry)
+                self.printLog('#BUSCO','{0} BUSCO Complete synteny blocks added.'.format(rje.iStr(pafdb.entryNum())))
+                if qh == 'hit':
+                    for entry in pafdb.entries():
+                        eswap = [entry['Qry'], entry['QryStart'], entry['QryEnd'], entry['Hit'], entry['SbjStart'], entry['SbjEnd']]
+                        [entry['Hit'], entry['SbjStart'], entry['SbjEnd'], entry['Qry'], entry['QryStart'], entry['QryEnd']] = eswap
+                for entry in pafdb.entries():
+                    if entry['Strand'] == '-': [entry['SbjStart'], entry['SbjEnd']] = [entry['SbjEnd'], entry['SbjStart']]
+                pafdb.dropField('Strand')
+                if qh == 'qry':
+                    pafdb.newKey(['Qry','QryStart','QryEnd'])
+                    pafdb.saveToFile(quniq)
+                else:
+                    pafdb.newKey(['Hit','SbjStart','SbjEnd'])
+                    pafdb.saveToFile(huniq)
+
+            return True
+        except: self.errorLog('%s.buscoMap error' % self.prog()); return False
 #########################################################################################################################
     def runMashMap(self):   ### Runs Reciprocal MashMap mappings of two
         '''
@@ -1225,7 +1398,7 @@ class SynBad(rje_obj.RJE_Object):
                 spanfield = 'Span{0:d}'.format(self.getInt('SpannedFlank'))
                 spancheck = spanfield in gapdb.fields()
                 if self.getInt('SynReadSpan') > 0 and not spancheck:
-                    self.warnLog('synreadspan={0} but "{0}" not found in fields. Check spannedflank=INT.'.format(self.getInt('SynReadSpan'),spanfield))
+                    self.warnLog('synreadspan={0} but "{1}" not found in fields. Check spannedflank=INT.'.format(self.getInt('SynReadSpan'),spanfield))
                 spancheck = spancheck and self.getInt('SynReadSpan') > 0
                 if spancheck: gapdb.dataFormat({spanfield:'int'})
                 #self.debug(gapdb)
@@ -1359,8 +1532,10 @@ class SynBad(rje_obj.RJE_Object):
                     self.progLog('\r#SYNBAD','SynBad mapping: {0}'.format(seqname))
                     gap = altdb.index('SeqName')[seqname][0:]
                     loc = [(seqname,0,0)]
+                    loc2entry = {}
                     for entry in locdb.indexEntries(hit,seqname):
-                        loc.append((entry[hit],entry['{0}Start'.format(hit)],entry['{0}End'.format(hit)],entry))
+                        loc.append((entry[hit],entry['{0}Start'.format(hit)],entry['{0}End'.format(hit)]))
+                        loc2entry[(entry[hit], entry['{0}Start'.format(hit)], entry['{0}End'.format(hit)])] = entry
                     loc.sort()
                     loc.append((seqname,-1,-1))
                     while gap and len(loc) > 1 :
@@ -1372,13 +1547,15 @@ class SynBad(rje_obj.RJE_Object):
                         # Also want to have gap[0][2] < loc[1][1] for a gap properly flanked by two local alignments
                         thisgap = gap.pop(0)
                         if loc[0][1] > 0:
-                            loc[0][3]['{0}Gap'.format(hit)] += '>'
-                            if not loc[0][3]['{0}3'.format(hit)]: loc[0][3]['{0}3'.format(hit)] = []
-                            loc[0][3]['{0}3'.format(hit)].append(thisgap)
+                            entry = loc2entry[loc[0]]
+                            entry['{0}Gap'.format(hit)] += '>'
+                            if not entry['{0}3'.format(hit)]: entry['{0}3'.format(hit)] = []
+                            entry['{0}3'.format(hit)].append(thisgap)
                         if loc[1][1] > 0:
-                            loc[1][3]['{0}Gap'.format(hit)] += '<'
-                            if not loc[1][3]['{0}5'.format(hit)]: loc[1][3]['{0}5'.format(hit)] = []
-                            loc[1][3]['{0}5'.format(hit)].append(thisgap)
+                            entry = loc2entry[loc[1]]
+                            entry['{0}Gap'.format(hit)] += '<'
+                            if not entry['{0}5'.format(hit)]: entry['{0}5'.format(hit)] = []
+                            entry['{0}5'.format(hit)].append(thisgap)
                 self.progLog('\r#SYNBAD','{0} SynBad mapping complete.               '.format(qh))
                 self.printLog('\r#SYNBAD','{0} SynBad mapping complete.'.format(qh))
                 gapdb.indexReport('SynBad')
@@ -1390,7 +1567,7 @@ class SynBad(rje_obj.RJE_Object):
             qrydb = self.db('qry')
             hitdb = self.db('hit')
             ex = 0.0; etot = qrydb.entryNum() + hitdb.entryNum()
-            for entry in qrydb.entries() + hitdb.entries():
+            for entry in list(qrydb.entries()) + list(hitdb.entries()):
                 self.progLog('\r#UPDATE','Updating flanking gap SynBad ratings: %.2f%%' % (ex/etot)); ex += 100
                 for field in ('Qry5','Qry3'):
                     if entry[field]:
@@ -1551,7 +1728,7 @@ class SynBad(rje_obj.RJE_Object):
                     try:
                         for line in open(maptxt,'r').readlines():
                             #self.bugPrint(line)
-                            data = string.split(line)
+                            data = rje.split(line)
                             if not data: continue
                             if data[1] == '=': self.list[qh] += data[2:]
                         continue
@@ -1560,6 +1737,7 @@ class SynBad(rje_obj.RJE_Object):
                         self.list[qh] = []
                 if not self.makeAssemplyMap(qh): return False
                 if not self.saveAssemblyMaps(qh,mapname='map'): return False
+                if not self.saveTelociraptorMaps(qh,mapname='map'): return False
 
             ### ~ [3] Extra flanks analysis ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             ## ~ [3a] Flank copy number ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
@@ -1574,7 +1752,7 @@ class SynBad(rje_obj.RJE_Object):
                 for field in ['CN5','CN3']:
                     if field not in gdb.fields(): gdb.addField(field,evalue=0)
                 cx = 0
-                for ekey in fdb.dataKeys():
+                for ekey in list(fdb.dataKeys()):
                     if cdb.data(ekey):
                         entry = fdb.data(ekey)
                         centry = cdb.data(ekey)
@@ -1590,7 +1768,7 @@ class SynBad(rje_obj.RJE_Object):
             ## ~ [3b] KAT kmer analysis ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             self.headLog('KAT kmer analysis',line='-')
             kat = os.popen('kat --version 2>&1').read()
-            if kat:
+            if kat and "not found" not in kat:
                 self.printLog('#KAT','KAT version detected: {0}'.format(rje.chomp(kat)))
                 for qh in ['qry','hit']:
                     kdb = self.kmerFrequencies(qh)
@@ -1615,7 +1793,7 @@ class SynBad(rje_obj.RJE_Object):
                                 gentry['kat3'] = kentry['median']
                     self.printLog('#KAT','Updated {0} flanks table with {1} kat kmer Median and Mean values'.format(qh,kx))
             else:
-                self.warnLog('Cannot run "{} --version": check installation or pre-generation of files'.format(program))
+                self.warnLog('Cannot run "kat --version": check installation or pre-generation of files')
 
             return True
         except:
@@ -1638,7 +1816,7 @@ class SynBad(rje_obj.RJE_Object):
 
             for line in open(maptxt,'r').readlines():
                 #self.bugPrint(line)
-                data = string.split(line)
+                data = rje.split(line)
                 if not data: continue
                 if '=' in data: self.list[qh] += ['|'] + data[data.index('=')+1:] + ['|']
 
@@ -1684,44 +1862,48 @@ class SynBad(rje_obj.RJE_Object):
                 j = entry['Start'] - 1
                 score = 0
                 #if 'Span0' in gdb.fields(): score = entry['Span0']
-                bentry = bed.addEntry({'SeqName':entry['SeqName'],'Start':i,'End':j,'Name':'{0}.{1}-{2}'.format(entry['SeqName'],i,j),'Score':score,'Strand':'+'},warn=False)
-                #self.bugPrint('Flank: %s' % (bed.entrySummary(bentry,collapse=True)))
-                entry['GapFlank5'] = '{0}.{1}-{2}'.format(entry['SeqName'],i,j)
+                if i <= j:
+                    bentry = bed.addEntry({'SeqName':entry['SeqName'],'Start':i,'End':j,'Name':'{0}.{1}-{2}'.format(entry['SeqName'],i,j),'Score':score,'Strand':'+'},warn=False)
+                    #self.bugPrint('Flank: %s' % (bed.entrySummary(bentry,collapse=True)))
+                    entry['GapFlank5'] = '{0}.{1}-{2}'.format(entry['SeqName'],i,j)
                 # 3' flank
                 i = entry['End'] + 1
                 j = min(entry['SeqLen'],entry['End'] + flanklen)
                 if entries and entries[0]['SeqName'] == entry['SeqName']:
                     j = min(entries[0]['Start']-1,j)
-                bentry = bed.addEntry({'SeqName':entry['SeqName'],'Start':i,'End':j,'Name':'{0}.{1}-{2}'.format(entry['SeqName'],i,j),'Score':score,'Strand':'+'},warn=False)
-                #self.bugPrint('Flank: %s' % (bed.entrySummary(bentry,collapse=True)))
-                entry['GapFlank3'] = '{0}.{1}-{2}'.format(entry['SeqName'],i,j)
+                if i <= j:
+                    bentry = bed.addEntry({'SeqName':entry['SeqName'],'Start':i,'End':j,'Name':'{0}.{1}-{2}'.format(entry['SeqName'],i,j),'Score':score,'Strand':'+'},warn=False)
+                    #self.bugPrint('Flank: %s' % (bed.entrySummary(bentry,collapse=True)))
+                    entry['GapFlank3'] = '{0}.{1}-{2}'.format(entry['SeqName'],i,j)
                 #i# Extra end of sequence contig
                 if prev and entry['SeqName'] != prev['SeqName']:
                     i = max(prev['End']+1,prev['SeqLen']-flanklen+1)
                     j = prev['SeqLen']
-                    bed.addEntry({'SeqName':prev['SeqName'],'Start':i,'End':j,
-                                  'Name':'{0}.{1}-{2}'.format(prev['SeqName'],i,j),'Score':0,'Strand':'+'},warn=False)
-                    centry = {'SeqName':prev['SeqName'],'Start':prev['End']+1,'End':prev['SeqLen'],
-                              'Flank5':prev['GapFlank3'],'Flank3':'{0}.{1}-{2}'.format(prev['SeqName'],i,prev['SeqLen']),
-                              'SynBad':'{0}-End'.format(prev['SynBad'])}
-                    centry['Name'] = '{0}.{1}-{2}'.format(centry['SeqName'],centry['Start'],centry['End'])
-                    centry['CtgLen'] = centry['End'] - centry['Start'] + 1
-                    cdb.addEntry(centry)
-                    #self.bugPrint('-> Extra end contig: %s' % (cdb.entrySummary(centry,collapse=True)))
+                    if i <= j:
+                        bed.addEntry({'SeqName':prev['SeqName'],'Start':i,'End':j,
+                                      'Name':'{0}.{1}-{2}'.format(prev['SeqName'],i,j),'Score':0,'Strand':'+'},warn=False)
+                        centry = {'SeqName':prev['SeqName'],'Start':prev['End']+1,'End':prev['SeqLen'],
+                                  'Flank5':prev['GapFlank3'],'Flank3':'{0}.{1}-{2}'.format(prev['SeqName'],i,prev['SeqLen']),
+                                  'SynBad':'{0}-End'.format(prev['SynBad'])}
+                        centry['Name'] = '{0}.{1}-{2}'.format(centry['SeqName'],centry['Start'],centry['End'])
+                        centry['CtgLen'] = centry['End'] - centry['Start'] + 1
+                        cdb.addEntry(centry)
+                        #self.bugPrint('-> Extra end contig: %s' % (cdb.entrySummary(centry,collapse=True)))
                 #i# Start of sequence contig
                 if not prev or prev['SeqName'] != entry['SeqName']:
                     i = 1
                     j = min(entry['Start'] - 1,flanklen)
-                    bentry = bed.addEntry({'SeqName':entry['SeqName'],'Start':i,'End':j,
-                                  'Name':'{0}.{1}-{2}'.format(entry['SeqName'],i,j),'Score':0,'Strand':'+'},warn=False)
-                    #self.bugPrint('Flank: %s' % (bed.entrySummary(bentry,collapse=True)))
-                    centry = {'SeqName':entry['SeqName'],'Start':1,'End':entry['Start'] - 1,
-                              'Flank5':'{0}.{1}-{2}'.format(entry['SeqName'],i,j),'Flank3':entry['GapFlank5'],
-                              'SynBad':'End-{0}'.format(entry['SynBad'])}
-                    centry['Name'] = '{0}.{1}-{2}'.format(centry['SeqName'],centry['Start'],centry['End'])
-                    centry['CtgLen'] = centry['End'] - centry['Start'] + 1
-                    cdb.addEntry(centry)
-                    #self.bugPrint('-> Start contig: %s' % (cdb.entrySummary(centry,collapse=True)))
+                    if i <= j:
+                        bentry = bed.addEntry({'SeqName':entry['SeqName'],'Start':i,'End':j,
+                                      'Name':'{0}.{1}-{2}'.format(entry['SeqName'],i,j),'Score':0,'Strand':'+'},warn=False)
+                        #self.bugPrint('Flank: %s' % (bed.entrySummary(bentry,collapse=True)))
+                        centry = {'SeqName':entry['SeqName'],'Start':1,'End':entry['Start'] - 1,
+                                  'Flank5':'{0}.{1}-{2}'.format(entry['SeqName'],i,j),'Flank3':entry['GapFlank5'],
+                                  'SynBad':'End-{0}'.format(entry['SynBad'])}
+                        centry['Name'] = '{0}.{1}-{2}'.format(centry['SeqName'],centry['Start'],centry['End'])
+                        centry['CtgLen'] = centry['End'] - centry['Start'] + 1
+                        cdb.addEntry(centry)
+                        #self.bugPrint('-> Start contig: %s' % (cdb.entrySummary(centry,collapse=True)))
                 #i# Middle of sequence contig
                 else:
                     centry = {'SeqName':entry['SeqName'],'Start':prev['End']+1,'End':entry['Start'] - 1,
@@ -1735,16 +1917,17 @@ class SynBad(rje_obj.RJE_Object):
             if prev:
                 i = max(prev['End']+1,prev['SeqLen']-flanklen+1)
                 j = prev['SeqLen']
-                bentry = bed.addEntry({'SeqName':prev['SeqName'],'Start':i,'End':j,
+                if i <= j:
+                    bentry = bed.addEntry({'SeqName':prev['SeqName'],'Start':i,'End':j,
                               'Name':'{0}.{1}-{2}'.format(prev['SeqName'],i,j),'Score':0,'Strand':'+'},warn=False)
-                #self.bugPrint('Flank: %s' % (bed.entrySummary(bentry,collapse=True)))
-                centry = {'SeqName':prev['SeqName'],'Start':prev['End']+1,'End':prev['SeqLen'],
-                          'Flank5':prev['GapFlank3'],'Flank3':'{0}.{1}-{2}'.format(prev['SeqName'],i,prev['SeqLen']),
-                          'SynBad':'{0}-End'.format(prev['SynBad'])}
-                centry['Name'] = '{0}.{1}-{2}'.format(centry['SeqName'],centry['Start'],centry['End'])
-                centry['CtgLen'] = centry['End'] - centry['Start'] + 1
-                cdb.addEntry(centry)
-                #self.bugPrint('-> Final end contig: %s' % (cdb.entrySummary(centry,collapse=True)))
+                    #self.bugPrint('Flank: %s' % (bed.entrySummary(bentry,collapse=True)))
+                    centry = {'SeqName':prev['SeqName'],'Start':prev['End']+1,'End':prev['SeqLen'],
+                              'Flank5':prev['GapFlank3'],'Flank3':'{0}.{1}-{2}'.format(prev['SeqName'],i,prev['SeqLen']),
+                              'SynBad':'{0}-End'.format(prev['SynBad'])}
+                    centry['Name'] = '{0}.{1}-{2}'.format(centry['SeqName'],centry['Start'],centry['End'])
+                    centry['CtgLen'] = centry['End'] - centry['Start'] + 1
+                    cdb.addEntry(centry)
+                    #self.bugPrint('-> Final end contig: %s' % (cdb.entrySummary(centry,collapse=True)))
 
             #i# Add sequences without gaps to flanks and contigs
             seqdict = seqobj[qh].seqNameDic()
@@ -1944,7 +2127,7 @@ class SynBad(rje_obj.RJE_Object):
             cmd1 = ['seqin={0}'.format(self.getStr('Genome{0}'.format(G))),
                     'runmode=regcnv'.format(self.getStrLC('GapMode')),
                     'basefile={0}'.format(base),'regcheck={0}.tdt'.format(basefile),
-                    'checkfields=SeqName,Start,End','checkflanks=0']
+                    'checkfields=SeqName,Start,End','checkflanks={0}'.format(','.join([str(i) for i in self.list['CheckFlanks']]))]
             if self.getStrLC('BAM{0}'.format(G)): cmd1.append('bam={0}'.format(self.getStr('BAM{0}'.format(G))))
             else: cmd1.append('bam={0}.bam'.format(gbase))
             if self.getStrLC('PAF{0}'.format(G)): cmd1.append('paf={0}'.format(self.getStr('PAF{0}'.format(G))))
@@ -1956,8 +2139,16 @@ class SynBad(rje_obj.RJE_Object):
             if self.list['ReadType{0}'.format(G)]: cmd1.append('readtype={0}'.format(','.join(self.list['ReadType{0}'.format(G)])))
             self.debug(self.cmd_list + dcmd + cmd1)
             dip = diploidocus.Diploidocus(self.log, self.cmd_list + dcmd + cmd1)
+            #i# Check inputs and abort if not provided
+            if not rje.exists(dip.getStr('BAM')) and not dip.list['Reads']:
+                self.printLog('#READS','No reads=FILELIST files or bam=FILE given: no flank depth analysis.')
+                return None
+            #i# Run Diploidocus (to run DepthKopy!)
             if dip.run():
                 cnvfile = '{0}.regcnv.tsv'.format(basefile)
+                newcnvfile = '{0}.{0}.regcnv.tsv'.format(basefile)
+                if rje.exists(newcnvfile) and not rje.exists(cnvfile):
+                    cnvfile =  newcnvfile
                 if rje.exists(cnvfile):
                     os.rename(cnvfile,'{0}.checkcnv.tdt'.format(basefile))
                     self.printLog('#MOVE','{0} -> {1}.checkcnv.tdt'.format(cnvfile,basefile))
@@ -2135,7 +2326,7 @@ class SynBad(rje_obj.RJE_Object):
                         #i# Check Dirn
                         if smap[i+1] != smap[i+3] or smap[i+1] not in '<>': raise ValueError('Assembly map strand formatting error!')
                         contig = smap[i+2]
-                        cspan = map(int,contig.split('.')[-1].split('-'))
+                        cspan = list(map(int,contig.split('.')[-1].split('-')))
                         scafflen += (cspan[1] - cspan[0] + 1)
                         #i# Gap?
                         i += 5
@@ -2164,7 +2355,7 @@ class SynBad(rje_obj.RJE_Object):
 
             ## ~ [1b] Sort scaffolds by length and rename if needed ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             maxx = max(namecount.values())
-            for name in namecount.keys():
+            for name in list(namecount.keys()):
                 if namecount[name] == 1: namecount.pop(name)
             scaffolds.sort()
             sorted = scaffolds
@@ -2181,7 +2372,7 @@ class SynBad(rje_obj.RJE_Object):
                     newname = sorted[0][1]
                     nx = 0
                     while sorted[0][1] in namecount and newname in allnames:
-                        accx = rje.preZero(namecount[newname]+nx,maxx); nx += 1
+                        accx = rje.preZero(namecount[sorted[0][1]]+nx,maxx); nx += 1
                         newname = '{0}{1}'.format(sorted[0][1],accx)
                     if nx:
                         namecount[sorted[0][1]] -= 1
@@ -2205,6 +2396,138 @@ class SynBad(rje_obj.RJE_Object):
             return True
         except:
             self.errorLog('%s.outputAssemblyMap error' % self.prog())
+            return False
+#########################################################################################################################
+    def saveTelociraptorMaps(self,qh,mapname='map'):    ### Saves map text and fasta files for qry or hit data
+        '''
+        Saves map text and fasta files for qry or hit data.
+        >> hidegaps:list [] = Hides gaps with given SynBad gap types.
+        '''
+        try:### ~ [0] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            newacc = self.getStrLC({'qry':'NewAcc1','hit':'NewAcc2'}[qh])
+            if newacc:
+                newacc = self.getStr({'qry':'NewAcc1','hit':'NewAcc2'}[qh])
+            mapout = '{0}.{1}.{2}.telociraptor.txt'.format(self.baseFile(),qh,mapname)
+            if not self.outputTelociraptorMap(self.list[qh],mapout,newacc): return False
+            return True
+        except:
+            self.errorLog('%s.saveTelociraptorMaps error' % self.prog()); return False
+#########################################################################################################################
+    def outputTelociraptorMap(self,maplist,mapout,newacc=None):   ### Generate assembly text file using assembly map.
+        '''
+        Generate assembly text file using assembly map. Will regenerate names and change gap lengths if required.
+        This file will then be used with Telociraptor to generate an updated assembly fasta output.
+        >> maplist:list = ['|',Flank1,'>',CtgName,'>',Flank2,':SynBad:GapLen:',Flank1 ... ,'|'] with '<' for -ve Strand.
+        >> mapout:str = output file name for assembly
+        '''
+        try:### ~ [0] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            self.headLog('Assembly Map output',line='~')
+            #i# Sort scaffolds by length.
+            #i# If not newacc, will use the first seqname from that assembly map sequence.
+            #i# Where there is a clash, will add a .X counter.
+            # gaplen=INT : Set new standardised gap length for SynBad assembly output [500]
+            newgaplen = max(0,self.getInt('GapLen'))
+
+            ### ~ [1] Generate scaffolds from map ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            ## ~ [1a] Setup scaffolds ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            scaffolds = []  # List of (scafflen, tempname, mapstr) for each scaffold.
+            maptxt = ' '.join(maplist)
+            scaffmaps = maptxt.split('|')
+            namecount = {}
+            sx = 0.0; stot = len(scaffmaps)
+            for scaff in scaffmaps:
+                smap = scaff.split()
+                tmap = []
+                if not scaff or not smap:
+                    stot -= 1
+                    continue
+                self.progLog('\r#SCAFF','Parsing scaffolds from assembly map: {0:.1f}%'.format(sx/stot)); sx += 100.0
+                scaffname = '.'.join(smap[0].split('.')[:-1])
+                scafflen = 0
+                #i# Calculate scaffold length, fix gap lengths and check formatting
+                #i# Each cycle should be Flank1,'>',CtgName,'>',Flank2 then either ':SynBad:GapLen:' or end
+                i = 0
+                while i < len(smap):
+                    mapel = ' '.join(smap[i:i+6])
+                    try:
+                        #i# Check Dirn
+                        if smap[i+1] != smap[i+3] or smap[i+1] not in '<>': raise ValueError('Assembly map strand formatting error!')
+                        contig = smap[i+2]
+                        cspan = list(map(int,contig.split('.')[-1].split('-')))
+                        scafflen += (cspan[1] - cspan[0] + 1)
+                        if smap[i+1] == ">":
+                          tmap.append('{}:{}-{}:+'.format(scaffname,cspan[0],cspan[1]))
+                        else:
+                          tmap.append('{}:{}-{}:-'.format(scaffname,cspan[0],cspan[1]))
+                        #i# Gap?
+                        i += 5
+                        if i >= len(smap): break
+                        part = smap[i]
+                        if part[:1] != ':': raise ValueError('Assembly map gap formatting error!')
+                        gap = part.split(':')
+                        if len(gap) != 4: raise ValueError('Assembly map gap split formatting error!')
+                        gaplen = int(gap[2])
+                        if newgaplen and newgaplen != gaplen:
+                            gap[2] = str(gaplen)
+                            smap[i] = ':'.join(gap)
+                            gaplen = newgaplen
+                        tmap.append('~{}:{}~'.format(gap[1],gaplen))
+                        scafflen += gaplen
+                        i += 1
+                    except:
+                        self.errorLog('Assembly map generation error')
+                        raise ValueError('Problem with map element: {0}'.format(mapel))
+                scaffstr = '|'.join(tmap)
+                scaffolds.append((scafflen,scaffname,scaffstr))
+                if scaffname not in namecount: namecount[scaffname] = 0
+                namecount[scaffname] += 1
+            self.printLog('\r#SCAFF','Parsing {0} scaffolds from assembly map complete'.format(rje.iStr(stot)))
+            if len(scaffolds) != stot: raise ValueError('Scaffold count mismatch!')
+            allnames = rje.sortKeys(namecount)
+
+            ## ~ [1b] Sort scaffolds by length and rename if needed ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            maxx = max(namecount.values())
+            for name in list(namecount.keys()):
+                if namecount[name] == 1: namecount.pop(name)
+            scaffolds.sort()
+            sorted = scaffolds
+            scaffolds = []
+            while sorted:
+                if newacc:
+                    nx = len(sorted)
+                    newname = '{0}{1}'.format(newacc,rje.preZero(nx,len(scaffolds)))
+                    while newname in allnames:
+                        nx += 1
+                        newname = '{0}{1}'.format(newacc, rje.preZero(nx, len(scaffolds)))
+                    allnames.append(newname)
+                else:
+                    newname = sorted[0][1]
+                    nx = 0
+                    while sorted[0][1] in namecount and newname in allnames:
+                        accx = rje.preZero(namecount[sorted[0][1]]+nx,maxx); nx += 1
+                        newname = '{0}{1}'.format(sorted[0][1],accx)
+                    if nx:
+                        namecount[sorted[0][1]] -= 1
+                        allnames.append(newname)
+                scaff = sorted.pop(0)
+                scaffolds.append((newname,scaff[0],scaff[2]))
+            self.printLog('#SCAFF','{0} scaffolds sorted and renamed.'.format(rje.iLen(scaffolds)))
+
+            ## ~ [1c] Sort scaffolds by name and output ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            scaffolds.sort()
+            sx = 0.0
+            rje.backup(self,mapout)
+            OUT = open(mapout,'w')
+            for scaff in scaffolds:
+                self.progLog('\r#MAP','Outputting assembly map: {0:.1f}%'.format(sx/stot)); sx += 100.0
+                #self.bugPrint('{0} ({1}) = {2}\n'.format(scaff[0],scaff[1],scaff[2]))
+                OUT.write('||{0} ({1} bp)>>{2}<<\n'.format(scaff[0],scaff[1],scaff[2]))
+            OUT.close()
+            self.printLog('\r#MAP','Outputted Telociraptor assembly map -> {0}'.format(mapout))
+
+            return True
+        except:
+            self.errorLog('%s.outputTelociraptorMap error' % self.prog())
             return False
 #########################################################################################################################
     def fastaFromAssemblyMap(self,contigs,maptxt,fasout,hidegaps=['Hide']):   ### Generate assembly fasta from assembly map and contig sequences.
@@ -2235,8 +2558,8 @@ class SynBad(rje_obj.RJE_Object):
                 if scafflen: scafflen = int(scafflen[0])
                 scaffseq = ''
                 smap = mapdata[1].split()
-                smap = string.join(smap)
-                smap = string.split(smap)
+                smap = rje.join(smap)
+                smap = rje.split(smap)
                 #self.deBug('\n"{0}" "{1}" "{2}" ... "{3}" "{4}"'.format(smap[0],smap[1],smap[2],smap[-2],smap[-1]))
                 i = 0; cx = 0
                 while i < len(smap):
@@ -2397,7 +2720,7 @@ class SynBad(rje_obj.RJE_Object):
                         pdb = db.addEmptyTable('{0}.hicpairs'.format(qh),['Flank1','Flank2','ID1','ID2','Pairs','Type','Score','WTScore'],['Flank1','Flank2'])
                     uniqfile = '{0}{1}.uniq.id'.format(bamdir[qh],qh)
                     if rje.exists(uniqfile) and not self.force():
-                        uniqid = string.split(open(uniqfile,'r').read())
+                        uniqid = rje.split(open(uniqfile,'r').read())
                         self.printLog('\r#HICBAM','{0} {1} BAM flank read IDs read from {2} (force=F).'.format(rje.iLen(uniqid),qh,uniqfile))
                     elif extract:
                         bx = 0; fx = 0; tx = 0; ex = 0.0; etot = bed.entryNum()
@@ -2433,7 +2756,7 @@ class SynBad(rje_obj.RJE_Object):
                         #!# NOTE: This would not work with pureflanks=F
                         tmpfile = '{0}{1}.tmp'.format(bamdir[qh],qh)
                         open(tmpfile,'w').writelines(readids)
-                        uniqid = string.split(os.popen("sort %s | uniq -c | awk '$1 == 1' | awk '{print $2;}' | tee %s" % (tmpfile,uniqfile)).read())
+                        uniqid = rje.split(os.popen("sort %s | uniq -c | awk '$1 == 1' | awk '{print $2;}' | tee %s" % (tmpfile,uniqfile)).read())
                         self.printLog('\r#HICBAM','{0} of {1} {2} BAM flank read IDs found in one flank only.'.format(rje.iLen(uniqid),rje.iLen(readids),qh))
                     ## ~ Reduce to non-unique read IDs per region ~ ##
                     #!# This is very slow. Consider speeding up with diff and/or forking #!#
@@ -2443,14 +2766,14 @@ class SynBad(rje_obj.RJE_Object):
                         regfile = '%s%s.id' % (bamdir[qh],entry['Name'])
                         if entry['Name'] in self.dict['FlankMap'][qh]: regfile = '%s%s.id' % (bamdir[qh],self.dict['FlankMap'][qh][entry['Name']])
                         if rje.exists(regfile) and not self.force():
-                            regids = string.split(open(regfile,'r').read())
+                            regids = rje.split(open(regfile,'r').read())
                         elif extract:
                             regtmp = '%s%s.tmp' % (bamdir[qh],entry['Name'])
-                            regids = rje.listDifference(string.split(open(regtmp,'r').read()),uniqid)
+                            regids = rje.listDifference(rje.split(open(regtmp,'r').read()),uniqid)
                             if flankpairs[entry['Name']] != entry['Name']:
                                 regtmp2 = '%s%s.tmp' % (bamdir[qh],flankpairs[entry['Name']])
-                                regids = rje.listDifference(regids,string.split(open(regtmp2,'r').read()))
-                            #regids = string.split(os.popen("diff %s %s | grep '^<' | awk '{print $2;}' | tee %s" % (regtmp,uniqfile,regfile)).read())
+                                regids = rje.listDifference(regids,rje.split(open(regtmp2,'r').read()))
+                            #regids = rje.split(os.popen("diff %s %s | grep '^<' | awk '{print $2;}' | tee %s" % (regtmp,uniqfile,regfile)).read())
                             open(regfile,'w').write('\n'.join(regids))
                         else:
                             self.warnLog('No ID file for {0} and no BAM for extraction'.format(entry['Name']))
@@ -2530,7 +2853,7 @@ class SynBad(rje_obj.RJE_Object):
                 #i# NOTE: Duplication gaps are going to cause issues due to repeated sequences?
                 #!# Check the setting for HiCMode
                 if self.getStrLC('HiCMode') == 'random':
-                    regnames = bed.index('Name').keys()
+                    regnames = list(bed.index('Name').keys())
                     #!# Add some kind of safety check, e.g. if total combinations < 2x replicates -> do them all!
                     replicates = 10000
                     randx = 0
@@ -2546,7 +2869,7 @@ class SynBad(rje_obj.RJE_Object):
                         randx += 1
                     self.printLog('\r#RANDOM','Generated {1} random {0} BAM flank ID pair overlaps.'.format(qh,rje.iStr(replicates)))
                 elif self.getStrLC('HiCMode') == 'full':
-                    regnames = bed.index('Name').keys()
+                    regnames = list(bed.index('Name').keys())
                     replicates = len(regnames)
                     randx = 0
                     for region1 in regnames:
@@ -2625,10 +2948,10 @@ class SynBad(rje_obj.RJE_Object):
             if self.getBool('FullHiC'): return None
             regfile = '%s%s.id' % (bamdir,regions[0])
             if regions[0] in self.dict['FlankMap'][qh]: regfile = '%s%s.id' % (bamdir,self.dict['FlankMap'][qh][regions[0]])
-            idlist1 = string.split(open(regfile,'r').read())
+            idlist1 = rje.split(open(regfile,'r').read())
             regfile = '%s%s.id' % (bamdir,regions[1])
             if regions[1] in self.dict['FlankMap'][qh]: regfile = '%s%s.id' % (bamdir,self.dict['FlankMap'][qh][regions[1]])
-            idlist2 = string.split(open(regfile,'r').read())
+            idlist2 = rje.split(open(regfile,'r').read())
             pairs = rje.listIntersect(idlist1,idlist2)
             pentry = {'Flank1':regions[0],'Flank2':regions[1],'ID1':len(idlist1),'ID2':len(idlist2),'Pairs':len(pairs),'Type':ptype,'WTScore':0.0,'Score':0.0}
             if not score: return pentry
@@ -3360,7 +3683,6 @@ class SynBad(rje_obj.RJE_Object):
             alt = {'Qry':'Hit','Hit':'Qry'}[qh]
             gapdb = self.dbTable(qh,'gap')
             altgapdb = self.dbTable(alt,'gap')
-            hitsort = []    # (hitseq,hitpos,start/end/gap,entry)
             for field in ['Hit3','Hit5','Qry3','Qry5']:
                 if field not in locdb.fields(): locdb.addField(field,after='HitGap',evalue='.')
             q5 = '{0}5'.format(qh)
@@ -3372,12 +3694,17 @@ class SynBad(rje_obj.RJE_Object):
             h5 = '{0}5'.format(alt)
             h3 = '{0}3'.format(alt)
             ### ~ [1] Sort QryGaps and build hitsort ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            hitdict = {}    # {(hitseq,hitpos,start/end/gap}:entry}
+            #!# This is replacing hitsort = (hitseq,hitpos,start/end/gap,entry)
+            #!# Replace with {(tuple):entry} and [(tuple)] list to sort - can no longer sort dictionaries.
+            #!# Problem here is the mixture of entry and gentry['SynBad'] else could just replace entry with ekey
+            #x# ekey = locdb.makeKey(entry)
             entries = locdb.entries(sorted=True)
             etot = len(entries) * 4 + gapdb.entryNum() * 3
             ex = 100.0
             entry = entries.pop(0)
-            hitsort.append((entry[alt],entry[hstart],'Start',entry))
-            hitsort.append((entry[alt],entry[hend],'End',entry))
+            hitdict[(entry[alt],entry[hstart],'Start')] = entry
+            hitdict[(entry[alt],entry[hend],'End')] = entry
             while entries:
                 self.progLog('\r#SYNGAP','Updating {0} {1}: {2:.1f}%%'.format(qh,hgap,ex/etot)); ex += 100.0
                 prev = entry
@@ -3391,13 +3718,14 @@ class SynBad(rje_obj.RJE_Object):
                 if entries and self.isGap(entries[0][qgap]):
                     entry[qgap] += '>'; entry[q3] = entries[0][qgap]
                 if not entry[qgap]: entry[qgap] = '.'
-                hitsort.append((entry[alt],entry[hstart],'Start',entry))
-                hitsort.append((entry[alt],entry[hend],'End',entry))
+                hitdict[(entry[alt],entry[hstart],'Start')] = entry
+                hitdict[(entry[alt],entry[hend],'End')] = entry
             ## ~ [1a] Add hit gaps ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             for gentry in altgapdb.entries():
                 self.progLog('\r#UPDATE','Updating {0} flanking {1}: {2:.1f}%%'.format(qh,hgap,ex/etot)); ex += 100.0
-                hitsort.append((gentry['SeqName'],gentry['Start'],'gapstart',gentry['SynBad']))
-                hitsort.append((gentry['SeqName'],gentry['End'],'gapend',gentry['SynBad']))
+                hitdict[(gentry['SeqName'],gentry['Start'],'gapstart')] = gentry['SynBad']
+                hitdict[(gentry['SeqName'],gentry['End'],'gapend')] = gentry['SynBad']
+            hitsort = list(hitdict.keys())
             hitsort.sort()
             self.bugPrint(hitsort[:30])
             self.debug(hitsort[-30:])
@@ -3412,8 +3740,8 @@ class SynBad(rje_obj.RJE_Object):
                     jend = hitsort[j][1]
                     while j >= 0 and hitsort[j][1] == jend:
                         if hitsort[j][2] == 'End':
-                            hitsort[j][3][hgap] += '>'
-                            hitsort[j][3][h3] = hitsort[i][3]
+                            hitdict[hitsort[j]][hgap] += '>'
+                            hitdict[hitsort[j]][h3] = hitdict[hitsort[i]]
                         j -= 1
                 if hitsort[i][2] == 'gapend':
                     j = i+1
@@ -3422,8 +3750,8 @@ class SynBad(rje_obj.RJE_Object):
                     jstart = hitsort[j][1]
                     while j < len(hitsort) and hitsort[j][1] == jstart:
                         if hitsort[j][2] == 'Start':
-                            hitsort[j][3][hgap] += '<'
-                            hitsort[j][3][h5] = hitsort[i][3]
+                            hitdict[hitsort[j]][hgap] += '<'
+                            hitdict[hitsort[j]][h5] = hitdict[hitsort[i]]
                         j += 1
             for entry in locdb.entries():
                 self.progLog('\r#UPDATE','Updating {0} flanking {1}: {2:.1f}%%'.format(qh,hgap,ex/etot)); ex += 100.0
@@ -3539,8 +3867,13 @@ class SynBad(rje_obj.RJE_Object):
                 #i# New sequence
                 try:
                     if not prev or entry[qh] != prev[qh]:
-                        if prev: prev['Flank3'] = termflanks[prev[qh]][1]
-                        entry['Flank5'] = termflanks[entry[qh]][0]
+                        #!# Updated code for missing flanks, possibly because of terminal Ns
+                        #!# This is a temporary fix -> Need to get to bottom of it
+                        if prev:
+                            try: prev['Flank3'] = termflanks[prev[qh]][1]
+                            except: prev['Flank3'] = ''
+                        try: entry['Flank5'] = termflanks[entry[qh]][0]
+                        except: entry['Flank5'] = ''
                     elif entry['SynType'] == 'Gap':
                         gap = gapdb.data(syndb.makeKey(entry))
                         prev['Flank3'] = gap['GapFlank5']
@@ -3565,7 +3898,8 @@ class SynBad(rje_obj.RJE_Object):
             for block in syndb.entries():
                 if block['SynType'] == 'Gap': continue
                 if block['Flank5'] not in flanks:
-                    self.warnLog('Cannot find block 5\' region ({0}) in contig flanks'.format(block['Flank5']))
+                    if block['Flank5']:
+                        self.warnLog('Cannot find block 5\' region ({0}) in contig flanks'.format(block['Flank5']))
                     continue
                 if block['Flank3'] == flanks[block['Flank5']]:  # contig!
                     if (block[qend] - block[qstart] + 1) < self.getInt('MinBadCtg'):
@@ -4211,6 +4545,10 @@ class SynBad(rje_obj.RJE_Object):
 
             ### ~ [2] Update assembly map ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             for qh in ['qry','hit']:
+                etype = 'invert'
+                if not 't' in self.list['Correct'] and not 'true' in self.list['Correct'] and not etype in self.list['Correct']:
+                    self.printLog('#SKIP','Edit type "{0}" not in correct=LIST.'.format(etype))
+                    continue
                 cdb = self.dbTable(qh,'corrections')
                 totx = 0    # Total number of edits
                 ## ~ [2a] Inversions ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
@@ -4240,6 +4578,10 @@ class SynBad(rje_obj.RJE_Object):
                 self.progLog('\r#EXT','Processing {0} extractions'.format(qh))
                 failx = editx = 0
                 for entry in cdb.indexEntries('Edit','extract'):
+                    etype = 'extract'
+                    if not 't' in self.list['Correct'] and not 'true' in self.list['Correct'] and not etype in self.list['Correct']:
+                        self.printLog('#SKIP','Edit type "{0}" not in correct=LIST.'.format(etype))
+                        break
                     if entry in fixed: continue
                     if entry['SynBad'] in ['Blocked']: continue
                     if self.mapExtraction(qh,entry['Flank1'],entry['Flank2']):
@@ -4262,6 +4604,10 @@ class SynBad(rje_obj.RJE_Object):
                 self.progLog('\r#INS','Processing {0} relocations'.format(qh))
                 failx = editx = 0
                 for entry in cdb.indexEntries('Edit','relocate'):
+                    etype = 'relocate'
+                    if not 't' in self.list['Correct'] and not 'true' in self.list['Correct'] and not etype in self.list['Correct']:
+                        self.printLog('#SKIP','Edit type "{0}" not in correct=LIST.'.format(etype))
+                        break
                     if entry in fixed: continue
                     if entry['SynBad'] in ['Blocked']: continue
                     if self.mapInsertion(qh,entry['Flank1'],entry['Flank2'],entry['Details']):
@@ -4283,6 +4629,10 @@ class SynBad(rje_obj.RJE_Object):
                 self.progLog('\r#BREAK','Processing {0} breaks'.format(qh))
                 failx = editx = 0
                 for entry in cdb.indexEntries('Edit','break'):
+                    etype = 'break'
+                    if not 't' in self.list['Correct'] and not 'true' in self.list['Correct'] and not etype in self.list['Correct']:
+                        self.printLog('#SKIP','Edit type "{0}" not in correct=LIST.'.format(etype))
+                        break
                     if entry in fixed: continue
                     if entry['SynBad'] in ['Blocked']: continue
                     if self.mapBreak(qh,entry['Flank1'],entry['Flank2']): entry['SynBad'] = 'Broken'
@@ -4292,6 +4642,10 @@ class SynBad(rje_obj.RJE_Object):
                 self.progLog('\r#JOIN','Processing {0} joins'.format(qh))
                 failx = editx = 0
                 for entry in cdb.indexEntries('Edit','join'):
+                    etype = 'join'
+                    if not 't' in self.list['Correct'] and not 'true' in self.list['Correct'] and not etype in self.list['Correct']:
+                        self.printLog('#SKIP','Edit type "{0}" not in correct=LIST.'.format(etype))
+                        break
                     if entry in fixed: continue
                     if entry['SynBad'] in ['Blocked']: continue
                     joined = self.mapJoin(qh,entry['Flank1'],entry['Flank2'])
@@ -4312,6 +4666,10 @@ class SynBad(rje_obj.RJE_Object):
                 remflanks = []
                 failx = editx = 0
                 for entry in cdb.indexEntries('Edit','remove'):
+                    etype = 'remove'
+                    if not 't' in self.list['Correct'] and not 'true' in self.list['Correct'] and not etype in self.list['Correct']:
+                        self.printLog('#SKIP','Edit type "{0}" not in correct=LIST.'.format(etype))
+                        break
                     if entry in fixed: continue
                     remflanks += [entry['Flank1'],entry['Flank2']]
                     if entry['SynBad'] in ['Blocked']: continue
@@ -4382,6 +4740,7 @@ class SynBad(rje_obj.RJE_Object):
 
             ### ~ [3] Output updated map and fasta ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
                 if not self.saveAssemblyMaps(qh,mapname='synbad',hidegaps=self.list['HideGaps']): return False
+                if not self.saveTelociraptorMaps(qh,mapname='synbad'): return False
                 cdb.saveToFile(backup=False)
 
             return True
@@ -4593,6 +4952,7 @@ class SynBad(rje_obj.RJE_Object):
             amap = self.list[qh.lower()]
             if flank1 == flank2:
                 raise ValueError('Cannot join identical flanks!')
+            if not flank1 or not flank2: return False
             gapsize = self.getInt('GapSize')
             newgap = [':Join:{0}:'.format(gapsize)]
             ### ~ [1] Check ends and establish blocks ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -4697,18 +5057,18 @@ class SynBad(rje_obj.RJE_Object):
             pairs = []
             for qh in ('Qry','Hit'):
                 topdb = db.copyTable(self.db(qh.lower()),'top{0}'.format(qh.lower()),replace=True,add=True)
-                topdb.keepFields(['Qry','Hit','Length']+topdb.keys())
+                topdb.keepFields(['Qry','Hit','Length'] + list(topdb.keys()))
                 topdb.compress(['Qry','Hit'],default='sum')
                 topdb.keepFields(['Qry','Hit','Length'])
                 topdb.rankFieldByIndex(qh,'Length',newfield='Rank',rev=True,absolute=True,lowest=True,unique=False,warn=True,highest=False)
                 topdb.dropEntriesDirect('Rank',[1],inverse=True,log=True,force=False)
-                pairs += topdb.dataKeys()
+                pairs += list(topdb.dataKeys())
             ## ~ [2b] Output pairs ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             for qh in ('Qry','Hit'):
                 topdb = db.copyTable(self.db(qh.lower()),'{0}.pairs'.format(qh.lower()),replace=True,add=True)
                 if bestpair:
                     ex = 0.0; etot = topdb.entryNum()
-                    for ekey in topdb.datakeys()[0:]:
+                    for ekey in list(topdb.datakeys())[0:]:
                         self.progLog('\r#PAIRS','Reducing %s table to top-aligned pairs: %.2f%%' % (qh,ex/etot)); ex += 100
                         entry = topdb.data(ekey)
                         if (entry['Qry'],entry['Hit']) not in pairs: topdb.dict['Data'].pop(ekey)
@@ -4779,14 +5139,17 @@ class SynBad(rje_obj.RJE_Object):
                     while '' in hicscores: hicscores.remove('')
                     while 'NA' in hicscores: hicscores.remove('NA')
                     while '?' in hicscores: hicscores.remove('?')
-                    hicscores = map(float,hicscores)
+                    hicscores = list(map(float,hicscores))
                     sentry['HiCScore'] = sum(hicscores)
                     for gentry in gapdb.entries():
                         flanks = [gentry['GapFlank5'],gentry['GapFlank3']]
                         flanks.sort()
                         hentry = hdb.data((flanks[0],flanks[1]))
                         htype = 'HiCNone'
-                        if gentry['HiCScore'] > 0: htype = 'HiCPoor'
+                        try: 
+                            if gentry['HiCScore'] > 0: htype = 'HiCPoor'
+                        except:
+                            self.warnLog('Non-numerical HiCScore for {0}: {1}'.format(gentry['GapName'],gentry['HiCScore']))
                         if hentry:
                             if hentry['Best'] == 'Both': htype = 'HiCBest'
                             elif hentry['Best'].startswith('Flank'): htype = 'HiCPart'
@@ -4848,6 +5211,7 @@ class SynBad(rje_obj.RJE_Object):
                         fixdb.addEntry(frag); fragx += 1
                 self.printLog('#FRAG','{0} {1} gaps identified for fragmentation; {2} failed.'.format(fragx,qh,failx))
                 self.saveAssemblyMaps(qh,mapname='frag')
+                self.saveTelociraptorMaps(qh,mapname='frag')
 
             return True
         except:
@@ -4901,7 +5265,7 @@ class SynBad(rje_obj.RJE_Object):
                 seqlist = seqobj[frag]
                 prev = {'SeqName':None}
                 fragname = ''; fx = 1
-                for ekey in table.dataKeys():
+                for ekey in list(table.dataKeys()):
                     entry = table.data(ekey)
                     #i# Add extra 5' fragment for each sequence
                     if entry['SeqName'] != prev['SeqName']:

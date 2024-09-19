@@ -83,9 +83,9 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         ### ~ [2] ~ Look for help commands and print options if found ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         cmd_help = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
         if cmd_help > 0:
-            print '\n\nHelp for %s %s: %s\n' % (info.program, info.version, time.asctime(time.localtime(info.start_time)))
+            rje.printf('\n\nHelp for {0} {1}: {2}\n'.format(info.program, info.version, time.asctime(time.localtime(info.start_time))))
             out.verbose(-1,4,text=__doc__)
-            if rje.yesNo('Show general commandline options?'): out.verbose(-1,4,text=rje.__doc__)
+            if rje.yesNo('Show general commandline options?',default='N'): out.verbose(-1,4,text=rje.__doc__)
             if rje.yesNo('Quit?'): sys.exit()           # Option to quit after help
             cmd_list += rje.inputCmds(out,cmd_list)     # Add extra commands interactively.
         elif out.stat['Interactive'] > 1: cmd_list += rje.inputCmds(out,cmd_list)    # Ask for more commands
@@ -93,7 +93,7 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         return cmd_list
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Major Problem with cmdHelp()'
+    except: rje.printf('Major Problem with cmdHelp()')
 #########################################################################################################################
 def setupProgram(): ### Basic Setup of Program when called from commandline.
     '''
@@ -104,16 +104,19 @@ def setupProgram(): ### Basic Setup of Program when called from commandline.
     '''
     try:### ~ [1] ~ Initial Command Setup & Info ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         info = makeInfo()                                   # Sets up Info object with program details
+        if len(sys.argv) == 2 and sys.argv[1] in ['version','-version','--version']: rje.printf(info.version); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: rje.printf('%s v%s' % (info.program,info.version)); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['description','-description','--description']: rje.printf('%s: %s' % (info.program,info.description)); sys.exit(0)
         cmd_list = rje.getCmdList(sys.argv[1:],info=info)   # Reads arguments and load defaults from program.ini
         out = rje.Out(cmd_list=cmd_list)                    # Sets up Out object for controlling output to screen
-        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2 
+        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2
         out.printIntro(info)                                # Prints intro text using details from Info object
         cmd_list = cmdHelp(info,out,cmd_list)               # Shows commands (help) and/or adds commands from user
         log = rje.setLog(info,out,cmd_list)                 # Sets up Log object for controlling log file output
         return (info,out,log,cmd_list)                      # Returns objects for use in program
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Problem during initial setup.'; raise
+    except: rje.printf('Problem during initial setup.'); raise
 #########################################################################################################################
 ### END OF SECTION I                                                                                                    #
 #########################################################################################################################
@@ -169,7 +172,7 @@ class SPyDARM(rje_obj.RJE_Object):
         self.setBool({})
         self.setInt({})
         self.setNum({})
-        self.list['Output'] = string.split('release,history,updates,readme,dependencies',',')
+        self.list['Output'] = rje.split('release,history,updates,readme,dependencies',',')
         ### ~ Other Attributes ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         self._setForkAttributes()   # Delete if no forking
 #########################################################################################################################
@@ -371,7 +374,7 @@ class SPyDARM(rje_obj.RJE_Object):
                 updates = []    # Version number entries
                 for mentry in self.db('Method').indexEntries('File',pyfile):
                     if mentry['Method'] == 'history':
-                        try: history = string.split(mentry['DocString'],'\n'); break
+                        try: history = rje.split(mentry['DocString'],'\n'); break
                         except:
                             history = []
                             self.errorLog('History parsing problem: %s' % mentry,printerror=False)
@@ -412,8 +415,8 @@ class SPyDARM(rje_obj.RJE_Object):
                 stylesheets = []
                 for css in pydoc.list['StyleSheets']: stylesheets.append(pydoc.getStr('StylePath')+css)
                 htmlhead = rje_html.htmlHead(title,stylesheets,tabber=True,frontpage=False,nobots=False,keywords=pydoc.list['Keywords'],javascript=pydoc.getStr('StylePath'))
-                htmlbody = string.join(['<h1>SLiMSuite updates</h1>'] + uhtml,'\n')
-                htmltail = rje_html.htmlTail('%s %s' % (pydoc.getStr('Author'),string.split(time.asctime(time.localtime(time.time())))[-1]))
+                htmlbody = rje.join(['<h1>SLiMSuite updates</h1>'] + uhtml,'\n')
+                htmltail = rje_html.htmlTail('%s %s' % (pydoc.getStr('Author'),rje.split(time.asctime(time.localtime(time.time())))[-1]))
                 open(htmlfile,'w').write(htmlhead+htmlbody+htmltail)
                 self.printLog('#HTML','HTML update summary output to %s' % (htmlfile))
         except: self.errorLog('Error in %s.makeHistory()' % self.prog())
@@ -432,22 +435,22 @@ class SPyDARM(rje_obj.RJE_Object):
                 mod = mentry['Module']
                 mdir = mentry['SourceDir']
                 # Cycle through imports and add their imports as dependencies
-                imports = string.split(mentry['Imports'],', ')
+                imports = rje.split(mentry['Imports'],', ')
                 mentry['Dependencies'] = []
                 ilist = imports[0:]
                 while ilist:
                     imod = ilist.pop(0)
                     if imod == 'None': continue
                     dlist = mdb.indexDataList('Module',imod,'Imports',sortunique=False)
-                    dlist = string.join(dlist,', ')
-                    dlist = string.split(dlist,', ')
+                    dlist = rje.join(dlist,', ')
+                    dlist = rje.split(dlist,', ')
                     for dmod in dlist:
                         if dmod in ['None',''] + imports + mentry['Dependencies']: continue
                         mentry['Dependencies'].append(dmod)
                         ilist.append(dmod)
                 mentry['Dependencies'].sort()
                 if not mentry['Dependencies']: mentry['Dependencies'] = ['None']
-                mentry['Dependencies'] = string.join(mentry['Dependencies'],', ')
+                mentry['Dependencies'] = rje.join(mentry['Dependencies'],', ')
                 # Cycle through imported_by modules and check for orphans (e.g. Nones and libraries/ only)
                 if mentry['SourceDir'] != 'libraries': continue
                 self.debug(mentry)
@@ -455,7 +458,7 @@ class SPyDARM(rje_obj.RJE_Object):
                     self.warnLog('%s/%s is not imported by anything!' % (mdir,mod))
                     continue
                 idir = []   # List of sourcedir for importing modules
-                imported = string.split(mentry['Imported_By'],', ')
+                imported = rje.split(mentry['Imported_By'],', ')
                 ilist = imported[0:]
                 while ilist:
                     imod = ilist.pop(0)
@@ -463,8 +466,8 @@ class SPyDARM(rje_obj.RJE_Object):
                     for sdir in mdb.indexDataList('Module',imod,'SourceDir'):
                         if sdir not in idir: idir.append(sdir)
                     dlist = mdb.indexDataList('Module',imod,'Imported_By',sortunique=False)
-                    dlist = string.join(dlist,', ')
-                    dlist = string.split(dlist,', ')
+                    dlist = rje.join(dlist,', ')
+                    dlist = rje.split(dlist,', ')
                     for dmod in dlist:
                         if dmod in ['None'] + imported: continue
                         imported.append(dmod)
@@ -475,7 +478,7 @@ class SPyDARM(rje_obj.RJE_Object):
                         required.append(sdir)
                         idir.remove(sdir)
                 if required: continue
-                if idir: self.warnLog('%s/%s is a dependency for %s only.' % (mdir,mod,string.join(idir,'/')))
+                if idir: self.warnLog('%s/%s is a dependency for %s only.' % (mdir,mod,rje.join(idir,'/')))
             ### ~ [2] Output dependencies ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if 'dependencies' in self.list['Output']:
                 all_dependencies = []
@@ -491,10 +494,10 @@ class SPyDARM(rje_obj.RJE_Object):
                         if mentry['Imports'] != 'None':
                             DFILE.write(mentry['Imports'])
                             if mentry['Dependencies'] != 'None': DFILE.write(', ')
-                            all_dependencies += string.split(mentry['Imports'],', ')
+                            all_dependencies += rje.split(mentry['Imports'],', ')
                         if mentry['Dependencies'] != 'None':
                             DFILE.write(mentry['Dependencies'])
-                            all_dependencies += string.split(mentry['Dependencies'],', ')
+                            all_dependencies += rje.split(mentry['Dependencies'],', ')
                         DFILE.write('\n')
                 DFILE.write('\n')
                 DFILE.write('# Full module list required, including dependencies:\n')
@@ -535,20 +538,18 @@ def runMain():
     ### ~ [1] ~ Basic Setup of Program  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try: (info,out,mainlog,cmd_list) = setupProgram()
     except SystemExit: return  
-    except: print 'Unexpected error during program setup:', sys.exc_info()[0]; return
-    
+    except: rje.printf('Unexpected error during program setup:', sys.exc_info()[0]); return
     ### ~ [2] ~ Rest of Functionality... ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try: SPyDARM(mainlog,cmd_list).run()
-
     ### ~ [3] ~ End ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     except SystemExit: return  # Fork exit etc.
     except KeyboardInterrupt: mainlog.errorLog('User terminated.')
     except: mainlog.errorLog('Fatal error in main %s run.' % info.program)
     mainlog.endLog(info)
 #########################################################################################################################
-if __name__ == "__main__":      ### Call runMain 
+if __name__ == "__main__":      ### Call runMain
     try: runMain()
-    except: print 'Cataclysmic run error:', sys.exc_info()[0]
+    except: rje.printf('Cataclysmic run error: {0}'.format(sys.exc_info()[0]))
     sys.exit()
 #########################################################################################################################
 ### END OF SECTION IV                                                                                                   #

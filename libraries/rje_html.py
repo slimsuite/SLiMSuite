@@ -238,10 +238,10 @@ def htmlHead(title,stylesheets=['../example.css','../redwards.css'],tabber=True,
             '<html lang="en">','','<!-- ~~~~~~~~~~~~~~~ HTML head data ~~~~~~~~~~~~~~~~~ -->','<head>',
             '<meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">', #!# Add additional metadata #!#
             '<title>%s</title>' % title,'']
-    if keywords: html.insert(6,'<meta http-equiv="Keywords" name="Keywords" content="%s">' % string.join(keywords, ', '))
+    if keywords: html.insert(6,'<meta http-equiv="Keywords" name="Keywords" content="%s">' % rje.join(keywords, ', '))
     if nobots: html.insert(6,'<meta name="robots" content="index,nofollow">')
     for stylesheet in stylesheets:
-        if frontpage: html.append('<link rel="stylesheet" href="%s" TYPE="text/css" MEDIA="screen">' % string.replace(stylesheet,'../','./'))
+        if frontpage: html.append('<link rel="stylesheet" href="%s" TYPE="text/css" MEDIA="screen">' % rje.replace(stylesheet,'../','./'))
         else: html.append('<link rel="stylesheet" href="%s" TYPE="text/css" MEDIA="screen">' % stylesheet)
     if tabber:
         html += ['','<!-- ~~~~~~~~~~~ Tabber Javascript ~~~~~~~~~~~ -->','<script type="text/javascript">',
@@ -261,8 +261,8 @@ def htmlHead(title,stylesheets=['../example.css','../redwards.css'],tabber=True,
         for js in jscripts: html += ['<script src="%s%s"></script>' % (javascript,js)]
     if redirect: html.append(redirectToURL(redirect,refresh))
     html += ['</head>','<!-- ~~~~~~~~~~~~~~~ End of HTML head data ~~~~~~~~~~~~~~~~~ -->','','<body>','']
-    #print string.join(html,'\n')
-    return string.join(html,'\n')
+    #print rje.join(html,'\n')
+    return rje.join(html,'\n')
 #########################################################################################################################
 def htmlTail(copyright='RJ Edwards 2012',tabber=True,stupidtable=False):  ### Returns text for bottom of HTML
     '''
@@ -270,7 +270,7 @@ def htmlTail(copyright='RJ Edwards 2012',tabber=True,stupidtable=False):  ### Re
     >> copyright:str = copyright text'
     >> tabber:bool = whether page has tabber tabs
     '''
-    t = string.split(time.asctime(time.localtime(time.time())))
+    t = rje.split(time.asctime(time.localtime(time.time())))
     datetime = '%s %s %s' % (t[2],t[1],t[-1])
     html = ['','<!-- ~~~~~~~~~~~~~~ HTML tail data ~~~~~~~~~~~~~~~~~ -->',
             '<HR><FONT COLOR=#979E45 SIZE=2>&copy; %s. Last modified %s.</FONT></P>' % (copyright,datetime),'']
@@ -281,8 +281,8 @@ def htmlTail(copyright='RJ Edwards 2012',tabber=True,stupidtable=False):  ### Re
     if stupidtable:
         html += ['<script>','$(".instances").stupidtable();','</script>','']
     html += ['</body>','</html>','<!-- ~~~~~~~~~~~~~~ End of HTML tail data ~~~~~~~~~~~~~~~~~ -->']
-    #print string.join(html,'\n')
-    return string.join(html,'\n')
+    #print rje.join(html,'\n')
+    return rje.join(html,'\n')
 #########################################################################################################################
 def tabberHTML(tabid,tablist,level=0):     ### Returns text for Tabber HTML
     '''
@@ -298,8 +298,8 @@ def tabberHTML(tabid,tablist,level=0):     ### Returns text for Tabber HTML
         #print tab
         #print tab[0],tab[1]
         #print tabberTabHTML(tab[0],tab[1])
-        if len(tab) > 2: html += string.split(tabberTabHTML(tab[0],tab[1],tab[2]),'\n')
-        else: html += string.split(tabberTabHTML(tab[0],tab[1]),'\n')
+        if len(tab) > 2: html += rje.split(tabberTabHTML(tab[0],tab[1],tab[2]),'\n')
+        else: html += rje.split(tabberTabHTML(tab[0],tab[1]),'\n')
     html += ['</div>','<!-- ~~~~~~~~~~~~~~~ End of %s Tabber Div ~~~~~~~~~~~~~~~ -->' % tabid,]
     ### Join HTML code ###
     htmljoin = ''
@@ -320,11 +320,11 @@ def tabberTabHTML(tabid,text,title=''):          ### Returns text for TabberTab 
     '''
     if not title: title = tabid
     html = ['','<!-- ~~~ %s TabberTab div ~~~ -->' % tabid,'<div class="tabbertab" title="%s" id="%s">' % (title,tabid),'']
-    html += string.split(text,'\n')
+    html += rje.split(text,'\n')
     html += ['','</div>','<!-- ~~~ %s TabberTab end ~~~ -->' % tabid]
-    #print string.join(html,'\n  ')
-    if string.join(html).upper().find('<PRE>') >= 0: return string.join(html,'\n')       
-    else: return string.join(html,'\n  ')
+    #print rje.join(html,'\n  ')
+    if rje.join(html).upper().find('<PRE>') >= 0: return rje.join(html,'\n')
+    else: return rje.join(html,'\n  ')
 #########################################################################################################################
 def geneLink(gene,frontpage=False):     ### Returns gene link text
     '''Returns gene link text.'''
@@ -407,14 +407,14 @@ def seqDetailsHTML(callobj,gene,dbxref):    #gene,seqid,dbxref,desc,godata):  ##
                 if gdict:
                     ghtml = []
                     for g in rje.sortKeys(gdict): ghtml.append(gdict[g])
-                    gtab.append(('GO_%s' % gtype,string.join(ghtml,' ~ ')))
+                    gtab.append(('GO_%s' % gtype,rje.join(ghtml,' ~ ')))
         if gtab:
             html += ['','<!-- ~~~~ %s GO tabs ~~~~ -->' % gene,tabberHTML('GO',gtab),
                      '<!-- ~~~~ End %s GO tabs ~~~~ -->' % gene,'']
     except: callobj.errorLog('seqDetailsHTML Error')
     ### ~ [2] ~ Finish ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-    #print string.join(html,'\n')
-    return string.join(html,'\n')
+    #print rje.join(html,'\n')
+    return rje.join(html,'\n')
 #########################################################################################################################
 def checkHTML(hpage):   ### Checks for existence of complete HTML page
     '''Checks for existence of complete HTML page.'''
@@ -425,15 +425,15 @@ def checkHTML(hpage):   ### Checks for existence of complete HTML page
 #########################################################################################################################
 def stripTags(html,keeptags=[]):    ### Strips all HTML tag text from html code, except listed keeptags
     '''Strips all HTML tag text from html code, except listed keeptags.'''
-    keeptags = string.split(string.join(keeptags).lower())
-    tagsplit = string.split(html,'<')
+    keeptags = rje.split(rje.join(keeptags).lower())
+    tagsplit = rje.split(html,'<')
     newhtml = tagsplit.pop(0)    
     while tagsplit:
         tagtxt = tagsplit.pop(0)
         tag = rje.matchExp('^\\\\?([A-Za-z0-9]+)',tagtxt)
         if tag and tag[0].lower() in keeptags: newhtml += '<%s' % tagtxt
         elif tagtxt.find('>') >= 0: newhtml += ' %s' % tagtxt[tagtxt.find('>')+1:]
-    return string.replace(newhtml,'  ',' ')
+    return rje.replace(newhtml,'  ',' ')
 #########################################################################################################################
 def redirectToURL(url,refresh=0):    ### Returns HTML to redirect to URL. Should be within <HEAD>
     '''
@@ -459,7 +459,7 @@ def tableToHTML(delimtext,delimit,tabwidth='100%',tdwidths=[],tdalign=[],valign=
     ### [0] Setup Table ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     if tabid: html = '<table width="%s" id="%s">\n' % (tabwidth,tabid)
     else: html = '<table width="%s" border=%d>\n' % (tabwidth,border)
-    tablines = string.split(delimtext,'\n')
+    tablines = rje.split(delimtext,'\n')
     ### [1] Header Row ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     if thead:
         html += '<tr>\n'
@@ -559,7 +559,7 @@ def progStartHTML(callobj):     ### Returns <code><pre> HTML of start time, argu
     html = '<pre><code>'
     html += 'Run Report for %s V%s: %s\n' % (info.program,info.version,time.asctime(time.localtime(info.start_time)))
     html += 'Run from directory: %s\n' % os.path.abspath(os.curdir)
-    html += 'Commandline arguments: %s\n' % string.join(argcmd)
+    html += 'Commandline arguments: %s\n' % rje.join(argcmd)
     #html += '</pre></code>\n\n'
     html += '</code></pre>\n\n'
     return html

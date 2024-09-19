@@ -172,7 +172,7 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         ### ~ [2] ~ Look for help commands and print options if found ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         cmdhelp = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
         if cmdhelp > 0:
-            print '\n\nHelp for %s %s: %s\n' % (info.program, info.version, time.asctime(time.localtime(info.start_time)))
+            rje.printf('\n\nHelp for {0} {1}: {2}\n'.format(info.program, info.version, time.asctime(time.localtime(info.start_time))))
             out.verbose(-1,4,text=__doc__)
             if rje.yesNo('Show general commandline options?'): out.verbose(-1,4,text=rje.__doc__)
             if rje.yesNo('Quit?'): sys.exit()           # Option to quit after help
@@ -182,7 +182,7 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         return cmd_list
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Major Problem with cmdHelp()'
+    except: rje.printf('Major Problem with cmdHelp()')
 #########################################################################################################################
 def setupProgram(): ### Basic Setup of Program when called from commandline.
     '''
@@ -193,16 +193,19 @@ def setupProgram(): ### Basic Setup of Program when called from commandline.
     '''
     try:### ~ [1] ~ Initial Command Setup & Info ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         info = makeInfo()                                   # Sets up Info object with program details
+        if len(sys.argv) == 2 and sys.argv[1] in ['version','-version','--version']: rje.printf(info.version); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: rje.printf('{0} v{1}'.format(info.program,info.version)); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['description','-description','--description']: rje.printf('%s: %s' % (info.program,info.description)); sys.exit(0)
         cmd_list = rje.getCmdList(sys.argv[1:],info=info)   # Reads arguments and load defaults from program.ini
         out = rje.Out(cmd_list=cmd_list)                    # Sets up Out object for controlling output to screen
-        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2 
+        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2
         out.printIntro(info)                                # Prints intro text using details from Info object
         cmd_list = cmdHelp(info,out,cmd_list)               # Shows commands (help) and/or adds commands from user
         log = rje.setLog(info,out,cmd_list)                 # Sets up Log object for controlling log file output
         return (info,out,log,cmd_list)                      # Returns objects for use in program
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Problem during initial setup.'; raise
+    except: rje.printf('Problem during initial setup.'); raise
 #########################################################################################################################
 ### END OF SECTION I                                                                                                    #
 #########################################################################################################################
@@ -340,7 +343,7 @@ class XRef(rje_obj.RJE_Object):
                     if field in newhead: continue
                     elif field in xdb.fields(): newhead.append(field)
                 xdb.list['Fields'] = newhead[0:]
-                self.printLog('#XLIST','Restrict output to %s.' % string.join(newhead,', '))
+                self.printLog('#XLIST','Restrict output to %s.' % rje.join(newhead,', '))
             ## ~ [2b] ~ Reduce to IDList will happen after all other mapping done ~~~~~~~~~~~~~~~~~ ##
             if keyid not in self.list['KeepCase']:
                 self.list['IDList'] = rje.listUpper(self.list['IDList'])
@@ -372,7 +375,7 @@ class XRef(rje_obj.RJE_Object):
                     self.warnLog('Mapping dictionary key "%s" missing. May not be present if no mapping required (e.g. current gene symbols used).' % xfield)
                     self.dict['Output']['mapped'] = 'No mapping output'
                 self.dict['Output']['failed'].sort()
-                if self.dict['Output']['failed']: self.dict['Output']['failed'] = string.join(self.dict['Output']['failed'],'\n')
+                if self.dict['Output']['failed']: self.dict['Output']['failed'] = rje.join(self.dict['Output']['failed'],'\n')
                 else: self.dict['Output']['failed'] = 'None'
             return True
         except:
@@ -445,7 +448,7 @@ class XRef(rje_obj.RJE_Object):
                     if field in self.list['DBPrefix']: rftxt.append('DBPrefix')
                     if field in self.dict['StripVar']: rftxt.append('StripVar')
                     if field not in self.list['KeepCase']: rftxt.append('Case')
-                    if rftxt: rftxt = '%s ' % string.join(rftxt,'/')
+                    if rftxt: rftxt = '%s ' % rje.join(rftxt,'/')
                     else: rftxt = ''
                     self.printLog('#FORMAT','Applied %sreformatting to "%s".' % (rftxt,field))
                     if field == keyid: xdb.remakeKeys()
@@ -462,7 +465,7 @@ class XRef(rje_obj.RJE_Object):
                     if field in tdb.fields(): tdb.renameField(field,keyid); break
                 for field in tdb.fields()[0:]:
                     if field == keyid: continue
-                    if self.list['XRefs'] and field not in xdb.fields() + self.list['XRefs'] + tdb.keys() + self.list['Aliases']:
+                    if self.list['XRefs'] and field not in xdb.fields() + self.list['XRefs'] + list(tdb.keys()) + self.list['Aliases']:
                         tdb.dropField(field)
                         continue
                     if self.getBool('XReformat'):
@@ -471,7 +474,7 @@ class XRef(rje_obj.RJE_Object):
                         if field in self.list['DBPrefix']: rftxt.append('DBPrefix')
                         if field in self.dict['StripVar']: rftxt.append('StripVar')
                         if field not in self.list['KeepCase']: rftxt.append('Case')
-                        if rftxt: rftxt = '%s ' % string.join(rftxt,'/')
+                        if rftxt: rftxt = '%s ' % rje.join(rftxt,'/')
                         else: rftxt = ''
                         self.printLog('#FORMAT','Applied %sreformatting to "%s".' % (rftxt,field))
                 #for field in self.list['MapFields']:
@@ -495,18 +498,18 @@ class XRef(rje_obj.RJE_Object):
                         self.printLog('#ALIAS','Aliases field "%s" not found!' % field)
                         self.list['Aliases'].remove(field)
                 for entry in xdb.entries():
-                    if 'Aliases' in entry and entry['Aliases']: entry['Aliases'] = string.split(entry['Aliases'],splitchar)
+                    if 'Aliases' in entry and entry['Aliases']: entry['Aliases'] = rje.split(entry['Aliases'],splitchar)
                     else: entry['Aliases'] = []
                     for field in self.list['Aliases']:
-                        for alias in string.split(entry[field],splitchar):
+                        for alias in rje.split(entry[field],splitchar):
                             if alias and alias not in entry['Aliases']: entry['Aliases'].append(alias)
                     while '' in entry['Aliases']: entry['Aliases'].remove('')
                     entry['Aliases'].sort()
-                    entry['Aliases'] = string.join(entry['Aliases'],splitchar)
+                    entry['Aliases'] = rje.join(entry['Aliases'],splitchar)
                 if 'Aliases' not in xdb.fields(): xdb.list['Fields'].append('Aliases')
                 if 'Aliases' not in self.list['XRefs']: self.list['XRefs'].append('Aliases')
                 for field in self.list['Aliases'][0:]:
-                    if self.list['XRefs'] and field not in self.list['XRefs'] + xdb.keys(): xdb.dropField(field)
+                    if self.list['XRefs'] and field not in self.list['XRefs'] + list(xdb.keys()): xdb.dropField(field)
 
             self.restSetup()
             self.printLog('#SETUP','XRef setup complete.')
@@ -534,10 +537,10 @@ class XRef(rje_obj.RJE_Object):
             ### ~ [2]  Process Data ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             yline = YTXT.readline(); self.debug(yline)
             while yline and not yline.startswith('-'):
-                yline = string.replace(yline,';',' ')
+                yline = rje.replace(yline,';',' ')
                 yentry = {}
                 for yx in range(len(ystart)-1):
-                    data = string.split(yline[ystart[yx]:ystart[yx+1]])
+                    data = rje.split(yline[ystart[yx]:ystart[yx+1]])
                     self.bugPrint(data)
                     if yx:
                         ykey = yfields[yx+1]
@@ -546,7 +549,7 @@ class XRef(rje_obj.RJE_Object):
                     else:
                         if data:
                             yentry['Gene'] = data[0]
-                            yentry['Synonyms'] = string.join(data[1:],self.getStr('SplitChar'))
+                            yentry['Synonyms'] = rje.join(data[1:],self.getStr('SplitChar'))
                         else: break
                 self.debug(yentry)
                 if yentry: ydb.addEntry(yentry)
@@ -574,10 +577,10 @@ class XRef(rje_obj.RJE_Object):
                     self.progLog('\r#FID','Checking "%s" for ambiguity: %.2f%%' % (field,ix/itot)); ix += 100.0
                     if not fid or fid in self.list['BadID']: continue
                     if fid in xdb.dataKeys() and xdb.index(field)[fid] != [fid]:
-                        self.warnLog('"%s" alias %s is KeyID but points to %s.' % (field,fid,string.join(xdb.index(field)[fid])),'wrongkeyid',suppress=self.i()>0)
+                        self.warnLog('"%s" alias %s is KeyID but points to %s.' % (field,fid,rje.join(xdb.index(field)[fid])),'wrongkeyid',suppress=self.i()>0)
                         mwx += 1; ambig[field].append(fid)
                     elif len(xdb.index(field)[fid]) > 1:
-                        self.warnLog('"%s" alias %s points to multiple KeyID: %s.' % (field,fid,string.join(xdb.index(field)[fid])),'ambiguity',suppress=self.i()>0)
+                        self.warnLog('"%s" alias %s points to multiple KeyID: %s.' % (field,fid,rje.join(xdb.index(field)[fid])),'ambiguity',suppress=self.i()>0)
                         mwx += 1; ambig[field].append(fid)
                     else:
                         for afield in prevfields:
@@ -594,9 +597,9 @@ class XRef(rje_obj.RJE_Object):
                         for kid in xdb.index(field).pop(fid):
                             if field in self.list['SplitSkip']: xdb.data(kid)[field] = ''
                             else:
-                                fdata = string.split(xdb.data(kid)[field],self.getStr('SplitChar'))
+                                fdata = rje.split(xdb.data(kid)[field],self.getStr('SplitChar'))
                                 fdata.remove(fid)
-                                xdb.data(kid)[field] = string.join(fdata,self.getStr('SplitChar'))
+                                xdb.data(kid)[field] = rje.join(fdata,self.getStr('SplitChar'))
                     if ambig[field]: self.printLog('#PURGE','%s ambiguous "%s" aliases purged' % (rje.iLen(ambig[field]),field))
             elif mwx: self.warnLog('%s alias ambiguities found!' % rje.iStr(mwx),quitchoice=True)
             else: self.printLog('#CHECK','No alias ambiguities found in %s' % filestr)
@@ -613,7 +616,7 @@ class XRef(rje_obj.RJE_Object):
                         self.progLog('\r#FID','Checking "%s" for ambiguity: %.2f%%' % (field,ix/itot)); ix += 100.0
                         if not fid or fid in self.list['BadID']: continue
                         if len(xdb.index(field)[fid]) > 1:
-                            self.warnLog('"%s" mapping ID %s points to multiple KeyID: %s.' % (field,fid,string.join(xdb.index(field)[fid])),'multimap',suppress=self.i()>0)
+                            self.warnLog('"%s" mapping ID %s points to multiple KeyID: %s.' % (field,fid,rje.join(xdb.index(field)[fid])),'multimap',suppress=self.i()>0)
                             mwx += 1; ambig[field].append(fid)
                     self.printLog('\r#FID','%s "%s" mapping ambiguities found (from %s).' % (rje.iLen(ambig[field]),field,rje.iStr(itot)))
             ## ~ [1b] Purge/Report ambiguities ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
@@ -624,9 +627,9 @@ class XRef(rje_obj.RJE_Object):
                         for kid in xdb.index(field).pop(fid):
                             if field in self.list['SplitSkip']: xdb.data(kid)[field] = ''
                             else:
-                                fdata = string.split(xdb.data(kid)[field],self.getStr('SplitChar'))
+                                fdata = rje.split(xdb.data(kid)[field],self.getStr('SplitChar'))
                                 fdata.remove(fid)
-                                xdb.data(kid)[field] = string.join(fdata,self.getStr('SplitChar'))
+                                xdb.data(kid)[field] = rje.join(fdata,self.getStr('SplitChar'))
                     if ambig[field]: self.printLog('#PURGE','%s ambiguous "%s" mapping IDs purged' % (rje.iLen(ambig[field]),field))
             elif mwx: self.warnLog('%s mapping ambiguities found!' % rje.iStr(mwx),quitchoice=True)
             else: self.printLog('#CHECK','No mapping ambiguities found in %s' % filestr)
@@ -642,9 +645,9 @@ class XRef(rje_obj.RJE_Object):
             else: edata = entry[field]
             if field in self.list['SplitSkip']: edata = [edata]
             else:
-                if self.getBool('SplitCSV'): edata = string.replace(edata,',',self.getStr('SplitChar'))
-                edata = string.split(edata,self.getStr('SplitChar'))
-                edata = string.split(string.join(edata))    # Removes additional whitespace (even if splitchar = " ")
+                if self.getBool('SplitCSV'): edata = rje.replace(edata,',',self.getStr('SplitChar'))
+                edata = rje.split(edata,self.getStr('SplitChar'))
+                edata = rje.split(rje.join(edata))    # Removes additional whitespace (even if splitchar = " ")
             ### ~ [2] DBPrefix ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             xdata = []
             for estr in edata:
@@ -652,7 +655,7 @@ class XRef(rje_obj.RJE_Object):
                 # Reformat. Note. Prefix without : is no longer recognised.
                 if rje.matchExp('^%s:(\S.*)$' % field,estr): estr = rje.matchExp('^%s:(\S.*)$' % field,estr)[0]
                 elif rje.matchExp('^%s:(\S.*)$' % fupper,estr): estr = rje.matchExp('^%s:(\S.*)$' % fupper,estr)[0]
-                if field in self.dict['StripVar']: estr = string.split(estr,self.dict['StripVar'][field])[0]
+                if field in self.dict['StripVar']: estr = rje.split(estr,self.dict['StripVar'][field])[0]
                 if field in self.list['DBPrefix']:    # Automatically removed above: add back for given fields
                     if field in self.list['KeepCase']: estr = '%s:%s' % (field,estr)
                     else: estr = '%s:%s' % (fupper,estr)
@@ -662,8 +665,8 @@ class XRef(rje_obj.RJE_Object):
                 else: xdata.append(estr)
             ### ~ [3] Rejoin data ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if self.getBool('SortXRef'): xdata.sort()
-            if inplace: entry[field] = string.join(xdata,self.getStr('SplitChar'))
-            else: return string.join(xdata,self.getStr('SplitChar'))
+            if inplace: entry[field] = rje.join(xdata,self.getStr('SplitChar'))
+            else: return rje.join(xdata,self.getStr('SplitChar'))
         except: self.errorLog('Problem with reformatEntryField(%s)' % field); raise
 #########################################################################################################################
     def addXRef(self,entry):   ### Add entry data to main XRef table
@@ -680,7 +683,7 @@ class XRef(rje_obj.RJE_Object):
             for afield in entry:
                 if afield == keyid or not entry[afield]: continue
                 if afield in self.list['SplitSkip']: adata[afield] = entry[afield]
-                else: adata[afield] = string.split(entry[afield],self.getStr('SplitChar'))
+                else: adata[afield] = rje.split(entry[afield],self.getStr('SplitChar'))
             #self.debug('%s -> %s' % (entry,adata))
             for xid in xkeys:
                 xentry = xdb.data(xid)
@@ -691,7 +694,7 @@ class XRef(rje_obj.RJE_Object):
                     if afield in self.list['SplitSkip']:
                         if not xentry[afield]: xentry[afield] = adata[afield]
                     else:
-                        if xentry[afield]: xdata = string.split(xentry[afield],self.getStr('SplitChar'))
+                        if xentry[afield]: xdata = rje.split(xentry[afield],self.getStr('SplitChar'))
                         else: xdata = []
                         for a in adata[afield]:
                             if a and a not in xdata + self.list['BadID']:
@@ -699,7 +702,7 @@ class XRef(rje_obj.RJE_Object):
                                 if a not in xdb.index(afield): xdb.dict['Index'][afield][a] = []
                                 xdb.dict['Index'][afield][a].append(xid)
                         if self.getBool('SortXRef'): xdata.sort()
-                        xentry[afield] = string.join(xdata,self.getStr('SplitChar'))
+                        xentry[afield] = rje.join(xdata,self.getStr('SplitChar'))
                     #self.bugPrint('%s ... %s' % (afield,xentry))
                 #self.debug('%s -> %s' % (xid,xentry))
         except: self.errorLog('Problem with addXRef()'); raise
@@ -759,7 +762,7 @@ class XRef(rje_obj.RJE_Object):
                     #mupper = xfield.upper()
                     mdata = self.reformatEntryField(entry,mfield,inplace=False) # Should now match target dbprefix
                     if mfield == self.getStr('KeyID') or mfield in self.list['SplitSkip']: mids = [mdata]
-                    else: mids = string.split(mdata,self.getStr('SplitChar'))
+                    else: mids = rje.split(mdata,self.getStr('SplitChar'))
                     for xid in mids[0:]:
                         if xid in self.list['BadID'] or not xid: continue
                         if xid in xdb.index(tfield): xkeys += xdb.index(tfield)[xid]
@@ -776,7 +779,7 @@ class XRef(rje_obj.RJE_Object):
                 #mupper = mfield.upper()
                 mdata = self.reformatEntryField(entry,mfield,inplace=False) # Should now match target dbprefix
                 if mfield in self.list['SplitSkip']: mids = [mdata]
-                else: mids = string.split(mdata,self.getStr('SplitChar'))
+                else: mids = rje.split(mdata,self.getStr('SplitChar'))
                 for xid in mids[0:]:
                     if xid and xid not in self.list['BadID'] and xid in xdb.index(mfield): xkeys += xdb.index(mfield)[xid]
                     #elif '%s:%s' % (mfield,id) in xdb.index(mfield): xkeys += xdb.index(mfield)['%s:%s' % (mfield,id)]
@@ -794,7 +797,7 @@ class XRef(rje_obj.RJE_Object):
                     kdata = xdb.data(kid)[xfield]
                     if kdata in self.list['BadID'] or not kdata: continue
                     if xfield in self.list['SplitSkip']: xlist += [kdata]
-                    else: xlist += string.split(kdata,xdb.getStr('SplitChar'))
+                    else: xlist += rje.split(kdata,xdb.getStr('SplitChar'))
                 xlist = rje.sortUnique(xlist)
             while '' in xlist: xlist.remove('')
             ### ~ [3] Return as determined by Unique ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -803,7 +806,7 @@ class XRef(rje_obj.RJE_Object):
                 elif len(xlist) == 1: xref = xlist[0]
                 else: xref = False
             else:
-                if len(xlist) > 1: self.warnLog('Entry mapped to multiple %s IDs: %s' % (xfield,string.join(xlist,'|')),'one-to-many',suppress=self.i()>0)
+                if len(xlist) > 1: self.warnLog('Entry mapped to multiple %s IDs: %s' % (xfield,rje.join(xlist,'|')),'one-to-many',suppress=self.i()>0)
                 xref = xlist[0:]
             if usedict: self.dict['Mapping'][xfield][mapdict] = xref
             return xref
@@ -874,7 +877,7 @@ class XRef(rje_obj.RJE_Object):
             else: xlist = rje.sortKeys(xdb.index(field,splitchar=self.getStr('SplitChar')))
             if '' in xlist: xlist.remove('')
             if ' ' in xlist: xlist.remove(' ')
-            open(xfile,'w').write(string.join(xlist,'\n'))
+            open(xfile,'w').write(rje.join(xlist,'\n'))
             if not self.getStrLC('Rest'): self.printLog('#OUT','Saved %s %s IDs to %s.' % (rje.iLen(xlist),field,xfile))
             return xfile
         except: self.errorLog('Problem with xrefList(%s)' % field); raise
@@ -888,8 +891,8 @@ class XRef(rje_obj.RJE_Object):
             joinlist = []
             for joiner in self.list['Join']:
                 try:
-                    [jfile,jkeys,jjoin] = string.split(joiner,':')
-                    jkeys = string.split(jkeys,'|')
+                    [jfile,jkeys,jjoin] = rje.split(joiner,':')
+                    jkeys = rje.split(jkeys,'|')
                     jdb = db.addTable(jfile,jkeys,ignore=self.list['Comments'])
                     if self.list['XRefs']: joinlist.append((jdb,jjoin,rje.listIntersect(jdb.fields(),self.list['XRefs'])))
                     else: joinlist.append((jdb,jjoin))
@@ -974,8 +977,8 @@ def runMain():
     ### ~ [1] ~ Basic Setup of Program  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try: (info,out,mainlog,cmd_list) = setupProgram()
     except SystemExit: return  
-    except: print 'Unexpected error during program setup:', sys.exc_info()[0]; return
-    
+    except: rje.printf('Unexpected error during program setup:', sys.exc_info()[0]); return
+
     ### ~ [2] ~ Rest of Functionality... ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try: XRef(mainlog,cmd_list).run()
 
@@ -987,7 +990,7 @@ def runMain():
 #########################################################################################################################
 if __name__ == "__main__":      ### Call runMain 
     try: runMain()
-    except: print 'Cataclysmic run error:', sys.exc_info()[0]
+    except: rje.printf('Cataclysmic run error: {0}'.format(sys.exc_info()[0]))
     sys.exit()
 #########################################################################################################################
 ### END OF SECTION IV                                                                                                   #

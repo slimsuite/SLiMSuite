@@ -102,11 +102,11 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         if not info: info = makeInfo()
         if not out: out = rje.Out()
         ### ~ [2] ~ Look for help commands and print options if found ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-        help = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
-        if help > 0:
-            print '\n\nHelp for %s %s: %s\n' % (info.program, info.version, time.asctime(time.localtime(info.start_time)))
+        cmd_help = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
+        if cmd_help > 0:
+            rje.printf('\n\nHelp for {0} {1}: {2}\n'.format(info.program, info.version, time.asctime(time.localtime(info.start_time))))
             out.verbose(-1,4,text=__doc__)
-            if rje.yesNo('Show general commandline options?'): out.verbose(-1,4,text=rje.__doc__)
+            if rje.yesNo('Show general commandline options?',default='N'): out.verbose(-1,4,text=rje.__doc__)
             if rje.yesNo('Quit?'): sys.exit()           # Option to quit after help
             cmd_list += rje.inputCmds(out,cmd_list)     # Add extra commands interactively.
         elif out.stat['Interactive'] > 1: cmd_list += rje.inputCmds(out,cmd_list)    # Ask for more commands
@@ -114,7 +114,7 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         return cmd_list
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Major Problem with cmdHelp()'
+    except: rje.printf('Major Problem with cmdHelp()')
 #########################################################################################################################
 def setupProgram(): ### Basic Setup of Program when called from commandline.
     '''
@@ -125,16 +125,19 @@ def setupProgram(): ### Basic Setup of Program when called from commandline.
     '''
     try:### ~ [1] ~ Initial Command Setup & Info ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         info = makeInfo()                                   # Sets up Info object with program details
+        if len(sys.argv) == 2 and sys.argv[1] in ['version','-version','--version']: rje.printf(info.version); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: rje.printf('%s v%s' % (info.program,info.version)); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['description','-description','--description']: rje.printf('%s: %s' % (info.program,info.description)); sys.exit(0)
         cmd_list = rje.getCmdList(sys.argv[1:],info=info)   # Reads arguments and load defaults from program.ini
         out = rje.Out(cmd_list=cmd_list)                    # Sets up Out object for controlling output to screen
-        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2 
+        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2
         out.printIntro(info)                                # Prints intro text using details from Info object
         cmd_list = cmdHelp(info,out,cmd_list)               # Shows commands (help) and/or adds commands from user
         log = rje.setLog(info,out,cmd_list)                 # Sets up Log object for controlling log file output
         return (info,out,log,cmd_list)                      # Returns objects for use in program
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Problem during initial setup.'; raise
+    except: rje.printf('Problem during initial setup.'); raise
 #########################################################################################################################
 ### END OF SECTION I                                                                                                    #
 #########################################################################################################################
@@ -358,8 +361,8 @@ class HMMRun(rje_obj.RJE_Object):
                 else: rje.backup(self,outfile,unlink=True)
             ### ~ [2] ~ HMM Search ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if self.opt['HMMPFam']:
-                _command = 'hmmpfam --cut_ga %s %s %s > %s' % (string.join(self.list['HMMOptions']),hmm,dbase,outfile)
-            else: _command = 'hmmsearch %s %s %s > %s' % (string.join(self.list['HMMOptions']),hmm,dbase,outfile)
+                _command = 'hmmpfam --cut_ga %s %s %s > %s' % (rje.join(self.list['HMMOptions']),hmm,dbase,outfile)
+            else: _command = 'hmmsearch %s %s %s > %s' % (rje.join(self.list['HMMOptions']),hmm,dbase,outfile)
             self.log.printLog('#HMM',_command)
             if not wait: os.system(self.info['HMMerPath'] + _command + ' &')
             elif not os.path.exists(outfile) or self.opt['Force']: open(outfile,'a').write(os.popen(self.info['HMMerPath'] + _command).read())
@@ -447,7 +450,7 @@ class HMMRun(rje_obj.RJE_Object):
                 self.log.errorLog('Results file "%s" missing!' % resfile,printerror=False)
                 return False
             ## Make RegExp for starting next alignment ##
-            re_hit = string.join(['^(\S+):','domain','(\d+)','of','(\d+),','from','(\d+)','to','(\d+):','score','(\S+),','E','=','(\S+)'],'\s+')
+            re_hit = rje.join(['^(\S+):','domain','(\d+)','of','(\d+),','from','(\d+)','to','(\d+):','score','(\S+),','E','=','(\S+)'],'\s+')
             ## Search dictionary as results come back per sequence, not per HMM! ##
             pfam = {}   # Dictionary of {PFam name:search}
             hitx = 0    # Total number of hits
@@ -473,7 +476,7 @@ class HMMRun(rje_obj.RJE_Object):
                 #print line
                 ## New Sequence ##
                 if rje.matchExp('^Query sequence:\s+(\S+)',line):
-                    if newres and newresout and self.opt['CleanRes']: open(newresfile,'a').write(string.join(newres,'\n'))
+                    if newres and newresout and self.opt['CleanRes']: open(newresfile,'a').write(rje.join(newres,'\n'))
                     newres = ['',line]; newresout = False
                     hitname = rje.matchExp('^Query sequence:\s+(\S+)',line)[0]; hx += 1
                     #x#if hitname not in hitlist: hitlist.append(hitname)
@@ -487,10 +490,10 @@ class HMMRun(rje_obj.RJE_Object):
                     #Lep_receptor_Ig   1/1      24   114 ..     1   103 []   158.4  1.7e-44
                     # ... else ...
                     #         [no hits above thresholds]
-                    while rje.matchExp(string.join(['^(\S+)','\S+','(\d+)','(\d+)\D.+','(\S+)','(\S+)\s*$'],'\s+'),line):
+                    while rje.matchExp(rje.join(['^(\S+)','\S+','(\d+)','(\d+)\D.+','(\S+)','(\S+)\s*$'],'\s+'),line):
                         newresout = True
-                        (dom,start,end,score,eval) = rje.matchExp(string.join(['^(\S+)','\S+','(\d+)','(\d+)\D.+','(\S+)','(\S+)\s*$'],'\s+'),line)
-                        if not pfam.has_key(dom):
+                        (dom,start,end,score,eval) = rje.matchExp(rje.join(['^(\S+)','\S+','(\d+)','(\d+)\D.+','(\S+)','(\S+)\s*$'],'\s+'),line)
+                        if dom not in pfam:
                             pfam[dom] = self._addSearch()
                             pfam[dom].info['Name'] = dom
                         hit = pfam[dom]._addHit()
@@ -507,10 +510,10 @@ class HMMRun(rje_obj.RJE_Object):
                 elif newres: newres.append(line)
                 #x#i += 1
                 line = RESFILE.readline()
-            if newres and newresout and self.opt['CleanRes']: open(newresfile,'a').write(string.join(newres,'\n'))
+            if newres and newresout and self.opt['CleanRes']: open(newresfile,'a').write(rje.join(newres,'\n'))
             if not seqx: seqx = hx
             if self.opt['CleanRes']:
-                open(newresfile,'a').write(string.join(['','End of rje_hmm reduced results file: %d sequences in original' % seqx],'\n'))
+                open(newresfile,'a').write(rje.join(['','End of rje_hmm reduced results file: %d sequences in original' % seqx],'\n'))
                 os.unlink(resfile)
                 os.rename(newresfile,resfile)
                 self.printLog('\r#RED','Results file %s replaced with reduced version (%s Hits only)' % (resfile,rje.integerString(hitx)))
@@ -534,7 +537,7 @@ class HMMRun(rje_obj.RJE_Object):
                 self.log.errorLog('Results file (%) missing!' % resfile,False,False)
                 raise IOError
             _hit_elements = ['^(\S+):','domain','(\d+)','of','(\d+),','from','(\d+)','to','(\d+):','score','(\S+),','E','=','(\S+)']
-            _hit_re = string.join(_hit_elements,'\s+')
+            _hit_re = rje.join(_hit_elements,'\s+')
 
             ### <b> ### Read in Search results
             _stage = '<b> Read Results'
@@ -846,8 +849,8 @@ def runMain():
     ### ~ [1] ~ Basic Setup of Program  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try: (info,out,mainlog,cmd_list) = setupProgram()
     except SystemExit: return  
-    except: print 'Unexpected error during program setup:', sys.exc_info()[0]; return
-    
+    except: rje.printf('Unexpected error during program setup:', sys.exc_info()[0]); return
+
     ### ~ [2] ~ Rest of Functionality... ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try: HMMRun(mainlog,cmd_list).run()
 
@@ -855,11 +858,11 @@ def runMain():
     except SystemExit: return  # Fork exit etc.
     except KeyboardInterrupt: mainlog.errorLog('User terminated.')
     except: mainlog.errorLog('Fatal error in main %s run.' % info.program)
-    mainlog.printLog('#LOG', '%s V:%s End: %s\n' % (info.program,info.version,time.asctime(time.localtime(time.time()))))
+    mainlog.endLog(info)
 #########################################################################################################################
-if __name__ == "__main__":      ### Call runMain 
+if __name__ == "__main__":      ### Call runMain
     try: runMain()
-    except: print 'Cataclysmic run error:', sys.exc_info()[0]
+    except: rje.printf('Cataclysmic run error: {0}'.format(sys.exc_info()[0]))
     sys.exit()
 #########################################################################################################################
 ### END OF SECTION IV                                                                                                   #

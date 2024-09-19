@@ -117,7 +117,7 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         ### ~ [2] ~ Look for help commands and print options if found ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         help = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
         if help > 0:
-            print '\n\nHelp for %s %s: %s\n' % (info.program, info.version, time.asctime(time.localtime(info.start_time)))
+            rje.printf('\n\nHelp for {0} {1}: {2}\n'.format(info.program, info.version, time.asctime(time.localtime(info.start_time))))
             out.verbose(-1,4,text=__doc__)
             if rje.yesNo('Show general commandline options?'): out.verbose(-1,4,text=rje.__doc__)
             if rje.yesNo('Quit?'): sys.exit()           # Option to quit after help
@@ -127,7 +127,7 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         return cmd_list
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Major Problem with cmdHelp()'
+    except: rje.printf('Major Problem with cmdHelp()')
 #########################################################################################################################
 def setupProgram(): ### Basic Setup of Program when called from commandline.
     '''
@@ -139,18 +139,18 @@ def setupProgram(): ### Basic Setup of Program when called from commandline.
     try:### ~ [1] ~ Initial Command Setup & Info ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         info = makeInfo()                                   # Sets up Info object with program details
         if len(sys.argv) == 2 and sys.argv[1] in ['version','-version','--version']: rje.printf(info.version); sys.exit(0)
-        if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: rje.printf('{0} v{1}'.format(info.program,info.version)); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: rje.printf('%s v%s' % (info.program,info.version)); sys.exit(0)
         if len(sys.argv) == 2 and sys.argv[1] in ['description','-description','--description']: rje.printf('%s: %s' % (info.program,info.description)); sys.exit(0)
         cmd_list = rje.getCmdList(sys.argv[1:],info=info)   # Reads arguments and load defaults from program.ini
         out = rje.Out(cmd_list=cmd_list)                    # Sets up Out object for controlling output to screen
-        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2 
+        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2
         out.printIntro(info)                                # Prints intro text using details from Info object
         cmd_list = cmdHelp(info,out,cmd_list)               # Shows commands (help) and/or adds commands from user
         log = rje.setLog(info,out,cmd_list)                 # Sets up Log object for controlling log file output
         return (info,out,log,cmd_list)                      # Returns objects for use in program
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Problem during initial setup.'; raise
+    except: rje.printf('Problem during initial setup.'); raise
 #########################################################################################################################
 ### END OF SECTION I                                                                                                    #
 #########################################################################################################################
@@ -358,7 +358,7 @@ class GFESSA(budapest.Budapest):
                 self.list['Experiments'] = process
                 for experiment in process: conditions.pop(experiment)
             else: self.list['Experiments'] = all_experiments
-            self.printLog('#EXP','%d experiments to process: %s.' % (len(self.list['Experiments']),string.join(self.list['Experiments'],'; ')))
+            self.printLog('#EXP','%d experiments to process: %s.' % (len(self.list['Experiments']),rje.join(self.list['Experiments'],'; ')))
             ## ~ [2b] ~ Recalculate for reduced experiment set ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             if len(self.list['Experiments']) != len(all_experiments):
                 for entry in tagdb.entries():
@@ -391,17 +391,17 @@ class GFESSA(budapest.Budapest):
             while seqlist.nextSeq():
                 self.progLog('\r#TAG','Indexing possible tags in %s: %s -> %s' % (seqlist.getStr('Name'),rje.iStr(sx),rje.iStr(nx))); sx += 1
                 (name,fseq) = seqlist.currSeq()
-                tags = []; name = string.split(name)[0]
+                tags = []; name = rje.split(name)[0]
                 if fwd in fseq:
                     frag = fseq[0:]
                     while fwd in frag:
-                        frag = string.join(string.split(frag,fwd)[1:],fwd)
+                        frag = rje.join(rje.split(frag,fwd)[1:],fwd)
                         tag = self.info['TagStart'] + frag
                         if len(tag) > self.getInt('TagLen'): tags.append(tag[:self.getInt('TagLen')])
                 if rev in fseq:
                     frag = rje_sequence.reverseComplement(fseq)
                     while fwd in frag:
-                        frag = string.join(string.split(frag,fwd)[1:],fwd)
+                        frag = rje.join(rje.split(frag,fwd)[1:],fwd)
                         tag = self.info['TagStart'] + frag
                         if len(tag) > self.getInt('TagLen'): tags.append(tag[:self.getInt('TagLen')])
                 for tag in tags:
@@ -476,7 +476,7 @@ class GFESSA(budapest.Budapest):
             (tx,ttot) = (0.0,tdb.entryNum())
             for entry in tdb.entries():
                 self.progLog('\r#SEQN','Tag sequence counts: %.2f%%' % (tx/ttot)); tx += 100.0
-                if entry['Seq']: entry['SeqN'] = len(string.split(entry['Seq'],';')); seqn += entry['SeqN']
+                if entry['Seq']: entry['SeqN'] = len(rje.split(entry['Seq'],';')); seqn += entry['SeqN']
                 else: entry['SeqN'] = 0
             self.printLog('\r#SEQN','Tag sequence counts: %s tags; %s Seq-Tag pairs.' % (rje.iStr(tdb.entryNum()),rje.iStr(seqn)))
             tdb.saveToFile()
@@ -499,7 +499,7 @@ class GFESSA(budapest.Budapest):
             if self.opt['Force'] or not rje.exists(seqfile):
                 output = []
                 for tag in self.db('Tag').datakeys(): output.append('>%s\n%s' % (tag,tag))
-                open(seqfile,'w').write(string.join(output,'\n'))
+                open(seqfile,'w').write(rje.join(output,'\n'))
             ## ~ [0b] ~ Format Database ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             blast.setInfo({'InFile':seqfile,'DBase':self.info['SeqIn'],
                            'Name':'%s.%s.blast' % (rje.baseFile(self.info['Name'],True),rje.baseFile(self.info['SeqIn'],True))})
@@ -549,8 +549,8 @@ class GFESSA(budapest.Budapest):
             tx = 0.0; ttot = tdb.entryNum(); seqn = 0
             for entry in tdb.entries():
                 self.progLog('\r#SEQN','Tag sequence counts: %.2f%%' % (tx/ttot)); tx += 100.0
-                entry['SeqN'] = len(entry['Seq']); entry['Seq'] = string.join(entry['Seq'],';'); seqn += entry['SeqN']
-                for x in range(self.stat['Mismatch']+1): entry['Seq%d' % x] = string.join(entry['Seq%d' % x],';'); 
+                entry['SeqN'] = len(entry['Seq']); entry['Seq'] = rje.join(entry['Seq'],';'); seqn += entry['SeqN']
+                for x in range(self.stat['Mismatch']+1): entry['Seq%d' % x] = rje.join(entry['Seq%d' % x],';');
             self.printLog('\r#SEQN','Tag sequence counts: %s tags; %s Seq-Tag pairs.' % (rje.iStr(tdb.entryNum()),rje.iStr(seqn)))
             tdb.saveToFile()
             return tdb
@@ -591,8 +591,8 @@ class GFESSA(budapest.Budapest):
             longfile = '%s.Long.tdt' % self.basefile()
             if os.path.exists(longfile) and not self.force(): return
             LONG = open(longfile,'w')
-            if 'WTL1' in mdb.fields(): LONG.write('%s\n' % string.join(['Tag','Experiment','Expression','Strain','Light'],'\t'))
-            else: LONG.write('%s\n' % string.join(['Tag','Experiment','Expression'],'\t'))
+            if 'WTL1' in mdb.fields(): LONG.write('%s\n' % rje.join(['Tag','Experiment','Expression','Strain','Light'],'\t'))
+            else: LONG.write('%s\n' % rje.join(['Tag','Experiment','Expression'],'\t'))
             ### ~ [1] ~ Process "Wide" data ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             ex = 0.0; etot = mdb.entryNum(); lx = 0
             for mkey in mdb.dataKeys():
@@ -605,7 +605,7 @@ class GFESSA(budapest.Budapest):
                     if 'WTL1' in mdb.fields():
                         outlist.append(field[:2])
                         outlist.append({'L':'Low','M':'Med','H':'High'}[field[2]])
-                    LONG.write('%s\n' % string.join(outlist,'\t')); lx += 1
+                    LONG.write('%s\n' % rje.join(outlist,'\t')); lx += 1
             self.printLog('\r#LONG','Converted %s "Short" rows to %s "Long" rows.' % (rje.iStr(int(ex)),rje.iStr(lx)))
             LONG.close()
             self.printLog('\r#LONG','Saved %s "Long" data to %s.' % (rje.iStr(lx),longfile))
@@ -647,7 +647,7 @@ class GFESSA(budapest.Budapest):
                 if field[:4] == 'SeqN': mdb.list['Fields'].append(field)
             for field in mfields:
                 if field[:4] != 'SeqN' and field[:3] == 'Seq': mdb.list['Fields'].append(field)
-            self.printLog('#DB','TagDB fields: %s' % string.join(mdb.fields()))
+            self.printLog('#DB','TagDB fields: %s' % rje.join(mdb.fields()))
             ## ~ [0b] ~ Generate a list of different conditions from experiments ~~~~~~~~~~~~~~~~~~ ##
             self.setComparisons()
             ## ~ [0c] ~ Generate list of pairs to compare for enrichment ~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
@@ -669,7 +669,7 @@ class GFESSA(budapest.Budapest):
             for entry in mdb.entries():
                 self.progLog('\r#ENR','Calculating Tag enrichment: %.2f%% ' % (ex/etot)); ex += 100.0
                 for c in comp:
-                    [c1,c2] = string.split(c,'/')
+                    [c1,c2] = rje.split(c,'/')
                     num = 0.0; den = 0.0; v1 = []; v2 = []
                     for e in conditions[c1]: num += entry[e]; v1.append(entry[e])
                     for e in conditions[c2]: den += entry[e]; v2.append(entry[e])
@@ -704,7 +704,7 @@ class GFESSA(budapest.Budapest):
                         elif entry[c] < 1.0 and (1.0 / entry['minabs%s' % c]) < pwenr: continue
                     if entry[c] >= enrcut or entry[c] <= 1.0 / enrcut: enriched = True; break
                 if enriched: goodtag.append(entry['Tag'])
-                if entry['Seq']: tag2seq[entry['Tag']] = string.split(entry['Seq'],';')
+                if entry['Seq']: tag2seq[entry['Tag']] = rje.split(entry['Seq'],';')
                 else: tag2seq[entry['Tag']] = []
                 for seq in tag2seq[entry['Tag']]:
                     if seq not in seq2tag: seq2tag[seq] = []
@@ -719,7 +719,7 @@ class GFESSA(budapest.Budapest):
                 for tag in seq2tag[seq]:
                     if tag in goodtag: continue
                     goodtag.append(tag)
-                    for newseq in string.split(mdb.data()[tag]['Seq'],';'):
+                    for newseq in rje.split(mdb.data()[tag]['Seq'],';'):
                         if newseq in goodseq: continue
                         goodseq.append(newseq); expandseq.append(newseq)
             self.printLog('\r#ENR','Filtered on Tag enrichment: %s Tags; %s Seqs' % (rje.iLen(goodtag),rje.iLen(goodseq)))
@@ -750,9 +750,9 @@ class GFESSA(budapest.Budapest):
                 if self.stat['Mismatch'] >= 0 and self.opt['BestMatch']:
                     mm = 0
                     while mm <= self.stat['Mismatch']:
-                        if entry['Seq']: taghits = string.split(entry['Seq'],';'); break
+                        if entry['Seq']: taghits = rje.split(entry['Seq'],';'); break
                         else: mm += 1
-                else: taghits = string.split(entry['Seq'],';')
+                else: taghits = rje.split(entry['Seq'],';')
                 for hit in taghits:
                     if not hit: continue
                     if hit not in pdata:
@@ -780,7 +780,7 @@ class GFESSA(budapest.Budapest):
                             if tag not in nextgroup and tag not in addme: addme.append(tag)
                     elif add in all_tags:
                         all_tags.remove(add)
-                        for seq in string.split(tdb.data()[add]['Seq'],';'):
+                        for seq in rje.split(tdb.data()[add]['Seq'],';'):
                             if seq not in all_seq: continue     # Done already, or not to be done
                             if seq not in nextgroup + addme: addme.append(seq)
                 groups.append(nextgroup[0:])
@@ -796,7 +796,7 @@ class GFESSA(budapest.Budapest):
                     if member in tdb.data(): tags.append(member)
                     elif member in pdata: seqs.append(member)
                     else: self.errorLog('Cannot find %s in Seq or Tag?!' % member,printerror=False)
-                gdb.addEntry({'Cluster':gx,'CSeqN':len(seqs),'CTagN':len(tags),'CSeq':string.join(seqs,'; '),'CTag':string.join(tags,'; ')})
+                gdb.addEntry({'Cluster':gx,'CSeqN':len(seqs),'CTagN':len(tags),'CSeq':rje.join(seqs,'; '),'CTag':rje.join(tags,'; ')})
                 for tag in tags: tdb.data()[tag]['Cluster'] = gx; tdb.data()[tag]['CSeqN'] = len(seqs); tdb.data()[tag]['CTagN'] = len(tags)
                 for tag in seqs: pdb.data()[tag]['Cluster'] = gx; pdb.data()[tag]['CSeqN'] = len(seqs); pdb.data()[tag]['CTagN'] = len(tags)
             tdb.saveToFile('%s.gfessa.tags.tdt' % self.info['Basefile'])
@@ -824,7 +824,7 @@ class GFESSA(budapest.Budapest):
                 cluster = entry['Cluster']
                 for comp in self.list['Comparisons']:
                     for tag in entry['Tags']: cluster_enr[comp][cluster].append(tdb.data()[tag][comp])
-                entry['Tags'] = string.join(entry['Tags'],'; ')
+                entry['Tags'] = rje.join(entry['Tags'],'; ')
             self.printLog('\r#MEAN','Calculating mean values for hits complete.')
             ## ~ [3b] ~ Enrichment for clusters ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             self.progLog('\r#MEAN','Calculating cluster means...')
@@ -865,7 +865,7 @@ def runMain():
     ### ~ [1] ~ Basic Setup of Program  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try: (info,out,mainlog,cmd_list) = setupProgram()
     except SystemExit: return  
-    except: print 'Unexpected error during program setup:', sys.exc_info()[0]; return
+    except: rje.printf('Unexpected error during program setup:', sys.exc_info()[0]); return
     
     ### ~ [2] ~ Rest of Functionality... ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try: GFESSA(mainlog,cmd_list).run()
@@ -878,7 +878,7 @@ def runMain():
 #########################################################################################################################
 if __name__ == "__main__":      ### Call runMain 
     try: runMain()
-    except: print 'Cataclysmic run error:', sys.exc_info()[0]
+    except: rje.printf('Cataclysmic run error: {0}'.format(sys.exc_info()[0]))
     sys.exit()
 #########################################################################################################################
 ### END OF SECTION IV                                                                                                   #

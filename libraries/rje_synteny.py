@@ -88,9 +88,9 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         ### ~ [2] ~ Look for help commands and print options if found ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         cmd_help = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
         if cmd_help > 0:
-            print '\n\nHelp for %s %s: %s\n' % (info.program, info.version, time.asctime(time.localtime(info.start_time)))
+            rje.printf('\n\nHelp for {0} {1}: {2}\n'.format(info.program, info.version, time.asctime(time.localtime(info.start_time))))
             out.verbose(-1,4,text=__doc__)
-            if rje.yesNo('Show general commandline options?'): out.verbose(-1,4,text=rje.__doc__)
+            if rje.yesNo('Show general commandline options?',default='N'): out.verbose(-1,4,text=rje.__doc__)
             if rje.yesNo('Quit?'): sys.exit()           # Option to quit after help
             cmd_list += rje.inputCmds(out,cmd_list)     # Add extra commands interactively.
         elif out.stat['Interactive'] > 1: cmd_list += rje.inputCmds(out,cmd_list)    # Ask for more commands
@@ -98,7 +98,7 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         return cmd_list
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Major Problem with cmdHelp()'
+    except: rje.printf('Major Problem with cmdHelp()')
 #########################################################################################################################
 def setupProgram(): ### Basic Setup of Program when called from commandline.
     '''
@@ -109,16 +109,19 @@ def setupProgram(): ### Basic Setup of Program when called from commandline.
     '''
     try:### ~ [1] ~ Initial Command Setup & Info ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         info = makeInfo()                                   # Sets up Info object with program details
+        if len(sys.argv) == 2 and sys.argv[1] in ['version','-version','--version']: rje.printf(info.version); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: rje.printf('%s v%s' % (info.program,info.version)); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['description','-description','--description']: rje.printf('%s: %s' % (info.program,info.description)); sys.exit(0)
         cmd_list = rje.getCmdList(sys.argv[1:],info=info)   # Reads arguments and load defaults from program.ini
         out = rje.Out(cmd_list=cmd_list)                    # Sets up Out object for controlling output to screen
-        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2 
+        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2
         out.printIntro(info)                                # Prints intro text using details from Info object
         cmd_list = cmdHelp(info,out,cmd_list)               # Shows commands (help) and/or adds commands from user
         log = rje.setLog(info,out,cmd_list)                 # Sets up Log object for controlling log file output
         return (info,out,log,cmd_list)                      # Returns objects for use in program
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Problem during initial setup.'; raise
+    except: rje.printf('Problem during initial setup.'); raise
 #########################################################################################################################
 ### END OF SECTION I                                                                                                    #
 #########################################################################################################################
@@ -278,7 +281,7 @@ class Synteny(rje_obj.RJE_Object):
             # RefSeq is the reference genome sequence in a SeqList object
             refseq = self.obj['RefSeq']
             acc2chr = {}    # This maps sequence accession numbers onto reference chromosomes
-            for seq in refseq.seqs(): acc2chr[string.split(refseq.seqAcc(seq),'.')[0]] = refseq.seqGene(seq)
+            for seq in refseq.seqs(): acc2chr[rje.split(refseq.seqAcc(seq),'.')[0]] = refseq.seqGene(seq)
             # Check for data integrity
             lfield = 'locus'
             if lfield not in ftdb.fields(): lfield = 'Locus'
@@ -292,8 +295,8 @@ class Synteny(rje_obj.RJE_Object):
             ### ~ [1] Generate initial hits table from features and GABLAM ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             # Reformat Qry sequence names to match feature locus tags
             for entry in gdb.entries():
-                if '__' in entry['Qry']: entry['Qry'] = string.split(entry['Qry'],'__')[-1]
-                else: entry['Qry'] = string.split(entry['Qry'],'_')[-1]
+                if '__' in entry['Qry']: entry['Qry'] = rje.split(entry['Qry'],'__')[-1]
+                else: entry['Qry'] = rje.split(entry['Qry'],'_')[-1]
             # Join tables
             fdb = db.joinTables(name=tabname,join=[(ftdb,'locus_tag'),(gdb,'Qry')],newkey=['locus_tag','Hit'],cleanup=True,delimit='\t',empties=True,check=False,keeptable=True)
             # Update table fields
@@ -321,14 +324,14 @@ class Synteny(rje_obj.RJE_Object):
                 entry['Chrom'] = acc2chr[entry['Locus']]
                 if not entry['Hit']: continue
                 # Pull out contig and position data
-                [entry['Contig'],strain,na,entry[gfield]] = string.split(entry['Hit'],'_')
+                [entry['Contig'],strain,na,entry[gfield]] = rje.split(entry['Hit'],'_')
                 try: # Fragment names in form: hcq10_MBG11A__SP16495.10.011478-016127
-                    if '-' in string.split(entry['Hit'],'.')[-1]:
-                        cdata = string.split(entry['Hit'],'.')[-1]  # Position info
-                        cdata = string.split(cdata,'-')
+                    if '-' in rje.split(entry['Hit'],'.')[-1]:
+                        cdata = rje.split(entry['Hit'],'.')[-1]  # Position info
+                        cdata = rje.split(cdata,'-')
                     else: # Old fragments in form: hcq10_MBG11A__SP16495.10-011478.016127
-                        cdata = string.split(entry['Hit'],'-')[-1]  # Position info
-                        cdata = string.split(cdata,'.')
+                        cdata = rje.split(entry['Hit'],'-')[-1]  # Position info
+                        cdata = rje.split(cdata,'.')
                     entry['Hit_Start'] = int(cdata[0])
                     entry['Hit_End'] = int(cdata[1])
                 except: self.errorLog('Problem with %s [%s]' % (entry['Hit'],entry),quitchoice=True)
@@ -472,11 +475,11 @@ class Synteny(rje_obj.RJE_Object):
                         ## Check for tandem repeat
                         tr = False
                         ti = 1
-                        while string.split(entry['Tan5'],'|')[0] == string.split(entry[gfield],'|')[0]:  #!# Check initial names!
+                        while rje.split(entry['Tan5'],'|')[0] == rje.split(entry[gfield],'|')[0]:  #!# Check initial names!
                             tr = True; ti += 1
                             entry['Tan5'] = geneord[contig][geneord[contig].index(entry[gfield])-ti]
                         ti = 1
-                        while string.split(entry['Tan3'],'|')[0] == string.split(entry[gfield],'|')[0]:
+                        while rje.split(entry['Tan3'],'|')[0] == rje.split(entry[gfield],'|')[0]:
                             tr = True; ti += 1
                             entry['Tan3'] = geneord[contig][geneord[contig].index(entry[gfield])+ti]
                         ## Update for direction
@@ -484,11 +487,11 @@ class Synteny(rje_obj.RJE_Object):
                             (entry['Ctg5'],entry['Ctg3']) = (entry['Ctg3'],entry['Ctg5'])
                             (entry['Tan5'],entry['Tan3']) = (entry['Tan3'],entry['Tan5'])
                         if tr:
-                            ctg5 = string.split(entry['Tan5'],'|')[0]   # Adjust for gene|x 1:n mapping
-                            ctg3 = string.split(entry['Tan3'],'|')[0]   # Adjust for gene|x 1:n mapping
+                            ctg5 = rje.split(entry['Tan5'],'|')[0]   # Adjust for gene|x 1:n mapping
+                            ctg3 = rje.split(entry['Tan3'],'|')[0]   # Adjust for gene|x 1:n mapping
                         else:
-                            ctg5 = string.split(entry['Ctg5'],'|')[0]   # Adjust for gene|x 1:n mapping
-                            ctg3 = string.split(entry['Ctg3'],'|')[0]   # Adjust for gene|x 1:n mapping
+                            ctg5 = rje.split(entry['Ctg5'],'|')[0]   # Adjust for gene|x 1:n mapping
+                            ctg3 = rje.split(entry['Ctg3'],'|')[0]   # Adjust for gene|x 1:n mapping
                         ## Establish synteny
                         if ctg5 == entry['Chr5'] and ctg3 == entry['Chr3']: entry['Synteny'] = 'Syn'
                         elif ctg5 == entry['Chr5'] and ctg3 == chrom and entry['Chr3'] == contig: entry['Synteny'] = 'Syn'
@@ -544,7 +547,7 @@ class Synteny(rje_obj.RJE_Object):
             self.printLog('#REM','%s redundant m:n entries dropped following synteny mapping.' % rje.iStr(remx))
 
             ## ~ [6b] TopHits/Synteny Table ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-            for entry in fdb.entries(): entry['Hit'] = string.split(entry['Hit'],'-')[0]   # Update entry['Hit'] for R Script
+            for entry in fdb.entries(): entry['Hit'] = rje.split(entry['Hit'],'-')[0]   # Update entry['Hit'] for R Script
             fdb.saveToFile()
             ## ~ [6c] GeneOrder ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             ordtxt = '%s.%s.order.txt' % (self.baseFile(),gtype)
@@ -553,8 +556,8 @@ class Synteny(rje_obj.RJE_Object):
                 chromord = []; cx += 1
                 for i in range(len(geneord[chrom])):
                     chromord.append('%s%s%s' % (genedir[chrom][i],geneord[chrom][i],genedir[chrom][i]))
-                ORD.write('%s\n' % string.join(chromord))
-                self.debug('%s\n' % string.join(chromord))
+                ORD.write('%s\n' % rje.join(chromord))
+                self.debug('%s\n' % rje.join(chromord))
             ORD.close()
             self.printLog('#ORD','%s order output to %s' % (gtype,ordtxt))
 
@@ -575,7 +578,7 @@ class Synteny(rje_obj.RJE_Object):
             ftdict['Proteins'] = ftdict.pop('CDS')
             #self.debug(ftdict['Proteins'].index('note').keys()[:10])
             acc2chr = {}
-            for seq in refseq.seqs(): acc2chr[string.split(refseq.seqAcc(seq),'.')[0]] = refseq.seqGene(seq)
+            for seq in refseq.seqs(): acc2chr[rje.split(refseq.seqAcc(seq),'.')[0]] = refseq.seqGene(seq)
             ### ~ [1] Process ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             for gtype in ['Genes','Proteins']:
                 ## ~ [1a] Load GABLAM data ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
@@ -585,8 +588,8 @@ class Synteny(rje_obj.RJE_Object):
                 ## ~ [1b] Filter, join ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
                 #gdb.dropEntries(['Rank>1']) #!# No more! Filter on
                 for entry in gdb.entries():
-                    if '__' in entry['Qry']: entry['Qry'] = string.split(entry['Qry'],'__')[-1]
-                    else: entry['Qry'] = string.split(entry['Qry'],'_')[-1]
+                    if '__' in entry['Qry']: entry['Qry'] = rje.split(entry['Qry'],'__')[-1]
+                    else: entry['Qry'] = rje.split(entry['Qry'],'_')[-1]
                 fdb = db.joinTables(name='%s.TopHits' % gtype,join=[(ftdict[gtype],'locus_tag'),(gdb,'Qry')],newkey=['locus_tag','Hit'],cleanup=True,delimit='\t',empties=True,check=False,keeptable=True)
                 self.debug(fdb.datakeys()[:10])
                 gfield = 'Contig%s' % gtype[:4]     # Rename to SPXXXXX.X.[P|G]Y
@@ -598,17 +601,17 @@ class Synteny(rje_obj.RJE_Object):
                 for entry in fdb.entries():
                     entry['Chrom'] = acc2chr[entry['locus']]
                     if not entry['Hit']: continue
-                    [entry['Contig'],strain,na,entry[gfield]] = string.split(entry['Hit'],'_')    # hcq10_MBG11A__SP16495.10-011478.016127
-                    #x#cdata = string.split(entry['Hit'],'-')[-1]  # Position info
-                    #x#cdata = string.split(cdata,'.')
+                    [entry['Contig'],strain,na,entry[gfield]] = rje.split(entry['Hit'],'_')    # hcq10_MBG11A__SP16495.10-011478.016127
+                    #x#cdata = rje.split(entry['Hit'],'-')[-1]  # Position info
+                    #x#cdata = rje.split(cdata,'.')
                     #Now: # hcq10_MBG11A__SP16495.10.011478-016127
                     try:
-                        if '-' in string.split(entry['Hit'],'.')[-1]:
-                            cdata = string.split(entry['Hit'],'.')[-1]  # Position info
-                            cdata = string.split(cdata,'-')
+                        if '-' in rje.split(entry['Hit'],'.')[-1]:
+                            cdata = rje.split(entry['Hit'],'.')[-1]  # Position info
+                            cdata = rje.split(cdata,'-')
                         else:
-                            cdata = string.split(entry['Hit'],'-')[-1]  # Position info
-                            cdata = string.split(cdata,'.')
+                            cdata = rje.split(entry['Hit'],'-')[-1]  # Position info
+                            cdata = rje.split(cdata,'.')
                         entry['Hit_Start'] = int(cdata[0])
                         entry['Hit_End'] = int(cdata[1])
                     except: self.errorLog('Problem with %s [%s]' % (entry['Hit'],entry),quitchoice=True)
@@ -715,8 +718,8 @@ class Synteny(rje_obj.RJE_Object):
                         contig = entry['Contig']
                         entry['Ctg5'] = synteny[contig][synteny[contig].index(entry[gfield])-1]
                         entry['Ctg3'] = synteny[contig][synteny[contig].index(entry[gfield])+1]
-                        ctg5 = string.split(entry['Ctg5'],'|')[0]
-                        ctg3 = string.split(entry['Ctg3'],'|')[0]
+                        ctg5 = rje.split(entry['Ctg5'],'|')[0]
+                        ctg3 = rje.split(entry['Ctg3'],'|')[0]
                         if ctg5 == entry['Chr5'] and ctg3 == entry['Chr3']: entry['Synteny'] = 'Full'
                         elif ctg5 == entry['Chr3'] and ctg3 == entry['Chr5']: entry['Synteny'] = 'Full' # Reverse?
                         elif ctg5 in [entry['Chr5'],entry['Chr3']]: entry['Synteny'] = 'Partial'
@@ -778,7 +781,7 @@ class Synteny(rje_obj.RJE_Object):
                     else: sloop += 1; self.printLog('#LOOP','Convergence after synteny loop %d.' % sloop)
 
                 ## ~ [1x] Save to file ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-                for entry in fdb.entries(): entry['Hit'] = string.split(entry['Hit'],'-')[0]   # Update entry['Hit'] for R Script
+                for entry in fdb.entries(): entry['Hit'] = rje.split(entry['Hit'],'-')[0]   # Update entry['Hit'] for R Script
                 fdb.saveToFile()
 
 
@@ -806,8 +809,8 @@ def runMain():
     ### ~ [1] ~ Basic Setup of Program  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try: (info,out,mainlog,cmd_list) = setupProgram()
     except SystemExit: return  
-    except: print 'Unexpected error during program setup:', sys.exc_info()[0]; return
-    
+    except: rje.printf('Unexpected error during program setup:', sys.exc_info()[0]); return
+
     ### ~ [2] ~ Rest of Functionality... ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try: Synteny(mainlog,cmd_list).run()
 
@@ -819,7 +822,7 @@ def runMain():
 #########################################################################################################################
 if __name__ == "__main__":      ### Call runMain 
     try: runMain()
-    except: print 'Cataclysmic run error:', sys.exc_info()[0]
+    except: rje.printf('Cataclysmic run error: {0}'.format(sys.exc_info()[0]))
     sys.exit()
 #########################################################################################################################
 ### END OF SECTION IV                                                                                                   #

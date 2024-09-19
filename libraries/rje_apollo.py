@@ -115,9 +115,9 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         ### ~ [2] ~ Look for help commands and print options if found ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         cmd_help = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
         if cmd_help > 0:
-            print '\n\nHelp for %s %s: %s\n' % (info.program, info.version, time.asctime(time.localtime(info.start_time)))
+            rje.printf('\n\nHelp for {0} {1}: {2}\n'.format(info.program, info.version, time.asctime(time.localtime(info.start_time))))
             out.verbose(-1,4,text=__doc__)
-            if rje.yesNo('Show general commandline options?'): out.verbose(-1,4,text=rje.__doc__)
+            if rje.yesNo('Show general commandline options?',default='N'): out.verbose(-1,4,text=rje.__doc__)
             if rje.yesNo('Quit?'): sys.exit()           # Option to quit after help
             cmd_list += rje.inputCmds(out,cmd_list)     # Add extra commands interactively.
         elif out.stat['Interactive'] > 1: cmd_list += rje.inputCmds(out,cmd_list)    # Ask for more commands
@@ -125,7 +125,7 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         return cmd_list
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Major Problem with cmdHelp()'
+    except: rje.printf('Major Problem with cmdHelp()')
 #########################################################################################################################
 def setupProgram(): ### Basic Setup of Program when called from commandline.
     '''
@@ -136,16 +136,19 @@ def setupProgram(): ### Basic Setup of Program when called from commandline.
     '''
     try:### ~ [1] ~ Initial Command Setup & Info ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         info = makeInfo()                                   # Sets up Info object with program details
+        if len(sys.argv) == 2 and sys.argv[1] in ['version','-version','--version']: rje.printf(info.version); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: rje.printf('%s v%s' % (info.program,info.version)); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['description','-description','--description']: rje.printf('%s: %s' % (info.program,info.description)); sys.exit(0)
         cmd_list = rje.getCmdList(sys.argv[1:],info=info)   # Reads arguments and load defaults from program.ini
         out = rje.Out(cmd_list=cmd_list)                    # Sets up Out object for controlling output to screen
-        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2 
+        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2
         out.printIntro(info)                                # Prints intro text using details from Info object
         cmd_list = cmdHelp(info,out,cmd_list)               # Shows commands (help) and/or adds commands from user
         log = rje.setLog(info,out,cmd_list)                 # Sets up Log object for controlling log file output
         return (info,out,log,cmd_list)                      # Returns objects for use in program
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Problem during initial setup.'; raise
+    except: rje.printf('Problem during initial setup.'); raise
 #########################################################################################################################
 ### END OF SECTION I                                                                                                    #
 #########################################################################################################################
@@ -270,7 +273,7 @@ class Apollo(rje_obj.RJE_Object):
         '''Main class setup method.'''
         try:### ~ [1] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if self.getStrLC('Rest'): self.restSetup()
-            self.setStr({'Tracks':string.join(self.list['Tracks'],',')})
+            self.setStr({'Tracks':rje.join(self.list['Tracks'],',')})
             ### ~ [2] Exonerate run ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if self.getStrLC('BlastTask') in ['exonerate','est2genome','protein2genome']:
                 self.setBool({'Exonerate':True})
@@ -375,7 +378,7 @@ class Apollo(rje_obj.RJE_Object):
             exout = {'gff':[],'cigar':[],'alignment':[],'vulgar':[]}
             excmd = ['exonerate --model', exmodel, '--showtargetgff', '--showcigar']
             if self.getInt('TopHits'): excmd += ['--bestn', '%d' % self.getInt('TopHits')]
-            exout['alignment'] = [self.log.runDetails(),string.join(excmd),'']
+            exout['alignment'] = [self.log.runDetails(),rje.join(excmd),'']
 
             ## ~ [2a] Process output text ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             seqlist = rje_seqlist.SeqList(self.log,self.cmd_list+['autoload=T','seqmode=tuple'])
@@ -443,10 +446,10 @@ class Apollo(rje_obj.RJE_Object):
             ## ~ [2b] Cleanup and save outputs ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             for (etype,otype) in [('cigar','cigar'),('alignment','alignment')]:
                 self.dict['Output'][otype] = '%s.%s.txt' % (self.baseFile(),etype)
-                open(self.dict['Output'][otype],'w').write(string.join(exout[etype],'\n'))
+                open(self.dict['Output'][otype],'w').write(rje.join(exout[etype],'\n'))
 
             self.dict['Output']['exgff'] = '%s.gff2' % (self.baseFile())
-            open(self.dict['Output']['exgff'],'w').write(string.join(exout['gff'],'\n'))
+            open(self.dict['Output']['exgff'],'w').write(rje.join(exout['gff'],'\n'))
 
             #i# Replace with parsed alignment if possible
             ldb = None
@@ -528,7 +531,7 @@ class Apollo(rje_obj.RJE_Object):
                         spcode = '*'
                     if spcode in self.dict['GenomeID']:
                         self.printLog('#GID','%s -> %s (%s)' % (entry['Hit'],spcode,self.dict['GenomeID'][spcode]))
-                        gid = string.split(self.dict['GenomeID'][spcode],'.')
+                        gid = rje.split(self.dict['GenomeID'][spcode],'.')
                         public = len(gid) > 1 and gid[1] == 'public'
                         private = len(gid) < 2 or gid[1] == 'private'
                         # https://edwapollo.babs.unsw.edu.au/apollo-2.0.8/120/jbrowse/index.html?loc=chr_WON710A1__DCMF160804:1232840..1233371&tracks=
@@ -540,7 +543,7 @@ class Apollo(rje_obj.RJE_Object):
                             entry['Hit'] = '<a href="%sannotator/loadLink?loc=%s:%s..%s&organsim=%s&tracks=%s" target="_blank">%s</a>' % (self.getStr('WebApollo'),entry['Hit'],entry['HitStart'],entry['HitEnd'],gid[0],self.getStr('Tracks'),entry['Hit'])
                     else: self.printLog('#GID','%s -> %s (No apollo)' % (entry['Hit'],spcode))
                 #else:
-                #    gid = string.split(self.getStr('GenomeID'),'.')
+                #    gid = rje.split(self.getStr('GenomeID'),'.')
                 #    public = len(gid) > 1 and gid[1] == 'public'
                 #    private = len(gid) < 2 or gid[1] == 'private'
                 #    for entry in hdb.entries():
@@ -562,7 +565,7 @@ class Apollo(rje_obj.RJE_Object):
                 #!# Add a brief description of what should happen when clicking the links
                 fieldsort = {'*':'string','Score':'int','Rank':'int','QryStart':'int','QryEnd':'int','HitStart':'int','HitEnd':'int','AlnID':'string','HitStrand':'int','Length':'int','Identity':'int'}
                 #x#fieldsort = {}
-                #x#HTML.write(string.replace(rje_html.dbTableToHTML(hdb,tdtitles=tdtitle,datasort=fieldsort),'<table','<table id="parse"'))
+                #x#HTML.write(rje.replace(rje_html.dbTableToHTML(hdb,tdtitles=tdtitle,datasort=fieldsort),'<table','<table id="parse"'))
                 HTML.write(rje_html.dbTableToHTML(hdb,tdtitles=tdtitle,datasort=fieldsort,tabid='parse'))
                 HTML.write(html.htmlTail(tabber=False,stupidtable=True))
                 HTML.close()
@@ -596,7 +599,7 @@ class Apollo(rje_obj.RJE_Object):
             if self.getStrLC('QryType') in ['cds','dna','transcript','trans']: gcmd.append('blastp=blastn')
             elif self.getStrLC('QryType') in ['prot']: gcmd.append('blastp=tblastn')
             else: raise ValueError('Unrecognised qrytype: %s' % self.getStrLC('QryType'))
-            if self.dev(): self.printLog('#DEV','GABLAM Cmd: %s' % string.join(gcmd))
+            if self.dev(): self.printLog('#DEV','GABLAM Cmd: %s' % rje.join(gcmd))
             ### ~ [2] Run GABLAM ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             gab = self.obj['GABLAM'] = gablam.GABLAM(self.log,gcmd)
             gab.gablam()
@@ -613,11 +616,11 @@ class Apollo(rje_obj.RJE_Object):
             if self.getStrLC('GenomeID'):
                 gfile = '%s.gablam.tdt' % (self.baseFile())
                 hdb = self.db().addTable(gfile,name='html',mainkeys=['Qry','Hit'])
-                hdb.keepFields(string.split('Qry,Hit,Rank,Score,EVal,QryLen,HitLen,Qry_AlnLen,Qry_AlnID,Hit_Start,Hit_End',','))
+                hdb.keepFields(rje.split('Qry,Hit,Rank,Score,EVal,QryLen,HitLen,Qry_AlnLen,Qry_AlnID,Hit_Start,Hit_End',','))
                 hdb.dataFormat({'Rank':'int'})
                 hdb.newKey(['Qry','Rank','Hit'])
                 #hdb.addField('WebApollo')
-                #gid = string.split(self.getStr('GenomeID'),'.')
+                #gid = rje.split(self.getStr('GenomeID'),'.')
                 #public = len(gid) > 1 and gid[1] == 'public'
                 #private = len(gid) < 2 or gid[1] == 'private'
                 for entry in hdb.entries():
@@ -627,7 +630,7 @@ class Apollo(rje_obj.RJE_Object):
                     except:
                         spcode = '*'
                     if spcode in self.dict['GenomeID']:
-                        gid = string.split(self.dict['GenomeID'][spcode],'.')
+                        gid = rje.split(self.dict['GenomeID'][spcode],'.')
                         public = len(gid) > 1 and gid[1] == 'public'
                         private = len(gid) < 2 or gid[1] == 'private'
                         # https://edwapollo.babs.unsw.edu.au/apollo-2.0.8/120/jbrowse/index.html?loc=chr_WON710A1__DCMF160804:1232840..1233371&tracks=
@@ -680,7 +683,7 @@ class Apollo(rje_obj.RJE_Object):
             if self.getStrLC('QryType') in ['cds','dna','transcript','trans']: bcmd.append('blastp=blastn')
             elif self.getStrLC('QryType') in ['prot']: bcmd.append('blastp=tblastn')
             else: raise ValueError('Unrecognised qrytype: %s' % self.getStrLC('QryType'))
-            self.printLog('#DEV','BLAST Cmd: %s' % string.join(bcmd))
+            self.printLog('#DEV','BLAST Cmd: %s' % rje.join(bcmd))
             ### ~ [2] Run QBLAST ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             rje_blast.BLASTRun(self.log,['tuplekeys=T']+gab.cmd_list+bcmd).run()
             qfas = '%s.%s.qaln.hitcons.fas' % (self.baseFile(),seqlist.shortName())
@@ -691,7 +694,7 @@ class Apollo(rje_obj.RJE_Object):
             HOUT = open(hout,'w'); hx =0
             for qline in open(qout,'r').readlines()[2:]:
                 if qline.startswith('>'): HOUT.write(qline); hx += 1
-                else: HOUT.write(string.replace(qline,'-',''))
+                else: HOUT.write(rje.replace(qline,'-',''))
             HOUT.close()
             self.printLog('#QHITS','%s degapped consensus hit sequences saved to %s' % (rje.iStr(hx),hout))
             self.dict['Output']['qblast'] = '%s.qblast' % self.baseFile()
@@ -724,8 +727,8 @@ def runMain():
     ### ~ [1] ~ Basic Setup of Program  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try: (info,out,mainlog,cmd_list) = setupProgram()
     except SystemExit: return  
-    except: print 'Unexpected error during program setup:', sys.exc_info()[0]; return
-    
+    except: rje.printf('Unexpected error during program setup:', sys.exc_info()[0]); return
+
     ### ~ [2] ~ Rest of Functionality... ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try: Apollo(mainlog,['basefile=apollo']+cmd_list).run()
 
@@ -737,7 +740,7 @@ def runMain():
 #########################################################################################################################
 if __name__ == "__main__":      ### Call runMain 
     try: runMain()
-    except: print 'Cataclysmic run error:', sys.exc_info()[0]
+    except: rje.printf('Cataclysmic run error: {0}'.format(sys.exc_info()[0]))
     sys.exit()
 #########################################################################################################################
 ### END OF SECTION IV                                                                                                   #

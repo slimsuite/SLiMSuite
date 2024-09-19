@@ -82,11 +82,11 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         if not info: info = makeInfo()
         if not out: out = rje.Out()
         ### ~ [2] ~ Look for help commands and print options if found ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-        help = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
-        if help > 0:
-            print '\n\nHelp for %s %s: %s\n' % (info.program, info.version, time.asctime(time.localtime(info.start_time)))
+        cmd_help = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
+        if cmd_help > 0:
+            rje.printf('\n\nHelp for {0} {1}: {2}\n'.format(info.program, info.version, time.asctime(time.localtime(info.start_time))))
             out.verbose(-1,4,text=__doc__)
-            if rje.yesNo('Show general commandline options?'): out.verbose(-1,4,text=rje.__doc__)
+            if rje.yesNo('Show general commandline options?',default='N'): out.verbose(-1,4,text=rje.__doc__)
             if rje.yesNo('Quit?'): sys.exit()           # Option to quit after help
             cmd_list += rje.inputCmds(out,cmd_list)     # Add extra commands interactively.
         elif out.stat['Interactive'] > 1: cmd_list += rje.inputCmds(out,cmd_list)    # Ask for more commands
@@ -94,7 +94,7 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         return cmd_list
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Major Problem with cmdHelp()'
+    except: rje.printf('Major Problem with cmdHelp()')
 #########################################################################################################################
 def setupProgram(): ### Basic Setup of Program when called from commandline.
     '''
@@ -105,16 +105,19 @@ def setupProgram(): ### Basic Setup of Program when called from commandline.
     '''
     try:### ~ [1] ~ Initial Command Setup & Info ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         info = makeInfo()                                   # Sets up Info object with program details
+        if len(sys.argv) == 2 and sys.argv[1] in ['version','-version','--version']: rje.printf(info.version); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: rje.printf('%s v%s' % (info.program,info.version)); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['description','-description','--description']: rje.printf('%s: %s' % (info.program,info.description)); sys.exit(0)
         cmd_list = rje.getCmdList(sys.argv[1:],info=info)   # Reads arguments and load defaults from program.ini
         out = rje.Out(cmd_list=cmd_list)                    # Sets up Out object for controlling output to screen
-        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2 
+        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2
         out.printIntro(info)                                # Prints intro text using details from Info object
         cmd_list = cmdHelp(info,out,cmd_list)               # Shows commands (help) and/or adds commands from user
         log = rje.setLog(info,out,cmd_list)                 # Sets up Log object for controlling log file output
         return (info,out,log,cmd_list)                      # Returns objects for use in program
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Problem during initial setup.'; raise
+    except: rje.printf('Problem during initial setup.'); raise
 #########################################################################################################################
 ### END OF SECTION I                                                                                                    #
 #########################################################################################################################
@@ -226,7 +229,7 @@ class MapTime(rje_obj.RJE_Object):
             
             ### ~ [2] Load from File Input ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             ## ~ [2a] Delimited File Input ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-            if string.split(data[0])[0] == 'TimePoint Name':    # 
+            if rje.split(data[0])[0] == 'TimePoint Name':    #
                 ftype = 'delimited text file'
                 temp = self.db().addTable(filename,mainkeys=['TimePoint Name'],name='temp')
                 for entry in temp.entries(): db.addEntry(entry)
@@ -237,7 +240,7 @@ class MapTime(rje_obj.RJE_Object):
                 for line in data:
                     line = rje.chomp(line)
                     while line[-1:] == ' ': line = line[:-1]
-                    pdata = string.split(string.replace(line[2:-3],', ',','),"','")
+                    pdata = rje.split(rje.replace(line[2:-3],', ',','),"','")
                     if not pdata: continue
                     if rje.matchExp('^(\d+)$',pdata[0]): pdata.pop(0)   # Database output with key ID numbers
                     entry = {}
@@ -249,16 +252,16 @@ class MapTime(rje_obj.RJE_Object):
                 for line in data:
                     if '(TimePoint)' not in line: continue
                     # American Independence. (TimePoint) 1776 AD, 4 July. The US declared independence from the British Empire. Source: <http://en.wikipedia.org/wiki/United_States_Declaration_of_Independence>[Wikipedia]. (Keywords: history)
-                    pdata = string.split(line,'. ')
+                    pdata = rje.split(line,'. ')
                     if pdata[2][-2:] == 'ya':
                         pdata[1] = '%s. %s' % (pdata[1],pdata.pop(2))
                     entry = {'TimePoint Name':pdata[0]}
                     try: entry['Source URL'] = rje.matchExp('Source: <(\S+)>',line)[0]
                     except: self.errorLog('Cannot read Source URL')
-                    try: entry['TimePoint Description'] = rje.matchExp('^(\S.+\S) Source: <',string.join(pdata[2:],'. '))[0]
+                    try: entry['TimePoint Description'] = rje.matchExp('^(\S.+\S) Source: <',rje.join(pdata[2:],'. '))[0]
                     except: self.errorLog('Cannot read TimePoint Description: %s' % line)
                     if pdata[1][-2:] == 'ya':
-                        [entry['Year'],entry['yearUnit']] = string.split(pdata[1])[-2:]
+                        [entry['Year'],entry['yearUnit']] = rje.split(pdata[1])[-2:]
                     else:
                         try:
                             ydata = rje.matchExp('(\d+) (\S+), (\d+) (\S+)$',pdata[1])
@@ -268,11 +271,11 @@ class MapTime(rje_obj.RJE_Object):
                         except: self.errorLog('Cannot parse time from %s' % pdata[1])
                     kfield = ['keyword1','keyword2','keyword3','keyword4','keyword5']
                     try: 
-                        keywords = string.split(rje.matchExp('\(Keywords: (\S.+)\)',pdata[-1])[0],', ')
+                        keywords = rje.split(rje.matchExp('\(Keywords: (\S.+)\)',pdata[-1])[0],', ')
                         while keywords and kfield:
                             entry[kfield.pop(0)] = keywords.pop(0)
                         while kfield: entry[kfield.pop(0)] = 'blank'
-                        if keywords: self.printLog('#ERR','%d extra Keywords (%s)!' % (len(keywords),string.join(keywords,', ')))
+                        if keywords: self.printLog('#ERR','%d extra Keywords (%s)!' % (len(keywords),rje.join(keywords,', ')))
                     except: self.errorLog('Cannot read Keywords (%s)' % pdata[-1])
                     db.addEntry(entry)
             ### ~ [3] Summarise Input ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -289,7 +292,7 @@ class MapTime(rje_obj.RJE_Object):
         '''
         try:### ~ [1] Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             db = self.db('TimePoints')
-            if format.lower() in ['','none']: format = string.split(filename.lower(),'.')[-1]
+            if format.lower() in ['','none']: format = rje.split(filename.lower(),'.')[-1]
             if not filename: filename = '%s.%s' % (self.basefile(),format)
             if not entries: entries = db.entries()
             ### ~ [2] Save to file ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -318,7 +321,7 @@ class MapTime(rje_obj.RJE_Object):
                         klist = []
                         for i in range(1,6):
                             if entry['keyword%d' % i] not in ['','blank']: klist.append(entry['keyword%d' % i])
-                        out_text = '%s (Keywords: %s)' % (out_text,string.join(klist,', '))
+                        out_text = '%s (Keywords: %s)' % (out_text,rje.join(klist,', '))
                         OUT.write('%s\n' % out_text)
             self.printLog('#OUT','%d entries output to %s' % (len(entries),filename))
         except: self.errorLog('%s.saveTimePoints(%s) error' % (self,filename)); return False
@@ -363,8 +366,8 @@ def runMain():
     ### ~ [1] ~ Basic Setup of Program  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try: (info,out,mainlog,cmd_list) = setupProgram()
     except SystemExit: return  
-    except: print 'Unexpected error during program setup:', sys.exc_info()[0]; return
-    
+    except: rje.printf('Unexpected error during program setup:', sys.exc_info()[0]); return
+
     ### ~ [2] ~ Rest of Functionality... ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try: MapTime(mainlog,cmd_list).run()
 
@@ -372,11 +375,11 @@ def runMain():
     except SystemExit: return  # Fork exit etc.
     except KeyboardInterrupt: mainlog.errorLog('User terminated.')
     except: mainlog.errorLog('Fatal error in main %s run.' % info.program)
-    mainlog.printLog('#LOG', '%s V:%s End: %s\n' % (info.program,info.version,time.asctime(time.localtime(time.time()))))
+    mainlog.endLog(info)
 #########################################################################################################################
-if __name__ == "__main__":      ### Call runMain 
+if __name__ == "__main__":      ### Call runMain
     try: runMain()
-    except: print 'Cataclysmic run error:', sys.exc_info()[0]
+    except: rje.printf('Cataclysmic run error: {0}'.format(sys.exc_info()[0]))
     sys.exit()
 #########################################################################################################################
 ### END OF SECTION IV                                                                                                   #

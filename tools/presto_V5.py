@@ -249,60 +249,46 @@ def makeInfo():     ### Makes Info object
 #########################################################################################################################
 def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for more sys.argv commands
     '''Prints *.__doc__ and asks for more sys.argv commands.'''
-    try:
-        if info == None:
-            info = makeInfo()
-        if out == None:
-            out = rje.Out()
-        help = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
-        if help > 0:
-            print '\n\nHelp for %s %s: %s\n' % (info.program,info.version,time.asctime(time.localtime(info.start_time)))
-            out.verbose(-1,-1,text=__doc__)
-            if rje.yesNo('Show general commandline options?'):
-                out.verbose(-1,4,text=rje.__doc__)
-            if rje.yesNo('Quit?'):
-                sys.exit()
-            cmd_list += rje.inputCmds(out,cmd_list)
-        elif out.stat['Interactive'] > 1:    # Ask for more commands
-            cmd_list += rje.inputCmds(out,cmd_list)
+    try:### ~ [1] ~ Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+        if not info: info = makeInfo()
+        if not out: out = rje.Out()
+        ### ~ [2] ~ Look for help commands and print options if found ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+        cmd_help = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
+        if cmd_help > 0:
+            rje.printf('\n\nHelp for {0} {1}: {2}\n'.format(info.program, info.version, time.asctime(time.localtime(info.start_time))))
+            out.verbose(-1,4,text=__doc__)
+            if rje.yesNo('Show general commandline options?',default='N'): out.verbose(-1,4,text=rje.__doc__)
+            if rje.yesNo('Quit?'): sys.exit()           # Option to quit after help
+            cmd_list += rje.inputCmds(out,cmd_list)     # Add extra commands interactively.
+        elif out.stat['Interactive'] > 1: cmd_list += rje.inputCmds(out,cmd_list)    # Ask for more commands
+        ### ~ [3] ~ Return commands ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         return cmd_list
-    except SystemExit:
-        sys.exit()
-    except KeyboardInterrupt:
-        sys.exit()
-    except:
-        print 'Major Problem with cmdHelp()'
+    except SystemExit: sys.exit()
+    except KeyboardInterrupt: sys.exit()
+    except: rje.printf('Major Problem with cmdHelp()')
 #########################################################################################################################
-def setupProgram(): ### Basic Setup of Program
+def setupProgram(): ### Basic Setup of Program when called from commandline.
     '''
-    Basic setup of Program:
+    Basic Setup of Program when called from commandline:
     - Reads sys.argv and augments if appropriate
     - Makes Info, Out and Log objects
     - Returns [info,out,log,cmd_list]
     '''
-    try:
-        ### Initial Command Setup & Info ###
-        info = makeInfo()
+    try:### ~ [1] ~ Initial Command Setup & Info ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+        info = makeInfo()                                   # Sets up Info object with program details
         if len(sys.argv) == 2 and sys.argv[1] in ['version','-version','--version']: rje.printf(info.version); sys.exit(0)
-        if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: rje.printf('{0} v{1}'.format(info.program,info.version)); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: rje.printf('%s v%s' % (info.program,info.version)); sys.exit(0)
         if len(sys.argv) == 2 and sys.argv[1] in ['description','-description','--description']: rje.printf('%s: %s' % (info.program,info.description)); sys.exit(0)
-        cmd_list = rje.getCmdList(sys.argv[1:],info=info)      ### Load defaults from program.ini
-        ### Out object ###
-        out = rje.Out(cmd_list=cmd_list)
-        out.verbose(2,2,cmd_list,1)
-        out.printIntro(info)
-        ### Additional commands ###
-        cmd_list = cmdHelp(info,out,cmd_list)
-        ### Log ###
-        log = rje.setLog(info=info,out=out,cmd_list=cmd_list)
-        return [info,out,log,cmd_list]
-    except SystemExit:
-        sys.exit()
-    except KeyboardInterrupt:
-        sys.exit()
-    except:
-        print 'Problem during initial setup.'
-        raise
+        cmd_list = rje.getCmdList(sys.argv[1:],info=info)   # Reads arguments and load defaults from program.ini
+        out = rje.Out(cmd_list=cmd_list)                    # Sets up Out object for controlling output to screen
+        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2
+        out.printIntro(info)                                # Prints intro text using details from Info object
+        cmd_list = cmdHelp(info,out,cmd_list)               # Shows commands (help) and/or adds commands from user
+        log = rje.setLog(info,out,cmd_list)                 # Sets up Log object for controlling log file output
+        return (info,out,log,cmd_list)                      # Returns objects for use in program
+    except SystemExit: sys.exit()
+    except KeyboardInterrupt: sys.exit()
+    except: rje.printf('Problem during initial setup.'); raise
 #########################################################################################################################
 ### Constants                                                                                                           #
 #########################################################################################################################
@@ -464,7 +450,7 @@ class Presto(rje.RJE_Object):
         self.setOpt({'Expect':True,'MatchIC':True,'MemSaver':True,'ConsAmb':True,'ConsInfo':True,'Search':True})
         self.setInfo({'AlnDir':'Gopher/ALN/','AlnExt':'orthaln.fas','ConScore':'pos','UniPaths':'','OutStyle':'normal',
                       'ProtAlnDir':rje.makePath('ProteinAln/'),'HitName':'short'})
-        self.list['Alphabet'] = string.split('A,C,D,E,F,G,H,I,K,L,M,N,P,Q,R,S,T,V,W,Y',',')
+        self.list['Alphabet'] = rje.split('A,C,D,E,F,G,H,I,K,L,M,N,P,Q,R,S,T,V,W,Y',',')
         self.obj['MotifList'] = rje_motiflist.MotifList(self.log,self.cmd_list)
 #########################################################################################################################
     def _cmdList(self):     ### Sets Attributes from commandline
@@ -676,7 +662,7 @@ class Presto(rje.RJE_Object):
                     resfile = '%s%s' % (self.info['Basefile'],outfile[out])
                     #X#print out, self.info['Basefile'], outfile[out], resfile
                     rje.backup(self,resfile)
-                    if self.dict['Headers'].has_key(out):
+                    if out in self.dict['Headers']:
                         rje.delimitedFileOutput(self,resfile,self.dict['Headers'][out],delimit=delimit)
 
             ### Additional Output Files ###
@@ -785,7 +771,7 @@ class Presto(rje.RJE_Object):
             nohits = []     ### List of sequences without any hits
             if self.opt['UseRes']:
                 nhlines = self.loadFromFile(nohitsfile)
-                nohits = string.split(rje.chomp(string.join(nhlines)))
+                nohits = rje.split(rje.chomp(rje.join(nhlines)))
 
             ### Search database ### 
             startfrom = self.info['StartFrom']
@@ -961,7 +947,7 @@ class Presto(rje.RJE_Object):
             ### Filtering & Output ###
             results = rje_scoring.statFilter(self,results,self.dict['StatFilter'])  #!# Add restrict/exclude #!#
             for Occ in occlist[0:]:
-                if results.has_key(Occ):
+                if Occ in results:
                     rje.delimitedFileOutput(self,'%s%s' % (self.info['Basefile'],outfile['Search']),self.dict['Headers']['Search'],delimit=delimit,datadict=results[Occ])
                     ## Peptide fasta output ##  here #!# What abiut UniProtHits?
                     if self.opt['Peptides']:
@@ -1027,17 +1013,17 @@ class Presto(rje.RJE_Object):
                     filetype = None
                     for line in self.loadFromFile(file,chomplines=True):
                         if not filetype:    # Check file type
-                            if string.split(line,',')[:4] == ['Motif','Len','Hit','Start_Pos']:     # SlimPickings OccRes
+                            if rje.split(line,',')[:4] == ['Motif','Len','Hit','Start_Pos']:     # SlimPickings OccRes
                                 filetype = 'OccResCSV'
                             else:
                                 filetype = 'Simple'
                             continue
                         if filetype == 'OccResCSV':
-                            [hit,start,end,matchseq] = string.split(line,',')[2:6]
+                            [hit,start,end,matchseq] = rje.split(line,',')[2:6]
                             motif = '=%s' % matchseq
                         else:
-                            [motif,hit,start,end] = string.split(line)[:4]
-                        if not self.dict[type].has_key(motif):
+                            [motif,hit,start,end] = rje.split(line)[:4]
+                        if motif not in self.dict[type]:
                             self.dict[type][motif] = []
                         self.dict[type][motif].append([hit,start,end])
                         rx += 1
@@ -1083,7 +1069,7 @@ class Presto(rje.RJE_Object):
             for motif in self.list['Motifs']:
                 if len(self.dict['Hits'][motif]) == 0:
                     _nohits.append(motif.info['Name'])
-            RESFILE.write('CC   -!- PRESTO: No hits for %s.\n' % string.join(_nohits,sep=', '))
+            RESFILE.write('CC   -!- PRESTO: No hits for %s.\n' % rje.join(_nohits,sep=', '))
 
             ### <3> ### Hit Features
             _stage = '<3> Hit Features'
@@ -1106,7 +1092,7 @@ class Presto(rje.RJE_Object):
             RESFILE.write('SQ   SEQUENCE%s%d AA;  %d MW;  000000000000000 RJE05;\n' % (' ' * (7 - len('%d' % seq.aaLen())),seq.aaLen(),rje_seq.MWt(seq.info['Sequence'])))
             uniseq = seq.info['Sequence'][0:]
             while len(uniseq) > 0:
-                RESFILE.write('     %s\n' % string.join([uniseq[0:10],uniseq[10:20],uniseq[20:30],uniseq[30:40],uniseq[40:50],uniseq[50:60]],' '))
+                RESFILE.write('     %s\n' % rje.join([uniseq[0:10],uniseq[10:20],uniseq[20:30],uniseq[30:40],uniseq[40:50],uniseq[50:60]],' '))
                 uniseq = uniseq[60:]
             RESFILE.write('//\n')
             RESFILE.close()
@@ -1122,34 +1108,25 @@ class Presto(rje.RJE_Object):
 ### SECTION IV: MAIN PROGRAM                                                                                            #
 #########################################################################################################################
 def runMain():
-    ### Basic Setup of Program ###
-    try:
-        [info,out,mainlog,cmd_list] = setupProgram()
-    except SystemExit:
-        return  
-    except:
-        print 'Unexpected error during program setup:', sys.exc_info()[0]
-        return
-        
-    ### Rest of Functionality... ###
+    ### ~ [1] ~ Basic Setup of Program  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+    try: (info,out,mainlog,cmd_list) = setupProgram()
+    except SystemExit: return
+    except: rje.printf('Unexpected error during program setup:', sys.exc_info()[0]); return
+
+    ### ~ [2] ~ Rest of Functionality... ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try:        
         presto = Presto(log=mainlog,cmd_list=cmd_list)
         presto.run()
 
-    ### End ###
-    except SystemExit:
-        return  # Fork exit etc.
-    except KeyboardInterrupt:
-        mainlog.errorLog('User terminated.')
-    except:
-        mainlog.errorLog('Fatal error in main %s run.' % info.program)
-    mainlog.printLog('#LOG', '%s V:%s End: %s\n' % (info.program, info.version, time.asctime(time.localtime(time.time()))))
+    ### ~ [3] ~ End ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+    except SystemExit: return  # Fork exit etc.
+    except KeyboardInterrupt: mainlog.errorLog('User terminated.')
+    except: mainlog.errorLog('Fatal error in main %s run.' % info.program)
+    mainlog.endLog(info)
 #########################################################################################################################
-if __name__ == "__main__":      ### Call runMain 
-    try:
-        runMain()
-    except:
-        print 'Cataclysmic run error:', sys.exc_info()[0]
+if __name__ == "__main__":      ### Call runMain
+    try: runMain()
+    except: rje.printf('Cataclysmic run error: {0}'.format(sys.exc_info()[0]))
     sys.exit()
 #########################################################################################################################
 ### END OF SECTION IV                                                                                                   #

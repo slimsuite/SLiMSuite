@@ -362,7 +362,7 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         if not out: out = rje.Out()
         helpx = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
         if helpx > 0:
-            print '\n\nHelp for %s %s: %s\n' % (info.program, info.version, time.asctime(time.localtime(info.start_time)))
+            rje.printf('\n\nHelp for %s %s: %s\n' % (info.program, info.version, time.asctime(time.localtime(info.start_time))))
             out.verbose(-1,4,text=__doc__)
             if rje.yesNo('Show SLiMCalc commandline options?',default='N'): out.verbose(-1,4,text=rje_slimcalc.__doc__)
             if rje.yesNo('Show RJE_SEQ commandline options?',default='N'): out.verbose(-1,4,text=rje_seq.__doc__)
@@ -373,36 +373,30 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         return cmd_list
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Major Problem with cmdHelp()'
+    except: rje.printf('Major Problem with cmdHelp()')
 #########################################################################################################################
-def setupProgram(): ### Basic Setup of Program
+def setupProgram(): ### Basic Setup of Program when called from commandline.
     '''
-    Basic setup of Program:
+    Basic Setup of Program when called from commandline:
     - Reads sys.argv and augments if appropriate
     - Makes Info, Out and Log objects
     - Returns [info,out,log,cmd_list]
     '''
-    try:
-        ### Initial Command Setup & Info ###
-        info = makeInfo()
+    try:### ~ [1] ~ Initial Command Setup & Info ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+        info = makeInfo()                                   # Sets up Info object with program details
         if len(sys.argv) == 2 and sys.argv[1] in ['version','-version','--version']: rje.printf(info.version); sys.exit(0)
-        if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: rje.printf('{0} v{1}'.format(info.program,info.version)); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: rje.printf('%s v%s' % (info.program,info.version)); sys.exit(0)
         if len(sys.argv) == 2 and sys.argv[1] in ['description','-description','--description']: rje.printf('%s: %s' % (info.program,info.description)); sys.exit(0)
-        cmd_list = rje.getCmdList(sys.argv[1:],info=info)      ### Load defaults from program.ini
-        ### Out object ###
-        out = rje.Out(cmd_list=cmd_list)
-        out.verbose(2,2,cmd_list,1)
-        out.printIntro(info)
-        ### Additional commands ###
-        cmd_list = cmdHelp(info,out,cmd_list)
-        ### Log ###
-        log = rje.setLog(info=info,out=out,cmd_list=cmd_list)
-        return [info,out,log,cmd_list]
+        cmd_list = rje.getCmdList(sys.argv[1:],info=info)   # Reads arguments and load defaults from program.ini
+        out = rje.Out(cmd_list=cmd_list)                    # Sets up Out object for controlling output to screen
+        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2
+        out.printIntro(info)                                # Prints intro text using details from Info object
+        cmd_list = cmdHelp(info,out,cmd_list)               # Shows commands (help) and/or adds commands from user
+        log = rje.setLog(info,out,cmd_list)                 # Sets up Log object for controlling log file output
+        return (info,out,log,cmd_list)                      # Returns objects for use in program
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except:
-        print 'Problem during initial setup.'
-        raise
+    except: rje.printf('Problem during initial setup.'); raise
 #########################################################################################################################
 ### CONSTANTS ###                                                                                                     
 wildcards = ['.','X','x']
@@ -586,7 +580,7 @@ class SLiMFinder(rje_slimcore.SLiMCore):
                      'OccStatsCalculated':False,'Webserver':False,'DNA':False,'ConsMask':False,'DimFreq':True,
                      'OldScores':False,'SigV':False,'SigPrime':False,'AllSig':False,'FixLen':False,
                      'PickAll':True,'PickID':True,'QExact':True,'Palindrome':False,'CloudFix':False})
-        self.list['Equiv'] = string.split(default_equiv,',')
+        self.list['Equiv'] = rje.split(default_equiv,',')
         self.list['Batch'] = ['*.dat','*.fas']
         self.dict['MaskPos'] = {2:'A'}
         if self.log.info['Name'] == 'QSLiMFinder':
@@ -624,7 +618,7 @@ class SLiMFinder(rje_slimcore.SLiMCore):
                 self._cmdReadList(cmd,'cdict',['MotifSeq','MaskPos'])
             except: self.errorLog('Problem with cmd:%s' % cmd)
         ### Special Conversion ###
-        self.list['MustHave'] = string.split(string.join(self.list['MustHave']).upper())
+        self.list['MustHave'] = rje.split(rje.join(self.list['MustHave']).upper())
         #if self.getStrLC('Basefile'): self.setStr({'ResFile':'%s.csv' % self.baseFile()})
         if not self.getBool('CloudFix'): self.warnLog('NOTE: cloudfix=F. Be wary of ambiguity over-predictions.')
         if self.getBool('Pickup'): self.setBool({'Append':True})
@@ -658,7 +652,7 @@ class SLiMFinder(rje_slimcore.SLiMCore):
     def slimNum(self): return len(self.dict['Slim'])
 #########################################################################################################################
     def slimUP(self,slim):  ### Returns UP Num for SLiM if in dictionary, else 0.
-        if self.dict['Slim'].has_key(slim): return len(self.dict['Slim'][slim]['UP'])
+        if slim in self.dict['Slim']: return len(self.dict['Slim'][slim]['UP'])
         return 0
 #########################################################################################################################
     def slimOccNum(self,slim,upc=None,mstx=True):    ### Returns number of occ of Slim in given UPC
@@ -671,11 +665,11 @@ class SLiMFinder(rje_slimcore.SLiMCore):
         ## No UPC - return total! ##
         if not upc: return len(self.dict['Slim'][slim]['Occ'])
         ## See if SLiM occurs at all! ##
-        if not self.dict['SeqOcc'].has_key(slim): return 0
+        if slim not in self.dict['SeqOcc']: return 0
         ## MST-adjusted mean over UPC ##
         sx = 0; mx = 0.0
         for seq in upc:
-            if self.dict['SeqOcc'][slim].has_key(seq):
+            if seq in self.dict['SeqOcc'][slim]:
                 mx += self.dict['SeqOcc'][slim][seq]
                 sx = max(sx,self.dict['SeqOcc'][slim][seq])     # Old (flawed) way.
         mx = int(mx * self.dict['MST'][upc] / len(upc))
@@ -684,7 +678,7 @@ class SLiMFinder(rje_slimcore.SLiMCore):
 #########################################################################################################################
     def slimSeqNum(self,slim):  ### Returns the number of sequences SLiM occurs in.
         '''Returns the number of sequences SLiM occurs in.'''
-        if not self.dict['SeqOcc'].has_key(slim): return 0      ## See if SLiM occurs at all! ##
+        if slim not in self.dict['SeqOcc']: return 0      ## See if SLiM occurs at all! ##
         return len(self.dict['SeqOcc'][slim])
 #########################################################################################################################
     ### <3> ### General Run Methods                                                                                     #
@@ -881,7 +875,7 @@ class SLiMFinder(rje_slimcore.SLiMCore):
                     return pickup
                 ## ~ [1b] All Datasets ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
                 else:
-                    pickup = rje.dataDict(self,self.getStr('ResFile'),['Dataset'],['Pattern'],lists=True).keys()
+                    pickup = list(rje.dataDict(self,self.getStr('ResFile'),['Dataset'],['Pattern'],lists=True).keys())
                     self.printLog('#PICKUP','Pickup %s datasets (No RunID)' % (rje.integerString(len(pickup))))
                     return pickup
             ### ~ [2] Complex Pickup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -890,7 +884,7 @@ class SLiMFinder(rje_slimcore.SLiMCore):
                 pickup = []
                 if self.getBool('PickID'):
                     pickdat = rje.dataDict(self,self.getStr('ResFile'),['Dataset','RunID'],['Dataset','RunID','Pattern'],lists=True)
-                    for k in pickdat.keys()[0:]:
+                    for k in list(pickdat.keys())[0:]:
                         pickrun = pickdat.pop(k)
                         if self.getStr('RunID') in pickrun['RunID']:
                             for x in ['<','>','!']:
@@ -901,7 +895,7 @@ class SLiMFinder(rje_slimcore.SLiMCore):
                 ## ~ [1b] All Datasets ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
                 else:
                     pickdat = rje.dataDict(self,self.getStr('ResFile'),['Dataset'],['Dataset','Pattern'],lists=True)
-                    for k in pickdat.keys()[0:]:
+                    for k in list(pickdat.keys())[0:]:
                         pickrun = pickdat.pop(k)
                         for x in ['<','>','!']:
                             while x in pickrun['Pattern']: pickrun['Pattern'].remove(x)
@@ -959,7 +953,7 @@ class SLiMFinder(rje_slimcore.SLiMCore):
                 sx += 1
                 sequence = seq.info['Sequence'].upper()
                 #self.debug(sequence)
-                if self.getBool('DNA'): sequence = string.replace(sequence,'N','X')
+                if self.getBool('DNA'): sequence = rje.replace(sequence,'N','X')
                 if self.getBool('Termini'): sequence = '^%s$' % sequence
                 ## Setup UPC and DimFreq ##
                 try:
@@ -985,16 +979,16 @@ class SLiMFinder(rje_slimcore.SLiMCore):
                         ## Add Dimer ##
                         self.dict['DimFreq'][seq][x] += 1
                         self.dict['DimFreq'][upc][x] += 1
-                        if not self.dict['Dimers'].has_key(ai): self.dict['Dimers'][ai] = {}
-                        if not self.dict['Dimers'][ai].has_key(x): self.dict['Dimers'][ai][x] = {}
-                        if not self.dict['Dimers'][ai][x].has_key(aj):
+                        if ai not in self.dict['Dimers']: self.dict['Dimers'][ai] = {}
+                        if x not in self.dict['Dimers'][ai]: self.dict['Dimers'][ai][x] = {}
+                        if aj not in self.dict['Dimers'][ai][x]:
                             self.dict['Dimers'][ai][x][aj] = {'UP':[],'Occ':[]}
                             dx += 1
                         if upc not in self.dict['Dimers'][ai][x][aj]['UP']: self.dict['Dimers'][ai][x][aj]['UP'].append(upc)
                         self.dict['Dimers'][ai][x][aj]['Occ'].append((seq,r))
                         newslim = '%s-%s-%s' % (ai,x,aj)   #!# Str->List mod 1.5 #!#
-                        if not self.dict['SeqOcc'].has_key(newslim): self.dict['SeqOcc'][newslim] = {seq:1}
-                        elif not self.dict['SeqOcc'][newslim].has_key(seq): self.dict['SeqOcc'][newslim][seq] = 1
+                        if newslim not in self.dict['SeqOcc']: self.dict['SeqOcc'][newslim] = {seq:1}
+                        elif seq not in self.dict['SeqOcc'][newslim]: self.dict['SeqOcc'][newslim][seq] = 1
                         else: self.dict['SeqOcc'][newslim][seq] += 1
                 self.progLog('\r#DIM','Reading dimers (%d seq) %s dimers' % (sx,rje.integerString(dx)))
             self.printLog('\r#DIM','Read dimers from %d seq: %s dimers' % (sx,rje.integerString(dx)))
@@ -1018,11 +1012,11 @@ class SLiMFinder(rje_slimcore.SLiMCore):
         try:### Select Dimers ###
             dx = 0
             self.dict['FullDimers'] = {}    ### Store a full copy of dimers for finding later ambiguity!
-            for ai in self.dict['Dimers'].keys()[0:]:
+            for ai in list(self.dict['Dimers'].keys())[0:]:
                 self.dict['FullDimers'][ai] = {}
-                for x in self.dict['Dimers'][ai].keys()[0:]:
+                for x in list(self.dict['Dimers'][ai].keys())[0:]:
                     self.dict['FullDimers'][ai][x] = {}
-                    for aj in self.dict['Dimers'][ai][x].keys()[0:]:
+                    for aj in list(self.dict['Dimers'][ai][x].keys())[0:]:
                         self.dict['FullDimers'][ai][x][aj] = self.dict['Dimers'][ai][x][aj]
                         ox = len(self.dict['Dimers'][ai][x][aj]['UP'])
                         if ox < self.getInt('AmbOcc'): self.dict['Dimers'][ai][x].pop(aj)
@@ -1044,7 +1038,7 @@ class SLiMFinder(rje_slimcore.SLiMCore):
             for ai in self.dict['Dimers']:
                 for x in self.dict['Dimers'][ai]:
                     if self.getBool('AlphaHelix') and x < 2: continue   # Cannot start with x=0
-                    for aj in self.dict['Dimers'][ai][x].keys()[0:]:
+                    for aj in list(self.dict['Dimers'][ai][x].keys())[0:]:
                         slim = '%s-%s-%s' % (ai,x,aj)
                         prevslim.append(slim)
                         self.dict['Slim'][slim] = self.dict['Dimers'][ai][x][aj]
@@ -1081,13 +1075,13 @@ class SLiMFinder(rje_slimcore.SLiMCore):
         '''
         try:### Setup ###
             ai = slim[-1]
-            if not self.dict['Dimers'].has_key(ai): return []
+            if ai not in self.dict['Dimers']: return []
             extend = []
             slimocc = self.dict['Slim'][slim]['Occ']
-            if self.getBool('AlphaHelix'): prevx = string.atoi(string.split(slim,'-')[-2])
+            if self.getBool('AlphaHelix'): prevx = string.atoi(rje.split(slim,'-')[-2])
             elif self.getBool('FixLen'):
                 prevx = 0
-                for x in string.split(slim,'-'):
+                for x in rje.split(slim,'-'):
                     try: prevx += string.atoi(x)
                     except: pass
 
@@ -1108,8 +1102,8 @@ class SLiMFinder(rje_slimcore.SLiMCore):
                         extend.append(newslim)
                         self.dict['Slim'][newslim] = {'Occ':newocc,'UP':newup}
                         for (seq,pos) in newocc:
-                            if not self.dict['SeqOcc'].has_key(newslim): self.dict['SeqOcc'][newslim] = {seq:1}
-                            elif not self.dict['SeqOcc'][newslim].has_key(seq): self.dict['SeqOcc'][newslim][seq] = 1
+                            if newslim not in self.dict['SeqOcc']: self.dict['SeqOcc'][newslim] = {seq:1}
+                            elif seq not in self.dict['SeqOcc'][newslim]: self.dict['SeqOcc'][newslim][seq] = 1
                             else: self.dict['SeqOcc'][newslim][seq] += 1
             ### Return ###
             return extend
@@ -1152,7 +1146,7 @@ class SLiMFinder(rje_slimcore.SLiMCore):
                 if self.slimIC(slim) < self.getNum('MinIC'): continue
                 ## Make options for each position ##
                 ambopt = []
-                for pos in string.split(slim,'-'):
+                for pos in rje.split(slim,'-'):
                     newamb = []
                     for equiv in equivlist:
                         if equiv.find(pos) >= 0: newamb.append(equiv)
@@ -1163,7 +1157,7 @@ class SLiMFinder(rje_slimcore.SLiMCore):
                 ## Assess each combo for possible ambiguous Motifs ##
                 for combo in combos:
                     varlist = rje.listCombos(combo)
-                    for v in range(len(varlist)): varlist[v] = string.join(varlist[v],'-')
+                    for v in range(len(varlist)): varlist[v] = rje.join(varlist[v],'-')
                     ## Order so that least expected comes first ##
                     varexp = {}
                     varup = {}
@@ -1217,9 +1211,9 @@ class SLiMFinder(rje_slimcore.SLiMCore):
         ### ~ [1] Combine slim variants into a new SLiM ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         if len(occvar) < 2: return None     # Nothing to combine
         ## ~ [1a] Make new SLiM ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-        newslim = string.split(occvar[0],'-')
+        newslim = rje.split(occvar[0],'-')
         for var in occvar[1:]:      ## Add variants to each position ##
-            varsplit = string.split(var,'-')
+            varsplit = rje.split(var,'-')
             for i in range(len(varsplit)):
                 pos = varsplit[i]
                 if newslim[i].find(pos) < 0: newslim[i] = newslim[i] + pos
@@ -1234,12 +1228,12 @@ class SLiMFinder(rje_slimcore.SLiMCore):
             slim += newpos + '-'
         slim = slim[:-1]
         ### ~ [2] Check for existence ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-        if self.dict['Slim'].has_key(slim): return None
+        if slim in self.dict['Slim']: return None
         ### ~ [3] Add New SLiM ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         self.dict['Slim'][slim] = {'Occ':[],'UP':[]}
         ## ~ [3a] Occurrences and UPC for all variants ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-        for var in rje.listCombos(string.split(slim,'-')):
-            varslim = string.join(var,'-')
+        for var in rje.listCombos(rje.split(slim,'-')):
+            varslim = rje.join(var,'-')
             if varslim not in self.dict['Slim']: continue
             for occ in self.dict['Slim'][varslim]['Occ']:
                 if occ not in self.dict['Slim'][slim]['Occ']: self.dict['Slim'][slim]['Occ'].append(occ)
@@ -1248,7 +1242,7 @@ class SLiMFinder(rje_slimcore.SLiMCore):
         ## ~[3b] SeqOcc dictionary ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
         self.dict['SeqOcc'][slim] = {}
         for (seq,pos) in self.dict['Slim'][slim]['Occ']:
-            if not self.dict['SeqOcc'][slim].has_key(seq): self.dict['SeqOcc'][slim][seq] = 1
+            if seq not in self.dict['SeqOcc'][slim]: self.dict['SeqOcc'][slim][seq] = 1
             else: self.dict['SeqOcc'][slim][seq] += 1
         ## ~[3c] Return new SLiM ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
         return slim
@@ -1313,13 +1307,13 @@ class SLiMFinder(rje_slimcore.SLiMCore):
                 except: self.errorLog('Problem during NewUPC loading')
             (sx,stot) = (0.0,self.slimNum())
             self.dict['AllSlims'] = {}
-            for slim in self.dict['Slim'].keys()[0:]:
+            for slim in list(self.dict['Slim'].keys())[0:]:
                 self.dict['AllSlims'][slim] = self.dict['Slim'][slim]
                 self.progLog('\r#SLIM','Filtering %s SLiMs: %.1f%%' % (rje.integerString(stot),sx/stot)); sx += 100.0
                 ### Full Length ###
                 if self.getBool('FixLen') or self.getBool('AlphaHelix'):
                     totlen = 0
-                    for x in string.split(slim,'-'):
+                    for x in rje.split(slim,'-'):
                         try: totlen += string.atoi(x)
                         except: totlen += 1
                     #self.deBug('%s = %d' % (slim,totlen))
@@ -1329,7 +1323,7 @@ class SLiMFinder(rje_slimcore.SLiMCore):
                         #i# Should only keep SLiMs that have gone through all Slimlen cycles and added maxwild Xs.
                 ### Palindrome Mode ###
                 if self.getBool('DNA') and self.getBool('Palindrome'):
-                    slimpos = string.split(slim,'-')
+                    slimpos = rje.split(slim,'-')
                     for i in range(len(slimpos)):
                         try: x = '%d' % int(slimpos[i])
                         except: x = rje.strSort(rje_sequence.reverseComplement(slimpos[i]))
@@ -1348,7 +1342,7 @@ class SLiMFinder(rje_slimcore.SLiMCore):
             ### ~ [2] Additional Motif Stats if used for OccFilter ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if self.occFilter():
                 self.calculateSLiMOccStats()
-                for slim in self.dict['Slim'].keys()[0:]:
+                for slim in list(self.dict['Slim'].keys())[0:]:
                     if not self.motifOccStats(slim): self.dict['Slim'].pop(slim)
             self.printLog('\r#SLIM','Filtering %s SLiMs: %s retained.' % (rje.integerString(stot),rje.integerString(self.slimNum())))
             ### ~ [3] AltUPC Filtering ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -1361,7 +1355,7 @@ class SLiMFinder(rje_slimcore.SLiMCore):
                 try: ## ~ [3b] Filter ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
                     self.loadUPCFromFile(ufile)
                     (sx,stot) = (0.0,self.slimNum())
-                    for slim in self.dict['Slim'].keys()[0:]:
+                    for slim in list(self.dict['Slim'].keys())[0:]:
                         self.progLog('\r#ALT','AltUPC filtering %s SLiMs: %.1f%%' % (rje.integerString(stot),sx/stot)); sx += 100.0
                         slimocc = self.dict['Slim'][slim]['Occ']
                         newup = []
@@ -1398,7 +1392,7 @@ class SLiMFinder(rje_slimcore.SLiMCore):
                     if rje.matchExp('^#+(\S+):(\S+)',fline):    #Group:Type (Seq/Spec/Desc/DB/Acc)
                         (group,type) = rje.matchExp('^#+(\S+):(\S+)',fline)
                     elif fline[:2] == '//' and group: # Update
-                        self.obj['SeqList']._filterCmd(['good%s=%s' % (type.lower(),string.join(queries,','))])
+                        self.obj['SeqList']._filterCmd(['good%s=%s' % (type.lower(),rje.join(queries,','))])
                         self.obj['SeqList']._filterSeqs()
                         self.printLog('#FOCUS','Group "%s" = %s: %d sequences identified' % (group,type,self.obj['SeqList'].seqNum()))
                         if self.obj['SeqList'].seqNum() < 1:
@@ -1444,7 +1438,7 @@ class SLiMFinder(rje_slimcore.SLiMCore):
         if not self.dict['Focus']: return True
         maxfail = 0
         if self.getInt('FocusOcc') > 0: maxfail = len(self.dict['Focus']) - self.getInt('FocusOcc')
-        slimgrp = self.dict['Focus'].keys()     # Groups not accounted for
+        slimgrp = list(self.dict['Focus'].keys())     # Groups not accounted for
         for (seq,occ) in self.dict['Slim'][slim]['Occ']:
             for grp in slimgrp[0:]:
                 if seq in self.dict['Focus'][grp]: slimgrp.remove(grp)
@@ -1533,8 +1527,8 @@ class SLiMFinder(rje_slimcore.SLiMCore):
             ### Simple PreMasking Procedure ###
             if self.getBool('MaskFreq'):
                 for upc in self.list['UP']:
-                    if self.dict['AAFreq'][upc].has_key('X'): self.dict['AAFreq'][upc].pop('X') # Ignore Xs
-                    if self.getBool('DNA') and self.dict['AAFreq'][upc].has_key('N'): self.dict['AAFreq'][upc].pop('N') # Ignore Ns from DNA sequences
+                    if 'X' in self.dict['AAFreq'][upc]: self.dict['AAFreq'][upc].pop('X') # Ignore Xs
+                    if self.getBool('DNA') and 'N' in self.dict['AAFreq'][upc]: self.dict['AAFreq'][upc].pop('N') # Ignore Ns from DNA sequences
                     self.dict['AAFreq'][upc].pop('Total')  #!# Total remade by dictFreq #!#
                     if self.getBool('Termini'):
                         self.dict['AAFreq'][upc]['^'] = len(upc)
@@ -1549,8 +1543,8 @@ class SLiMFinder(rje_slimcore.SLiMCore):
             (prex,postx) = (0,0)
             for upc in self.list['UP']:
                 x = 0
-                if self.dict['AAFreq'][upc].has_key('X'): x = self.dict['AAFreq'][upc].pop('X') # Ignore Xs
-                if self.getBool('DNA') and self.dict['AAFreq'][upc].has_key('N'): x += self.dict['AAFreq'][upc].pop('N') # Ignore Ns from DNA sequences
+                if 'X' in self.dict['AAFreq'][upc]: x = self.dict['AAFreq'][upc].pop('X') # Ignore Xs
+                if self.getBool('DNA') and 'N' in self.dict['AAFreq'][upc]: x += self.dict['AAFreq'][upc].pop('N') # Ignore Ns from DNA sequences
                 totalaa = self.dict['AAFreq'][upc].pop('Total')
                 preaa = totalaa - x   # Want to calculate new total
                 prex += preaa
@@ -1586,7 +1580,7 @@ class SLiMFinder(rje_slimcore.SLiMCore):
             wild = False    # Whether next part is a wildcard length
             mult = 1        # Variable-length multiplier
             minslimlen = 0  # Minimum SLiM length
-            for part in string.split(slim,'-'):      # Split SLiM code in components
+            for part in rje.split(slim,'-'):      # Split SLiM code in components
                 ## Update lists ##
                 if wild: wildlist.append(part)
                 else: poslist.append(part); minslimlen += 1
@@ -1663,7 +1657,7 @@ class SLiMFinder(rje_slimcore.SLiMCore):
         k = 1                                   # Number of successful trials (occurrences)
         if self.getBool('SeqOcc'): k = max(1,self.slimOccNum(slim,upc))
         ### ~ [2] Special AADimerFreq option ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-        for slimvar in rje.listCombos(string.split(slim,'-')):
+        for slimvar in rje.listCombos(rje.split(slim,'-')):
             v = rje.getFromDict(self.dict['AAFreq'][upc],slimvar[0],returnkey=False,default=0.0)
             slist = slimvar[0:]
             while slist:
@@ -1707,7 +1701,7 @@ class SLiMFinder(rje_slimcore.SLiMCore):
                 musthave = len(self.list['MustHave'])
                 if '^' in self.list['MustHave']: musthave -= 1
                 if '$' in self.list['MustHave']: musthave -= 1
-                self.printLog('#MUST','MustHave: %s' % string.join(self.list['MustHave']))
+                self.printLog('#MUST','MustHave: %s' % rje.join(self.list['MustHave']))
             ### ~ [2] Calculate motif space ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if self.getBool('AlphaHelix'):
                 self.dict['Extremf.'][2] = 1
@@ -1834,7 +1828,7 @@ class SLiMFinder(rje_slimcore.SLiMCore):
             self.printLog('\r#PROB','%s complete: %s ranked SLiMs.' % (ptxt,rje.integerString(len(self.list['SigSlim']))))
             ### ~ [3] Reduce to Significant SLiMs ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             self.obj['SlimList'].list['Motif'] = []
-            for slim in self.dict['Slim'].keys()[0:]:
+            for slim in list(self.dict['Slim'].keys())[0:]:
                 if slim not in self.list['SigSlim']: self.dict['Slim'].pop(slim)
             for slim in self.list['SigSlim']: self.obj['SlimList'].list['Motif'].append(self.addSLiMToList(slim))
         except SystemExit:
@@ -2124,7 +2118,6 @@ class SLiMFinder(rje_slimcore.SLiMCore):
                         for pos in occ[slim1][seq]:
                             if pos in occ[slim2][seq]: px += 1
                         if px >= 2: cx += 1
-                        #X#print slim1, 'v', slim2, seq, px, cx, '>=', self.stat['Clouds']
                         if cx >= self.getInt('Clouds'):    # We have a match!
                             clouds[slim1].append(slim2)
                             break   # Check no more sequences
@@ -2370,9 +2363,10 @@ class SLiMFinder(rje_slimcore.SLiMCore):
                             if pos >=0 : cdict[c]['PepSeq'].append(seq.info['Sequence'][pos:pos+peplen])     #!# Check masking!
                             else: cdict[c]['PepSeq'].append('-' * -pos + seq.info['Sequence'][:pos+peplen])
                             if not cdict[c]['PepSeq'][-1]: self.bugPrint('%s+%s' % (pos,peplen)); self.debug(seq.info)
-                scmd = self.cmd_list+['peptides=%s' % string.join(cdict[c]['PepSeq'],',')]
-                (cdict[c]['SLiMMaker'],cdict[c]['SLiMMakerStr']) = slimmaker.SLiMMaker(self.log,scmd).run(log=False)
-                self.printLog('#SLIM','Cloud %d (%s) SLiMMaker: %s' % (c,string.join(cdict[c]['Slim'],'|'),cdict[c]['SLiMMaker']))
+                scmd = self.cmd_list+['peptides=%s' % rje.join(cdict[c]['PepSeq'],',')]
+                (cdict[c]['SLiMMaker'],cdict[c]['SLiMMakerStr']) = slimmaker.SLiMMaker(self.log,scmd).run(log=self.debugging())
+                if not cdict[c]['SLiMMaker']: self.warnLog('Problem creating SLiMMaker consensus. Possibly too many variable wildcard combinations?')
+                self.printLog('#SLIM','Cloud %d (%s) SLiMMaker: %s' % (c,rje.join(cdict[c]['Slim'],'|'),cdict[c]['SLiMMaker']))
                 self.printLog('#FREQ','SLiMMaker %s' % (cdict[c]['SLiMMakerStr']))
         except: self.errorLog('Error in %s.cloudConsensi()' % self.prog())
 #########################################################################################################################       
@@ -2432,9 +2426,9 @@ class SLiMFinder(rje_slimcore.SLiMCore):
 
             ### ~ [4] ResFile(s) ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if self.getStrLC('ResFile') and self.getStr('ResFile').find('.') < 0: self.setStr({'ResFile': self.getStr('ResFile') + '.csv'})
-            resfilesplit = string.split(self.getStr('ResFile'),'.')
+            resfilesplit = rje.split(self.getStr('ResFile'),'.')
             resfilesplit = resfilesplit[:-1] + ['occ',resfilesplit[-1]]
-            self.setStr({'OccResFile':string.join(resfilesplit,'.')})
+            self.setStr({'OccResFile':rje.join(resfilesplit,'.')})
             #self.deBug(self.list['Headers'])
         except:
             self.errorLog('Problem with SLiMFinder.setupResults()')
@@ -2500,7 +2494,7 @@ class SLiMFinder(rje_slimcore.SLiMCore):
                     upout.append(upc)
                     upstr = []
                     for useq in upc: upstr.append(useq.shortName())
-                    prehead.append('#\t-[%s]' % (string.join(upstr,',')))
+                    prehead.append('#\t-[%s]' % (rje.join(upstr,',')))
                 ## No. Motifs ##
                 if self.getStr('ProbScore')[:3] in ['Sig','Pro']: prehead += ['#','#\tNo. of motifs %s <= %s: %d' % (self.getStr('ProbScore'),self.getNum('ProbCut'),len(self.list['SigSlim']))]
                 else: prehead += ['#','#\tNo. of motifs %s >= %s: %d' % (self.getStr('ProbScore'),self.getNum('ProbCut'),len(self.list['SigSlim']))]
@@ -2512,7 +2506,7 @@ class SLiMFinder(rje_slimcore.SLiMCore):
                 for i in range(self.seqNum()): dathead.append('%d\t%s' % (i,self.seqs()[i].shortName()))
                 dathead.append('#Motifs')
                 DAT = open(datfile,'w')
-                DAT.write('%s\n' % string.join(dathead,'\n'))
+                DAT.write('%s\n' % rje.join(dathead,'\n'))
                 for slim in self.list['SigSlim']:
                     DAT.write('%d\t%s\t' % (self.dict['Slim'][slim]['Rank'],patternFromCode(slim)))
                     for (seq,pos) in self.dict['Slim'][slim]['Occ']: DAT.write('%d:%d ' % (self.seqs().index(seq),pos))
@@ -2530,7 +2524,7 @@ class SLiMFinder(rje_slimcore.SLiMCore):
             if (self.getBool('SlimDisc') or self.extras(3)) and not aborted:
                 rje.delimitedFileOutput(self,rankfile,headers,'\t',rje_backup=False)
                 rlines = open(rankfile,'r').read()
-                open(rankfile,'w').write('%s\n%s' % (string.join(prehead,'\n'),rlines))
+                open(rankfile,'w').write('%s\n%s' % (rje.join(prehead,'\n'),rlines))
             ## SLiM Data ##
             for slim in self.list['SigSlim']:   #!# Add SigNum? #!#
                 pattern = patternFromCode(slim)
@@ -2547,12 +2541,11 @@ class SLiMFinder(rje_slimcore.SLiMCore):
                     datadict['CloudSeq'] = len(self.dict['Clouds'][self.dict['Slim'][slim]['Cloud']]['Seq'])
                     datadict['CloudUP'] = len(self.dict['Clouds'][self.dict['Slim'][slim]['Cloud']]['UPC'])
                 for p in ['ExpUP','Prob','Sig','E','R','S','SigV','SigPrime','SigPrimeV']:
-                    if self.dict['Slim'][slim].has_key(p): datadict[p] = rje_slim.expectString(self.dict['Slim'][slim][p])
+                    if p in self.dict['Slim'][slim]: datadict[p] = rje_slim.expectString(self.dict['Slim'][slim][p])
                 for h in self.list['Headers']:
                     if Motif and h not in datadict and h in Motif.stat:
                         if h.endswith('_mean'): datadict[h] = rje_slim.expectString(Motif.stat[h])
                         else: datadict[h] = Motif.stat[h]
-                #X#print Motif.stat
                 ## Main Output ##
                 if self.getStrLC('ResFile') and self.getBool('SlimChance'):
                     rje.delimitedFileOutput(self,self.getStr('ResFile'),reshead,delimit,datadict)
@@ -2575,9 +2568,9 @@ class SLiMFinder(rje_slimcore.SLiMCore):
             ###~Additional Screen Output~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~###
             if (self.getBool('SlimDisc') or self.extras(3)) and not aborted:
                 ox = self.seqNum() + 11
-                self.verbose(1,1,string.join(['\n\n']+open(datfile,'r').readlines()[:ox+2],''),2)
-                self.verbose(1,1,string.join(open(rankfile,'r').readlines()[:ox+16+self.UPNum()],''),2)
-            if self.list['Warning']: self.verbose(0,0,string.join(['']+self.list['Warning'],'\n'),1)
+                self.verbose(1,1,rje.join(['\n\n']+open(datfile,'r').readlines()[:ox+2],''),2)
+                self.verbose(1,1,rje.join(open(rankfile,'r').readlines()[:ox+16+self.UPNum()],''),2)
+            if self.list['Warning']: self.verbose(0,0,rje.join(['']+self.list['Warning'],'\n'),1)
             return True            
         except: self.errorLog('Error with SLiMFinder results output.')
         return False
@@ -2599,15 +2592,15 @@ class SLiMFinder(rje_slimcore.SLiMCore):
             CLOUD = open(cloudfile,'w')
             CLOUD.write('%s: %d Seq, %d UPC, %d Sig SLiMs in %d Clouds\n\n' % (self.dataset(),self.seqNum(),self.UPNum(),len(self.list['SigSlim']),len(self.dict['Clouds'])))
             for c in rje.sortKeys(self.dict['Clouds']):
-                CLOUD.write('Cloud %d (%d SLiMs):\t%s' % (c,len(self.dict['Clouds'][c]['Slim']),string.join(self.dict['Clouds'][c]['Slim'],'\t')))
+                CLOUD.write('Cloud %d (%d SLiMs):\t%s' % (c,len(self.dict['Clouds'][c]['Slim']),rje.join(self.dict['Clouds'][c]['Slim'],'\t')))
                 CLOUD.write('\t(p = %s)\n' % self.dict['Clouds'][c]['Sig'])
                 seqnames = []
                 for seq in self.dict['Clouds'][c]['Seq']: seqnames.append(seq.shortName())
                 seqnames.sort()
-                CLOUD.write('%d UPC\t%d Seq:\t%s\n\n' % (len(self.dict['Clouds'][c]['UPC']),len(self.dict['Clouds'][c]['Seq']),string.join(seqnames,'\t')))
+                CLOUD.write('%d UPC\t%d Seq:\t%s\n\n' % (len(self.dict['Clouds'][c]['UPC']),len(self.dict['Clouds'][c]['Seq']),rje.join(seqnames,'\t')))
                 CLOUD.write('SLiMMaker Consensus: %s\n' % self.dict['Clouds'][c]['SLiMMaker'])
                 CLOUD.write('- %s\n\n' % self.dict['Clouds'][c]['SLiMMakerStr'])
-                CLOUD.write('%s\n\n' % string.join(self.dict['Clouds'][c]['PepSeq'],'\n'))
+                CLOUD.write('%s\n\n' % rje.join(self.dict['Clouds'][c]['PepSeq'],'\n'))
             CLOUD.close()
             ## Cloud Coverage ##
             for type in ['Seq','UPC']:
@@ -2684,7 +2677,7 @@ class SLiMFinder(rje_slimcore.SLiMCore):
                 SIGSLIM = open('%s.motifs' % extrabase,'w')
                 for slim in extraslim:
                     sigpat.append(patternFromCode(slim))
-                    if not self.dict['Slim'][slim].has_key('Rank'): self.dict['Slim'][slim]['Rank'] = 0
+                    if 'Rank' not in self.dict['Slim'][slim]: self.dict['Slim'][slim]['Rank'] = 0
                     if slim in self.list['SigSlim'][0:]:
                         SIGSLIM.write('%s # %s SLiMFinder (%s) rank %s' % (patternFromCode(slim),self.dataset(),self.getStr('RunID'),self.dict['Slim'][slim]['Rank']))
                         try: SIGSLIM.write(' [p=%s]\n' % (rje_slim.expectString(self.dict['Slim'][slim]['LSig'])))
@@ -2716,7 +2709,7 @@ class SLiMFinder(rje_slimcore.SLiMCore):
                 for seq in self.seqs():
                     if self.getBool('Masked'): seq.info['Sequence'] = seq.info['PreMask']   #x# seq.info['MaskSeq']
                     occlist = []
-                    if motif_occ.has_key(seq):
+                    if seq in motif_occ:
                         for Motif in motif_occ[seq].keys():
                             occlist += motif_occ[seq][Motif]
                     saln = self.obj['SlimList'].obj['SLiMCalc'].singleProteinAlignment(seq,occlist,usegopher=False,savefasta=False,wintuple=30)
@@ -2746,8 +2739,8 @@ class SLiMFinder(rje_slimcore.SLiMCore):
                                     wpos = Occ['Pos']
                                 else: wpos = waln.seqAlnPos(wseq,start,next=True)
                                 makeme[-1] = '%s-' % rje.preZero(wpos,wseq.seqLen()) + makeme[-1]
-                            waln._addSeq(wseq.info['Name'],string.join(makeme,'-XXXXXXXXXX-'))    #!#Add positions at some point
-                            #x#self.deBug(waln.seq[-1].info)   #x#string.join(makeme,'-XXXXXXXXXX-'))
+                            waln._addSeq(wseq.info['Name'],rje.join(makeme,'-XXXXXXXXXX-'))    #!#Add positions at some point
+                            #x#self.deBug(waln.seq[-1].info)   #x#rje.join(makeme,'-XXXXXXXXXX-'))
                         waln.saveFasta()                               
                 ## ~ [4c] Mapping Alignment Output ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
                 paln.saveFasta()
@@ -2762,7 +2755,7 @@ class SLiMFinder(rje_slimcore.SLiMCore):
                     slim = self.getSigSlim(Motif.info['Sequence'])
                     if not slim or slim not in self.list['SigSlim']:
                         self.errorLog('Trying to make extra output for "%s" but not in SigSlim!' % slim,printerror=False)
-                        print len(self.list['SigSlim']), self.obj['SlimList'].motifNum()
+                        #print len(self.list['SigSlim']), self.obj['SlimList'].motifNum()
                         self.obj['SlimList'].removeMotif(Motif)
                         continue    #!# Problem?! #!#
                     elif not slim in self.dict['Slim']:
@@ -2897,7 +2890,7 @@ class SLiMFinder(rje_slimcore.SLiMCore):
                 name = seq.info['ID']
                 nodes[name] = {'Protein':seq.shortName(),'Description':seq.info['Description'],
                                'Species':seq.info['Species'],'AccNum':seq.info['AccNum'],
-                               'MaskLen':seq.aaLen() - string.count(seq.info['MaskSeq'].upper(),'X'),'TYPE':'Protein',
+                               'MaskLen':seq.aaLen() - rje.count(seq.info['MaskSeq'].upper(),'X'),'TYPE':'Protein',
                                'UnmaskLen':seq.aaLen()}
                 nodes[name]['node.shape'] = 'ellipse'
                 nodes[name]['node.fillColor'] = '127,127,255'
@@ -2954,7 +2947,7 @@ class SLiMFinder(rje_slimcore.SLiMCore):
                 nodes[name]['node.size'] = '%d.0' % nsize
 
             ### ~ [3] Add Cloud Edges ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            for type in edges.keys()[0:]:
+            for type in list(edges.keys())[0:]:
                 if type not in ['upc']: edges.pop(type)      # Remove comparimotif edges
             edges['occ'] = {}    # Delete motif occurrences
             motocc = self.obj['SlimList'].motifOcc()
@@ -3009,7 +3002,7 @@ class SLiMFinder(rje_slimcore.SLiMCore):
             self.dict['Output']['teiresias'] = outfile
             OUT = open(outfile,'w')
             ## Header ##
-            OUT.write(string.join(['##########################################################',
+            OUT.write(rje.join(['##########################################################',
                                    '#                                                        #',
                                    '#                       FINAL RESULTS                    #',
                                    '#                                                        #',
@@ -3038,7 +3031,7 @@ class SLiMFinder(rje_slimcore.SLiMCore):
                 return
 
             ### ~ [2] Make into SLiMFinder SLiMs ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            #X#aa = string.split('A,C,D,E,F,G,H,I,K,L,M,N,P,Q,R,S,T,V,W,Y,^,$',',')
+            #X#aa = rje.split('A,C,D,E,F,G,H,I,K,L,M,N,P,Q,R,S,T,V,W,Y,^,$',',')
             checklist = []
             for Motif in self.obj['SlimCheck'].slims()[0:]:
                 if Motif.slim(): checklist.append(Motif.slim())
@@ -3102,14 +3095,14 @@ class SLiMFinder(rje_slimcore.SLiMCore):
                             'Pattern':pattern,'Occ':len(self.dict['Slim'][slim]['Occ']),'Support':self.dict['Slim'][slim]['Support'],
                             'IC':self.slimIC(slim),'UP':self.slimUP(slim), 'Norm':self.slimUP(slim),
                             }
-                if self.dict['Clouds'] and self.dict['Slim'][slim].has_key('Cloud'):
+                if self.dict['Clouds'] and 'Cloud' in self.dict['Slim'][slim]:
                     try:
                         datadict['Cloud'] = self.dict['Slim'][slim]['Cloud']
                         datadict['CloudSeq'] = len(self.dict['Clouds'][self.dict['Slim'][slim]['Cloud']]['Seq'])
                         datadict['CloudUP'] = len(self.dict['Clouds'][self.dict['Slim'][slim]['Cloud']]['UPC'])
                     except: pass
                 for p in ['ExpUP','Prob','Sig','E','SigV','SigPrime','SigPrimeV','S','R']:
-                    if self.dict['Slim'][slim].has_key(p): datadict[p] = rje_slim.expectString(self.dict['Slim'][slim][p])
+                    if p in self.dict['Slim'][slim]: datadict[p] = rje_slim.expectString(self.dict['Slim'][slim][p])
                 for h in self.list['Headers']:
                     if Motif and h not in datadict and h in Motif.stat: datadict[h] = Motif.stat[h]
                 rje.delimitedFileOutput(self,self.getStr('ResFile'),reshead,delimit,datadict)
@@ -3217,7 +3210,7 @@ class SLiMFinder(rje_slimcore.SLiMCore):
 #########################################################################################################################
 def patternFromCode(slim): return rje_slim.patternFromCode(slim)  ### Returns pattern with wildcard for iXj formatted SLiM (e.g. A-3-T-0-G becomes A...TG)
 #########################################################################################################################
-def slimPos(slim): return (string.count(slim,'-') / 2) + 1  ### Returns the number of positions in a slim
+def slimPos(slim): return (rje.count(slim,'-') / 2) + 1  ### Returns the number of positions in a slim
 #########################################################################################################################
 def slimLen(slim): return len(patternFromCode(slim))    ### Returns length of slim
 #########################################################################################################################
@@ -3232,14 +3225,12 @@ def slimDif(slim1,slim2): return rje_slimcore.slimDif(slim1,slim2)  ### Returns 
 ### SECTION IV: MAIN PROGRAM                                                                                            #
 #########################################################################################################################
 def runMain():
-    ### Basic Setup of Program ###
-    try: [info,out,mainlog,cmd_list] = setupProgram()
-    except SystemExit: return  
-    except:
-        print 'Unexpected error during program setup:', sys.exc_info()[0]
-        return
-        
-    ### Rest of Functionality... ###
+    ### ~ [1] ~ Basic Setup of Program  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+    try: (info,out,mainlog,cmd_list) = setupProgram()
+    except SystemExit: return
+    except: rje.printf('Unexpected error during program setup:', sys.exc_info()[0]); return
+
+    ### ~ [2] ~ Rest of Functionality... ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try: SLiMFinder(mainlog,cmd_list).run()
         
     ### End ###
@@ -3250,7 +3241,7 @@ def runMain():
 #########################################################################################################################
 if __name__ == "__main__":      ### Call runMain 
     try: runMain()
-    except: print 'Cataclysmic run error:', sys.exc_info()[0]
+    except: rje.printf('Cataclysmic run error: {0}'.format(sys.exc_info()[0]))
     sys.exit()
 #########################################################################################################################
 ### END OF SECTION IV                                                                                                   #

@@ -432,9 +432,9 @@ class SLiMProb(rje_slimcore.SLiMCore):
             self.tarZipSaveSpace()      # Tarring, Zipping and Saving Space 
 
             ### ~ [5] End ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            resfilestr = string.split(self.getStr('SummaryFile'),'.')
+            resfilestr = rje.split(self.getStr('SummaryFile'),'.')
             resfilestr[-1] = '(occ.)' + resfilestr[-1]
-            resfilestr = string.join(resfilestr,'.')
+            resfilestr = rje.join(resfilestr,'.')
             self.printLog('#RES','SLiMProb results output to %s and %s.*' % (resfilestr,self.seqBaseFile()))
             targz = '%s.tgz' % self.runBase()
             if self.getBool('TarGZ') and not self.getBool('Win32') and rje.exists(targz):
@@ -614,7 +614,7 @@ class SLiMProb(rje_slimcore.SLiMCore):
                 datadict = rje.combineDict({'Motif':slim.info['Name'],'Pattern':slim.pattern()},general)
                 datadict = rje.combineDict(datadict,slim.stat)
                 for dkey in datadict.keys():
-                    if string.split(dkey,'_')[0] in ['E','p','pUnd']: datadict[dkey] = rje_slim.expectString(datadict[dkey])
+                    if rje.split(dkey,'_')[0] in ['E','p','pUnd']: datadict[dkey] = rje_slim.expectString(datadict[dkey])
 
                 rje.delimitedFileOutput(self,self.getStr('SummaryFile'),self.resHead(),datadict=datadict)
             self.printLog('#OUT','Summary data for %s saved to %s' % (self.dataset(),self.getStr('SummaryFile')))
@@ -698,7 +698,7 @@ class SLiMProb(rje_slimcore.SLiMCore):
             wildlist = []   # List of wildcard lengths in SLiM
             wild = False    # Whether next part is a wildcard length
             mult = 1        # Variable-length multiplier
-            for part in string.split(slim.slim(),'-'):      # Split SLiM code in components
+            for part in rje.split(slim.slim(),'-'):      # Split SLiM code in components
                 ## Update lists ##
                 if wild: wildlist.append(part)
                 else: poslist.append(part)
@@ -1111,8 +1111,8 @@ class SLiMProb(rje_slimcore.SLiMCore):
                                 wpos = Occ['Pos']
                             else: wpos = waln.seqAlnPos(wseq,start,next=True)
                             makeme[-1] = '%s-' % rje.preZero(wpos,wseq.seqLen()) + makeme[-1]
-                        waln._addSeq(wseq.info['Name'],string.join(makeme,'-XXXXXXXXXX-'))    #!#Add positions at some point
-                        #x#self.deBug(waln.seq[-1].info)   #x#string.join(makeme,'-XXXXXXXXXX-'))
+                        waln._addSeq(wseq.info['Name'],rje.join(makeme,'-XXXXXXXXXX-'))    #!#Add positions at some point
+                        #x#self.deBug(waln.seq[-1].info)   #x#rje.join(makeme,'-XXXXXXXXXX-'))
                     waln.saveFasta()
 
 
@@ -1160,7 +1160,7 @@ class SLiMProb(rje_slimcore.SLiMCore):
             outfile = self.runBase() + '.out'
             OUT = open(outfile,'w')
             ## ~ [2b] Header ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-            OUT.write(string.join(['##########################################################',
+            OUT.write(rje.join(['##########################################################',
                                    '#                                                        #',
                                    '#                       FINAL RESULTS                    #',
                                    '#                                                        #',

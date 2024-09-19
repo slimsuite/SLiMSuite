@@ -109,57 +109,46 @@ def makeInfo():     ### Makes Info object
 #########################################################################################################################
 def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for more sys.argv commands
     '''Prints *.__doc__ and asks for more sys.argv commands.'''
-    try:
-        if not info:
-            info = makeInfo()
-        if not out:
-            out = rje.Out()
-        help = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
-        if help > 0:
-            print '\n\nHelp for %s %s: %s\n' % (info.program, info.version, time.asctime(time.localtime(info.start_time)))
+    try:### ~ [1] ~ Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+        if not info: info = makeInfo()
+        if not out: out = rje.Out()
+        ### ~ [2] ~ Look for help commands and print options if found ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+        cmd_help = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
+        if cmd_help > 0:
+            rje.printf('\n\nHelp for {0} {1}: {2}\n'.format(info.program, info.version, time.asctime(time.localtime(info.start_time))))
             out.verbose(-1,4,text=__doc__)
-            if rje.yesNo('Show general commandline options?'):
-                out.verbose(-1,4,text=rje.__doc__)
-            if rje.yesNo('Quit?'):
-                sys.exit()
-            cmd_list += rje.inputCmds(out,cmd_list)
-        elif out.stat['Interactive'] > 1:    # Ask for more commands
-            cmd_list += rje.inputCmds(out,cmd_list)
+            if rje.yesNo('Show general commandline options?',default='N'): out.verbose(-1,4,text=rje.__doc__)
+            if rje.yesNo('Quit?'): sys.exit()           # Option to quit after help
+            cmd_list += rje.inputCmds(out,cmd_list)     # Add extra commands interactively.
+        elif out.stat['Interactive'] > 1: cmd_list += rje.inputCmds(out,cmd_list)    # Ask for more commands
+        ### ~ [3] ~ Return commands ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         return cmd_list
-    except SystemExit:
-        sys.exit()
-    except KeyboardInterrupt:
-        sys.exit()
-    except:
-        print 'Major Problem with cmdHelp()'
+    except SystemExit: sys.exit()
+    except KeyboardInterrupt: sys.exit()
+    except: rje.printf('Major Problem with cmdHelp()')
 #########################################################################################################################
-def setupProgram(): ### Basic Setup of Program
+def setupProgram(): ### Basic Setup of Program when called from commandline.
     '''
-    Basic setup of Program:
+    Basic Setup of Program when called from commandline:
     - Reads sys.argv and augments if appropriate
     - Makes Info, Out and Log objects
     - Returns [info,out,log,cmd_list]
     '''
-    try:
-        ### Initial Command Setup & Info ###
-        info = makeInfo()
-        cmd_list = rje.getCmdList(sys.argv[1:],info=info)      ### Load defaults from program.ini
-        ### Out object ###
-        out = rje.Out(cmd_list=cmd_list)
-        out.verbose(2,2,cmd_list,1)
-        out.printIntro(info)
-        ### Additional commands ###
-        cmd_list = cmdHelp(info,out,cmd_list)
-        ### Log ###
-        log = rje.setLog(info=info,out=out,cmd_list=cmd_list)
-        return [info,out,log,cmd_list]
-    except SystemExit:
-        sys.exit()
-    except KeyboardInterrupt:
-        sys.exit()
-    except:
-        print 'Problem during initial setup.'
-        raise
+    try:### ~ [1] ~ Initial Command Setup & Info ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+        info = makeInfo()                                   # Sets up Info object with program details
+        if len(sys.argv) == 2 and sys.argv[1] in ['version','-version','--version']: rje.printf(info.version); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: rje.printf('%s v%s' % (info.program,info.version)); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['description','-description','--description']: rje.printf('%s: %s' % (info.program,info.description)); sys.exit(0)
+        cmd_list = rje.getCmdList(sys.argv[1:],info=info)   # Reads arguments and load defaults from program.ini
+        out = rje.Out(cmd_list=cmd_list)                    # Sets up Out object for controlling output to screen
+        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2
+        out.printIntro(info)                                # Prints intro text using details from Info object
+        cmd_list = cmdHelp(info,out,cmd_list)               # Shows commands (help) and/or adds commands from user
+        log = rje.setLog(info,out,cmd_list)                 # Sets up Log object for controlling log file output
+        return (info,out,log,cmd_list)                      # Returns objects for use in program
+    except SystemExit: sys.exit()
+    except KeyboardInterrupt: sys.exit()
+    except: rje.printf('Problem during initial setup.'); raise
 #########################################################################################################################
 ### END OF SECTION I                                                                                                    #
 #########################################################################################################################
@@ -219,7 +208,7 @@ class HPRD(rje.RJE_Object):
         ### Defaults ###
         self._setDefaults(info='None',opt=False,stat=0.0,obj=None,setlist=True,setdict=True)
         self.setInfo({'HPRDPath':'','OutDir':''})
-        self.list['PPIType'] = string.split('in vitro;in vivo;yeast 2-hybrid',';')
+        self.list['PPIType'] = rje.split('in vitro;in vivo;yeast 2-hybrid',';')
 #########################################################################################################################
     def _cmdList(self):     ### Sets Attributes from commandline
         '''
@@ -237,8 +226,8 @@ class HPRD(rje.RJE_Object):
                 self._cmdReadList(cmd,'list',['BadType','PPIType'])
             except:
                 self.log.errorLog('Problem with cmd:%s' % cmd)
-        if self.list['PPIType']: self.list['PPIType'] = string.split(string.join(self.list['PPIType'],'|').lower(),'|')
-        if self.list['BadType']: self.list['BadType'] = string.split(string.join(self.list['BadType'],'|').lower(),'|')
+        if self.list['PPIType']: self.list['PPIType'] = rje.split(rje.join(self.list['PPIType'],'|').lower(),'|')
+        if self.list['BadType']: self.list['BadType'] = rje.split(rje.join(self.list['BadType'],'|').lower(),'|')
 #########################################################################################################################
     ### <2> ### Main Class Run Methods                                                                                  #
 #########################################################################################################################
@@ -248,9 +237,9 @@ class HPRD(rje.RJE_Object):
             ### ~ Special Run Methods First ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             if self.info['PPITab'].lower() not in ['','none']: return self.ppiDisMatrix()
             ### ~ Parse HPRD Data ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-            self.list['PPIType'] = string.split(string.join(self.list['PPIType'],';').lower(),';')
-            #if self.list['PPIType'] in [[],['']]: self.list['PPIType'] = string.split('in vitro;in vivo;yeast 2-hybrid;complex',';')
-            self.list['BadType'] = string.split(string.join(self.list['BadType'],';').lower(),';')
+            self.list['PPIType'] = rje.split(rje.join(self.list['PPIType'],';').lower(),';')
+            #if self.list['PPIType'] in [[],['']]: self.list['PPIType'] = rje.split('in vitro;in vivo;yeast 2-hybrid;complex',';')
+            self.list['BadType'] = rje.split(rje.join(self.list['BadType'],';').lower(),';')
             parsecomplex = self.opt['ComplexFas'] or 'complex' in self.list['PPIType']
             if self.opt['DomainFas'] or self.opt['HPRDFas']: self.parse(parsedom=self.opt['DomainFas'],parsecomplex=parsecomplex)
             else: self.parse(parsedom=False,parseseq=False,parsecomplex='complex' in self.list['PPIType'])
@@ -274,14 +263,14 @@ class HPRD(rje.RJE_Object):
                 entry = hprd.pop(0)
                 px = 100.0 * (hx - len(hprd)) / hx 
                 self.log.printLog('\r#HPRD','Parsing HPRD_ID_MAPPINGS: %.1f%%' % px,newline=False,log=False)
-                data = string.split(entry)
+                data = rje.split(entry)
                 ## Check ##
                 if len(data) < 7: continue
-                if self.dict['HPRD'].has_key(data[0]):
+                if data[0] in self.dict['HPRD']:
                     self.log.errorLog('HPRD ID %s duplicated! Aaargh!' % data[0],printerror=False)
                 ## Update ##
                 self.dict['HPRD'][data[0].upper()] = {'gene':data[1].upper(), 'gb':data[3], 'entrez':data[4], 'omim':data[5],
-                                              'sp':data[6].upper(), 'desc':string.join(data[7:])}
+                                              'sp':data[6].upper(), 'desc':rje.join(data[7:])}
                 for i in [1,3,6]: self.dict['Mapping'][data[i].upper()] = data[0]
             self.log.printLog('\r#HPRD','Parsing HPRD_ID_MAPPINGS complete!')
 
@@ -295,7 +284,7 @@ class HPRD(rje.RJE_Object):
                     entry = hprd.pop(0)
                     px = 100.0 * (hx - len(hprd)) / hx 
                     self.log.printLog('\r#HPRD','Parsing PROTEIN_ARCHITECTURE: %.1f%%' % px,newline=False,log=False)
-                    data = string.split(entry)
+                    data = rje.split(entry)
                     ## Check ##
                     if len(data) < 9: continue
                     (hid,domain,type,source) = (data[0],data[4],data[5],data[8])
@@ -324,10 +313,10 @@ class HPRD(rje.RJE_Object):
                     try:
                         if h not in self.dict['HPRD']:
                             self.printLog('\r#ERR','Missing from HPRD_ID_MAPPINGS?: %s' % seq.info['Name'])
-                            data = string.split(seq.info['Name'],'|')
+                            data = rje.split(seq.info['Name'],'|')
                             self.dict['HPRD'][h] = {'gene':'-', 'gb':data[2], 'entrez':'', 'omim':'','sp':'',
-                                                    'desc':string.join(data[3:],'|')}      
-                        if not self.opt['AllIso'] and self.dict['HPRD'][h].has_key('Seq') and iso != '1':
+                                                    'desc':rje.join(data[3:],'|')}      
+                        if not self.opt['AllIso'] and 'Seq' in self.dict['HPRD'][h] and iso != '1':
                             self.obj['SeqList'].seq.remove(seq)
                             continue
                         #x#if h == '00001': self.deBug('%s = %s' % (h,iso))
@@ -360,10 +349,10 @@ class HPRD(rje.RJE_Object):
                 entry = ppi.pop(0)
                 px = 100.0 * (hx - len(ppi)) / hx 
                 self.log.printLog('\r#PPI','Parsing BINARY_PROTEIN_PROTEIN_INTERACTIONS: %.1f%%' % px,newline=False,log=False)
-                data = string.split(entry,'\t')
+                data = rje.split(entry,'\t')
                 ## Check ##
                 if len(data) < 7: continue
-                types = string.split(data[6],';')
+                types = rje.split(data[6],';')
                 if not types: types = ['unknown']
                 for type in types[0:]:
                     if type in self.list['BadType'] or (self.list['PPIType'] and type not in self.list['PPIType']): types.remove(type)
@@ -381,9 +370,9 @@ class HPRD(rje.RJE_Object):
                         missing.append(p2)
                         self.log.printLog('#ERR','HPRD ID "%s" missing from HPRD_ID_MAPPINGS!' % p1,screen=False)
                     continue
-                if not self.dict['PPI'].has_key(p1): self.dict['PPI'][p1] = []
+                if p1 not in self.dict['PPI']: self.dict['PPI'][p1] = []
                 if p2 not in self.dict['PPI'][p1]: self.dict['PPI'][p1].append(p2)
-                if not self.dict['PPI'].has_key(p2): self.dict['PPI'][p2] = []
+                if p2 not in self.dict['PPI']: self.dict['PPI'][p2] = []
                 if p1 not in self.dict['PPI'][p2]: self.dict['PPI'][p2].append(p1)
                 if p1 not in self.dict['Evidence']: self.dict['Evidence'][p1] = {}
                 if p2 not in self.dict['Evidence'][p1]: self.dict['Evidence'][p1][p2] = []
@@ -400,13 +389,13 @@ class HPRD(rje.RJE_Object):
                 entry = ppi.pop(0)
                 px = 100.0 * (hx - len(ppi)) / hx 
                 self.log.printLog('\r#PPI','Parsing PROTEIN_COMPLEXES: %.1f%%' % px,newline=False,log=False)
-                data = string.split(entry)
+                data = rje.split(entry)
                 ## Check ##
                 if len(data) < 5: continue
                 ## Update ##
                 (complex,hprd) = (data[0],data[1])
                 if hprd == 'None': continue
-                if not self.dict['Complex'].has_key(complex): self.dict['Complex'][complex] = []
+                if complex not in self.dict['Complex']: self.dict['Complex'][complex] = []
                 if hprd not in self.dict['Complex'][complex]: self.dict['Complex'][complex].append(hprd)
                 #x#if p1 == '12422': self.deBug(self.dict['PPI'][p1])
             self.log.printLog('\r#PPI','Parsing PROTEIN_COMPLEXES complete!')
@@ -420,7 +409,7 @@ class HPRD(rje.RJE_Object):
                     cx += 100.0
                     for p1 in self.dict['Complex'][complex]:
                         for p2 in self.dict['Complex'][complex]:
-                            if not self.dict['PPI'].has_key(p1): self.dict['PPI'][p1] = []
+                            if p1 not in self.dict['PPI']: self.dict['PPI'][p1] = []
                             if p2 not in self.dict['PPI'][p1]: self.dict['PPI'][p1].append(p2)
                             if p1 not in self.dict['Evidence']: self.dict['Evidence'][p1] = {}
                             if p2 not in self.dict['Evidence'][p1]: self.dict['Evidence'][p1][p2] = []
@@ -428,7 +417,7 @@ class HPRD(rje.RJE_Object):
                 self.log.printLog('\r#PPI','Added protein complex data to PPI for %s complexes' % rje.integerString(len(self.dict['Complex'])))
             ptxt = '%s proteins; %s interactions' % (rje.integerString(len(self.dict['PPI'])),rje.integerString(ix))
             self.log.printLog('\r#PPI','Parsing interactions complete: %s.' % ptxt)
-            if missing: open('HPRD.missing.txt','w').write(string.join(missing,'\n'))
+            if missing: open('HPRD.missing.txt','w').write(rje.join(missing,'\n'))
         except:
             self.log.errorLog('Error in HPRD.parse()',printerror=True,quitchoice=False)
             raise
@@ -442,7 +431,7 @@ class HPRD(rje.RJE_Object):
             ## Check Seqs ##
             for p1 in rje.sortKeys(self.dict['PPI']):
                 if 'Seq' not in self.dict['HPRD'][p1]:      #!# KeyError #!#
-                    print p1, self.dict['HPRD'][p1]
+                    print(self.dict['HPRD'][p1])
                     self.deBug('No Seq for %s' % p1)
 
             ### All sequences ###
@@ -568,14 +557,14 @@ class HPRD(rje.RJE_Object):
             entrez = self.dict['HPRD'][hprd]['entrez']
             if gene in cards.list['Genes']:
                 if cards.dict['GeneCard'][gene]['HPRD'] == '': cards.dict['GeneCard'][gene]['HPRD'] = hprd
-                elif hprd not in string.split(cards.dict['GeneCard'][gene]['HPRD'],','):
-                    cards.dict['GeneCard'][gene]['HPRD'] = string.join(string.split(cards.dict['GeneCard'][gene]['HPRD'],',')+[hprd],',')
+                elif hprd not in rje.split(cards.dict['GeneCard'][gene]['HPRD'],','):
+                    cards.dict['GeneCard'][gene]['HPRD'] = rje.join(rje.split(cards.dict['GeneCard'][gene]['HPRD'],',')+[hprd],',')
                 if cards.dict['GeneCard'][gene]['OMIM'] == '': cards.dict['GeneCard'][gene]['OMIM'] = omim
-                elif omim not in string.split(cards.dict['GeneCard'][gene]['OMIM'],','):
-                    cards.dict['GeneCard'][gene]['OMIM'] = string.join(string.split(cards.dict['GeneCard'][gene]['OMIM'],',')+[omim],',')
+                elif omim not in rje.split(cards.dict['GeneCard'][gene]['OMIM'],','):
+                    cards.dict['GeneCard'][gene]['OMIM'] = rje.join(rje.split(cards.dict['GeneCard'][gene]['OMIM'],',')+[omim],',')
                 if cards.dict['GeneCard'][gene]['EntrezCheck'] == '': cards.dict['GeneCard'][gene]['EntrezCheck'] = entrez
-                elif entrez not in string.split(cards.dict['GeneCard'][gene]['EntrezCheck'],','):
-                    cards.dict['GeneCard'][gene]['EntrezCheck'] = string.join(string.split(cards.dict['GeneCard'][gene]['EntrezCheck'],',')+[entrez],',')
+                elif entrez not in rje.split(cards.dict['GeneCard'][gene]['EntrezCheck'],','):
+                    cards.dict['GeneCard'][gene]['EntrezCheck'] = rje.join(rje.split(cards.dict['GeneCard'][gene]['EntrezCheck'],',')+[entrez],',')
             elif addcards:
                 if gene == '-': gene = 'HPRD' + hprd
                 cards.list['Genes'].append(gene)
@@ -648,14 +637,12 @@ class HPRD(rje.RJE_Object):
 ### SECTION IV: MAIN PROGRAM                                                                                            #
 #########################################################################################################################
 def runMain():
-    ### Basic Setup of Program ###
-    try: [info,out,mainlog,cmd_list] = setupProgram()
-    except SystemExit: return  
-    except:
-        print 'Unexpected error during program setup:', sys.exc_info()[0]
-        return
-        
-    ### Rest of Functionality... ###
+    ### ~ [1] ~ Basic Setup of Program  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+    try: (info,out,mainlog,cmd_list) = setupProgram()
+    except SystemExit: return
+    except: rje.printf('Unexpected error during program setup:', sys.exc_info()[0]); return
+
+    ### ~ [2] ~ Rest of Functionality... ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try: HPRD(mainlog,cmd_list).run()
         
     ### End ###
@@ -666,7 +653,7 @@ def runMain():
 #########################################################################################################################
 if __name__ == "__main__":      ### Call runMain 
     try: runMain()
-    except: print 'Cataclysmic run error:', sys.exc_info()[0]
+    except: rje.printf('Cataclysmic run error: {0}'.format(sys.exc_info()[0]))
     sys.exit()
 #########################################################################################################################
 ### END OF SECTION IV                                                                                                   #

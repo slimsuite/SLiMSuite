@@ -344,7 +344,7 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         ### ~ [2] ~ Look for help commands and print options if found ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         cmd_help = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
         if cmd_help > 0:
-            print '\n\nHelp for %s %s: %s\n' % (info.program, info.version, time.asctime(time.localtime(info.start_time)))
+            rje.printf('\n\nHelp for {0} {1}: {2}\n'.format(info.program, info.version, time.asctime(time.localtime(info.start_time))))
             out.verbose(-1,4,text=__doc__)
             if rje.yesNo('Show general commandline options?'): out.verbose(-1,4,text=rje.__doc__)
             if rje.yesNo('Quit?'): sys.exit()           # Option to quit after help
@@ -354,7 +354,7 @@ def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for
         return cmd_list
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Major Problem with cmdHelp()'
+    except: rje.printf('Major Problem with cmdHelp()')
 #########################################################################################################################
 def setupProgram(): ### Basic Setup of Program when called from commandline.
     '''
@@ -366,18 +366,18 @@ def setupProgram(): ### Basic Setup of Program when called from commandline.
     try:### ~ [1] ~ Initial Command Setup & Info ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         info = makeInfo()                                   # Sets up Info object with program details
         if len(sys.argv) == 2 and sys.argv[1] in ['version','-version','--version']: rje.printf(info.version); sys.exit(0)
-        if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: rje.printf('{0} v{1}'.format(info.program,info.version)); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: rje.printf('%s v%s' % (info.program,info.version)); sys.exit(0)
         if len(sys.argv) == 2 and sys.argv[1] in ['description','-description','--description']: rje.printf('%s: %s' % (info.program,info.description)); sys.exit(0)
         cmd_list = rje.getCmdList(sys.argv[1:],info=info)   # Reads arguments and load defaults from program.ini
         out = rje.Out(cmd_list=cmd_list)                    # Sets up Out object for controlling output to screen
-        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2 
+        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2
         out.printIntro(info)                                # Prints intro text using details from Info object
         cmd_list = cmdHelp(info,out,cmd_list)               # Shows commands (help) and/or adds commands from user
         log = rje.setLog(info,out,cmd_list)                 # Sets up Log object for controlling log file output
         return (info,out,log,cmd_list)                      # Returns objects for use in program
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Problem during initial setup.'; raise
+    except: rje.printf('Problem during initial setup.'); raise
 #########################################################################################################################
 ### END OF SECTION I                                                                                                    #
 #########################################################################################################################
@@ -578,7 +578,7 @@ class SMRTSCAPE(rje_obj.RJE_Object):
                     self.printLog('#FOFN','%d file names loaded from %s' % (len(self.list['Batch']),fofn))
                 elif not self.getStrLC('SeqIn'):
                     rje.backup(self,fofn)
-                    open(fofn,'w').write(string.join(self.list['Batch'],'\n'))
+                    open(fofn,'w').write(rje.join(self.list['Batch'],'\n'))
                     self.printLog('#FOFN','%d file name(s) output to %s' % (len(self.list['Batch']),fofn))
             elif rje.exists(fofn) and (self.i() < 0 or rje.yesNo('Load batch file list from %s?' % fofn)):
                 self._cmdRead('batch=%s' % fofn,'list','Batch')
@@ -754,7 +754,7 @@ class SMRTSCAPE(rje_obj.RJE_Object):
                     else: xnlist.append(ixn)
                 except: self.errorLog('Could not process %s as part of XnList. (Integers only.)' % xn)
             xnlist.sort()
-            if xnlist: self.printLog('#XN','XnList: %sX.' % string.join(string.split('%s' % xnlist,','),'X, ')[1:-1])
+            if xnlist: self.printLog('#XN','XnList: %sX.' % rje.join(rje.split('%s' % xnlist,','),'X, ')[1:-1])
             self.list['XnList'] = xnlist
 
             return True     # Setup successful
@@ -968,11 +968,11 @@ class SMRTSCAPE(rje_obj.RJE_Object):
                     (name,sequence) = seqlist.getSeq(seq)
                     self.debug(name)
                     #!# Add additional format checks
-                    zdata = string.split(string.replace(name,'/',' '))
+                    zdata = rje.split(rje.replace(name,'/',' '))
                     try: [smrt,zmw,pos] = zdata[:3]
                     except: raise ValueError('Subread sequence name format error! Need raw PacBio subreads.')
                     rq = zdata[-1]
-                    #[smrt,zmw,pos,rq] = string.split(string.replace(name,'/',' '))
+                    #[smrt,zmw,pos,rq] = rje.split(rje.replace(name,'/',' '))
                     if smrt not in cells: cells.append(smrt)
                     smrt = cells.index(smrt)
                     if zmw != prevzmw: prevzmw = zmw; rn = 0
@@ -1111,7 +1111,7 @@ class SMRTSCAPE(rje_obj.RJE_Object):
             self.printLog('#SUM','Max. length of sequences: %s' % rje.iStr(seqlen[-1]))
             # Mean & Median sequence lengths
             meanlen = float(sumlen)/len(seqlen)
-            meansplit = string.split('%.2f' % meanlen,'.')
+            meansplit = rje.split('%.2f' % meanlen,'.')
             self.printLog('#SUM','Mean length of sequences: %s.%s' % (rje.iStr(meansplit[0]),meansplit[1]))
             if rje.isOdd(len(seqlen)): median = seqlen[len(seqlen)/2]
             else: median = sum(seqlen[len(seqlen)/2:][:2]) / 2.0
@@ -1307,7 +1307,7 @@ class SMRTSCAPE(rje_obj.RJE_Object):
                 minxlist = range(self.getInt('TargetXCov'),self.getInt('TargetXCov')+self.getInt('XMargin')+1)
                 minxlist += range(min(anchx,self.getInt('MinAnchorX')+1),targetx+self.getInt('XMargin')+1)
                 minxlist = rje.sortUnique(minxlist)
-                self.printLog('#MINX','Calculating read lengths for %d MinX depths: %s' % (len(minxlist),string.replace('%s' % minxlist,"'","")))
+                self.printLog('#MINX','Calculating read lengths for %d MinX depths: %s' % (len(minxlist),rje.replace('%s' % minxlist,"'","")))
 
                 #i# Next, the minX list is convert to a of (summed) TargetX coverage to achieve for MinX coverage
                 sumxlist = []
@@ -1317,7 +1317,7 @@ class SMRTSCAPE(rje_obj.RJE_Object):
                         break
                     sumlen = xcovlimits[minx]
                     if sumlen not in sumxlist: sumxlist.append(sumlen)
-                if self.dev(): self.printLog('#SUMLEN','%d target summed read lengths for %d MinX depths: %s' % (len(sumxlist),len(minxlist),string.replace('%s' % sumxlist,"'","")))
+                if self.dev(): self.printLog('#SUMLEN','%d target summed read lengths for %d MinX depths: %s' % (len(sumxlist),len(minxlist),rje.replace('%s' % sumxlist,"'","")))
                 for sumx in calcx:
                     sumlen = sumx * self.getNum('GenomeSize')
                     if sumlen not in sumxlist:
@@ -1516,7 +1516,7 @@ class SMRTSCAPE(rje_obj.RJE_Object):
                 for seq in seqlist.seqs():
                     self.progLog('\r#OUT','Extracting subreads: %.2f%%' % (sx/sn)); sx += si
                     (name,sequence) = seqlist.getSeq(seq)
-                    [smrt,zmw,pos,rq] = string.split(string.replace(name,'/',' '))
+                    [smrt,zmw,pos,rq] = rje.split(rje.replace(name,'/',' '))
                     if (cdb.data(smrt)['SMRT'],int(zmw),pos) not in zmwlist: continue
                     SEQOUT.write('>%s\n%s\n' % (name,sequence)); fx += 1
             self.printLog('\r#OUT','Saved %s filtered subreads to %s.' % (rje.iStr(fx),filtfile))
@@ -1748,7 +1748,7 @@ def runMain():
     ### ~ [1] ~ Basic Setup of Program  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try: (info,out,mainlog,cmd_list) = setupProgram()
     except SystemExit: return  
-    except: print 'Unexpected error during program setup:', sys.exc_info()[0]; return
+    except: rje.printf('Unexpected error during program setup:', sys.exc_info()[0]); return
     
     ### ~ [2] ~ Rest of Functionality... ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try: SMRTSCAPE(mainlog,cmd_list).run()
@@ -1761,7 +1761,7 @@ def runMain():
 #########################################################################################################################
 if __name__ == "__main__":      ### Call runMain 
     try: runMain()
-    except: print 'Cataclysmic run error:', sys.exc_info()[0]
+    except: rje.printf('Cataclysmic run error: {0}'.format(sys.exc_info()[0]))
     sys.exit()
 #########################################################################################################################
 ### END OF SECTION IV                                                                                                   #

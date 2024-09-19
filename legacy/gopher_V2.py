@@ -196,49 +196,46 @@ def makeInfo():     ### Makes Info object
 #########################################################################################################################
 def cmdHelp(info=None,out=None,cmd_list=[]):   ### Prints *.__doc__ and asks for more sys.argv commands
     '''Prints *.__doc__ and asks for more sys.argv commands.'''
-    try:
+    try:### ~ [1] ~ Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         if not info: info = makeInfo()
         if not out: out = rje.Out()
-        help = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
-        if help > 0:
-            print '\n\nHelp for %s %s: %s\n' % (info.program, info.version, time.asctime(time.localtime(info.start_time)))
+        ### ~ [2] ~ Look for help commands and print options if found ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+        cmd_help = cmd_list.count('help') + cmd_list.count('-help') + cmd_list.count('-h')
+        if cmd_help > 0:
+            rje.printf('\n\nHelp for {0} {1}: {2}\n'.format(info.program, info.version, time.asctime(time.localtime(info.start_time))))
             out.verbose(-1,4,text=__doc__)
-            if rje.yesNo('Show general commandline options?'): out.verbose(-1,4,text=rje.__doc__)
-            if rje.yesNo('Show RJE_SEQ commandline options (redundancy etc.)?'): out.verbose(-1,4,text=rje_seq.__doc__)
-            if rje.yesNo('Show RJE_TREE commandline options (used for tree-making)?'): out.verbose(-1,4,text=rje_tree.__doc__)
-            if rje.yesNo('Quit?'): sys.exit()
-            cmd_list += rje.inputCmds(out,cmd_list)
+            if rje.yesNo('Show general commandline options?',default='N'): out.verbose(-1,4,text=rje.__doc__)
+            if rje.yesNo('Quit?'): sys.exit()           # Option to quit after help
+            cmd_list += rje.inputCmds(out,cmd_list)     # Add extra commands interactively.
         elif out.stat['Interactive'] > 1: cmd_list += rje.inputCmds(out,cmd_list)    # Ask for more commands
+        ### ~ [3] ~ Return commands ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         return cmd_list
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except: print 'Major Problem with cmdHelp()'
+    except: rje.printf('Major Problem with cmdHelp()')
 #########################################################################################################################
-def setupProgram(): ### Basic Setup of Program
+def setupProgram(): ### Basic Setup of Program when called from commandline.
     '''
-    Basic setup of Program:
+    Basic Setup of Program when called from commandline:
     - Reads sys.argv and augments if appropriate
     - Makes Info, Out and Log objects
     - Returns [info,out,log,cmd_list]
     '''
-    try:
-        ### Initial Command Setup & Info ###
-        info = makeInfo()
-        cmd_list = rje.getCmdList(sys.argv[1:],info=info)      ### Load defaults from program.ini
-        ### Out object ###
-        out = rje.Out(cmd_list=cmd_list)
-        out.verbose(2,2,cmd_list,1)
-        out.printIntro(info)
-        ### Additional commands ###
-        cmd_list = cmdHelp(info,out,cmd_list)
-        ### Log ###
-        log = rje.setLog(info=info,out=out,cmd_list=cmd_list)
-        return [info,out,log,cmd_list]
+    try:### ~ [1] ~ Initial Command Setup & Info ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+        info = makeInfo()                                   # Sets up Info object with program details
+        if len(sys.argv) == 2 and sys.argv[1] in ['version','-version','--version']: rje.printf(info.version); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['details','-details','--details']: rje.printf('%s v%s' % (info.program,info.version)); sys.exit(0)
+        if len(sys.argv) == 2 and sys.argv[1] in ['description','-description','--description']: rje.printf('%s: %s' % (info.program,info.description)); sys.exit(0)
+        cmd_list = rje.getCmdList(sys.argv[1:],info=info)   # Reads arguments and load defaults from program.ini
+        out = rje.Out(cmd_list=cmd_list)                    # Sets up Out object for controlling output to screen
+        out.verbose(2,2,cmd_list,1)                         # Prints full commandlist if verbosity >= 2
+        out.printIntro(info)                                # Prints intro text using details from Info object
+        cmd_list = cmdHelp(info,out,cmd_list)               # Shows commands (help) and/or adds commands from user
+        log = rje.setLog(info,out,cmd_list)                 # Sets up Log object for controlling log file output
+        return (info,out,log,cmd_list)                      # Returns objects for use in program
     except SystemExit: sys.exit()
     except KeyboardInterrupt: sys.exit()
-    except:
-        print 'Problem during initial setup.'
-        raise
+    except: rje.printf('Problem during initial setup.'); raise
 #########################################################################################################################
 ### END OF SECTION I                                                                                                    #
 #########################################################################################################################
@@ -548,7 +545,7 @@ class Gopher(rje.RJE_Object):
             else: self.deBug('Fork.StiggMe - %s' % acc)
             seqfile = 'ORTH' + os.sep + '%s.orth.fas' % acc
             stickylist = rje_seq.SeqInfoListFromFile(self,seqfile,'short')  # To StiGG
-            try: stickylist += string.split(open('ORTH' + os.sep + '%s.sticky.id' % acc,'r').read(),'\n')
+            try: stickylist += rje.split(open('ORTH' + os.sep + '%s.sticky.id' % acc,'r').read(),'\n')
             except: self.errorLog('No *.sticky.id file made for %s' % acc)
             self.deBug(stickylist)
             if seq: stigg = seq.shortName()
@@ -575,7 +572,7 @@ class Gopher(rje.RJE_Object):
         if stigg in self.dict['Sticky']: return self.dict['Sticky'][stigg]
         stickylist = self.getOrth(stigg,gopherseq,gopherblast,accdict)
         acc = accdict[stigg]
-        try: stickylist += string.split(open('ORTH' + os.sep + '%s.sticky.id' % acc,'r').read(),'\n')
+        try: stickylist += rje.split(open('ORTH' + os.sep + '%s.sticky.id' % acc,'r').read(),'\n')
         except: self.errorLog('No *.sticky.id file made for %s' % acc)
         while '' in stickylist: stickylist.remove('')
         self.dict['Sticky'][stigg] = stickylist
@@ -586,7 +583,7 @@ class Gopher(rje.RJE_Object):
         seq = gopherseq.seqFromFastaCmd(id=stigg,dbase=gopherblast.info['DBase'])
         if not seq:
             self.errorLog('Problem with %s - will try workaround.' % stigg)
-            acc = string.split(stigg,'_')[-1]
+            acc = rje.split(stigg,'_')[-1]
         else: acc = seq.info['AccNum']
         accdict[stigg] = acc
         seqfile = 'ORTH' + os.sep + '%s.orth.fas' % acc
@@ -624,8 +621,8 @@ class Gopher(rje.RJE_Object):
                                     if stick not in self.dict['StiGG'][stigg]:
                                         if stick != stigg and stick in self.dict['StiGG']:
                                             self.errorLog('%s [<< %s] already in StiGG dictionary?!' % (stick,stigg))
-                                            self.deBug('%s: %s' % (stigg,string.join(self.dict['StiGG'][stigg],', ')))
-                                            self.deBug('%s: %s' % (stick,string.join(self.dict['StiGG'][stick],', ')))
+                                            self.deBug('%s: %s' % (stigg,rje.join(self.dict['StiGG'][stigg],', ')))
+                                            self.deBug('%s: %s' % (stick,rje.join(self.dict['StiGG'][stick],', ')))
                                             self.list['StiGG'].remove(self.dict['StiGG'][stick])
                                             ox -= len(self.dict['StiGG'][stick]); gx -= 1
                                             for x in self.dict['StiGG'][stick]: self.dict['StiGG'][stigg].append(x)
@@ -646,8 +643,8 @@ class Gopher(rje.RJE_Object):
                     except: self.errorLog('Jeepers! %s not found in StiGG.accdict.' % stigg)
                 for orth in sgrp[0:]:
                     acc = accdict[orth]
-                    open('ORTH' + os.sep + '%s.stigg.id' % acc,'w').write(string.join(sgrp,'\n'))
-                    open('ORTH' + os.sep + '%s.stigg.acc' % acc,'w').write(string.join(agrp,'\n'))
+                    open('ORTH' + os.sep + '%s.stigg.id' % acc,'w').write(rje.join(sgrp,'\n'))
+                    open('ORTH' + os.sep + '%s.stigg.acc' % acc,'w').write(rje.join(agrp,'\n'))
                     seqfile = rje.makePath('ORTH/%s.orth.fas' % acc,wholepath=True)
                     if os.path.exists(seqfile): gopherseq.loadSeqs(seqfile=seqfile)
                     else: continue
@@ -1222,7 +1219,7 @@ class GopherFork(rje.RJE_Object):
                         else: baseacc.append(pacc)
                 ## Output ##
                 cfile = rje.makePath('PARA/%s.closepara.id' % acc,wholepath=True)   # Used by self._parAlign()
-                open(cfile,'w').write(string.join(rje_seq.seqInfoList(paraseq),'\n'))
+                open(cfile,'w').write(rje.join(rje_seq.seqInfoList(paraseq),'\n'))
                 self._parAlign(qseq,paraseq)
 
             ### Orthologues ###
@@ -1302,9 +1299,9 @@ class GopherFork(rje.RJE_Object):
             ## OrthID List ##
             orthid = []
             for seq in orths: orthid.append(seq.shortName())
-            open(afile,'w').write(string.join(rje.sortUnique(orthid),'\n'))
+            open(afile,'w').write(rje.join(rje.sortUnique(orthid),'\n'))
             ## Sticky list ##
-            if self.opt['Sticky']: open('ORTH' + os.sep + '%s.sticky.id' % acc,'w').write(string.join(rje.sortUnique(stickhits),'\n'))
+            if self.opt['Sticky']: open('ORTH' + os.sep + '%s.sticky.id' % acc,'w').write(rje.join(rje.sortUnique(stickhits),'\n'))
 
             ## SaveSpace ##
             if self.opt['DNA'] and os.path.exists(pfile): os.unlink(pfile)
@@ -1435,7 +1432,7 @@ class GopherFork(rje.RJE_Object):
             pfile = rje.makePath('PARA/%s.para.fas' % acc,wholepath=True)   # Should exist
             for file in [ofile,pfile]:
                 if not os.path.exists(file):   # No orthologues and/or paralogues
-                    print 'No %s - No ParaFam for me!' % file
+                    print( 'No %s - No ParaFam for me!' % file)
                     return False
             rje.mkDir(self,'PARAFAM/')
             #self.deBug('%s ParaFam:\n%s' % (acc,self.cmd_list))
@@ -1499,14 +1496,14 @@ class GopherFork(rje.RJE_Object):
                 gfile = rje.makePath('PARAFAM/%s+%s.parafam.grp' % (acc,pacc),wholepath=True)
                 GROUPS = open(gfile, 'w')
                 GROUPS.write('Group 1: %s query orthologues\n' % acc)
-                GROUPS.write('%s\n' % string.join(qids,'\n'))
+                GROUPS.write('%s\n' % rje.join(qids,'\n'))
                 GROUPS.write('Group 2: Paralogue %s & orthologues\n' % pacc)
-                GROUPS.write('%s\n' % string.join(rje_seq.seqInfoList(pseqs),'\n'))
+                GROUPS.write('%s\n' % rje.join(rje_seq.seqInfoList(pseqs),'\n'))
                 GROUPS.close()
                 ## ~ [4h] Make Tree ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
                 ofile = rje.makePath('PARAFAM/%s+%s.parafam.out' % (acc,pacc),wholepath=True)
                 OUT = open(ofile,'w')
-                OUT.write(string.join(qids,'\n'))
+                OUT.write(rje.join(qids,'\n'))
                 OUT.close()
                 tfile = rje.makePath('PARAFAM/%s+%s.parafam.nsf' % (acc,pacc),wholepath=True)
                 tcmd = self.cmd_list + ['autoload=F','savetree=%s' % tfile,'root=%s' % ofile,'group=%s' % gfile]
@@ -1538,7 +1535,7 @@ class GopherFork(rje.RJE_Object):
             #self.deBug('%s GopherFam: %s\n%s' % (acc,ffile,self.cmd_list))
             ## ~ [1a] Check need to run ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             if not os.path.exists(ofile) or not os.path.exists(pfile): # No orthologues and/or paralogues
-                print 'No %s or %s - No gopherFam for me!' % (ofile,pfile)
+                print( 'No %s or %s - No gopherFam for me!' % (ofile,pfile))
                 return False
             if os.path.exists(ffile) and not self.opt['Force'] and not self.opt['FullForce']:  # May be no need to run
                 if (rje.isYounger(ffile,pfile) == ffile and rje.isYounger(ffile,ofile) == ffile) or self.opt['IgnoreDate']:
@@ -1676,14 +1673,12 @@ gophermodes = ['dbases','orthblast','orthfas','orthalign','orthtree']
 ### SECTION V: MAIN PROGRAM                                                                                             #
 #########################################################################################################################
 def runMain():
-    ### Basic Setup of Program ###
-    try: [info,out,mainlog,cmd_list] = setupProgram()
-    except SystemExit: return  
-    except:
-        print 'Unexpected error during program setup:', sys.exc_info()[0]
-        return 
-        
-    ### Rest of Functionality... ###
+    ### ~ [1] ~ Basic Setup of Program  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+    try: (info,out,mainlog,cmd_list) = setupProgram()
+    except SystemExit: return
+    except: rje.printf('Unexpected error during program setup:', sys.exc_info()[0]); return
+
+    ### ~ [2] ~ Rest of Functionality... ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     try:Gopher(log=mainlog,cmd_list=cmd_list).run()
         
     ### End ###
@@ -1698,7 +1693,7 @@ def runMain():
 if __name__ == "__main__":      ### Call runMain 
     try: runMain()
     except SystemExit: sys.exit(1)
-    except: print 'Cataclysmic run error:', sys.exc_info()[0]
+    except: rje.printf('Cataclysmic run error: {0}'.format(sys.exc_info()[0]))
     sys.exit()
 #########################################################################################################################
 ### END OF SECTION IV

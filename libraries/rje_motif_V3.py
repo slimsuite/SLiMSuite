@@ -210,10 +210,10 @@ class Motif(rje.RJE_Object):
             ### Setup Sequence ###
             _stage = 'Setup Sequence'
             inseq = self.info['Sequence'][0:]       # This is the string that will be matched and reduced during formatting
-            inseq = string.replace(inseq.upper(),'.','X')   # For clarity, all wildcards are X (and all upper case)
-            inseq = string.replace(inseq,'[A-Z]','X')       # Keep all wildcards as Xs
-            inseq = string.replace(inseq,')',') ')  # Not sure why this is here but there must be a reason! (Old match?)
-            inseq = string.replace(inseq,'/','|')   # This allows '/' to be used as "OR"   
+            inseq = rje.replace(inseq.upper(),'.','X')   # For clarity, all wildcards are X (and all upper case)
+            inseq = rje.replace(inseq,'[A-Z]','X')       # Keep all wildcards as Xs
+            inseq = rje.replace(inseq,')',') ')  # Not sure why this is here but there must be a reason! (Old match?)
+            inseq = rje.replace(inseq,'/','|')   # This allows '/' to be used as "OR"   
 
             ### TrimX ###
             while self.opt['TrimX']:
@@ -286,21 +286,21 @@ class Motif(rje.RJE_Object):
                 if msmode:      ### Replace user-defined known ambiguities to avoid problems later
                     x = {}
                     for a in 'QKIL':    # All Is become Ls and Qs become Ks
-                        x[a] = string.count(element,a)
+                        x[a] = rje.count(element,a)
                     if rtype in ['single','combo']:
                         if x['I']:
-                            element = string.replace(element,'I','L')
+                            element = rje.replace(element,'I','L')
                         if x['Q']:
-                            element = string.replace(element,'Q','K')
+                            element = rje.replace(element,'Q','K')
                     elif rtype == 'choice':
                         if x['I'] and x['L']:
-                            element = string.replace(element,'I','')
+                            element = rje.replace(element,'I','')
                         elif x['I']:
-                            element = string.replace(element,'I','L')
+                            element = rje.replace(element,'I','L')
                         if x['K'] and x['Q']:
-                            element = string.replace(element,'Q','')
+                            element = rje.replace(element,'Q','')
                         elif x['Q']:
-                            element = string.replace(element,'Q','K')
+                            element = rje.replace(element,'Q','K')
                         if len(element) == 3:
                             element = element[1]
                             rtype = 'single'
@@ -318,7 +318,7 @@ class Motif(rje.RJE_Object):
                             aalist += rje.strRearrange(aas) # Add all possible orders of AAs to aalist
                             heart = heart[hx+1:]    # Redefine remainder of pattern to search
                         aalist += rje.strRearrange(heart)   # Add all possible combos of remaining AAs to aalist
-                        element = '(%s)' % string.join(aalist,sep='|')  # Make new combo element with all options!
+                        element = '(%s)' % rje.join(aalist,sep='|')  # Make new combo element with all options!
                 ## Multiple occurrences of elements ##
                 if rtype == 'multiple':     ## Convert {m} to {m,n} (where m=n)
                     rtype = 'numbers'
@@ -327,7 +327,7 @@ class Motif(rje.RJE_Object):
                 ## Add to PRESTO - special if numbers ##
                 if rtype == 'numbers':   ### {m,n} format
                     if match[1] == match[2]:    # One number! => add multiple occurrences of element to PRESTO
-                        presto = presto[:-1] + (presto[-1:] * string.atoi(match[1]))
+                        presto = presto[:-1] + (presto[-1:] * rje.atoi(match[1]))
                     else:
                         presto[-1] = presto[-1] + element
                 else:   # Singles, NTerms and CTerms, n_of_m.
@@ -342,7 +342,7 @@ class Motif(rje.RJE_Object):
                     self.list['PRESTO'][-1] = '$'
                 if presto[-1] == '$':
                     self.list['PRESTO'][0] = '^'
-                self.info['Sequence'] = string.replace(string.join(self.list['PRESTO'],''),'X','.')
+                self.info['Sequence'] = rje.replace(rje.join(self.list['PRESTO'],''),'X','.')
             #X#print self.info['Name'], self.info['Sequence'], self.list['PRESTO']
             self._calculateLength()             # Calculates Length Statistics
 
@@ -371,14 +371,14 @@ class Motif(rje.RJE_Object):
             newlist = []
             for var in varlist[0:]:
                 ## Replace special MSMS ambiguities ##
-                var = string.replace(var,'L','[IL]')
-                var = string.replace(var,'K','[KQ]')
-                var = string.replace(var,'B','[KR]')
-                var = string.replace(var,'F','[MF]')
+                var = rje.replace(var,'L','[IL]')
+                var = rje.replace(var,'K','[KQ]')
+                var = rje.replace(var,'B','[KR]')
+                var = rje.replace(var,'F','[MF]')
                 ## Remove nested [] caused by replacement: [A[BC]] becomes [ABC] ##
-                while rje.matchExp('\[\S*(\[(\S+)\])',string.replace(var,']','] ')):
-                    nesting = rje.matchExp('(\[\S*)(\[(\S+)\])',string.replace(var,']','] '))
-                    var = string.replace(var,nesting[0]+nesting[1],nesting[0]+nesting[2])
+                while rje.matchExp('\[\S*(\[(\S+)\])',rje.replace(var,']','] ')):
+                    nesting = rje.matchExp('(\[\S*)(\[(\S+)\])',rje.replace(var,']','] '))
+                    var = rje.replace(var,nesting[0]+nesting[1],nesting[0]+nesting[2])
                 newlist.append(var)
             return newlist
         except:
@@ -394,8 +394,8 @@ class Motif(rje.RJE_Object):
         aas = match[0]
         if len(aas) > 1:
             aas = '[%s]' % aas
-        n = string.atoi(match[1])
-        m = string.atoi(match[2])
+        n = rje.atoi(match[1])
+        m = rje.atoi(match[2])
         if n > m:   # Assume reversed format
             (m,n) = (n,m)
         elif n == m:
@@ -436,7 +436,7 @@ class Motif(rje.RJE_Object):
                 for base in bases:
                     if nums:
                         el = element[:-len(nums[0])]
-                        for i in range(string.atoi(nums[1]),string.atoi(nums[2])+1):
+                        for i in range(rje.atoi(nums[1]),rje.atoi(nums[2])+1):
                             #X#print base, element, i
                             variants.append(base + (el * i))
                     elif nofm:
@@ -469,7 +469,7 @@ class Motif(rje.RJE_Object):
                     if base.find('(') >= 0:
                         changes = True
                         choice = base[base.find('('):base.find(')')+1]
-                        cvar = string.split(choice[1:-1],'|')
+                        cvar = rje.split(choice[1:-1],'|')
                         for var in cvar:    # Add a variant with each variant!
                             variants.append(base.replace(choice,var,1))
                     elif base.find('[') >= 0:
@@ -514,11 +514,11 @@ class Motif(rje.RJE_Object):
                     while rje.matchExp('([A-WY])',temp):
                         aa = rje.matchExp('([A-WY])',temp)[0]
                         i = temp.find(aa)
-                        temp = string.replace(temp,aa,'X',1)
-                        newvar = string.replace(base[:i] + 'X' + base[i+1:],']','] ')
+                        temp = rje.replace(temp,aa,'X',1)
+                        newvar = rje.replace(base[:i] + 'X' + base[i+1:],']','] ')
                         while rje.matchExp('(\[\S*X\S*\])',newvar):
-                            newvar = string.replace(newvar,rje.matchExp('(\[\S*X\S*\])',newvar)[0],'X')
-                        newvar = string.replace(newvar,' ','')
+                            newvar = rje.replace(newvar,rje.matchExp('(\[\S*X\S*\])',newvar)[0],'X')
+                        newvar = rje.replace(newvar,' ','')
                         while trimx and newvar[:1] == 'X':
                             newvar = newvar[1:]
                         while trimx and newvar[-1:] == 'X':
@@ -593,7 +593,7 @@ class Motif(rje.RJE_Object):
                     self.log.errorLog('Cannot convert SLiM "%s"' % self.info['Sequence'],printerror=False)
                     return False
             ### Finish ###
-            self.info['Slim'] = string.join(slim,'-')
+            self.info['Slim'] = rje.join(slim,'-')
             return self.info['Slim']
         except:
             self.log.errorLog('Problem with Motif.slimCode(%s)' % self.info['Name'])
@@ -624,9 +624,9 @@ class Motif(rje.RJE_Object):
                     aalist = element[0:]
                     if element.find('{') > 0:
                         aalist = element[:element.find('{')]    # Exclude {m,n} from aalist
-                    aalist = string.split(aalist[1:-1],sep='|')
+                    aalist = rje.split(aalist[1:-1],sep='|')
                     for aas in aalist:
-                        aax = len(aas) - string.count(aas,'X')
+                        aax = len(aas) - rje.count(aas,'X')
                         if aax > len_add:
                             len_add = aax
                         if min_add < 0 or aax < min_add:
@@ -636,13 +636,13 @@ class Motif(rje.RJE_Object):
                             fix_add = len(aas)  # These are all fixed
                 elif rje.matchExp('^(<(\D+):(\d+):(\d+)>)',element):    # "n of m" format
                     match = rje.matchExp('^<(\D+):(\d+):(\d+)>',element)
-                    len_add = string.atoi(match[1])
+                    len_add = rje.atoi(match[1])
                     min_add = len_add
-                    full_add = string.atoi(match[2])
+                    full_add = rje.atoi(match[2])
                     if len(match[0]) == 1 and match[0] != 'X':  # Fixed
-                        fix_add = string.atoi(match[1])
+                        fix_add = rje.atoi(match[1])
                 else:   # Single or ambiguity
-                    len_add = 1 - string.count(element,'X')
+                    len_add = 1 - rje.count(element,'X')
                     min_add = len_add
                     full_add = 1
                     if len(element) == 1 and element != 'X':
@@ -650,10 +650,10 @@ class Motif(rje.RJE_Object):
                 ## Multiple occurrences ##
                 nums = rje.matchExp('(\{(\d+),(\d+)\})',element)
                 if nums:
-                    len_add *= string.atoi(nums[2])
-                    min_add *= string.atoi(nums[1])
-                    full_add *= string.atoi(nums[2])
-                    fix_add *= string.atoi(nums[2])
+                    len_add *= rje.atoi(nums[2])
+                    min_add *= rje.atoi(nums[1])
+                    full_add *= rje.atoi(nums[2])
+                    fix_add *= rje.atoi(nums[2])
                 self.stat['Length'] += len_add
                 self.stat['MinLength'] += min_add
                 self.stat['FullLength'] += full_add
@@ -662,7 +662,7 @@ class Motif(rje.RJE_Object):
             #X#self.deBug(debugtxt)
 
         except:
-            self.log.errorLog('Error in Motif._calculateLength(%s)' % string.join(self.list['PRESTO'],'-'),quitchoice=True)
+            self.log.errorLog('Error in Motif._calculateLength(%s)' % rje.join(self.list['PRESTO'],'-'),quitchoice=True)
 #########################################################################################################################
     def patternStats(self):      ### Performs calculations based on basic pattern (info['Sequence'])
         '''Performs calculations based on basic pattern (info['Sequence']), adding to self.stat/info/opt.'''
@@ -672,7 +672,7 @@ class Motif(rje.RJE_Object):
         aromatic = 0
         phos = []
         ### Calculations ###
-        motseq = string.split(self.info['Sequence'].upper(),']')
+        motseq = rje.split(self.info['Sequence'].upper(),']')
         for part in motseq:
             ## Aromatic & Phos ##
             if part.find('F') >= 0 or part.find('W') >= 0 or part.find('Y') >= 0:
@@ -714,7 +714,7 @@ class Motif(rje.RJE_Object):
                       'BalChg':(sum(charge[:int(len(charge)/2)]) - sum(charge[-int(len(charge)/2):])),
                       'Aromatic':aromatic})
         self.setOpt({'AILMV':ailmv})
-        self.setInfo({'Phos':string.join(phos,'')})
+        self.setInfo({'Phos':rje.join(phos,'')})
 #########################################################################################################################
     ### <4> ### Motif Searching                                                                                         #
 #########################################################################################################################
@@ -742,7 +742,7 @@ class Motif(rje.RJE_Object):
                 for motvar in self.dict['Search'][mm]:
                     # Each motvar is a fixed length variant. The matchExp should therefore uniquely match the first
                     # occurrence of motvar in the sequence given each time, allowing one to "walk along" the sequence
-                    searchvar = string.replace(motvar,'X','[A-Z]')
+                    searchvar = rje.replace(motvar,'X','[A-Z]')
                     if searchvar[0] == '^':
                         searchvar = '^(' + searchvar[1:]
                     else:
@@ -791,10 +791,10 @@ class Motif(rje.RJE_Object):
             hitstats['ID'] = 0.0
             while self.stat['AmbCut'] > 0 and rje.matchExp('(\[[A-Z]{%d}[A-Z]*\])' % self.stat['AmbCut'],searchvar):    # AmbCut!
                 reptext = rje.matchExp('(\[[A-Z]{%d}[A-Z]*\])' % self.stat['AmbCut'],searchvar)[0]
-                searchvar = string.replace(searchvar,reptext,'[A-Z]')
+                searchvar = rje.replace(searchvar,reptext,'[A-Z]')
             ### Try each variant and calculate identity to match ###
             for variant in self.list['Variants']:
-                variant = string.strip(variant,'$^')
+                variant = rje.strip(variant,'$^')
                 ## Check possible match ##
                 if len(variant) != len(match):
                     continue
@@ -810,7 +810,7 @@ class Motif(rje.RJE_Object):
                         variant = rje.strSub(variant,r,r,'*')
                     r += 1
                 ## Assess ##
-                vlen = float(len(variant) - string.count(variant,'X'))
+                vlen = float(len(variant) - rje.count(variant,'X'))
                 if (id/vlen) > hitstats['ID']:
                     hitstats['ID'] = (id/vlen)
                     hitstats['Variant'] = variant
@@ -871,10 +871,10 @@ def expect(pattern,aafreq,aanum,seqnum,binomial=False,adjustlen=True):    ### Re
     '''
     ### Setup ###
     terminal_constraint = False
-    expvar = string.replace(pattern,')',') ')   # String to analyses
-    expvar = string.replace(expvar,'[A-Z]','X')
-    expvar = string.replace(expvar,'.','X')
-    expvar = string.replace(expvar,']','] ')
+    expvar = rje.replace(pattern,')',') ')   # String to analyses
+    expvar = rje.replace(expvar,'[A-Z]','X')
+    expvar = rje.replace(expvar,'.','X')
+    expvar = rje.replace(expvar,']','] ')
     if expvar[0] == '^' or expvar[-1] == '$':
         terminal_constraint = True
     patlen = 0          # Length of pattern for calculating possible number of positions
@@ -903,24 +903,24 @@ def expect(pattern,aafreq,aanum,seqnum,binomial=False,adjustlen=True):    ### Re
             patlen += 1
         elif expvar[0] == '(' and expvar.find(')') > 0: # Complex choice!
             csum = 0.0      # Sum prob of whole choice
-            cvar = string.split(expvar[1:expvar.find(')')],'|')     # List of different options
+            cvar = rje.split(expvar[1:expvar.find(')')],'|')     # List of different options
             for cv in cvar:
                 cvexp = 1.0 # Probability of just one portion of choice
                 while rje.matchExp('(\[(\S+)\])',cv):
                     msum = 0.0  # sum for choice within portion!
                     cvm = rje.matchExp('(\[(\S+)\])',cv)
-                    cv = string.replace(cv,cvm[0],'',1)
+                    cv = rje.replace(cv,cvm[0],'',1)
                     for m in cvm[1]:
                         msum += rje.getFromDict(aafreq,m,returnkey=False,case=True,default=0.0)   # Prob = sum of all choices
                     cvexp *= msum
-                cv = string.replace(cv,' ','')
+                cv = rje.replace(cv,' ','')
                 for c in cv:
                     cvexp *= aafreq[c]
                 csum += cvexp
             if csum < 1.0:
                 prob_per_site *= csum
             expvar = expvar[expvar.find(')')+1:]
-            patlen += float(len(string.join(cvar,'')))/len(cvar)    # Add mean length of options
+            patlen += float(len(rje.join(cvar,'')))/len(cvar)    # Add mean length of options
         else:   # Simple
             prob_per_site *= rje.getFromDict(aafreq,expvar[0],returnkey=False,case=True,default=0.0) 
             expvar = expvar[1:]
@@ -955,7 +955,7 @@ def expectString(_expect):  ### Returns formatted string for _expect value
         else:
             return '%.2e' % _expect
     except:
-        print expect
+        print(expect)
         raise
 #########################################################################################################################
 ### END OF SECTION III                                                                                                  #
@@ -988,7 +988,7 @@ def elementIC(element='',aafreq={},wild_pen=0.0,max_info=0.0,callobj=None):     
         ### Variable numbers {m,n} - always multiply by m (lowest IC) ###
         multiplier = 1
         if rje.matchExp('\{(\d+),\d+\}',element):
-            minmult = string.atoi(rje.matchExp('\{(\d+),\d+\}',element)[0])
+            minmult = rje.atoi(rje.matchExp('\{(\d+),\d+\}',element)[0])
             if minmult > 1:
                 multiplier = minmult
         ### Wildcard ###
@@ -1005,7 +1005,7 @@ def elementIC(element='',aafreq={},wild_pen=0.0,max_info=0.0,callobj=None):     
         ### Special combos ###
         if element.find('|') > 0:
             ic = 0.0
-            combo = string.split(element[1:-1],'|')
+            combo = rje.split(element[1:-1],'|')
             for el in combo:
                 for aa in el:
                     ic += elementIC(aa,aafreq,wild_pen,max_info)
@@ -1014,8 +1014,8 @@ def elementIC(element='',aafreq={},wild_pen=0.0,max_info=0.0,callobj=None):     
         ### Special n of m format ###
         elif rje.matchExp('^<(\D+):(\d+):(\d+)>',element):    # "n of m" format
             nofm = rje.matchExp('^<(\D+):(\d+):(\d+)>',element)
-            m = string.atoi(nofm[1])
-            n = string.atoi(nofm[2])
+            m = rje.atoi(nofm[1])
+            n = rje.atoi(nofm[2])
             ic = elementIC(nofm[0],aafreq,wild_pen,max_info,callobj) * m + elementIC('X',aafreq,wild_pen,max_info,callobj) * (n-m)
             return ic * multiplier
         ### Information Content ###
@@ -1025,10 +1025,10 @@ def elementIC(element='',aafreq={},wild_pen=0.0,max_info=0.0,callobj=None):     
             ic = 0.0   
             denom = 0.0     # Denominator for IC calculation
             for a in aas:
-                if aafreq.has_key(a):
+                if a in aafreq:
                     denom += aafreq[a]
             for a in aas:
-                if aafreq.has_key(a):
+                if a in aafreq:
                     ic += (aafreq[a]/denom) * math.log((aafreq[a]/denom),2)
         return multiplier * (max_info - ic) / max_info
     except:
@@ -1063,8 +1063,8 @@ def defineMotif(callobj=None,occlist=[],profile=False,minfreq=0.2,minocc=2,ambcu
         elif len(occlist) == 1:
             return occlist
         for i in range(len(occlist)):
-            occlist[i] = string.replace(occlist[i],'.','X')
-            occlist[i] = string.replace(occlist[i],'x','X')       
+            occlist[i] = rje.replace(occlist[i],'.','X')
+            occlist[i] = rje.replace(occlist[i],'x','X')       
         
         ### String Lists ###
         strlist = []
@@ -1094,7 +1094,7 @@ def defineMotif(callobj=None,occlist=[],profile=False,minfreq=0.2,minocc=2,ambcu
         lendict = {}
         for occ in strlist:
             olen = len(occ)
-            if not lendict.has_key(olen):
+            if olen not in lendict:
                 lendict[olen] = [[] for o in range(olen)]
                 #for o in range(olen):
                 #    lendict[olen].append([])
@@ -1124,7 +1124,7 @@ def defineMotif(callobj=None,occlist=[],profile=False,minfreq=0.2,minocc=2,ambcu
                     adict = {}
                     maxaa = 1
                     for aa in alist:
-                        if adict.has_key(aa):
+                        if aa in adict:
                             adict[aa] += 1
                             if adict[aa] > maxaa:
                                 maxaa = adict[aa]
@@ -1167,27 +1167,27 @@ def reformatMiniMotif(callobj=None,pattern=''): ### Reformats minimotif into sta
         ### Setup ###
         old = pattern
         if pattern[0] == '<':
-            pattern = string.replace(pattern,'<','^')
+            pattern = rje.replace(pattern,'<','^')
         else:
             pattern = '-%s' % pattern
-        pattern = string.replace(pattern,'>',' $')
-        pattern = string.replace(pattern,'?','.')
-        pattern = string.replace(pattern,'-',' -')
+        pattern = rje.replace(pattern,'>',' $')
+        pattern = rje.replace(pattern,'?','.')
+        pattern = rje.replace(pattern,'-',' -')
         while rje.matchExp('(\-(\S+) )',pattern):
             match = rje.matchExp('(\-(\S+) )',pattern)
-            if string.count(match[1],'/') > 0:
-                amb = string.replace(match[1],'/','')
-                pattern = string.replace(pattern,match[0],'[%s]' % amb)
+            if rje.count(match[1],'/') > 0:
+                amb = rje.replace(match[1],'/','')
+                pattern = rje.replace(pattern,match[0],'[%s]' % amb)
             else:
-                pattern = string.replace(pattern,match[0],match[1])
+                pattern = rje.replace(pattern,match[0],match[1])
         while rje.matchExp('(\-(\S+))$',pattern):
             match = rje.matchExp('(\-(\S+))$',pattern)
-            if string.count(match[1],'/') > 0:
-                amb = string.replace(match[1],'/','')
-                pattern = string.replace(pattern,match[0],'[%s]' % amb)
+            if rje.count(match[1],'/') > 0:
+                amb = rje.replace(match[1],'/','')
+                pattern = rje.replace(pattern,match[0],'[%s]' % amb)
             else:
-                pattern = string.replace(pattern,match[0],match[1])
-        pattern = string.replace(pattern,' ','')
+                pattern = rje.replace(pattern,match[0],match[1])
+        pattern = rje.replace(pattern,' ','')
         if callobj:
             callobj.log.printLog('\r#MOT','%s => %s' % (old,pattern))
         return pattern
@@ -1207,9 +1207,8 @@ def reformatMiniMotif(callobj=None,pattern=''): ### Reformats minimotif into sta
 #########################################################################################################################
 if __name__ == "__main__":      ### Call runMain 
     try:
-        print 'This module is not for standalone running.'
-    except:
-        print 'Cataclysmic run error:', sys.exc_info()[0]
+        rje.printf('This module is not for standalone running.')
+    except: rje.printf('Cataclysmic run error: {0}'.format(sys.exc_info()[0]))
     sys.exit()
 #########################################################################################################################
 ### END OF SECTION V                                                                                                    #
